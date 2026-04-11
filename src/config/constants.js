@@ -28,16 +28,12 @@ export function expNeeded(level) {
 }
 
 export const MAP_SCENE_KEYS = {
-  maple:   'MapleIslandScene',
-  henesys: 'HenesysScene',
-  ellinia: 'ElliniaScene',
-  perion:  'PerionScene',
+  sky:     'MapleIslandScene',
+  ruins:   'PerionScene',
   kerning: 'KerningScene',
-  town:    'TownScene',
-  boss:    'BossScene',
 };
 
-export const MAP_ORDER = ['maple', 'henesys', 'ellinia', 'perion', 'kerning'];
+export const MAP_ORDER = ['sky', 'ruins', 'kerning'];
 
 export const DEFAULT_GAME_STATE = {
   level: 1,
@@ -57,7 +53,9 @@ export const DEFAULT_GAME_STATE = {
   equipment: { weapon: null, armor: null, gloves: null, helmet: null, boots: null },
   skillCooldowns: { Z: 0, X: 0, C: 0, V: 0, B: 0 },
   unlockedSkills: ['Z'],
-  currentMap: 'maple',
+  skillLevels: { Z: 1, X: 0, C: 0, V: 0, B: 0 },
+  skillPoints: 0,
+  currentMap: 'sky',
   bossUnlocked: false,
   spawnX: 150,
 };

@@ -54,15 +54,23 @@ src/
   config/        — 常數、怪物定義、裝備定義、地圖定義
   ui/            — HUD、選單、商店介面
   engine/        — 粒子、音效、相機工具函式
-  assets/        — 程式生成材質工具（ProceduralAssets）
-dist/            — esbuild 打包輸出（不手動修改）
+  assets/        — ProceduralAssets（平台/技能/粒子/UI 材質生成）
+dist/
+  bundle.js      — esbuild 打包輸出（不手動修改）
+  assets/        — 真實圖片素材（thief.png、bg_*.png、monster_*.png）
 server/          — 預留後端（暫不實作）
 ```
 
+### 素材規範（Iteration 4 起）
+- **角色、怪物、背景**：放置於 `dist/assets/`，透過 `BootScene.preload()` + `this.load.image()` 載入
+- **平台、技能特效、粒子、UI 圖示**：仍由 `ProceduralAssets.js` 程式生成
+- **新增圖片**：先放入 `dist/assets/`，再於 `BootScene.preload()` 加上對應的 `load.image()`
+- **音效**：由 `engine/audio.js` 用 Web Audio API 合成，不使用外部音效檔
+
 ### 禁止的架構行為
 - 不混用 raw Canvas API 和 Phaser（統一用 Phaser API）
-- 不使用外部圖片/音效檔案（所有素材程式生成）
 - 不使用 CDN（所有依賴透過 npm + esbuild 打包）
+- 不直接修改 `dist/bundle.js`（由 `npm run build` 產生）
 
 ---
 
@@ -85,6 +93,10 @@ server/          — 預留後端（暫不實作）
 
 ## 📋 當前迭代狀態
 
-- **Iteration 2**：完成（index.html 單檔版，2713 行，JS SYNTAX PASS）
-- **Iteration 3 目標**：遷移至 Phaser 3 多檔案架構，實作 GAME_SPEC.md v2.0
+- **Iteration 2**：完成（index.html 單檔版，2713 行）
+- **Iteration 3**：完成（Phaser 3 多檔案架構，esbuild 打包）
+- **Iteration 4**：完成（全面換用真實圖片美術，dist/assets/ 素材庫）
+  - 3 個地圖：`sky`（浮空島嶼）→ `ruins`（古代廢墟）→ `kerning`（Kerning City）
+  - 12 種怪物圖片（monster_slime ～ monster_mimic）
+  - 角色圖：thief.png；背景圖：bg_sky / bg_ruins / bg_city
 - **舊版備份**：`index.html`（保留，不刪除）

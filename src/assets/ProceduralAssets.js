@@ -1,369 +1,165 @@
-// 程序化材質生成
-// 所有遊戲材質在此生成，無需外部圖片檔案
+// ProceduralAssets v4.0
+// 角色/怪物/背景已改用 dist/assets/ 真實圖片
+// 此檔只保留：平台、技能效果、粒子、物品掉落、UI 材質
 
 export function generateTextures(scene) {
   generatePlatforms(scene);
-  generatePlayer(scene);
-  generateMonsters(scene);
   generateSkillEffects(scene);
   generateParticles(scene);
   generateItems(scene);
-  generateBackground(scene);
   generateUI(scene);
 }
 
-function makeGraphics(scene) {
-  return scene.add.graphics();
+const g_ = (scene) => scene.add.graphics();
+
+function R(g, x, y, w, h, c, a=1) {
+  g.fillStyle(c, a); g.fillRect(x,y,w,h);
+}
+function B(g, x, y, w, h, c) {
+  g.fillStyle(0x111111); g.fillRect(x-1,y-1,w+2,h+2);
+  g.fillStyle(c);        g.fillRect(x,y,w,h);
 }
 
 // ── 平台 ──────────────────────────────────────────────────────────────────────
 function generatePlatforms(scene) {
-  const configs = [
-    { key: 'platform-grass',  top: 0x5aad32, mid: 0x4e9428, bot: 0x6b4226 },
-    { key: 'platform-stone',  top: 0x8a8a8a, mid: 0x6e6e6e, bot: 0x555555 },
-    { key: 'platform-brick',  top: 0xcc5533, mid: 0xaa4422, bot: 0x883311 },
-    { key: 'platform-wood',   top: 0xc8a46e, mid: 0xb08d55, bot: 0x886633 },
+  const cfgs = [
+    { key:'platform-grass', top:0x55cc33, mid:0x3d7722, bot:0x7a5230, det:'grass' },
+    { key:'platform-stone', top:0xaaaaaa, mid:0x777788, bot:0x44445a, det:'stone' },
+    { key:'platform-brick', top:0xdd5533, mid:0xbb3311, bot:0x882200, det:'brick' },
+    { key:'platform-wood',  top:0xddbb66, mid:0xbb9933, bot:0x886611, det:'wood'  },
   ];
-  const W = 128, H = 24;
-  for (const cfg of configs) {
-    const g = makeGraphics(scene);
-    g.fillStyle(cfg.mid);
-    g.fillRect(0, 0, W, H);
-    g.fillStyle(cfg.top);
-    g.fillRect(0, 0, W, 6);
-    g.fillStyle(cfg.bot);
-    g.fillRect(0, H - 6, W, 6);
-    // 磚塊紋理
-    if (cfg.key === 'platform-brick') {
-      g.fillStyle(0x773322, 0.5);
-      for (let bx = 0; bx < W; bx += 32) {
-        g.fillRect(bx, 8, 1, 8);
-      }
-      for (let bx = 16; bx < W; bx += 32) {
-        g.fillRect(bx, 18, 1, 4);
-      }
+  const W=128, H=24;
+  cfgs.forEach(({key,top,mid,bot,det})=>{
+    const g=g_(scene);
+    R(g,0,0,W,H,mid);
+    R(g,0,0,W,8,top);
+    R(g,0,H-5,W,5,bot);
+    R(g,0,0,W,3,0xffffff,0.18);
+    if(det==='brick'){
+      R(g,0,8,W,1,0x000000,0.3);
+      for(let bx=0;bx<W;bx+=32){ R(g,bx,8,1,H-8,0x000000,0.25); }
+      for(let bx=16;bx<W;bx+=32){ R(g,bx,16,1,H-16,0x000000,0.25); }
+    } else if(det==='stone'){
+      for(let bx=0;bx<W;bx+=24){ R(g,bx,8,1,H-8,0x000000,0.2); }
+    } else if(det==='grass'){
+      R(g,0,0,W,5,0x55cc33);
+      for(let gx=2;gx<W;gx+=8){ R(g,gx,0,5,4,0x88ee44); }
+    } else if(det==='wood'){
+      for(let bx=0;bx<W;bx+=16){ R(g,bx,5,1,H-5,0x000000,0.15); }
     }
-    g.generateTexture(cfg.key, W, H);
-    g.destroy();
-  }
-}
-
-// ── 玩家 ──────────────────────────────────────────────────────────────────────
-function generatePlayer(scene) {
-  const drawThief = (g, bodyColor, accentColor) => {
-    const W = 32, H = 48;
-    // 腿
-    g.fillStyle(0x222266);
-    g.fillRect(8, 32, 7, 16);
-    g.fillRect(17, 32, 7, 16);
-    // 軀幹
-    g.fillStyle(bodyColor);
-    g.fillRect(6, 16, 20, 18);
-    // 披風
-    g.fillStyle(accentColor, 0.8);
-    g.fillRect(4, 16, 4, 20);
-    // 頭
-    g.fillStyle(0xffcc99);
-    g.fillRect(9, 4, 14, 13);
-    // 頭巾
-    g.fillStyle(accentColor);
-    g.fillRect(7, 2, 18, 6);
-    // 眼睛
-    g.fillStyle(0x000000);
-    g.fillRect(12, 9, 3, 3);
-    g.fillRect(17, 9, 3, 3);
-    // 手臂
-    g.fillStyle(bodyColor);
-    g.fillRect(1, 17, 6, 10);
-    g.fillRect(25, 17, 6, 10);
-    // 鞋子
-    g.fillStyle(0x444444);
-    g.fillRect(7, 44, 9, 4);
-    g.fillRect(16, 44, 9, 4);
-  };
-
-  // idle
-  let g = makeGraphics(scene);
-  drawThief(g, 0x334477, 0x7722cc);
-  g.generateTexture('player-idle', 32, 48);
-  g.destroy();
-
-  // walk (略微不同姿態)
-  g = makeGraphics(scene);
-  drawThief(g, 0x334477, 0x7722cc);
-  g.fillStyle(0x222266);
-  g.fillRect(8, 32, 7, 14);
-  g.fillRect(17, 36, 7, 12);
-  g.generateTexture('player-walk', 32, 48);
-  g.destroy();
-
-  // jump
-  g = makeGraphics(scene);
-  drawThief(g, 0x334477, 0x7722cc);
-  g.fillStyle(0x222266);
-  g.fillRect(6, 30, 8, 14);
-  g.fillRect(18, 30, 8, 14);
-  g.generateTexture('player-jump', 32, 48);
-  g.destroy();
-
-  // attack
-  g = makeGraphics(scene);
-  drawThief(g, 0x334477, 0x7722cc);
-  g.fillStyle(0x334477);
-  g.fillRect(25, 14, 8, 8);
-  g.generateTexture('player-attack', 32, 48);
-  g.destroy();
-}
-
-// ── 怪物 ──────────────────────────────────────────────────────────────────────
-function generateMonsters(scene) {
-  // 蝸牛
-  drawMonster(scene, 'monster-snail', (g) => {
-    g.fillStyle(0xffaa44); g.fillEllipse(16, 22, 28, 16);  // 身體
-    g.fillStyle(0xff6622); g.fillEllipse(22, 14, 18, 18);  // 殼
-    g.fillStyle(0xffcc66); g.fillRect(4, 24, 6, 6);        // 觸角
+    R(g,0,H-3,W,3,0x000000,0.3);
+    g.generateTexture(key,W,H); g.destroy();
   });
-
-  // 蘑菇
-  drawMonster(scene, 'monster-mushroom', (g) => {
-    g.fillStyle(0xcc3322); g.fillEllipse(16, 12, 28, 20);  // 帽子
-    g.fillStyle(0xffffff); g.fillRect(7, 18, 5, 4); g.fillRect(18, 18, 5, 4); // 點
-    g.fillStyle(0xffe0cc); g.fillRect(10, 20, 12, 12);     // 臉
-    g.fillStyle(0x000000); g.fillRect(12, 22, 3, 3); g.fillRect(17, 22, 3, 3); // 眼
-  });
-
-  // 史萊姆
-  drawMonster(scene, 'monster-slime', (g) => {
-    g.fillStyle(0x44aaff); g.fillEllipse(16, 20, 28, 22);
-    g.fillStyle(0x2288dd); g.fillEllipse(16, 22, 24, 14);
-    g.fillStyle(0xffffff); g.fillEllipse(11, 15, 6, 7); g.fillEllipse(21, 15, 6, 7);
-    g.fillStyle(0x000000); g.fillEllipse(12, 16, 3, 4); g.fillEllipse(22, 16, 3, 4);
-  });
-
-  // 野豬
-  drawMonster(scene, 'monster-pig', (g) => {
-    g.fillStyle(0xff99bb); g.fillEllipse(16, 22, 28, 20);
-    g.fillStyle(0xff6688); g.fillRect(4, 20, 8, 6);   // 嘴
-    g.fillStyle(0x000000); g.fillRect(10, 16, 4, 4); g.fillRect(18, 16, 4, 4);
-    g.fillStyle(0xff99bb); g.fillRect(6, 28, 5, 6); g.fillRect(11, 28, 5, 6);
-    g.fillRect(16, 28, 5, 6); g.fillRect(21, 28, 5, 6);
-  });
-
-  // 樹樁怪
-  drawMonster(scene, 'monster-stump', (g) => {
-    g.fillStyle(0x8b4513); g.fillRect(6, 10, 20, 22);
-    g.fillStyle(0x5a2d0c); g.fillRect(4, 8, 24, 6);   // 頂部
-    g.fillStyle(0x228b22); g.fillEllipse(16, 6, 30, 14); // 葉子
-    g.fillStyle(0xffcc66); g.fillRect(9, 16, 5, 5); g.fillRect(18, 16, 5, 5);
-    g.fillStyle(0x000000); g.fillRect(10, 17, 3, 3); g.fillRect(19, 17, 3, 3);
-  });
-
-  // 野豬獸 (較大)
-  drawMonster(scene, 'monster-boar', (g) => {
-    g.fillStyle(0x886644); g.fillEllipse(16, 20, 30, 22);
-    g.fillStyle(0x664422); g.fillEllipse(8, 20, 12, 10);  // 口鼻
-    g.fillStyle(0xffffff); g.fillRect(4, 15, 5, 8);        // 牙
-    g.fillStyle(0x000000); g.fillRect(11, 14, 5, 5); g.fillRect(19, 14, 5, 5);
-    g.fillStyle(0x886644); g.fillRect(5, 28, 6, 5); g.fillRect(21, 28, 6, 5);
-  });
-
-  // 石頭精
-  drawMonster(scene, 'monster-golem', (g) => {
-    g.fillStyle(0x888888); g.fillRect(4, 8, 24, 24);
-    g.fillStyle(0xaaaaaa); g.fillRect(4, 8, 24, 4);
-    g.fillStyle(0xff4400); g.fillRect(8, 14, 5, 5); g.fillRect(19, 14, 5, 5); // 眼
-    g.fillStyle(0x666666); g.fillRect(10, 22, 12, 4); // 嘴縫
-    g.fillStyle(0x777777); g.fillRect(2, 12, 4, 16); g.fillRect(26, 12, 4, 16); // 臂
-  });
-
-  // 殭屍蘑菇
-  drawMonster(scene, 'monster-zombie', (g) => {
-    g.fillStyle(0x556633); g.fillEllipse(16, 12, 28, 20);
-    g.fillStyle(0x334422); g.fillRect(7, 18, 5, 4); g.fillRect(18, 18, 5, 4);
-    g.fillStyle(0xaabb88); g.fillRect(10, 20, 12, 12);
-    g.fillStyle(0xff0000); g.fillRect(12, 22, 3, 3); g.fillRect(17, 22, 3, 3);
-    g.fillStyle(0x556633); g.fillRect(8, 30, 5, 3); // 傷疤
-  });
-
-  // 哥布林弓手
-  drawMonster(scene, 'monster-goblin', (g) => {
-    g.fillStyle(0x44aa44); g.fillRect(10, 16, 12, 16);
-    g.fillStyle(0x66cc66); g.fillEllipse(16, 12, 16, 16);
-    g.fillStyle(0xffff00); g.fillRect(11, 9, 4, 5); g.fillRect(17, 9, 4, 5); // 耳朵
-    g.fillStyle(0x000000); g.fillRect(12, 11, 3, 3); g.fillRect(17, 11, 3, 3);
-    g.fillStyle(0x886633); g.fillRect(22, 12, 3, 18); // 弓
-  });
-
-  // Boss
-  drawMonster(scene, 'monster-boss', (g) => {
-    g.fillStyle(0x220033); g.fillRect(2, 4, 28, 28);
-    g.fillStyle(0x440066); g.fillEllipse(16, 10, 28, 16);
-    g.fillStyle(0xff0066); g.fillRect(6, 12, 7, 7); g.fillRect(19, 12, 7, 7);
-    g.fillStyle(0x660099); g.fillRect(0, 8, 4, 20); g.fillRect(28, 8, 4, 20);
-    g.fillStyle(0xaa00ff, 0.7); g.fillRect(8, 22, 16, 3);
-  });
-}
-
-function drawMonster(scene, key, drawFn) {
-  const g = makeGraphics(scene);
-  drawFn(g);
-  g.generateTexture(key, 32, 32);
-  g.destroy();
 }
 
 // ── 技能效果 ──────────────────────────────────────────────────────────────────
-function generateSkillEffects(scene) {
+function generateSkillEffects(scene){
   // 手裏劍
-  let g = makeGraphics(scene);
-  g.fillStyle(0xccccff);
-  g.fillRect(6, 6, 4, 4);
-  g.fillStyle(0xffffff);
-  // 尖刺
-  g.fillTriangle(8, 0, 16, 8, 8, 8);
-  g.fillTriangle(8, 8, 16, 8, 8, 16);
-  g.fillTriangle(0, 8, 8, 0, 8, 8);
-  g.fillTriangle(0, 8, 8, 8, 8, 16);
-  g.fillStyle(0xaaaaff);
-  g.fillRect(6, 6, 4, 4);
-  g.generateTexture('skill-shuriken', 16, 16);
-  g.destroy();
+  let g=g_(scene);
+  R(g,9,0,2,20,0x111122); R(g,0,9,20,2,0x111122);
+  R(g,9,1,2,18,0xccccdd); R(g,1,9,18,2,0xccccdd);
+  R(g,0,0,10,10,0x111122,0.7); R(g,10,10,10,10,0x111122,0.7);
+  R(g,7,7,6,6,0xffee55);
+  g.fillStyle(0xffffff,0.8); g.fillRect(7,7,3,3);
+  g.generateTexture('skill-shuriken',20,20); g.destroy();
 
-  // 能量球
-  g = makeGraphics(scene);
-  g.fillStyle(0xaa44ff);
-  g.fillCircle(6, 6, 6);
-  g.fillStyle(0xdd88ff, 0.6);
-  g.fillCircle(4, 4, 3);
-  g.generateTexture('skill-orb', 12, 12);
-  g.destroy();
+  // 能量球（暗紫）
+  g=g_(scene);
+  g.fillStyle(0x110022); g.fillCircle(8,8,8);
+  g.fillStyle(0x6611cc); g.fillCircle(8,8,6);
+  g.fillStyle(0xaa44ff); g.fillCircle(8,8,4);
+  g.fillStyle(0xddaaff,0.8); g.fillCircle(6,6,2);
+  g.generateTexture('skill-orb',16,16); g.destroy();
 
   // 分身
-  g = makeGraphics(scene);
-  g.fillStyle(0x442288, 0.7);
-  g.fillRect(6, 16, 20, 18);
-  g.fillRect(9, 4, 14, 13);
-  g.fillRect(1, 17, 6, 10);
-  g.fillRect(25, 17, 6, 10);
-  g.fillRect(8, 32, 7, 16);
-  g.fillRect(17, 32, 7, 16);
-  g.generateTexture('skill-clone', 32, 48);
-  g.destroy();
+  g=g_(scene);
+  g.fillStyle(0x7700bb,0.85);
+  g.fillRect(8,22,24,16); g.fillRect(8,3,24,21);
+  g.fillRect(0,22,9,13); g.fillRect(31,22,9,13);
+  g.fillRect(10,36,10,18); g.fillRect(20,36,10,18);
+  g.fillStyle(0xcc55ff,0.5); g.fillRect(10,5,20,15); g.fillRect(9,23,22,6);
+  g.generateTexture('skill-clone',40,56); g.destroy();
+
+  // 暗影殘影
+  g=g_(scene);
+  R(g,0,4,44,12,0x330066,0.9); R(g,2,5,40,10,0x8833ff,0.7);
+  R(g,4,6,36,8,0xcc88ff,0.5); R(g,6,7,32,4,0xffffff,0.25);
+  g.generateTexture('skill-dash-trail',44,20); g.destroy();
+
+  // 扇形斬
+  g=g_(scene);
+  g.fillStyle(0xaa00ff,0.9); g.fillTriangle(0,16,32,0,32,32);
+  g.fillStyle(0xdd66ff,0.7); g.fillTriangle(4,16,32,4,32,28);
+  g.fillStyle(0xffffff,0.4); g.fillTriangle(8,16,32,8,32,24);
+  g.generateTexture('skill-slash',32,32); g.destroy();
 }
 
 // ── 粒子 ──────────────────────────────────────────────────────────────────────
-function generateParticles(scene) {
-  let g = makeGraphics(scene);
-  g.fillStyle(0xffffff);
-  g.fillRect(0, 0, 4, 4);
-  g.generateTexture('particle-dot', 4, 4);
-  g.destroy();
+function generateParticles(scene){
+  let g=g_(scene);
+  g.fillStyle(0xffffff); g.fillCircle(4,4,4);
+  g.generateTexture('particle-dot',8,8); g.destroy();
 
-  g = makeGraphics(scene);
-  g.fillStyle(0xffff88);
-  g.fillTriangle(4, 0, 8, 4, 4, 8);
-  g.fillTriangle(0, 4, 4, 0, 4, 4);
-  g.fillTriangle(4, 8, 8, 4, 4, 4);
-  g.fillTriangle(0, 4, 4, 4, 4, 8);
-  g.generateTexture('particle-star', 8, 8);
-  g.destroy();
+  g=g_(scene);
+  g.fillStyle(0xffee44);
+  g.fillTriangle(5,0,10,5,5,10); g.fillTriangle(0,5,5,0,5,5);
+  g.fillTriangle(5,10,10,5,5,5); g.fillTriangle(0,5,5,5,5,10);
+  g.generateTexture('particle-star',10,10); g.destroy();
 }
 
 // ── 物品 ──────────────────────────────────────────────────────────────────────
-function generateItems(scene) {
-  // 金幣
-  let g = makeGraphics(scene);
-  g.fillStyle(0xffcc00);
-  g.fillCircle(6, 6, 6);
-  g.fillStyle(0xffee88, 0.6);
-  g.fillCircle(4, 4, 3);
-  g.generateTexture('item-meso', 12, 12);
-  g.destroy();
+function generateItems(scene){
+  let g=g_(scene);
+  g.fillStyle(0x997700); g.fillCircle(8,8,8);
+  g.fillStyle(0xffcc00); g.fillCircle(8,8,6);
+  g.fillStyle(0xffee88); g.fillCircle(6,6,3);
+  g.generateTexture('item-meso',16,16); g.destroy();
 
-  // HP藥水 (紅)
-  g = makeGraphics(scene);
-  g.fillStyle(0xff4444); g.fillRect(2, 4, 8, 10);
-  g.fillStyle(0xff8888); g.fillRect(3, 3, 6, 2);
-  g.fillStyle(0xcccccc); g.fillRect(4, 1, 4, 3);
-  g.fillStyle(0xff9999, 0.5); g.fillRect(4, 6, 2, 5);
-  g.generateTexture('item-hp-potion', 12, 16);
-  g.destroy();
+  g=g_(scene);
+  R(g,2,3,10,12,0x111111); R(g,3,4,8,10,0xcc2222);
+  R(g,4,5,3,7,0xff7777); R(g,4,1,6,4,0x888888); R(g,5,1,4,2,0xaaaaaa);
+  g.generateTexture('item-hp-potion',14,16); g.destroy();
 
-  // MP藥水 (藍)
-  g = makeGraphics(scene);
-  g.fillStyle(0x4444ff); g.fillRect(2, 4, 8, 10);
-  g.fillStyle(0x8888ff); g.fillRect(3, 3, 6, 2);
-  g.fillStyle(0xcccccc); g.fillRect(4, 1, 4, 3);
-  g.fillStyle(0x9999ff, 0.5); g.fillRect(4, 6, 2, 5);
-  g.generateTexture('item-mp-potion', 12, 16);
-  g.destroy();
+  g=g_(scene);
+  R(g,2,3,10,12,0x111111); R(g,3,4,8,10,0x2222cc);
+  R(g,4,5,3,7,0x7777ff); R(g,4,1,6,4,0x888888); R(g,5,1,4,2,0xaaaaaa);
+  g.generateTexture('item-mp-potion',14,16); g.destroy();
 
-  // 裝備圖示 (16×16)
-  const equipDefs = [
-    { key: 'item-weapon',  fn: (g) => { g.fillStyle(0xcccccc); g.fillRect(4,2,3,12); g.fillRect(2,10,8,3); g.fillStyle(0xffcc44); g.fillRect(5,1,2,4); } },
-    { key: 'item-armor',   fn: (g) => { g.fillStyle(0x4466aa); g.fillRect(3,2,10,12); g.fillRect(1,2,3,8); g.fillRect(12,2,3,8); g.fillStyle(0x88aadd); g.fillRect(5,3,6,4); } },
-    { key: 'item-gloves',  fn: (g) => { g.fillStyle(0x886622); g.fillRect(3,4,10,10); g.fillRect(2,2,3,5); g.fillRect(5,2,3,5); g.fillRect(8,2,3,5); g.fillRect(11,2,3,5); } },
-    { key: 'item-helmet',  fn: (g) => { g.fillStyle(0x6677aa); g.fillEllipse(8,7,14,12); g.fillRect(2,10,12,4); g.fillStyle(0x9999cc); g.fillEllipse(8,5,8,6); } },
-    { key: 'item-boots',   fn: (g) => { g.fillStyle(0x664422); g.fillRect(4,2,8,10); g.fillRect(2,10,10,4); g.fillStyle(0x886644); g.fillRect(5,3,3,6); } },
+  const eqs=[
+    {key:'item-weapon', fn:g=>{ R(g,5,0,5,14,0x444455); R(g,5,0,5,12,0xcccccc); R(g,2,9,12,4,0x999999); R(g,6,0,3,6,0xffcc33); R(g,6,1,1,4,0xffffff,0.5); }},
+    {key:'item-armor',  fn:g=>{ R(g,3,2,10,12,0x113388); R(g,1,2,3,9,0x2244aa); R(g,12,2,3,9,0x2244aa); R(g,5,3,6,5,0x4488cc); R(g,6,4,4,3,0x99ccff,0.5); }},
+    {key:'item-gloves', fn:g=>{ R(g,3,5,10,9,0x664411); for(let i=0;i<4;i++) R(g,2+i*3,2,3,7,0x7a4d1c); }},
+    {key:'item-helmet', fn:g=>{ g.fillStyle(0x334466); g.fillEllipse(8,7,14,12); R(g,2,10,12,4,0x3355aa); g.fillStyle(0x7799cc); g.fillEllipse(8,5,8,6); }},
+    {key:'item-boots',  fn:g=>{ R(g,4,2,8,10,0x553311); R(g,2,10,11,4,0x442211); R(g,5,3,3,7,0x886644); }},
   ];
-  for (const { key, fn } of equipDefs) {
-    const g = makeGraphics(scene);
-    fn(g);
-    g.generateTexture(key, 16, 16);
-    g.destroy();
-  }
+  eqs.forEach(({key,fn})=>{ const g=g_(scene); fn(g); g.generateTexture(key,16,16); g.destroy(); });
 }
 
-// ── 背景元素 ──────────────────────────────────────────────────────────────────
-function generateBackground(scene) {
-  // 雲
-  let g = makeGraphics(scene);
-  g.fillStyle(0xffffff, 0.9);
-  g.fillEllipse(32, 20, 40, 22);
-  g.fillEllipse(20, 24, 30, 18);
-  g.fillEllipse(46, 24, 30, 18);
-  g.generateTexture('bg-cloud', 64, 32);
-  g.destroy();
-
-  // 樹
-  g = makeGraphics(scene);
-  g.fillStyle(0x228b22); g.fillTriangle(24, 0, 48, 36, 0, 36);
-  g.fillStyle(0x1a6b1a); g.fillTriangle(24, 8, 46, 42, 2, 42);
-  g.fillStyle(0x8b4513); g.fillRect(20, 40, 8, 24);
-  g.generateTexture('bg-tree', 48, 64);
-  g.destroy();
-
-  // 山
-  g = makeGraphics(scene);
-  g.fillStyle(0x7788aa); g.fillTriangle(64, 0, 128, 80, 0, 80);
-  g.fillStyle(0x8899bb); g.fillTriangle(64, 8, 120, 80, 8, 80);
-  g.fillStyle(0xffffff); g.fillTriangle(64, 0, 80, 24, 48, 24);
-  g.generateTexture('bg-mountain', 128, 80);
-  g.destroy();
-}
-
-// ── UI元素 ──────────────────────────────────────────────────────────────────
-function generateUI(scene) {
-  // NPC商人
-  let g = makeGraphics(scene);
-  g.fillStyle(0xffcc99); g.fillRect(9, 4, 14, 14);
-  g.fillStyle(0xee6622); g.fillRect(7, 2, 18, 6);
-  g.fillStyle(0x3355aa); g.fillRect(6, 18, 20, 18);
-  g.fillStyle(0xffcc99); g.fillRect(1, 18, 6, 10); g.fillRect(25, 18, 6, 10);
-  g.fillStyle(0x223399); g.fillRect(7, 34, 8, 14); g.fillRect(17, 34, 8, 14);
-  g.fillStyle(0x000000); g.fillRect(12, 9, 3, 3); g.fillRect(17, 9, 3, 3);
-  g.fillStyle(0xffcc00); g.fillEllipse(16, 46, 12, 5);
-  g.generateTexture('npc-shop', 32, 48);
-  g.destroy();
+// ── UI ──────────────────────────────────────────────────────────────────────
+function generateUI(scene){
+  // 商人 NPC
+  let g=g_(scene);
+  B(g,7,36,8,16,0x224499); B(g,17,36,8,16,0x224499);
+  B(g,4,18,24,20,0x3366aa); R(g,5,19,22,8,0x4477bb);
+  B(g,7,3,18,16,0xffcc99); R(g,8,4,16,8,0xffe0bb);
+  B(g,5,1,22,7,0x994411); R(g,6,1,20,3,0xbb5522);
+  g.fillStyle(0x111111); g.fillRect(9,9,4,4); g.fillRect(19,9,4,4);
+  g.fillStyle(0xffffff); g.fillRect(10,9,2,2); g.fillRect(20,9,2,2);
+  R(g,12,15,8,2,0xcc7755);
+  B(g,0,18,6,13,0xffcc99); B(g,26,18,6,13,0xffcc99);
+  g.fillStyle(0xffcc00); g.fillCircle(16,50,5);
+  g.fillStyle(0xffee88); g.fillCircle(15,49,2);
+  g.generateTexture('npc-shop',32,52); g.destroy();
 
   // 傳送門
-  g = makeGraphics(scene);
-  g.fillStyle(0x4400aa, 0.8); g.fillRect(0, 0, 40, 72);
-  g.fillStyle(0x8844ff, 0.9); g.fillRect(4, 0, 32, 72);
-  g.fillStyle(0xaa66ff); g.fillRect(8, 0, 24, 72);
-  g.fillStyle(0xddaaff, 0.5); g.fillRect(14, 0, 12, 72);
-  // 邊框閃光
-  g.lineStyle(2, 0xcc88ff);
-  g.strokeRect(2, 2, 36, 68);
-  g.generateTexture('portal', 40, 72);
-  g.destroy();
+  g=g_(scene);
+  R(g,0,0,44,78,0x110022,0.95);
+  R(g,4,0,36,78,0x550099,0.9);
+  R(g,8,0,28,78,0x9933ff,0.85);
+  R(g,13,0,18,78,0xcc77ff,0.65);
+  R(g,18,0,8,78,0xeeccff,0.3);
+  g.lineStyle(2,0xdd88ff,0.9); g.strokeRect(2,2,40,74);
+  g.fillStyle(0xffffff,0.55); g.fillEllipse(22,5,28,12);
+  g.fillStyle(0xeeddff,0.4); g.fillEllipse(22,5,20,8);
+  g.generateTexture('portal',44,78); g.destroy();
 }

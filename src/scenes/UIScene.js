@@ -35,9 +35,10 @@ export class UIScene extends Phaser.Scene {
     // ── 右上角資訊 ─────────────────────────────────────────────────────────────
     const infoX = this.cameras.main.width - 16;
     this._levelText  = this.add.text(infoX, 16,  'Lv.1',  this._infoStyle()).setOrigin(1, 0).setDepth(51);
-    this._mesoText   = this.add.text(infoX, 40,  '💰 0',  this._infoStyle()).setOrigin(1, 0).setDepth(51);
-    this._killText   = this.add.text(infoX, 64,  '💀 0',  this._infoStyle()).setOrigin(1, 0).setDepth(51);
-    this._mapText    = this.add.text(infoX, 88,  '',      this._smallStyle()).setOrigin(1, 0).setDepth(51);
+    this._spText     = this.add.text(infoX, 40,  'SP: 0', { fontSize:'14px', color:'#88ffcc', fontFamily:'Arial', stroke:'#000', strokeThickness:3 }).setOrigin(1,0).setDepth(51);
+    this._mesoText   = this.add.text(infoX, 62,  '💰 0',  this._infoStyle()).setOrigin(1, 0).setDepth(51);
+    this._killText   = this.add.text(infoX, 86,  '💀 0',  this._infoStyle()).setOrigin(1, 0).setDepth(51);
+    this._mapText    = this.add.text(infoX, 110, '',      this._smallStyle()).setOrigin(1, 0).setDepth(51);
 
     // ── 技能快捷列 ────────────────────────────────────────────────────────────
     this._skillSlots = {};
@@ -55,6 +56,7 @@ export class UIScene extends Phaser.Scene {
     this.registry.events.on('changedata-levelup',   this._onLevelUp,         this);
     this.registry.events.on('changedata-meso',      this._onMesoChange,      this);
     this.registry.events.on('changedata-killcount', this._onKillChange,      this);
+    this.registry.events.on('changedata-sp',        this._onSpChange,        this);
 
     // 定期全量刷新（冷卻條等）
     this.time.addEvent({ delay: 100, loop: true, callback: this._refreshCooldowns, callbackScope: this });
@@ -147,6 +149,7 @@ export class UIScene extends Phaser.Scene {
     this._hpNum.setText(`${Math.ceil(gs.hp)}/${gs.maxHp}`);
     this._mpNum.setText(`${Math.ceil(gs.mp)}/${gs.maxMp}`);
     this._levelText.setText(`Lv.${gs.level}`);
+    this._spText.setText(`SP: ${gs.skillPoints || 0}`);
     this._mesoText.setText(`💰 ${gs.meso}`);
     this._killText.setText(`💀 ${gs.killCount}`);
   }
@@ -179,6 +182,14 @@ export class UIScene extends Phaser.Scene {
 
   _onLevelChange(parent, value) {
     this._levelText.setText(`Lv.${value}`);
+    const gs = this.registry.get('gameState');
+    if (gs) this._spText.setText(`SP: ${gs.skillPoints || 0}`);
+  }
+
+  _onSpChange(parent, value) {
+    this._spText.setText(`SP: ${value}`);
+    if (value > 0) this._spText.setStyle({ fontSize:'14px', color:'#ffff44', fontFamily:'Arial', stroke:'#000', strokeThickness:3 });
+    else this._spText.setStyle({ fontSize:'14px', color:'#88ffcc', fontFamily:'Arial', stroke:'#000', strokeThickness:3 });
   }
 
   _onLevelUp(parent, level) {

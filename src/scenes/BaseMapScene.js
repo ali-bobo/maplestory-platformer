@@ -6,6 +6,8 @@ import { Player } from '../entities/Player.js';
 import { Monster } from '../entities/Monster.js';
 import { audio } from '../engine/audio.js';
 
+const GROUND_Y = 672;
+
 export class BaseMapScene extends Phaser.Scene {
   constructor(key, mapKey) {
     super({ key });
@@ -17,240 +19,268 @@ export class BaseMapScene extends Phaser.Scene {
     this.monsters = null;
     this.pickups = null;
     this.portals = null;
+    this._npcDialog = null;
   }
 
   init(data) {
     if (data && data.gameState) {
       this.registry.set('gameState', data.gameState);
     }
-    if (data && data.spawnX !== undefined) {
-      this._spawnX = data.spawnX;
-    } else {
-      this._spawnX = null;
-    }
+    this._spawnX = (data && data.spawnX !== undefined) ? data.spawnX : null;
   }
 
   create() {
     this.mapData = MAPS[this.mapKey];
-    if (!this.mapData) {
-      console.error(`地圖資料未找到: ${this.mapKey}`);
-      return;
-    }
+    if (!this.mapData) { console.error(`地圖資料未找到: ${this.mapKey}`); return; }
 
     const gs = this.registry.get('gameState');
     gs.currentMap = this.mapKey;
     this.registry.set('gameState', gs);
 
-    // 世界邊界
     this.physics.world.setBounds(0, 0, this.mapData.width, WORLD_HEIGHT);
     this.cameras.main.setBounds(0, 0, this.mapData.width, WORLD_HEIGHT);
 
-    // 背景
     this._createBackground();
-
-    // 平台（分薄/厚）
     this._createPlatforms();
 
-    // 玩家
     const spawnX = this._spawnX !== null ? this._spawnX : (this.mapData.spawnX || 150);
     this.player = new Player(this, spawnX, 620, gs);
-
-    // 相機跟隨
     this.cameras.main.startFollow(this.player, true, 0.1, 0.1);
-    this.cameras.main.setZoom(1);
 
-    // 怪物
     this.monsters = this.add.group();
-    this.pickups = this.physics.add.group();
+    this.pickups  = this.physics.add.group();
     this._spawnMonsters();
+    this.player.enemies = this.monsters;
 
-    // 傳送門
     this.portals = this.physics.add.staticGroup();
     this._createPortals();
-
-    // NPC
     this._createNPCs();
-
-    // 物理碰撞
     this._setupColliders();
 
-    // UIScene（若尚未啟動則啟動）
     if (!this.scene.isActive('UIScene')) {
       this.scene.launch('UIScene');
     } else {
       this.scene.wake('UIScene');
     }
 
-    // 音樂
     audio.playBgm(this.mapKey);
-
-    // 監聽怪物死亡
     this.events.on('monster-died', this._onMonsterDied, this);
-
-    // 播放時間追蹤
     this._playTimeAccum = 0;
+
+    // ESC 關閉 NPC 對話
+    this.input.keyboard.on('keydown-ESC', () => { this._closeNpcDialog(); });
   }
 
+  // ── 背景（使用真實圖片 tileSprite） ──────────────────────────────────────
   _createBackground() {
-    const { width } = this.mapData;
-    const bgColor = this.mapData.bgColor || 0x87ceeb;
+    const { bgColor, bgImage } = this.mapData;
+    const SCREEN_W = 1280, SCREEN_H = 720;
 
-    // 天空
+    // 底色（防止圖片邊緣露白）
     const sky = this.add.graphics();
-    sky.fillStyle(bgColor);
-    sky.fillRect(0, 0, width, WORLD_HEIGHT);
-    sky.setDepth(-10);
-    sky.setScrollFactor(0.0);
+    sky.fillStyle(bgColor || 0x5588ff);
+    sky.fillRect(0, 0, SCREEN_W, SCREEN_H);
+    sky.setDepth(-10).setScrollFactor(0.0);
 
-    const bgType = this.mapData.bgType || 'forest';
+    if (bgImage && this.textures.exists(bgImage)) {
+      const tex = this.textures.get(bgImage);
+      const imgH = tex.getSourceImage().height;
 
-    // 遠景山脈（視差 0.1）
-    if (bgType !== 'dungeon' && bgType !== 'boss') {
-      for (let i = 0; i < Math.ceil(width / 300) + 2; i++) {
-        const mountain = this.add.image(i * 300 + 64, 480, 'bg-mountain');
-        mountain.setScrollFactor(0.1).setDepth(-9).setAlpha(0.6);
-      }
-    }
+      // tileSprite 固定在畫面正中，不隨相機移動（scrollFactor 0）
+      const bg = this.add.tileSprite(SCREEN_W / 2, SCREEN_H / 2, SCREEN_W, SCREEN_H, bgImage);
+      bg.setScrollFactor(0).setDepth(-9);
 
-    // 中景樹木（視差 0.3）
-    if (bgType === 'forest' || bgType === 'dark_forest') {
-      const treeCount = Math.ceil(width / 120) + 2;
-      for (let i = 0; i < treeCount; i++) {
-        const tree = this.add.image(i * 120 + 24, WORLD_HEIGHT - 64, 'bg-tree');
-        tree.setScrollFactor(0.3).setDepth(-8).setAlpha(0.7);
-        if (bgType === 'dark_forest') tree.setTint(0x224422);
-      }
-    }
+      // 縱向等比縮放填滿螢幕
+      const sc = SCREEN_H / imgH;
+      bg.setTileScale(sc, sc);
 
-    // 雲朵（視差 0.2）
-    if (bgType !== 'dungeon' && bgType !== 'boss') {
-      for (let i = 0; i < Math.ceil(width / 300) + 2; i++) {
-        const cloud = this.add.image(i * 300 + Math.random() * 100, 80 + Math.random() * 100, 'bg-cloud');
-        cloud.setScrollFactor(0.2).setDepth(-7).setAlpha(0.8);
-      }
-    }
-
-    // 地下城/Boss 氛圍
-    if (bgType === 'dungeon') {
-      const darkOverlay = this.add.graphics();
-      darkOverlay.fillStyle(0x000000, 0.5);
-      darkOverlay.fillRect(0, 0, width, WORLD_HEIGHT);
-      darkOverlay.setDepth(-6).setScrollFactor(0);
-    }
-    if (bgType === 'boss') {
-      const darkOverlay = this.add.graphics();
-      darkOverlay.fillStyle(0x110011, 0.7);
-      darkOverlay.fillRect(0, 0, width, WORLD_HEIGHT);
-      darkOverlay.setDepth(-6).setScrollFactor(0);
+      // 視差：相機捲動時輕推 tile（15% 速度，產生景深感）
+      this.events.on('update', () => {
+        bg.tilePositionX = this.cameras.main.scrollX * 0.15;
+      });
     }
   }
 
+  // ── 平台建立 ───────────────────────────────────────────────────────────────
   _createPlatforms() {
-    this.platforms = this.physics.add.staticGroup();
-    this.thinPlatforms = this.physics.add.staticGroup();
-
-    const PW = 128, PH = 24;
+    this.platforms      = this.physics.add.staticGroup();
+    this.thinPlatforms  = this.physics.add.staticGroup();
+    const PH = 24;
 
     for (const p of this.mapData.platforms) {
       const textureKey = `platform-${p.type || 'grass'}`;
-      const numTiles = Math.max(1, Math.ceil(p.width / PW));
-      const actualW = p.width;
-
-      // 用單塊縮放版取代多塊拼接
       const group = p.thin ? this.thinPlatforms : this.platforms;
-      const sprite = group.create(p.x + actualW / 2, p.y + PH / 2, textureKey);
-      sprite.setDisplaySize(actualW, PH);
+      const sprite = group.create(p.x + p.width / 2, p.y + PH / 2, textureKey);
+      sprite.setDisplaySize(p.width, PH);
       sprite.refreshBody();
       sprite.setDepth(5);
     }
   }
 
+  // ── 怪物生成（依平台隨機分佈）─────────────────────────────────────────────
   _spawnMonsters() {
     if (!this.mapData.monsters || this.mapData.monsters.length === 0) return;
 
+    // 取得所有平台（含地板），按 x 排序
+    const allPlats = [...this.mapData.platforms].sort((a, b) => a.x - b.x);
+    // 排除寬度太窄的平台
+    const validPlats = allPlats.filter(p => p.width >= 80);
+
+    let platIdx = 0;
+
     for (const spawn of this.mapData.monsters) {
       const monsterDef = MONSTERS.find(m => m.id === spawn.id);
-      if (!monsterDef) continue;
+      if (!monsterDef) { console.warn(`[Spawn] 找不到怪物定義: ${spawn.id}`); continue; }
 
       const count = spawn.count || 3;
-      const spreadX = spawn.spreadX || 2000;
-      const offsetX = spawn.offsetX || 200;
 
       for (let i = 0; i < count; i++) {
-        const mx = offsetX + (i / count) * spreadX + (Math.random() - 0.5) * 150;
-        const my = WORLD_HEIGHT - 24 - 32 - 5;
+        // 輪流使用各個平台，確保均勻分佈
+        const plat = validPlats[platIdx % validPlats.length];
+        platIdx++;
+
+        // 在平台寬度內隨機 x，邊緣留 20px 空間
+        const margin = 20;
+        const mx = plat.x + margin + Math.random() * Math.max(10, plat.width - margin * 2);
+        // y 座標：平台頂部以上 20px（怪物中心距平台面）
+        const my = plat.y - 20;
+
         const monster = new Monster(this, mx, my, monsterDef);
         monster.player = this.player;
+        monster.patrolOriginX = mx;
         this.monsters.add(monster);
       }
     }
   }
 
+  // ── 傳送門 ─────────────────────────────────────────────────────────────────
   _createPortals() {
     const gs = this.registry.get('gameState');
-    for (const portalDef of this.mapData.portals) {
-      // 若此傳送門需要 Boss 解鎖
-      if (portalDef.requireBoss && !gs.bossUnlocked) continue;
-      // Boss 已解鎖時跳過「城鎮」傳送門改顯示「Boss」
-      if (!portalDef.requireBoss && portalDef.target === 'town' && gs.bossUnlocked && this.mapKey === 'kerning') continue;
+    for (const pd of this.mapData.portals) {
+      if (pd.requireBoss && !gs.bossUnlocked) continue;
+      if (!pd.requireBoss && pd.target === 'town' && gs.bossUnlocked && this.mapKey === 'kerning') continue;
 
-      const portal = this.portals.create(portalDef.x, portalDef.y, 'portal');
+      const portal = this.portals.create(pd.x, pd.y, 'portal');
       portal.setDepth(6);
-      portal.targetMap = portalDef.target;
+      portal.targetMap = pd.target;
       portal.refreshBody();
 
-      // 標籤
-      this.add.text(portalDef.x, portalDef.y - 10, portalDef.label || '', {
+      this.add.text(pd.x, pd.y - 10, pd.label || '', {
         fontSize: '12px', color: '#ddaaff', fontFamily: 'Arial',
       }).setDepth(7).setOrigin(0.5, 1);
 
-      // 閃爍動畫
-      this.tweens.add({
-        targets: portal, alpha: 0.5, duration: 800,
-        yoyo: true, repeat: -1,
+      this.tweens.add({ targets: portal, alpha: 0.5, duration: 800, yoyo: true, repeat: -1 });
+    }
+  }
+
+  // ── NPC（含對話互動）─────────────────────────────────────────────────────
+  _createNPCs() {
+    if (!this.mapData.npcs || this.mapData.npcs.length === 0) return;
+    for (const npcDef of this.mapData.npcs) {
+      // NPC 圖片
+      const npc = this.physics.add.staticImage(npcDef.x, npcDef.y + 24, npcDef.id || 'npc-shop');
+      npc.setDepth(8);
+      npc.refreshBody();
+      npc._npcData = npcDef;
+
+      // 名稱標籤
+      const lbl = this.add.text(npcDef.x, npcDef.y - 14, npcDef.name || '', {
+        fontSize: '13px', color: '#ffee88', fontFamily: 'Arial',
+        stroke: '#000', strokeThickness: 3,
+      }).setDepth(9).setOrigin(0.5, 1);
+
+      // 互動提示（靠近時才顯示）
+      const hint = this.add.text(npcDef.x, npcDef.y - 34, '[按 F 對話]', {
+        fontSize: '11px', color: '#aaffaa', fontFamily: 'Arial',
+        stroke: '#000', strokeThickness: 2,
+      }).setDepth(9).setOrigin(0.5, 1).setAlpha(0);
+
+      npc._hint = hint;
+
+      // 按 F 開啟對話
+      this.input.keyboard.on('keydown-F', () => {
+        const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, npc.x, npc.y);
+        if (dist < 80) this._openNpcDialog(npcDef);
+      });
+
+      // 每幀更新提示顯示
+      this.events.on('update', () => {
+        if (!this.player) return;
+        const d = Phaser.Math.Distance.Between(this.player.x, this.player.y, npc.x, npc.y);
+        hint.setAlpha(d < 80 ? 1 : 0);
       });
     }
   }
 
-  _createNPCs() {
-    if (!this.mapData.npcs || this.mapData.npcs.length === 0) return;
-    for (const npcDef of this.mapData.npcs) {
-      const npc = this.add.image(npcDef.x, npcDef.y + 24, npcDef.id || 'npc-shop');
-      npc.setDepth(8);
-      // 名稱
-      this.add.text(npcDef.x, npcDef.y - 14, npcDef.name || '', {
-        fontSize: '13px', color: '#ffee88', fontFamily: 'Arial',
-        stroke: '#000000', strokeThickness: 3,
-      }).setDepth(9).setOrigin(0.5, 1);
-    }
+  _openNpcDialog(npcDef) {
+    if (this._npcDialog) return;
+
+    const cam = this.cameras.main;
+    const cx = cam.scrollX + cam.width / 2;
+    const cy = cam.scrollY + cam.height * 0.65;
+
+    const dialogLines = npcDef.dialog || [
+      '歡迎光臨！勇士請多保重。',
+      '這裡的怪物最近鬧得很兇...',
+      '你可以在這裡購買補給品。',
+    ];
+
+    const bg = this.add.graphics().setDepth(100);
+    bg.fillStyle(0x001122, 0.92);
+    bg.fillRoundedRect(cx - 220, cy - 70, 440, 140, 10);
+    bg.lineStyle(2, 0x4488aa, 0.9);
+    bg.strokeRoundedRect(cx - 220, cy - 70, 440, 140, 10);
+
+    const title = this.add.text(cx, cy - 52, npcDef.name || 'NPC', {
+      fontSize: '15px', color: '#ffee88', fontFamily: 'Arial',
+      stroke: '#000', strokeThickness: 3,
+    }).setOrigin(0.5, 0).setDepth(101);
+
+    const msgText = this.add.text(cx, cy - 24, dialogLines.join('\n'), {
+      fontSize: '13px', color: '#ddffee', fontFamily: 'Arial',
+      wordWrap: { width: 400 }, lineSpacing: 4,
+    }).setOrigin(0.5, 0).setDepth(101);
+
+    const close = this.add.text(cx, cy + 58, '[ 按 F 或 ESC 關閉 ]', {
+      fontSize: '12px', color: '#88aacc', fontFamily: 'Arial',
+    }).setOrigin(0.5, 0.5).setDepth(101)
+      .setInteractive({ useHandCursor: true })
+      .on('pointerdown', () => this._closeNpcDialog())
+      .on('pointerover', () => close.setStyle({ color: '#aaccff' }))
+      .on('pointerout',  () => close.setStyle({ color: '#88aacc' }));
+
+    this._npcDialog = { bg, title, msgText, close };
+    this.input.keyboard.on('keydown-F', () => this._closeNpcDialog());
   }
 
+  _closeNpcDialog() {
+    if (!this._npcDialog) return;
+    const { bg, title, msgText, close } = this._npcDialog;
+    bg.destroy(); title.destroy(); msgText.destroy(); close.destroy();
+    this._npcDialog = null;
+  }
+
+  // ── 碰撞設定 ───────────────────────────────────────────────────────────────
   _setupColliders() {
-    // 玩家 + 厚平台
     this.physics.add.collider(this.player, this.platforms);
 
-    // 玩家 + 薄平台（可穿越）
+    // 薄平台（可下穿）
     this.physics.add.collider(this.player, this.thinPlatforms, null, (player, plat) => {
       if (player.dropThrough) return false;
-      // 只有玩家從上方落下時碰撞
       return player.body.velocity.y >= 0 && player.body.bottom <= plat.body.top + 12;
     }, this);
 
-    // 怪物 + 厚平台
     this.physics.add.collider(this.monsters, this.platforms);
     this.physics.add.collider(this.monsters, this.thinPlatforms);
 
-    // 玩家 + 傳送門
-    this.physics.add.overlap(this.player, this.portals, this._onPortalEnter, null, this);
+    this.physics.add.overlap(this.player, this.portals,  this._onPortalEnter, null, this);
+    this.physics.add.overlap(this.player, this.pickups,  this._onPickup,      null, this);
 
-    // 玩家 + 拾取物
-    this.physics.add.overlap(this.player, this.pickups, this._onPickup, null, this);
-
-    // 拾取物 + 平台
     this.physics.add.collider(this.pickups, this.platforms);
     this.physics.add.collider(this.pickups, this.thinPlatforms);
   }
 
+  // ── 傳送 ───────────────────────────────────────────────────────────────────
   _onPortalEnter(player, portal) {
     if (!portal.targetMap || this._transitioning) return;
     this._transitioning = true;
@@ -261,7 +291,6 @@ export class BaseMapScene extends Phaser.Scene {
       if (!sceneKey) return;
       const gs = this.registry.get('gameState');
       gs.currentMap = target;
-      gs.spawnX = target === this.mapKey ? 150 : 150;
       this.registry.set('gameState', gs);
       this.scene.stop('UIScene');
       this.scene.start(sceneKey, { gameState: gs });
@@ -270,10 +299,8 @@ export class BaseMapScene extends Phaser.Scene {
 
   _onPickup(player, pickup) {
     if (!pickup.active) return;
-    const type = pickup.pickupType;
-    const data = pickup.pickupData;
+    const type = pickup.pickupType, data = pickup.pickupData;
     const gs = this.registry.get('gameState');
-
     if (type === 'meso') {
       gs.meso += data;
       this.registry.set('gameState', gs);
@@ -281,7 +308,6 @@ export class BaseMapScene extends Phaser.Scene {
     } else if (type === 'equipment') {
       this.player.pickupEquipment(data);
     }
-
     audio.playPickup();
     pickup.destroy();
   }
@@ -293,7 +319,6 @@ export class BaseMapScene extends Phaser.Scene {
     this.registry.set('gameState', gs);
     this.registry.events.emit('changedata-killcount', null, gs.killCount);
 
-    // Boss 解鎖
     if (gs.killCount >= 60 && !gs.bossUnlocked) {
       gs.bossUnlocked = true;
       this.registry.set('gameState', gs);
@@ -305,15 +330,11 @@ export class BaseMapScene extends Phaser.Scene {
     this.player.update(delta);
     this.player.recoverMp(delta);
 
-    // 更新怪物 AI
     const children = this.monsters.getChildren();
     for (const monster of children) {
-      if (monster.active && !monster.isDead) {
-        monster.update(this.player, delta);
-      }
+      if (monster.active && !monster.isDead) monster.update(this.player, delta);
     }
 
-    // 播放時間累計
     this._playTimeAccum = (this._playTimeAccum || 0) + delta;
     if (this._playTimeAccum > 1000) {
       const gs = this.registry.get('gameState');

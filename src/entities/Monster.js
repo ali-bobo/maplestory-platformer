@@ -8,7 +8,7 @@ const STATE = { PATROL: 'patrol', CHASE: 'chase', ATTACK: 'attack', HURT: 'hurt'
 
 export class Monster extends Phaser.Physics.Arcade.Sprite {
   constructor(scene, x, y, config) {
-    super(scene, x, y, config.spriteKey || 'monster-slime');
+    super(scene, x, y, config.spriteKey || 'monster_slime');
     scene.add.existing(this);
     scene.physics.add.existing(this);
 
@@ -40,6 +40,7 @@ export class Monster extends Phaser.Physics.Arcade.Sprite {
     this.setCollideWorldBounds(true);
     this.body.setGravityY(0);
     this.setDepth(10);
+    this.setDisplaySize(56, 56);  // 真實圖片統一顯示大小
 
     // 血條背景
     this._hpBg = null;

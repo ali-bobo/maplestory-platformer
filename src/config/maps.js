@@ -1,269 +1,242 @@
-// 地圖定義
+// 地圖定義 v4.0 — 3 個使用真實背景圖的新地圖
 
 const GROUND_Y = 672;   // 地板頂部 y 座標
 const PH = 24;          // 平台高度
 
-// 輔助：建立平台物件
-function plat(x, y, width, type = 'grass', thin = true) {
+function plat(x, y, width, type = 'stone', thin = true) {
   return { x, y, width, type, thin };
 }
-// 地板（不可穿越）
-function ground(x, y, width, type = 'grass') {
+function ground(x, y, width, type = 'stone') {
   return { x, y, width, type, thin: false };
 }
 
-// ─────────── 楓之島 ───────────
-const MAPLE_PLATFORMS = [
-  ground(0, GROUND_Y, 3840, 'grass'),
-  plat(80,   544, 224, 'grass'),
-  plat(380,  480, 192, 'grass'),
-  plat(640,  416, 208, 'stone'),
-  plat(900,  352, 192, 'stone'),
-  plat(1100, 544, 256, 'grass'),
-  plat(1380, 480, 192, 'grass'),
-  plat(1600, 416, 224, 'stone'),
-  plat(1850, 352, 192, 'stone'),
-  plat(2080, 480, 256, 'grass'),
-  plat(2340, 544, 192, 'grass'),
-  plat(2580, 416, 224, 'stone'),
-  plat(2820, 480, 192, 'grass'),
-  plat(3040, 416, 224, 'stone'),
-  plat(3280, 352, 192, 'stone'),
-  plat(3520, 480, 192, 'grass'),
-  plat(160,  320, 160, 'wood'),
-  plat(700,  256, 160, 'wood'),
-  plat(1450, 288, 160, 'wood'),
-  plat(2200, 256, 160, 'wood'),
-];
-
-// ─────────── 弓箭手獵場 ───────────
-const HENESYS_PLATFORMS = [
-  ground(0, GROUND_Y, 3840, 'grass'),
-  plat(100,  544, 256, 'grass'),
-  plat(420,  480, 224, 'grass'),
-  plat(700,  416, 208, 'stone'),
-  plat(960,  352, 192, 'stone'),
-  plat(1180, 480, 256, 'grass'),
-  plat(1460, 416, 224, 'grass'),
-  plat(1720, 352, 208, 'stone'),
-  plat(1980, 288, 192, 'stone'),
-  plat(2220, 416, 256, 'grass'),
-  plat(2500, 480, 224, 'brick'),
-  plat(2760, 416, 208, 'brick'),
-  plat(3000, 352, 192, 'stone'),
-  plat(3220, 416, 256, 'grass'),
-  plat(3500, 480, 192, 'grass'),
-  plat(200,  288, 160, 'wood'),
-  plat(840,  224, 160, 'wood'),
-  plat(1560, 256, 160, 'wood'),
-  plat(2300, 224, 160, 'wood'),
-  plat(3100, 256, 160, 'wood'),
-];
-
-// ─────────── 法師森林 ───────────
-const ELLINIA_PLATFORMS = [
-  ground(0, GROUND_Y, 3840, 'grass'),
-  plat(80,   528, 224, 'grass'),
-  plat(360,  464, 192, 'wood'),
-  plat(600,  400, 208, 'wood'),
-  plat(860,  336, 192, 'stone'),
-  plat(1080, 464, 256, 'wood'),
-  plat(1360, 400, 224, 'wood'),
-  plat(1620, 336, 208, 'stone'),
-  plat(1880, 272, 192, 'stone'),
-  plat(2120, 400, 256, 'wood'),
-  plat(2400, 464, 224, 'grass'),
-  plat(2660, 400, 208, 'wood'),
-  plat(2900, 336, 192, 'stone'),
-  plat(3120, 400, 256, 'wood'),
-  plat(3400, 464, 192, 'grass'),
-  plat(180,  272, 160, 'wood'),
-  plat(740,  208, 160, 'wood'),
-  plat(1440, 240, 160, 'wood'),
-  plat(2200, 208, 160, 'wood'),
-  plat(3200, 240, 160, 'wood'),
-];
-
-// ─────────── 劍士荒原 ───────────
-const PERION_PLATFORMS = [
+// ─────────── 浮空島嶼 (Sky Island) ───────────
+// 配合 game_background.png：藍天浮雲，石質浮島風格
+const SKY_PLATFORMS = [
   ground(0, GROUND_Y, 3840, 'stone'),
-  plat(80,   544, 256, 'stone'),
-  plat(400,  480, 224, 'stone'),
-  plat(680,  416, 208, 'brick'),
-  plat(940,  352, 192, 'brick'),
-  plat(1160, 480, 256, 'stone'),
-  plat(1440, 416, 224, 'stone'),
-  plat(1700, 352, 208, 'brick'),
-  plat(1960, 288, 192, 'brick'),
-  plat(2200, 416, 256, 'stone'),
-  plat(2480, 480, 224, 'stone'),
-  plat(2740, 416, 208, 'brick'),
-  plat(2980, 352, 192, 'stone'),
-  plat(3200, 416, 256, 'stone'),
-  plat(3480, 480, 192, 'stone'),
-  plat(200,  272, 160, 'brick'),
-  plat(800,  208, 160, 'brick'),
-  plat(1500, 240, 160, 'brick'),
-  plat(2280, 208, 160, 'brick'),
-  plat(3000, 240, 160, 'brick'),
+
+  // 第一層（低）
+  plat(80,   560, 220, 'stone'),
+  plat(380,  540, 180, 'stone'),
+  plat(680,  560, 200, 'stone'),
+  plat(960,  540, 180, 'stone'),
+  plat(1240, 560, 220, 'stone'),
+  plat(1540, 540, 180, 'stone'),
+  plat(1820, 560, 200, 'stone'),
+  plat(2100, 540, 180, 'stone'),
+  plat(2380, 560, 220, 'stone'),
+  plat(2680, 540, 180, 'stone'),
+  plat(2960, 560, 200, 'stone'),
+  plat(3240, 540, 180, 'stone'),
+  plat(3520, 560, 200, 'stone'),
+
+  // 第二層（中）
+  plat(140,  440, 200, 'stone'),
+  plat(480,  420, 180, 'grass'),
+  plat(780,  440, 200, 'stone'),
+  plat(1080, 420, 180, 'grass'),
+  plat(1360, 440, 200, 'stone'),
+  plat(1660, 420, 180, 'grass'),
+  plat(1960, 440, 200, 'stone'),
+  plat(2260, 420, 180, 'grass'),
+  plat(2560, 440, 200, 'stone'),
+  plat(2860, 420, 180, 'grass'),
+  plat(3160, 440, 200, 'stone'),
+  plat(3460, 420, 180, 'grass'),
+
+  // 第三層（高）
+  plat(200,  310, 180, 'grass'),
+  plat(560,  290, 160, 'stone'),
+  plat(900,  310, 180, 'grass'),
+  plat(1240, 290, 160, 'stone'),
+  plat(1580, 310, 180, 'grass'),
+  plat(1920, 290, 160, 'stone'),
+  plat(2260, 310, 180, 'grass'),
+  plat(2600, 290, 160, 'stone'),
+  plat(2940, 310, 180, 'grass'),
+  plat(3280, 290, 160, 'stone'),
+
+  // 最高層（薄木橋）
+  plat(320,  180, 140, 'wood'),
+  plat(720,  160, 140, 'wood'),
+  plat(1120, 180, 140, 'wood'),
+  plat(1520, 160, 140, 'wood'),
+  plat(1920, 180, 140, 'wood'),
+  plat(2320, 160, 140, 'wood'),
+  plat(2720, 180, 140, 'wood'),
+  plat(3200, 160, 140, 'wood'),
 ];
 
-// ─────────── 盜賊地下城 ───────────
+// ─────────── 古代廢墟 (Ancient Ruins) ───────────
+// 配合 ruins_background.png：沙色石拱廢墟，石磚平台
+const RUINS_PLATFORMS = [
+  ground(0, GROUND_Y, 3840, 'brick'),
+
+  // 廢墟立柱平台
+  plat(60,   544, 240, 'brick'),
+  plat(380,  500, 200, 'stone'),
+  plat(660,  544, 200, 'brick'),
+  plat(940,  500, 200, 'stone'),
+  plat(1220, 544, 240, 'brick'),
+  plat(1540, 500, 200, 'stone'),
+  plat(1820, 544, 200, 'brick'),
+  plat(2100, 500, 200, 'stone'),
+  plat(2380, 544, 240, 'brick'),
+  plat(2700, 500, 200, 'stone'),
+  plat(2980, 544, 200, 'brick'),
+  plat(3260, 500, 200, 'stone'),
+  plat(3540, 544, 200, 'brick'),
+
+  // 拱頂平台
+  plat(120,  390, 200, 'stone'),
+  plat(440,  360, 180, 'brick'),
+  plat(740,  390, 200, 'stone'),
+  plat(1040, 360, 180, 'brick'),
+  plat(1320, 390, 200, 'stone'),
+  plat(1620, 360, 180, 'brick'),
+  plat(1900, 390, 200, 'stone'),
+  plat(2200, 360, 180, 'brick'),
+  plat(2500, 390, 200, 'stone'),
+  plat(2800, 360, 180, 'brick'),
+  plat(3100, 390, 200, 'stone'),
+  plat(3400, 360, 180, 'brick'),
+
+  // 高塔平台
+  plat(200,  268, 180, 'brick'),
+  plat(580,  244, 160, 'stone'),
+  plat(960,  268, 180, 'brick'),
+  plat(1340, 244, 160, 'stone'),
+  plat(1720, 268, 180, 'brick'),
+  plat(2100, 244, 160, 'stone'),
+  plat(2480, 268, 180, 'brick'),
+  plat(2860, 244, 160, 'stone'),
+  plat(3240, 268, 180, 'brick'),
+
+  // 最頂（木板橋）
+  plat(360,  150, 160, 'wood'),
+  plat(800,  130, 160, 'wood'),
+  plat(1200, 150, 160, 'wood'),
+  plat(1640, 130, 160, 'wood'),
+  plat(2080, 150, 160, 'wood'),
+  plat(2520, 130, 160, 'wood'),
+  plat(2960, 150, 160, 'wood'),
+  plat(3360, 130, 160, 'wood'),
+];
+
+// ─────────── Kerning City ───────────
+// 配合 city__background.png：磚牆夜城，木造鷹架風格
 const KERNING_PLATFORMS = [
   ground(0, GROUND_Y, 3840, 'brick'),
-  plat(80,   528, 224, 'brick'),
-  plat(360,  464, 192, 'brick'),
-  plat(620,  400, 208, 'stone'),
-  plat(880,  336, 192, 'stone'),
-  plat(1100, 464, 256, 'brick'),
-  plat(1380, 400, 224, 'brick'),
-  plat(1640, 336, 208, 'stone'),
-  plat(1900, 272, 192, 'stone'),
-  plat(2140, 400, 256, 'brick'),
-  plat(2420, 464, 224, 'brick'),
-  plat(2680, 400, 208, 'stone'),
-  plat(2920, 336, 192, 'brick'),
-  plat(3140, 400, 256, 'brick'),
-  plat(3420, 464, 192, 'brick'),
-  plat(160,  256, 160, 'brick'),
-  plat(760,  192, 160, 'stone'),
-  plat(1460, 224, 160, 'brick'),
-  plat(2240, 192, 160, 'stone'),
-  plat(3220, 224, 160, 'brick'),
-];
 
-// ─────────── 城鎮 ───────────
-const TOWN_PLATFORMS = [
-  ground(0, GROUND_Y, 1280, 'grass'),
-  plat(200, 544, 192, 'wood'),
-  plat(500, 480, 224, 'grass'),
-  plat(800, 544, 192, 'wood'),
-];
+  // 近地面鷹架
+  plat(80,   572, 220, 'wood'),
+  plat(380,  556, 200, 'wood'),
+  plat(660,  572, 200, 'wood'),
+  plat(940,  556, 200, 'wood'),
+  plat(1220, 572, 220, 'wood'),
+  plat(1520, 556, 200, 'wood'),
+  plat(1800, 572, 200, 'wood'),
+  plat(2080, 556, 200, 'wood'),
+  plat(2360, 572, 220, 'wood'),
+  plat(2660, 556, 200, 'wood'),
+  plat(2940, 572, 200, 'wood'),
+  plat(3220, 556, 200, 'wood'),
+  plat(3500, 572, 200, 'wood'),
 
-// ─────────── Boss戰 ───────────
-const BOSS_PLATFORMS = [
-  ground(0, GROUND_Y, 1280, 'stone'),
-  plat(160, 512, 192, 'stone'),
-  plat(480, 448, 256, 'stone'),
-  plat(864, 512, 192, 'stone'),
-  plat(320, 352, 192, 'brick'),
-  plat(640, 288, 256, 'brick'),
+  // 中層鷹架
+  plat(140,  450, 200, 'brick'),
+  plat(460,  430, 180, 'wood'),
+  plat(760,  450, 200, 'brick'),
+  plat(1060, 430, 180, 'wood'),
+  plat(1340, 450, 200, 'brick'),
+  plat(1640, 430, 180, 'wood'),
+  plat(1920, 450, 200, 'brick'),
+  plat(2220, 430, 180, 'wood'),
+  plat(2500, 450, 200, 'brick'),
+  plat(2800, 430, 180, 'wood'),
+  plat(3080, 450, 200, 'brick'),
+  plat(3380, 430, 180, 'wood'),
+
+  // 高層鷹架
+  plat(220,  320, 180, 'wood'),
+  plat(580,  300, 160, 'brick'),
+  plat(940,  320, 180, 'wood'),
+  plat(1300, 300, 160, 'brick'),
+  plat(1660, 320, 180, 'wood'),
+  plat(2020, 300, 160, 'brick'),
+  plat(2380, 320, 180, 'wood'),
+  plat(2740, 300, 160, 'brick'),
+  plat(3100, 320, 180, 'wood'),
+  plat(3460, 300, 160, 'brick'),
+
+  // 屋頂鷹架（最高）
+  plat(400,  190, 160, 'wood'),
+  plat(820,  170, 160, 'wood'),
+  plat(1240, 190, 160, 'wood'),
+  plat(1660, 170, 160, 'wood'),
+  plat(2080, 190, 160, 'wood'),
+  plat(2500, 170, 160, 'wood'),
+  plat(2920, 190, 160, 'wood'),
+  plat(3340, 170, 160, 'wood'),
 ];
 
 export const MAPS = {
-  maple: {
-    key: 'maple', name: '楓之島', sceneKey: 'MapleIslandScene',
-    width: 3840, bgColor: 0x87ceeb,
-    platforms: MAPLE_PLATFORMS,
-    bgType: 'forest',
+  // ── 浮空島嶼（初始地圖，Lv1）──
+  sky: {
+    key: 'sky', name: '浮空島嶼', sceneKey: 'MapleIslandScene',
+    width: 3840, bgColor: 0x5588ff,
+    platforms: SKY_PLATFORMS,
+    bgType: 'sky',
+    bgImage: 'bg_sky',
     monsters: [
-      { id: 'snail',    count: 8, spreadX: 3400, offsetX: 200 },
-      { id: 'mushroom', count: 6, spreadX: 3200, offsetX: 300 },
-      { id: 'slime',    count: 5, spreadX: 3000, offsetX: 500 },
+      { id: 'slime',    count: 8, spreadX: 3400, offsetX: 200 },
+      { id: 'mushroom', count: 7, spreadX: 3200, offsetX: 300 },
+      { id: 'snail',    count: 6, spreadX: 3000, offsetX: 400 },
+      { id: 'stump',    count: 5, spreadX: 2800, offsetX: 600 },
     ],
     portals: [
-      { x: 3750, y: GROUND_Y - 48, width: 40, height: 72, target: 'henesys', label: '→弓箭手獵場' },
+      { x: 3790, y: GROUND_Y - 48, width: 40, height: 72, target: 'ruins', label: '→古代廢墟' },
     ],
     npcs: [],
     spawnX: 150,
   },
 
-  henesys: {
-    key: 'henesys', name: '弓箭手獵場', sceneKey: 'HenesysScene',
-    width: 3840, bgColor: 0x98fb98,
-    platforms: HENESYS_PLATFORMS,
-    bgType: 'forest',
+  // ── 古代廢墟（中期地圖，Lv9）──
+  ruins: {
+    key: 'ruins', name: '古代廢墟', sceneKey: 'PerionScene',
+    width: 3840, bgColor: 0xc8a060,
+    platforms: RUINS_PLATFORMS,
+    bgType: 'ruins',
+    bgImage: 'bg_ruins',
     monsters: [
-      { id: 'pig',      count: 7, spreadX: 3200, offsetX: 300 },
-      { id: 'stump',    count: 6, spreadX: 3000, offsetX: 400 },
-      { id: 'mushr-war',count: 5, spreadX: 2800, offsetX: 600 },
+      { id: 'boar',     count: 8, spreadX: 3200, offsetX: 300 },
+      { id: 'robot',    count: 7, spreadX: 3000, offsetX: 400 },
+      { id: 'skeleton', count: 7, spreadX: 2800, offsetX: 500 },
+      { id: 'snake',    count: 6, spreadX: 2600, offsetX: 600 },
     ],
     portals: [
-      { x: 3750, y: GROUND_Y - 48, width: 40, height: 72, target: 'ellinia', label: '→法師森林' },
-      { x: 30,   y: GROUND_Y - 48, width: 40, height: 72, target: 'maple',   label: '←楓之島' },
+      { x: 3790, y: GROUND_Y - 48, width: 40, height: 72, target: 'kerning', label: '→Kerning City' },
+      { x: 30,   y: GROUND_Y - 48, width: 40, height: 72, target: 'sky',     label: '←浮空島嶼' },
     ],
     npcs: [],
     spawnX: 150,
   },
 
-  ellinia: {
-    key: 'ellinia', name: '法師森林', sceneKey: 'ElliniaScene',
-    width: 3840, bgColor: 0x228b22,
-    platforms: ELLINIA_PLATFORMS,
-    bgType: 'dark_forest',
-    monsters: [
-      { id: 'green-spirit', count: 7, spreadX: 3200, offsetX: 300 },
-      { id: 'spiral-mush',  count: 6, spreadX: 3000, offsetX: 400 },
-      { id: 'fairy',        count: 5, spreadX: 2800, offsetX: 600 },
-    ],
-    portals: [
-      { x: 3750, y: GROUND_Y - 48, width: 40, height: 72, target: 'perion',  label: '→劍士荒原' },
-      { x: 30,   y: GROUND_Y - 48, width: 40, height: 72, target: 'henesys', label: '←弓箭手獵場' },
-    ],
-    npcs: [],
-    spawnX: 150,
-  },
-
-  perion: {
-    key: 'perion', name: '劍士荒原', sceneKey: 'PerionScene',
-    width: 3840, bgColor: 0xd2691e,
-    platforms: PERION_PLATFORMS,
-    bgType: 'desert',
-    monsters: [
-      { id: 'boar',        count: 7, spreadX: 3200, offsetX: 300 },
-      { id: 'stone-golem', count: 5, spreadX: 3000, offsetX: 400 },
-      { id: 'armored-egg', count: 6, spreadX: 2800, offsetX: 500 },
-    ],
-    portals: [
-      { x: 3750, y: GROUND_Y - 48, width: 40, height: 72, target: 'kerning', label: '→盜賊地下城' },
-      { x: 30,   y: GROUND_Y - 48, width: 40, height: 72, target: 'ellinia', label: '←法師森林' },
-    ],
-    npcs: [],
-    spawnX: 150,
-  },
-
+  // ── Kerning City（後期地圖，Lv19）──
   kerning: {
-    key: 'kerning', name: '盜賊地下城', sceneKey: 'KerningScene',
-    width: 3840, bgColor: 0x222244,
+    key: 'kerning', name: 'Kerning City', sceneKey: 'KerningScene',
+    width: 3840, bgColor: 0x111133,
     platforms: KERNING_PLATFORMS,
-    bgType: 'dungeon',
+    bgType: 'kerning',
+    bgImage: 'bg_city',
     monsters: [
-      { id: 'zombie-mush', count: 7, spreadX: 3200, offsetX: 300 },
-      { id: 'croc',        count: 6, spreadX: 3000, offsetX: 400 },
-      { id: 'goblin',      count: 5, spreadX: 2800, offsetX: 600 },
+      { id: 'dragon',  count: 8, spreadX: 3200, offsetX: 300 },
+      { id: 'cyclops', count: 7, spreadX: 3000, offsetX: 400 },
+      { id: 'golem',   count: 6, spreadX: 2800, offsetX: 500 },
+      { id: 'mimic',   count: 6, spreadX: 2600, offsetX: 600 },
     ],
     portals: [
-      { x: 3750, y: GROUND_Y - 48, width: 40, height: 72, target: 'boss',   label: '→暗影魔君', requireBoss: true },
-      { x: 3750, y: GROUND_Y - 48, width: 40, height: 72, target: 'town',   label: '→城鎮',     requireBoss: false },
-      { x: 30,   y: GROUND_Y - 48, width: 40, height: 72, target: 'perion', label: '←劍士荒原' },
-    ],
-    npcs: [],
-    spawnX: 150,
-  },
-
-  town: {
-    key: 'town', name: '楓葉城', sceneKey: 'TownScene',
-    width: 1280, bgColor: 0x87ceeb,
-    platforms: TOWN_PLATFORMS,
-    bgType: 'town',
-    monsters: [],
-    portals: [
-      { x: 1200, y: GROUND_Y - 48, width: 40, height: 72, target: 'maple', label: '→楓之島' },
-    ],
-    npcs: [
-      { x: 400, y: GROUND_Y - 48, type: 'shop', name: '商人老陳', id: 'npc-shop' },
-    ],
-    spawnX: 200,
-  },
-
-  boss: {
-    key: 'boss', name: '暗影魔君巢穴', sceneKey: 'BossScene',
-    width: 1280, bgColor: 0x110011,
-    platforms: BOSS_PLATFORMS,
-    bgType: 'boss',
-    monsters: [],
-    portals: [
-      { x: 30, y: GROUND_Y - 48, width: 40, height: 72, target: 'kerning', label: '←撤退' },
+      { x: 30,   y: GROUND_Y - 48, width: 40, height: 72, target: 'ruins', label: '←古代廢墟' },
     ],
     npcs: [],
     spawnX: 150,

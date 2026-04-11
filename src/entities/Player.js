@@ -7,7 +7,7 @@ import { isEquipmentBetter } from '../config/equipment.js';
 
 export class Player extends Phaser.Physics.Arcade.Sprite {
   constructor(scene, x, y, gameState) {
-    super(scene, x, y, 'player-idle');
+    super(scene, x, y, 'thief');
     scene.add.existing(this);
     scene.physics.add.existing(this);
 
@@ -22,8 +22,9 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
 
     // 物理設定
     this.setCollideWorldBounds(true);
-    this.body.setSize(22, 42);
-    this.body.setOffset(5, 6);
+    this.setDisplaySize(72, 80);           // 128×128 縮至 72×80 顯示
+    this.body.setSize(28, 52);
+    this.body.setOffset(22, 24);
     this.setDepth(20);
 
     // 技能施放群組快取
@@ -80,15 +81,18 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     // ─── 跳躍 / 下落穿越 ────────────────────────────────────────────────────
     if (onGround) this.jumpsLeft = 2;
 
-    if (jumpNow) {
-      if (down && onGround && this.dropThrough !== true) {
-        // 下+跳 = 穿越薄平台
-        this.dropThrough = true;
-        this.scene.time.delayedCall(300, () => { this.dropThrough = false; });
-      } else if (this.jumpsLeft > 0) {
+    // ↓ 鍵獨立觸發薄平台下穿（不需同時按跳躍）
+    if (down && onGround && !this.dropThrough) {
+      this.dropThrough = true;
+      this.setVelocityY(80);
+      this.scene.time.delayedCall(400, () => { this.dropThrough = false; });
+    }
+
+    if (jumpNow && !down) {
+      if (this.jumpsLeft > 0) {
         this.setVelocityY(-520);
         this.jumpsLeft--;
-        audio.playSkill('Z'); // 輕微音效（複用）
+        audio.playSkill('Z');
       }
     }
 
@@ -105,15 +109,8 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   }
 
   _updateTexture(onGround) {
-    if (this._attackAnimTimer > 0) {
-      this.setTexture('player-attack');
-    } else if (!onGround) {
-      this.setTexture('player-jump');
-    } else if (Math.abs(this.body.velocity.x) > 10) {
-      this.setTexture('player-walk');
-    } else {
-      this.setTexture('player-idle');
-    }
+    // 目前只有單張 thief 圖片，統一使用（未來可換 spritesheet 動畫）
+    this.setTexture('thief');
   }
 
   castSkill(key) {
@@ -212,6 +209,9 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     gs.speed  = Math.min(320, gs.speed + 2);
     gs.hp = gs.maxHp;
     gs.mp = gs.maxMp;
+    // 技能點數（每升一級 +3）
+    gs.skillPoints = (gs.skillPoints || 0) + 3;
+    this.scene.registry.events.emit('changedata-sp', null, gs.skillPoints);
 
     // 技能解鎖
     for (const [key, skill] of Object.entries(SKILLS)) {
