@@ -1,0 +1,17 @@
+{
+  "name": "maplestory-platformer",
+  "version": "3.0.0",
+  "description": "楓之谷風格平台遊戲（盜賊傳說）— Phaser 3 多檔案架構",
+  "main": "src/main.js",
+  "scripts": {
+    "build": "node build.js",
+    "dev": "node build.js --watch",
+    "serve": "npx serve . -l 3000"
+  },
+  "dependencies": {
+    "phaser": "^3.88.2"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.3"
+  }
+}
