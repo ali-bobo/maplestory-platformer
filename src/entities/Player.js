@@ -81,11 +81,13 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     // ─── 跳躍 / 下落穿越 ────────────────────────────────────────────────────
     if (onGround) this.jumpsLeft = 2;
 
-    // ↓ 鍵獨立觸發薄平台下穿（不需同時按跳躍）
+    // ↓ 鍵觸發薄平台下穿：按住 DOWN 持續穿越所有薄平台，鬆開後停在下一個平台
     if (down && onGround && !this.dropThrough) {
       this.dropThrough = true;
       this.setVelocityY(80);
-      this.scene.time.delayedCall(400, () => { this.dropThrough = false; });
+    }
+    if (!down) {
+      this.dropThrough = false;
     }
 
     if (jumpNow && !down) {
@@ -111,6 +113,8 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   _updateTexture(onGround) {
     // 目前只有單張 thief 圖片，統一使用（未來可換 spritesheet 動畫）
     this.setTexture('thief');
+    // 確保水平翻轉方向持久（避免 setTexture 造成狀態遺失）
+    this.setFlipX(!this.facingRight);
   }
 
   castSkill(key) {
