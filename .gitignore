@@ -1,0 +1,14 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# Build output
+dist/
+node_modules/
+
+# Archon
+.archon/
+
+# Env files
+.env
+.env.*
