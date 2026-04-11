@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { SKILLS, expNeeded } from '../config/constants.js';
 
-// HUD 場景（平行運行）
+// HUD 場景（平行運行）— 楓之谷風格底部狀態列
 export class UIScene extends Phaser.Scene {
   constructor() {
     super({ key: 'UIScene' });
@@ -9,47 +9,103 @@ export class UIScene extends Phaser.Scene {
 
   create() {
     this._gs = null;
+    const { width, height } = this.cameras.main;
 
-    // ── HP/MP/EXP 條 ──────────────────────────────────────────────────────────
-    const barX = 16, barY = 16;
-    const barW = 200, barH = 14;
+    // ── 底部狀態列面板 ─────────────────────────────────────────────────────
+    const barPanelH = 60;
+    const barPanelY = height - barPanelH;
 
-    // 背景
-    this._hpBg  = this._makeBar(barX, barY,          barW, barH, 0x440000);
-    this._mpBg  = this._makeBar(barX, barY + 18,     barW, barH, 0x000044);
-    this._expBg = this._makeBar(barX, barY + 36,     barW, barH, 0x222200);
+    // 底部面板背景（仿楓之谷深色漸層面板）
+    const panelBg = this.add.graphics().setDepth(50).setScrollFactor(0);
+    panelBg.fillStyle(0x0a0a1a, 0.92);
+    panelBg.fillRect(0, barPanelY, width, barPanelH);
+    panelBg.lineStyle(1, 0x334466, 0.8);
+    panelBg.strokeRect(0, barPanelY, width, barPanelH);
 
-    // 前景
-    this._hpBar  = this._makeBar(barX, barY,          barW, barH, 0xff3333);
-    this._mpBar  = this._makeBar(barX, barY + 18,     barW, barH, 0x4466ff);
-    this._expBar = this._makeBar(barX, barY + 36,     barW, barH, 0xddcc00);
+    // 角色頭像框（底部左側）
+    const portX = 12, portY = barPanelY + 4, portW = 52, portH = 52;
+    const portBg = this.add.graphics().setDepth(51).setScrollFactor(0);
+    portBg.fillStyle(0x112244, 0.95);
+    portBg.fillRect(portX, portY, portW, portH);
+    portBg.lineStyle(2, 0x4488cc, 0.9);
+    portBg.strokeRect(portX, portY, portW, portH);
 
-    // 文字標籤
-    this._hpText  = this.add.text(barX,     barY,      'HP',  this._labelStyle()).setDepth(51);
-    this._mpText  = this.add.text(barX,     barY + 18, 'MP',  this._labelStyle()).setDepth(51);
-    this._expText = this.add.text(barX,     barY + 36, 'EXP', this._labelStyle()).setDepth(51);
+    // 角色圖示（用 character_player 圖縮小顯示）
+    if (this.textures.exists('character_player')) {
+      this.add.image(portX + portW / 2, portY + portH / 2, 'character_player')
+        .setDisplaySize(portW - 4, portH - 4)
+        .setDepth(52).setScrollFactor(0);
+    }
 
-    this._hpNum   = this.add.text(barX + barW + 6, barY,      '', this._valueStyle()).setDepth(51);
-    this._mpNum   = this.add.text(barX + barW + 6, barY + 18, '', this._valueStyle()).setDepth(51);
+    // ── HP/MP 條（底部，角色名旁邊）─────────────────────────────────────────
+    const barStartX = portX + portW + 8;
+    const barW = 180, barH = 13, barGap = 16;
+    const hpY = barPanelY + 8;
+    const mpY = hpY + barH + barGap;
 
-    // ── 右上角資訊 ─────────────────────────────────────────────────────────────
-    const infoX = this.cameras.main.width - 16;
-    this._levelText  = this.add.text(infoX, 16,  'Lv.1',  this._infoStyle()).setOrigin(1, 0).setDepth(51);
-    this._spText     = this.add.text(infoX, 40,  'SP: 0', { fontSize:'14px', color:'#88ffcc', fontFamily:'Arial', stroke:'#000', strokeThickness:3 }).setOrigin(1,0).setDepth(51);
-    this._mesoText   = this.add.text(infoX, 62,  '💰 0',  this._infoStyle()).setOrigin(1, 0).setDepth(51);
-    this._killText   = this.add.text(infoX, 86,  '💀 0',  this._infoStyle()).setOrigin(1, 0).setDepth(51);
-    this._mapText    = this.add.text(infoX, 110, '',      this._smallStyle()).setOrigin(1, 0).setDepth(51);
+    // HP 背景＆前景
+    this._hpBg  = this._makeBar(barStartX, hpY, barW, barH, 0x4d0000);
+    this._hpBar = this._makeBar(barStartX, hpY, barW, barH, 0xff3333);
+    this._hpLabel = this.add.text(barStartX + 3, hpY + 1, 'HP', {
+      fontSize: '10px', color: '#ffffff', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2,
+    }).setDepth(53).setScrollFactor(0);
+    this._hpNum = this.add.text(barStartX + barW + 4, hpY + 1, '', {
+      fontSize: '10px', color: '#ffaaaa', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2,
+    }).setDepth(53).setScrollFactor(0);
 
-    // ── 技能快捷列 ────────────────────────────────────────────────────────────
+    // MP 背景＆前景
+    this._mpBg  = this._makeBar(barStartX, mpY, barW, barH, 0x000044);
+    this._mpBar = this._makeBar(barStartX, mpY, barW, barH, 0x3355ff);
+    this._mpLabel = this.add.text(barStartX + 3, mpY + 1, 'MP', {
+      fontSize: '10px', color: '#ffffff', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2,
+    }).setDepth(53).setScrollFactor(0);
+    this._mpNum = this.add.text(barStartX + barW + 4, mpY + 1, '', {
+      fontSize: '10px', color: '#aaaaff', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2,
+    }).setDepth(53).setScrollFactor(0);
+
+    // EXP 條（底部最下方一條細條，全寬）
+    const expBarH = 8;
+    this._expBg  = this._makeBar(0, height - expBarH, width, expBarH, 0x221100);
+    this._expBar = this._makeBar(0, height - expBarH, width, expBarH, 0xddaa00);
+
+    // ── 角色名稱 / 等級（頭像下方）─────────────────────────────────────────
+    this._levelText = this.add.text(portX, barPanelY - 22, 'Lv.1', {
+      fontSize: '14px', color: '#ffee44', fontFamily: 'Arial',
+      stroke: '#000', strokeThickness: 3,
+    }).setDepth(51).setScrollFactor(0);
+
+    this._classText = this.add.text(portX, barPanelY - 6, 'Soul Bender', {
+      fontSize: '10px', color: '#aaddff', fontFamily: 'Arial',
+      stroke: '#000', strokeThickness: 2,
+    }).setDepth(51).setScrollFactor(0);
+
+    // ── 中段資訊（SP/Meso/Kill）────────────────────────────────────────────
+    const midX = barStartX + barW + 80;
+    this._spText   = this.add.text(midX, barPanelY + 6,  'SP: 0',  { fontSize: '12px', color: '#88ffcc', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2 }).setDepth(51).setScrollFactor(0);
+    this._mesoText = this.add.text(midX, barPanelY + 22, '💰 0',   { fontSize: '12px', color: '#ffee88', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2 }).setDepth(51).setScrollFactor(0);
+    this._killText = this.add.text(midX, barPanelY + 38, '💀 0/60',{ fontSize: '12px', color: '#ffee88', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2 }).setDepth(51).setScrollFactor(0);
+
+    // ── 地圖名稱（中央上方）────────────────────────────────────────────────
+    this._mapText = this.add.text(width / 2, barPanelY - 8, '', {
+      fontSize: '12px', color: '#aaddff', fontFamily: 'Arial',
+      stroke: '#000', strokeThickness: 2,
+    }).setOrigin(0.5, 1).setDepth(51).setScrollFactor(0);
+
+    // ── 右側選單按鈕（仿楓之谷） ─────────────────────────────────────────
+    this._setupMenuButtons(width, barPanelY, barPanelH);
+
+    // ── 技能快捷列（底部中央，技能列在底部面板上方） ──────────────────────
     this._skillSlots = {};
     this._cdOverlays = {};
-    this._setupSkillBar();
-    this._setupEquipmentBar();
+    this._setupSkillBar(width, height, barPanelY);
 
-    // ── 初始化 ────────────────────────────────────────────────────────────────
+    // ── 裝備欄（技能欄左側）─────────────────────────────────────────────
+    this._setupEquipmentBar(width, height, barPanelY);
+
+    // ── 初始化 ────────────────────────────────────────────────────────────
     this._refreshAll();
 
-    // ── 監聽 Registry 事件 ────────────────────────────────────────────────────
+    // ── 監聽 Registry 事件 ────────────────────────────────────────────────
     this.registry.events.on('changedata-hp',        this._onHpChange,        this);
     this.registry.events.on('changedata-mp',        this._onMpChange,        this);
     this.registry.events.on('changedata-exp',       this._onExpChange,       this);
@@ -59,57 +115,72 @@ export class UIScene extends Phaser.Scene {
     this.registry.events.on('changedata-killcount', this._onKillChange,      this);
     this.registry.events.on('changedata-sp',        this._onSpChange,        this);
 
-    // 定期全量刷新（冷卻條等）
     this.time.addEvent({ delay: 100, loop: true, callback: this._refreshCooldowns, callbackScope: this });
-    // 定期刷新裝備欄
     this.time.addEvent({ delay: 500, loop: true, callback: this._refreshEquipment, callbackScope: this });
   }
 
   _makeBar(x, y, w, h, color) {
     const g = this.add.graphics();
-    g.fillStyle(color, 0.85);
+    g.fillStyle(color, 0.9);
     g.fillRect(x, y, w, h);
     g.setDepth(50).setScrollFactor(0);
     g.setData('x', x).setData('y', y).setData('w', w).setData('h', h).setData('color', color);
     return g;
   }
 
-  _labelStyle()  { return { fontSize: '11px', color: '#ffffff', fontFamily: 'Arial', stroke: '#000', strokeThickness: 3 }; }
-  _valueStyle()  { return { fontSize: '11px', color: '#eeeeee', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2 }; }
-  _infoStyle()   { return { fontSize: '16px', color: '#ffee88', fontFamily: 'Arial', stroke: '#000', strokeThickness: 3 }; }
-  _smallStyle()  { return { fontSize: '13px', color: '#aaddff', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2 }; }
+  _setupMenuButtons(width, barPanelY, barPanelH) {
+    const btnData = [
+      { label: '道具', color: 0x225522 },
+      { label: '裝備', color: 0x332211 },
+      { label: '技能', color: 0x112233 },
+      { label: '地圖', color: 0x221133 },
+      { label: '設定', color: 0x333333 },
+    ];
+    const btnW = 42, btnH = 22, gap = 3;
+    const totalW = btnData.length * (btnW + gap) - gap;
+    let bx = width - totalW - 8;
+    const by = barPanelY + (barPanelH - btnH) / 2;
 
-  _setupSkillBar() {
+    for (const btn of btnData) {
+      const bg = this.add.graphics().setDepth(51).setScrollFactor(0);
+      bg.fillStyle(btn.color, 0.9);
+      bg.fillRoundedRect(bx, by, btnW, btnH, 3);
+      bg.lineStyle(1, 0x667788, 0.8);
+      bg.strokeRoundedRect(bx, by, btnW, btnH, 3);
+      this.add.text(bx + btnW / 2, by + btnH / 2, btn.label, {
+        fontSize: '10px', color: '#dddddd', fontFamily: 'Arial',
+      }).setOrigin(0.5, 0.5).setDepth(52).setScrollFactor(0);
+      bx += btnW + gap;
+    }
+  }
+
+  _setupSkillBar(width, height, barPanelY) {
     const keys = ['Z', 'X', 'C', 'V', 'B'];
-    const labels = { Z: '三連飛鏢', X: '暗影步伐', C: '暗殺', V: '暗影漩渦', B: '影分身' };
-    const { width, height } = this.cameras.main;
-    const slotW = 56, slotH = 56, gap = 6;
+    const labels = { Z: '三連鏢', X: '影步伐', C: '暗殺', V: '漩渦', B: '影分身' };
+    const slotW = 52, slotH = 52, gap = 5;
     const totalW = keys.length * (slotW + gap) - gap;
     const startX = (width - totalW) / 2;
-    const startY = height - slotH - 12;
+    const startY = barPanelY - slotH - 6;
 
     keys.forEach((key, i) => {
       const sx = startX + i * (slotW + gap);
       const sy = startY;
 
-      // 背景槽
       const slotBg = this.add.graphics().setDepth(50).setScrollFactor(0);
-      slotBg.fillStyle(0x111122, 0.85);
+      slotBg.fillStyle(0x0d0d22, 0.9);
       slotBg.fillRoundedRect(sx, sy, slotW, slotH, 6);
-      slotBg.lineStyle(2, 0x4455aa);
+      slotBg.lineStyle(2, 0x3344aa, 0.8);
       slotBg.strokeRoundedRect(sx, sy, slotW, slotH, 6);
 
-      // 技能圖示（用文字代替）
       const skillLabel = this.add.text(sx + slotW / 2, sy + slotH / 2 - 8, key, {
-        fontSize: '18px', color: '#ffffff', fontFamily: 'Arial',
+        fontSize: '16px', color: '#ffffff', fontFamily: 'Arial',
         stroke: '#000', strokeThickness: 3,
       }).setOrigin(0.5, 0.5).setDepth(52).setScrollFactor(0);
 
-      const nameLabel = this.add.text(sx + slotW / 2, sy + slotH - 14, labels[key] ? labels[key].slice(0, 4) : key, {
-        fontSize: '9px', color: '#aaaaff', fontFamily: 'Arial',
+      this.add.text(sx + slotW / 2, sy + slotH - 12, labels[key] || key, {
+        fontSize: '8px', color: '#8899cc', fontFamily: 'Arial',
       }).setOrigin(0.5, 1).setDepth(52).setScrollFactor(0);
 
-      // 冷卻遮罩
       const cdOverlay = this.add.graphics().setDepth(53).setScrollFactor(0);
       this._cdOverlays[key] = { overlay: cdOverlay, x: sx, y: sy, w: slotW, h: slotH };
       this._skillSlots[key] = skillLabel;
@@ -119,7 +190,7 @@ export class UIScene extends Phaser.Scene {
   _refreshCooldowns() {
     const gs = this.registry.get('gameState');
     if (!gs) return;
-    const mapNames = { sky: '浮空島嶼', ruins: '古代廢墟', kerning: '盜賊地下城', boss: '暗影領域', town: '楓葉城' };
+    const mapNames = { sky: '浮空島嶼', ruins: '古代廢墟', kerning: 'Kerning City', boss: '暗影領域', town: '楓葉城' };
     this._mapText.setText(mapNames[gs.currentMap] || '');
 
     for (const [key, data] of Object.entries(this._cdOverlays)) {
@@ -129,15 +200,12 @@ export class UIScene extends Phaser.Scene {
       const maxCd = SKILLS[key] ? SKILLS[key].cooldown : 1;
       const ratio = cd / maxCd;
       if (ratio > 0) {
-        overlay.fillStyle(0x000000, 0.6);
+        overlay.fillStyle(0x000000, 0.65);
         overlay.fillRect(x, y + h * (1 - ratio), w, h * ratio);
-        // CD 數字
-        overlay.fillStyle(0x000000, 0);
       }
-      // 未解鎖則暗顯
       const unlocked = gs.unlockedSkills && gs.unlockedSkills.includes(key);
       if (this._skillSlots[key]) {
-        this._skillSlots[key].setAlpha(unlocked ? 1 : 0.35);
+        this._skillSlots[key].setAlpha(unlocked ? 1 : 0.3);
       }
     }
   }
@@ -146,9 +214,9 @@ export class UIScene extends Phaser.Scene {
     const gs = this.registry.get('gameState');
     if (!gs) return;
     this._gs = gs;
-    this._updateBar(this._hpBar,  'hp',  gs.hp,  gs.maxHp,  0xff3333);
-    this._updateBar(this._mpBar,  'mp',  gs.mp,  gs.maxMp,  0x4466ff);
-    this._updateBar(this._expBar, 'exp', gs.exp, gs.expNeeded, 0xddcc00);
+    this._updateBar(this._hpBar,  gs.hp,  gs.maxHp,  0xff3333);
+    this._updateBar(this._mpBar,  gs.mp,  gs.maxMp,  0x3355ff);
+    this._updateBar(this._expBar, gs.exp, gs.expNeeded, 0xddaa00, true);
     this._hpNum.setText(`${Math.ceil(gs.hp)}/${gs.maxHp}`);
     this._mpNum.setText(`${Math.ceil(gs.mp)}/${gs.maxMp}`);
     this._levelText.setText(`Lv.${gs.level}`);
@@ -157,30 +225,37 @@ export class UIScene extends Phaser.Scene {
     this._onKillChange(null, gs.killCount);
   }
 
-  _updateBar(barObj, field, current, max, color) {
+  _updateBar(barObj, current, max, color, isExpBar = false) {
     const x = barObj.getData('x'), y = barObj.getData('y');
     const w = barObj.getData('w'), h = barObj.getData('h');
     const ratio = max > 0 ? Math.max(0, Math.min(1, current / max)) : 0;
     barObj.clear();
-    barObj.fillStyle(color, 0.9);
-    barObj.fillRect(x, y, w * ratio, h);
+    barObj.fillStyle(color, 0.92);
+    if (isExpBar) {
+      barObj.fillRect(x, y, w * ratio, h);
+      // EXP 發光效果
+      barObj.fillStyle(0xffdd44, 0.3);
+      barObj.fillRect(x, y, w * ratio, 3);
+    } else {
+      barObj.fillRect(x, y, w * ratio, h);
+    }
   }
 
   _onHpChange(parent, value) {
     const gs = this.registry.get('gameState');
-    this._updateBar(this._hpBar, 'hp', value, gs.maxHp, 0xff3333);
+    this._updateBar(this._hpBar, value, gs.maxHp, 0xff3333);
     this._hpNum.setText(`${Math.ceil(value)}/${gs.maxHp}`);
   }
 
   _onMpChange(parent, value) {
     const gs = this.registry.get('gameState');
-    this._updateBar(this._mpBar, 'mp', value, gs.maxMp, 0x4466ff);
+    this._updateBar(this._mpBar, value, gs.maxMp, 0x3355ff);
     this._mpNum.setText(`${Math.ceil(value)}/${gs.maxMp}`);
   }
 
   _onExpChange(parent, value) {
     const gs = this.registry.get('gameState');
-    this._updateBar(this._expBar, 'exp', value, gs.expNeeded, 0xddcc00);
+    this._updateBar(this._expBar, value, gs.expNeeded, 0xddaa00, true);
   }
 
   _onLevelChange(parent, value) {
@@ -190,16 +265,15 @@ export class UIScene extends Phaser.Scene {
   }
 
   _onSpChange(parent, value) {
+    const color = value > 0 ? '#ffff44' : '#88ffcc';
     this._spText.setText(`SP: ${value}`);
-    if (value > 0) this._spText.setStyle({ fontSize:'14px', color:'#ffff44', fontFamily:'Arial', stroke:'#000', strokeThickness:3 });
-    else this._spText.setStyle({ fontSize:'14px', color:'#88ffcc', fontFamily:'Arial', stroke:'#000', strokeThickness:3 });
+    this._spText.setStyle({ fontSize: '12px', color, fontFamily: 'Arial', stroke: '#000', strokeThickness: 2 });
   }
 
   _onLevelUp(parent, level) {
-    // 升級動畫文字
     const { width, height } = this.cameras.main;
-    const txt = this.add.text(width / 2, height / 2 - 40, `🎉 Level Up!  Lv.${level}`, {
-      fontSize: '36px', color: '#ffff00', fontFamily: 'Arial',
+    const txt = this.add.text(width / 2, height / 2 - 80, `🎉 Level Up!  Lv.${level}`, {
+      fontSize: '40px', color: '#ffff00', fontFamily: 'Arial',
       stroke: '#aa6600', strokeThickness: 6,
     }).setOrigin(0.5, 0.5).setDepth(200).setScrollFactor(0);
 
@@ -213,17 +287,17 @@ export class UIScene extends Phaser.Scene {
     this._mesoText.setText(`💰 ${value}`);
   }
 
-  // ── 裝備欄（左下角，技能欄上方）─────────────────────────────────────────
-  _setupEquipmentBar() {
+  // ── 裝備欄（底部左側，頭像右方技能列右側）────────────────────────────────
+  _setupEquipmentBar(width, height, barPanelY) {
     const slots = ['weapon', 'armor', 'gloves', 'helmet', 'boots'];
     const texKeys = {
       weapon: 'item-weapon', armor: 'item-armor',
       gloves: 'item-gloves', helmet: 'item-helmet', boots: 'item-boots',
     };
-    const { height } = this.cameras.main;
-    const slotSize = 36, gap = 4;
+    const slotSize = 30, gap = 3;
+    // 放在技能列左側（左下角）
     const startX = 16;
-    const startY = height - 56 - 12 - slotSize - 8;  // 技能欄上方
+    const startY = barPanelY - slotSize - 10;
 
     this._equipSlots = {};
     slots.forEach((slot, i) => {
@@ -231,14 +305,14 @@ export class UIScene extends Phaser.Scene {
       const sy = startY;
 
       const bg = this.add.graphics().setDepth(50).setScrollFactor(0);
-      bg.fillStyle(0x111122, 0.85);
+      bg.fillStyle(0x0d0d22, 0.85);
       bg.fillRect(sx, sy, slotSize, slotSize);
       bg.lineStyle(1, 0x334466, 0.9);
       bg.strokeRect(sx, sy, slotSize, slotSize);
 
       const icon = this.add.image(sx + slotSize / 2, sy + slotSize / 2, texKeys[slot])
         .setDepth(51).setScrollFactor(0)
-        .setDisplaySize(24, 24)
+        .setDisplaySize(20, 20)
         .setAlpha(0.25);
 
       this._equipSlots[slot] = { sx, sy, bg, icon };
@@ -248,12 +322,12 @@ export class UIScene extends Phaser.Scene {
   _refreshEquipment() {
     const gs = this.registry.get('gameState');
     if (!gs || !this._equipSlots) return;
-    const slotSize = 36;
+    const slotSize = 30;
     for (const [slot, data] of Object.entries(this._equipSlots)) {
       const equip = gs.equipment[slot];
       const { sx, sy, bg, icon } = data;
       bg.clear();
-      bg.fillStyle(0x111122, 0.85);
+      bg.fillStyle(0x0d0d22, 0.85);
       bg.fillRect(sx, sy, slotSize, slotSize);
       const borderColor = equip ? 0x44ff44 : 0x334466;
       bg.lineStyle(equip ? 2 : 1, borderColor, 0.9);
@@ -266,13 +340,13 @@ export class UIScene extends Phaser.Scene {
     const gs = this.registry.get('gameState');
     if (gs && gs.bossUnlocked) {
       this._killText.setText(`💀 Boss 解鎖！`);
-      this._killText.setStyle({ color: '#ff44ff', fontSize: '15px', fontFamily: 'Arial', stroke: '#000', strokeThickness: 3 });
+      this._killText.setStyle({ color: '#ff44ff', fontSize: '12px', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2 });
     } else {
       const needed = 60;
       this._killText.setText(`💀 ${value}/${needed}`);
       const pct = value / needed;
       const color = pct >= 0.8 ? '#ffaa44' : '#ffee88';
-      this._killText.setStyle({ color, fontSize: '15px', fontFamily: 'Arial', stroke: '#000', strokeThickness: 3 });
+      this._killText.setStyle({ color, fontSize: '12px', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2 });
     }
   }
 }

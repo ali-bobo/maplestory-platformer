@@ -15,7 +15,7 @@ export class Boss extends Monster {
       meso: 500,
       dropRate: 1.0,
       behavior: 'chase',
-      spriteKey: 'monster-boss',
+      spriteKey: 'boss_main',
       area: 'boss',
     });
 

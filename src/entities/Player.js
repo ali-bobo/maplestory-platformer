@@ -7,7 +7,7 @@ import { isEquipmentBetter } from '../config/equipment.js';
 
 export class Player extends Phaser.Physics.Arcade.Sprite {
   constructor(scene, x, y, gameState) {
-    super(scene, x, y, 'thief');
+    super(scene, x, y, 'character_player');
     scene.add.existing(this);
     scene.physics.add.existing(this);
 
@@ -111,9 +111,8 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   }
 
   _updateTexture(onGround) {
-    // 目前只有單張 thief 圖片，統一使用（未來可換 spritesheet 動畫）
-    this.setTexture('thief');
-    // 確保水平翻轉方向持久（避免 setTexture 造成狀態遺失）
+    // 使用新版 character_player 圖片
+    this.setTexture('character_player');
     this.setFlipX(!this.facingRight);
   }
 
