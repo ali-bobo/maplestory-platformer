@@ -84,14 +84,15 @@ export class BaseMapScene extends Phaser.Scene {
 
     if (bgImage && this.textures.exists(bgImage)) {
       const tex = this.textures.get(bgImage);
+      const imgW = tex.getSourceImage().width;
       const imgH = tex.getSourceImage().height;
 
       // tileSprite 固定在畫面正中，不隨相機移動（scrollFactor 0）
       const bg = this.add.tileSprite(SCREEN_W / 2, SCREEN_H / 2, SCREEN_W, SCREEN_H, bgImage);
       bg.setScrollFactor(0).setDepth(-9);
 
-      // 縱向等比縮放填滿螢幕
-      const sc = SCREEN_H / imgH;
+      // cover 式等比縮放：取寬/高中較大比例，確保完全填滿螢幕
+      const sc = Math.max(SCREEN_W / imgW, SCREEN_H / imgH);
       bg.setTileScale(sc, sc);
 
       // 視差：相機捲動時輕推 tile（15% 速度，產生景深感）
