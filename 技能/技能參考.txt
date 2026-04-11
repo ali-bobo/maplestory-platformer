@@ -1,0 +1,72 @@
+2.5D side view cartoon style ninja throwing shuriken, dynamic action pose, 
+8 frame sprite sheet, consistent character, clean silhouette, 
+motion blur, glowing energy trail, dramatic lighting, 
+game asset, transparent background, evenly spaced frames, 
+high contrast, stylized VFX, impact effect, sharp and cool style
+
+spinning shuriken with glowing blue energy trail, 
+side view, game VFX, transparent background, 
+multiple frames animation, motion blur, 
+high speed, stylized cartoon effect
+
+anime impact effect, energy burst, sharp explosion, 
+blue and white glow, radial lines, 
+game hit effect, transparent background, 
+high intensity, stylized
+
+class Shuriken {
+  constructor(x, y, direction) {
+    this.x = x;
+    this.y = y;
+    this.speed = 12;
+    this.direction = direction;
+    this.rotation = 0;
+    this.active = true;
+  }
+
+  update() {
+    this.x += this.speed * this.direction;
+    this.rotation += 0.3;
+
+    // 簡單碰撞判定（你可換成引擎版）
+    if (this.hitEnemy()) {
+      this.onHit();
+    }
+  }
+
+  draw(ctx, sprite) {
+    ctx.save();
+    ctx.translate(this.x, this.y);
+    ctx.rotate(this.rotation);
+    
+    // 拖尾（簡單做法）
+    ctx.globalAlpha = 0.3;
+    ctx.drawImage(sprite, -20, -20, 40, 40);
+    ctx.globalAlpha = 1;
+
+    ctx.drawImage(sprite, -16, -16, 32, 32);
+    ctx.restore();
+  }
+
+  hitEnemy() {
+    // TODO: 你的碰撞邏輯
+    return false;
+  }
+
+  onHit() {
+    this.active = false;
+
+    // 👉 產生命中特效
+    spawnHitEffect(this.x, this.y);
+
+    // 👉 停頓（hit stop，讓手感變好）
+    game.freeze(0.05);
+  }
+}
+
+
+game.freeze = function(duration) {
+  this.freezeTime = duration;
+};
+
+camera.shake(5, 0.1);

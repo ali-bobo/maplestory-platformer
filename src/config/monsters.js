@@ -17,7 +17,10 @@ export const MONSTERS = [
   { id: 'dragon',   name: '小藍龍',     level: 19, hp: 900,  atk: 105, exp: 260, speed: 85,  meso: 52, dropRate: 0.22, behavior: 'chase',   spriteKey: 'monster_dragon',   area: 'kerning' },
   { id: 'cyclops',  name: '獨眼怪',     level: 22, hp: 1100, atk: 125, exp: 330, speed: 70,  meso: 60, dropRate: 0.24, behavior: 'patrol',  spriteKey: 'monster_cyclops',  area: 'kerning' },
   { id: 'golem',    name: '石頭精',     level: 25, hp: 1400, atk: 145, exp: 420, speed: 45,  meso: 70, dropRate: 0.26, behavior: 'patrol',  spriteKey: 'monster_golem',    area: 'kerning' },
-  { id: 'mimic',    name: '飛魚寶箱',   level: 28, hp: 1200, atk: 160, exp: 510, speed: 95,  meso: 82, dropRate: 0.28, behavior: 'ranged',  spriteKey: 'monster_mimic',    area: 'kerning' },
+  { id: 'mimic',        name: '飛魚寶箱',   level: 28, hp: 1200, atk: 160, exp: 510, speed: 95,  meso: 82, dropRate: 0.28, behavior: 'ranged',  spriteKey: 'monster_mimic',    area: 'kerning' },
+
+  // ── Boss 援軍 (boss) ─────────────────────────────────────────────────────
+  { id: 'shadow-slime', name: '影子史萊姆', level: 28, hp: 400,  atk: 80,  exp: 0,   speed: 80,  meso: 0,  dropRate: 0.0,  behavior: 'chase',   spriteKey: 'monster_slime',    area: 'boss', tint: 0x9B30FF },
 ];
 
 export function getMonstersForArea(area) {

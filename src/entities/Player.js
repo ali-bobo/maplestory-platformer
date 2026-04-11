@@ -284,4 +284,14 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       this.scene.registry.events.emit('changedata-mp', null, gs.mp);
     }
   }
+
+  // HP 自然回復（每秒 +5，受傷無敵期間暫停回復）
+  recoverHp(delta) {
+    const gs = this.gameState;
+    if (gs.hp < gs.maxHp && !this.isInvincible) {
+      gs.hp = Math.min(gs.maxHp, gs.hp + delta * 0.005);
+      this.scene.registry.set('gameState', gs);
+      this.scene.registry.events.emit('changedata-hp', null, gs.hp);
+    }
+  }
 }

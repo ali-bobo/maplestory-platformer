@@ -42,6 +42,7 @@ export function castShuriken(scene, player, enemies) {
           const { damage, isCrit } = calcDamage(gs.atk, gs.critRate, gs.critMulti, 1.2);
           enemy.takeDamage(damage, isCrit);
           particles.spawnHit(scene, enemy.x, enemy.y, 0xaaaaff);
+          scene.cameras.main.shake(isCrit ? 100 : 50, isCrit ? 0.012 : 0.005);
           shuriken.destroy();
         });
       }
@@ -121,15 +122,39 @@ export function castAssassinate(scene, player, enemies) {
   nearest.takeDamage(damage, true);
   particles.spawnDeath(scene, nearest.x, nearest.y, 0xaa00ff);
 
-  // 能量爆發視覺
+  // 能量爆發視覺（放射能量線：白/洋紅交替，配合規格「黑鳥放射能量」）
   const burst = scene.add.graphics();
-  burst.lineStyle(3, 0xaa00ff, 1);
-  burst.strokeCircle(player.x, player.y, 20);
-  burst.setDepth(50);
+  const cx = player.x, cy = player.y;
+
+  // 暗色中心剪影（模擬黑鳥輪廓）
+  burst.fillStyle(0x1a0030, 0.8);
+  burst.fillEllipse(cx, cy, 26, 34);
+
+  // 12 條鋒銳放射線（白色/洋紅交替）
+  const lineCount = 12;
+  for (let i = 0; i < lineCount; i++) {
+    const angle = (i / lineCount) * Math.PI * 2;
+    const color = i % 2 === 0 ? 0xffffff : 0xFF48C4;
+    const len = 55 + Math.floor(Math.random() * 55);
+    burst.lineStyle(2.5, color, 1);
+    burst.beginPath();
+    burst.moveTo(cx, cy);
+    burst.lineTo(cx + Math.cos(angle) * len, cy + Math.sin(angle) * len);
+    burst.strokePath();
+  }
+
+  // 中心白光
+  burst.fillStyle(0xffffff, 0.9);
+  burst.fillCircle(cx, cy, 7);
+  burst.fillStyle(0xffeeff, 0.5);
+  burst.fillCircle(cx, cy, 12);
+
+  burst.setDepth(60);
   scene.tweens.add({
-    targets: burst, scaleX: 4, scaleY: 4, alpha: 0, duration: 400,
+    targets: burst, scaleX: 1.8, scaleY: 1.8, alpha: 0, duration: 450,
     onComplete: () => burst.destroy(),
   });
+  scene.cameras.main.shake(200, 0.018);
 }
 
 // ── V: 暗影漩渦 ─────────────────────────────────────────────────────────────
@@ -146,7 +171,31 @@ export function castVortex(scene, player, enemies) {
   circle.strokeCircle(cx, cy, radius);
   circle.lineStyle(2, 0x6622bb, 0.6);
   circle.strokeCircle(cx, cy, radius * 0.6);
+
+  // 8 條放射符文線（中心向外）
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * Math.PI * 2;
+    circle.lineStyle(1, 0x9933ff, 0.5);
+    circle.beginPath();
+    circle.moveTo(cx, cy);
+    circle.lineTo(cx + Math.cos(a) * radius * 0.88, cy + Math.sin(a) * radius * 0.88);
+    circle.strokePath();
+  }
+
+  // 內部六角形符文
+  circle.lineStyle(1, 0x5511aa, 0.45);
+  for (let i = 0; i < 6; i++) {
+    const a1 = (i / 6) * Math.PI * 2 - Math.PI / 2;
+    const a2 = ((i + 1) / 6) * Math.PI * 2 - Math.PI / 2;
+    const r2 = radius * 0.32;
+    circle.beginPath();
+    circle.moveTo(cx + Math.cos(a1) * r2, cy + Math.sin(a1) * r2);
+    circle.lineTo(cx + Math.cos(a2) * r2, cy + Math.sin(a2) * r2);
+    circle.strokePath();
+  }
+
   circle.setDepth(45);
+  scene.cameras.main.shake(150, 0.01);
   scene.tweens.add({
     targets: circle, alpha: 0, duration: 1200,
     onComplete: () => circle.destroy(),

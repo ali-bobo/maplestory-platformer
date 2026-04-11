@@ -79,9 +79,7 @@ export class BossScene extends BaseMapScene {
   }
 
   update(time, delta) {
+    // super.update() 已透過 monsters 群組迭代更新 Boss，不需額外呼叫
     super.update(time, delta);
-    if (this._boss && this._boss.active && !this._boss.isDead && this.player) {
-      this._boss.update(this.player, delta);
-    }
   }
 }

@@ -31,6 +31,7 @@ export const MAP_SCENE_KEYS = {
   sky:     'MapleIslandScene',
   ruins:   'PerionScene',
   kerning: 'KerningScene',
+  boss:    'BossScene',
 };
 
 export const MAP_ORDER = ['sky', 'ruins', 'kerning'];

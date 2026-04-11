@@ -41,6 +41,7 @@ export class Monster extends Phaser.Physics.Arcade.Sprite {
     this.body.setGravityY(0);
     this.setDepth(10);
     this.setDisplaySize(56, 56);  // 真實圖片統一顯示大小
+    if (config.tint) this.setTint(config.tint);  // 特殊色調（shadow-slime 等）
 
     // 血條背景
     this._hpBg = null;
@@ -101,13 +102,21 @@ export class Monster extends Phaser.Physics.Arcade.Sprite {
   }
 
   _showDamageNumber(amount, isCrit) {
-    const color = isCrit ? '#ffff00' : '#ffffff';
-    const size = isCrit ? '22px' : '16px';
+    // 顏色分級：一般白 / 暴擊金 / 高傷橘（≥500）
+    let color = '#ffffff';
+    let fontSize = '16px';
+    if (isCrit) {
+      if (amount >= 500) {
+        color = '#ff8800'; fontSize = '26px';   // 橘色：高暴擊
+      } else {
+        color = '#ffff00'; fontSize = '22px';   // 黃色：一般暴擊
+      }
+    }
     const txt = this.scene.add.text(
       this.x + (Math.random() - 0.5) * 20,
       this.y - 20,
       isCrit ? `${amount}!` : String(amount),
-      { fontSize: size, color, fontFamily: 'Arial', stroke: '#000000', strokeThickness: 3 }
+      { fontSize, color, fontFamily: 'Arial', stroke: '#000000', strokeThickness: 3 }
     );
     txt.setDepth(80);
     this.scene.tweens.add({
@@ -166,7 +175,7 @@ export class Monster extends Phaser.Physics.Arcade.Sprite {
     pickup.setDepth(8);
     pickup.setVelocity((Math.random() - 0.5) * 120, -200);
     pickup.setBounce(0.3);
-    this.scene.time.delayedCall(8000, () => { if (pickup.active) pickup.destroy(); });
+    this.scene.time.delayedCall(30000, () => { if (pickup.active) pickup.destroy(); });
     // 加入場景的 pickups 群組
     if (this.scene.pickups) this.scene.pickups.add(pickup);
   }

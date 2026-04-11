@@ -33,6 +33,8 @@ export class BaseMapScene extends Phaser.Scene {
     this.mapData = MAPS[this.mapKey];
     if (!this.mapData) { console.error(`地圖資料未找到: ${this.mapKey}`); return; }
 
+    this._transitioning = false;  // 每次 create 重置傳送狀態
+
     const gs = this.registry.get('gameState');
     gs.currentMap = this.mapKey;
     this.registry.set('gameState', gs);
@@ -164,6 +166,7 @@ export class BaseMapScene extends Phaser.Scene {
       const portal = this.portals.create(pd.x, pd.y, 'portal');
       portal.setDepth(6);
       portal.targetMap = pd.target;
+      portal.spawnX   = pd.spawnX;  // 目標地圖的重生位置
       portal.refreshBody();
 
       this.add.text(pd.x, pd.y - 10, pd.label || '', {
@@ -294,7 +297,7 @@ export class BaseMapScene extends Phaser.Scene {
       gs.currentMap = target;
       this.registry.set('gameState', gs);
       this.scene.stop('UIScene');
-      this.scene.start(sceneKey, { gameState: gs });
+      this.scene.start(sceneKey, { gameState: gs, spawnX: portal.spawnX });
     });
   }
 
@@ -330,6 +333,7 @@ export class BaseMapScene extends Phaser.Scene {
     if (!this.player || this.player.isDead) return;
     this.player.update(delta);
     this.player.recoverMp(delta);
+    this.player.recoverHp(delta);
 
     const children = this.monsters.getChildren();
     for (const monster of children) {

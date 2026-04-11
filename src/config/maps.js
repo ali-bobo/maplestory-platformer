@@ -180,6 +180,23 @@ const KERNING_PLATFORMS = [
   plat(3340, 170, 160, 'wood'),
 ];
 
+// ─────────── Boss 房間 (Shadow Lord Arena) ───────────
+// 1280px 寬封閉戰場，程式生成暗影領域背景
+const BOSS_PLATFORMS = [
+  ground(0, GROUND_Y, 1280, 'brick'),
+
+  // 低層側台（供走位/跳躍）
+  plat(80,   540, 200, 'brick'),
+  plat(1000, 540, 200, 'brick'),
+
+  // 中層台
+  plat(280,  400, 220, 'stone'),
+  plat(780,  400, 220, 'stone'),
+
+  // 高層中央台
+  plat(480,  260, 320, 'brick'),
+];
+
 export const MAPS = {
   // ── 浮空島嶼（初始地圖，Lv1）──
   sky: {
@@ -195,7 +212,7 @@ export const MAPS = {
       { id: 'stump',    count: 5, spreadX: 2800, offsetX: 600 },
     ],
     portals: [
-      { x: 3790, y: GROUND_Y - 48, width: 40, height: 72, target: 'ruins', label: '→古代廢墟' },
+      { x: 3790, y: GROUND_Y - 48, width: 40, height: 72, target: 'ruins',   label: '→古代廢墟', spawnX: 200 },
     ],
     npcs: [],
     spawnX: 150,
@@ -215,8 +232,8 @@ export const MAPS = {
       { id: 'snake',    count: 6, spreadX: 2600, offsetX: 600 },
     ],
     portals: [
-      { x: 3790, y: GROUND_Y - 48, width: 40, height: 72, target: 'kerning', label: '→Kerning City' },
-      { x: 30,   y: GROUND_Y - 48, width: 40, height: 72, target: 'sky',     label: '←浮空島嶼' },
+      { x: 3790, y: GROUND_Y - 48, width: 40, height: 72, target: 'kerning', label: '→Kerning City', spawnX: 200 },
+      { x: 30,   y: GROUND_Y - 48, width: 40, height: 72, target: 'sky',     label: '←浮空島嶼',   spawnX: 3600 },
     ],
     npcs: [],
     spawnX: 150,
@@ -236,9 +253,23 @@ export const MAPS = {
       { id: 'mimic',   count: 6, spreadX: 2600, offsetX: 600 },
     ],
     portals: [
-      { x: 30,   y: GROUND_Y - 48, width: 40, height: 72, target: 'ruins', label: '←古代廢墟' },
+      { x: 30,   y: GROUND_Y - 48, width: 40, height: 72, target: 'ruins', label: '←古代廢墟',   spawnX: 3600 },
+      { x: 3790, y: GROUND_Y - 48, width: 40, height: 72, target: 'boss',  label: '⚠ Boss 決戰', spawnX: 200, requireBoss: true },
     ],
     npcs: [],
     spawnX: 150,
+  },
+
+  // ── Boss 房（暗影領域，Lv30）──
+  boss: {
+    key: 'boss', name: '暗影領域', sceneKey: 'BossScene',
+    width: 1280, bgColor: 0x0D0018,
+    platforms: BOSS_PLATFORMS,
+    bgType: 'boss',
+    bgImage: 'bg_boss',
+    monsters: [],
+    portals: [],
+    npcs: [],
+    spawnX: 200,
   },
 };

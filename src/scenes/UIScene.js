@@ -44,6 +44,7 @@ export class UIScene extends Phaser.Scene {
     this._skillSlots = {};
     this._cdOverlays = {};
     this._setupSkillBar();
+    this._setupEquipmentBar();
 
     // ── 初始化 ────────────────────────────────────────────────────────────────
     this._refreshAll();
@@ -60,6 +61,8 @@ export class UIScene extends Phaser.Scene {
 
     // 定期全量刷新（冷卻條等）
     this.time.addEvent({ delay: 100, loop: true, callback: this._refreshCooldowns, callbackScope: this });
+    // 定期刷新裝備欄
+    this.time.addEvent({ delay: 500, loop: true, callback: this._refreshEquipment, callbackScope: this });
   }
 
   _makeBar(x, y, w, h, color) {
@@ -116,7 +119,7 @@ export class UIScene extends Phaser.Scene {
   _refreshCooldowns() {
     const gs = this.registry.get('gameState');
     if (!gs) return;
-    const mapNames = { maple: '楓之島', henesys: '弓箭手獵場', ellinia: '法師森林', perion: '劍士荒原', kerning: '盜賊地下城', town: '楓葉城', boss: 'Boss戰' };
+    const mapNames = { sky: '浮空島嶼', ruins: '古代廢墟', kerning: '盜賊地下城', boss: '暗影領域', town: '楓葉城' };
     this._mapText.setText(mapNames[gs.currentMap] || '');
 
     for (const [key, data] of Object.entries(this._cdOverlays)) {
@@ -151,7 +154,7 @@ export class UIScene extends Phaser.Scene {
     this._levelText.setText(`Lv.${gs.level}`);
     this._spText.setText(`SP: ${gs.skillPoints || 0}`);
     this._mesoText.setText(`💰 ${gs.meso}`);
-    this._killText.setText(`💀 ${gs.killCount}`);
+    this._onKillChange(null, gs.killCount);
   }
 
   _updateBar(barObj, field, current, max, color) {
@@ -210,10 +213,66 @@ export class UIScene extends Phaser.Scene {
     this._mesoText.setText(`💰 ${value}`);
   }
 
+  // ── 裝備欄（左下角，技能欄上方）─────────────────────────────────────────
+  _setupEquipmentBar() {
+    const slots = ['weapon', 'armor', 'gloves', 'helmet', 'boots'];
+    const texKeys = {
+      weapon: 'item-weapon', armor: 'item-armor',
+      gloves: 'item-gloves', helmet: 'item-helmet', boots: 'item-boots',
+    };
+    const { height } = this.cameras.main;
+    const slotSize = 36, gap = 4;
+    const startX = 16;
+    const startY = height - 56 - 12 - slotSize - 8;  // 技能欄上方
+
+    this._equipSlots = {};
+    slots.forEach((slot, i) => {
+      const sx = startX + i * (slotSize + gap);
+      const sy = startY;
+
+      const bg = this.add.graphics().setDepth(50).setScrollFactor(0);
+      bg.fillStyle(0x111122, 0.85);
+      bg.fillRect(sx, sy, slotSize, slotSize);
+      bg.lineStyle(1, 0x334466, 0.9);
+      bg.strokeRect(sx, sy, slotSize, slotSize);
+
+      const icon = this.add.image(sx + slotSize / 2, sy + slotSize / 2, texKeys[slot])
+        .setDepth(51).setScrollFactor(0)
+        .setDisplaySize(24, 24)
+        .setAlpha(0.25);
+
+      this._equipSlots[slot] = { sx, sy, bg, icon };
+    });
+  }
+
+  _refreshEquipment() {
+    const gs = this.registry.get('gameState');
+    if (!gs || !this._equipSlots) return;
+    const slotSize = 36;
+    for (const [slot, data] of Object.entries(this._equipSlots)) {
+      const equip = gs.equipment[slot];
+      const { sx, sy, bg, icon } = data;
+      bg.clear();
+      bg.fillStyle(0x111122, 0.85);
+      bg.fillRect(sx, sy, slotSize, slotSize);
+      const borderColor = equip ? 0x44ff44 : 0x334466;
+      bg.lineStyle(equip ? 2 : 1, borderColor, 0.9);
+      bg.strokeRect(sx, sy, slotSize, slotSize);
+      icon.setAlpha(equip ? 1.0 : 0.25);
+    }
+  }
+
   _onKillChange(parent, value) {
-    this._killText.setText(`💀 ${value}`);
-    if (value >= 60) {
-      this._killText.setStyle({ color: '#ff44ff', fontSize: '16px' });
+    const gs = this.registry.get('gameState');
+    if (gs && gs.bossUnlocked) {
+      this._killText.setText(`💀 Boss 解鎖！`);
+      this._killText.setStyle({ color: '#ff44ff', fontSize: '15px', fontFamily: 'Arial', stroke: '#000', strokeThickness: 3 });
+    } else {
+      const needed = 60;
+      this._killText.setText(`💀 ${value}/${needed}`);
+      const pct = value / needed;
+      const color = pct >= 0.8 ? '#ffaa44' : '#ffee88';
+      this._killText.setStyle({ color, fontSize: '15px', fontFamily: 'Arial', stroke: '#000', strokeThickness: 3 });
     }
   }
 }

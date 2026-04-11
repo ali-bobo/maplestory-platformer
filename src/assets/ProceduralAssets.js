@@ -8,6 +8,7 @@ export function generateTextures(scene) {
   generateParticles(scene);
   generateItems(scene);
   generateUI(scene);
+  generateBossAssets(scene);
 }
 
 const g_ = (scene) => scene.add.graphics();
@@ -162,4 +163,123 @@ function generateUI(scene){
   g.fillStyle(0xffffff,0.55); g.fillEllipse(22,5,28,12);
   g.fillStyle(0xeeddff,0.4); g.fillEllipse(22,5,20,8);
   g.generateTexture('portal',44,78); g.destroy();
+}
+
+// ── Boss 素材 ────────────────────────────────────────────────────────────────
+function generateBossAssets(scene) {
+  // ─ monster-boss：64×64 暗影魔君（紫黑人形＋紅眼＋披風）─
+  {
+    const W = 64, H = 64;
+    const g = g_(scene);
+
+    // 外光環
+    g.fillStyle(0x3300aa, 0.35); g.fillCircle(32, 36, 26);
+    g.fillStyle(0x5500cc, 0.25); g.fillCircle(32, 36, 20);
+
+    // 披風（深紫三角）
+    g.fillStyle(0x1a0030, 0.95);
+    g.fillTriangle(8, 62, 56, 62, 32, 10);
+    g.fillStyle(0x3300aa, 0.75);
+    g.fillTriangle(13, 60, 51, 60, 32, 14);
+
+    // 身體
+    g.fillStyle(0x0a0015);
+    g.fillRect(22, 28, 20, 24);
+    g.fillStyle(0x220040, 0.9);
+    g.fillRect(23, 29, 18, 22);
+
+    // 手臂
+    g.fillStyle(0x0a0015);
+    g.fillRect(10, 29, 12, 5);
+    g.fillRect(42, 29, 12, 5);
+    g.fillStyle(0x550088, 0.8);
+    g.fillRect(6, 32, 8, 4);
+    g.fillRect(50, 32, 8, 4);
+
+    // 腿
+    g.fillStyle(0x0a0015);
+    g.fillRect(23, 51, 7, 12);
+    g.fillRect(34, 51, 7, 12);
+
+    // 頭
+    g.fillStyle(0x110022);
+    g.fillCircle(32, 22, 11);
+    g.fillStyle(0x220044, 0.8);
+    g.fillCircle(32, 22, 9);
+
+    // 角（尖刺）
+    g.fillStyle(0x0a0018);
+    g.fillTriangle(22, 14, 28, 4,  30, 16);
+    g.fillTriangle(42, 14, 36, 4,  34, 16);
+
+    // 紅眼
+    g.fillStyle(0xff0000, 0.95); g.fillEllipse(27, 20, 5, 4);
+    g.fillStyle(0xff0000, 0.95); g.fillEllipse(37, 20, 5, 4);
+    g.fillStyle(0xff8888);       g.fillCircle(27, 20, 1.5);
+    g.fillStyle(0xff8888);       g.fillCircle(37, 20, 1.5);
+
+    // 能量紋路
+    g.lineStyle(1, 0xaa00ff, 0.6);
+    g.beginPath(); g.moveTo(14, 33); g.lineTo(7, 27); g.strokePath();
+    g.beginPath(); g.moveTo(50, 32); g.lineTo(57, 26); g.strokePath();
+
+    g.generateTexture('monster-boss', W, H);
+    g.destroy();
+  }
+
+  // ─ bg_boss：256×256 暗影領域背景 tile（暗紫漸層＋六芒星符文）─
+  {
+    const S = 256;
+    const g = g_(scene);
+
+    // 基底黑
+    g.fillStyle(0x0D0018); g.fillRect(0, 0, S, S);
+
+    // 暗紫圓暈（模擬漸層）
+    const levels = [
+      { r: 110, c: 0x1A0035, a: 0.55 },
+      { r: 75,  c: 0x250050, a: 0.35 },
+      { r: 45,  c: 0x300066, a: 0.2  },
+    ];
+    for (const { r, c, a } of levels) {
+      g.fillStyle(c, a); g.fillCircle(S / 2, S / 2, r);
+    }
+
+    // 六芒星（2個等邊三角形交疊）
+    const drawTri = (cx, cy, r, rot) => {
+      const pts = [];
+      for (let i = 0; i < 3; i++) {
+        const a = (i / 3) * Math.PI * 2 + rot;
+        pts.push(cx + r * Math.cos(a), cy + r * Math.sin(a));
+      }
+      g.lineStyle(1, 0x6600cc, 0.22);
+      g.beginPath();
+      g.moveTo(pts[0], pts[1]);
+      g.lineTo(pts[2], pts[3]);
+      g.lineTo(pts[4], pts[5]);
+      g.closePath();
+      g.strokePath();
+    };
+    drawTri(S / 2, S / 2, 90, -Math.PI / 2);
+    drawTri(S / 2, S / 2, 90,  Math.PI / 2);
+
+    // 外圈
+    g.lineStyle(1, 0x550099, 0.18);
+    g.strokeCircle(S / 2, S / 2, 100);
+    g.lineStyle(1, 0x440077, 0.12);
+    g.strokeCircle(S / 2, S / 2, 60);
+
+    // 8條放射線（極暗）
+    g.lineStyle(1, 0x4400aa, 0.1);
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * Math.PI * 2;
+      g.beginPath();
+      g.moveTo(S / 2, S / 2);
+      g.lineTo(S / 2 + 110 * Math.cos(a), S / 2 + 110 * Math.sin(a));
+      g.strokePath();
+    }
+
+    g.generateTexture('bg_boss', S, S);
+    g.destroy();
+  }
 }
