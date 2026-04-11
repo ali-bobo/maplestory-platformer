@@ -73,12 +73,12 @@ export class BaseMapScene extends Phaser.Scene {
     this.input.keyboard.on('keydown-ESC', () => { this._closeNpcDialog(); });
   }
 
-  // ── 背景（使用真實圖片 tileSprite） ──────────────────────────────────────
+  // ── 背景（使用真實圖片 tileSprite，極低視差率避免重複銜接） ─────────────
   _createBackground() {
     const { bgColor, bgImage } = this.mapData;
     const SCREEN_W = 1280, SCREEN_H = 720;
 
-    // 底色（防止圖片邊緣露白）
+    // 底色
     const sky = this.add.graphics();
     sky.fillStyle(bgColor || 0x5588ff);
     sky.fillRect(0, 0, SCREEN_W, SCREEN_H);
@@ -89,7 +89,6 @@ export class BaseMapScene extends Phaser.Scene {
       const imgW = tex.getSourceImage().width;
       const imgH = tex.getSourceImage().height;
 
-      // tileSprite 固定在畫面正中，不隨相機移動（scrollFactor 0）
       const bg = this.add.tileSprite(SCREEN_W / 2, SCREEN_H / 2, SCREEN_W, SCREEN_H, bgImage);
       bg.setScrollFactor(0).setDepth(-9);
 
@@ -97,9 +96,9 @@ export class BaseMapScene extends Phaser.Scene {
       const sc = Math.max(SCREEN_W / imgW, SCREEN_H / imgH);
       bg.setTileScale(sc, sc);
 
-      // 視差：相機捲動時輕推 tile（15% 速度，產生景深感）
+      // 視差：使用極低速率（1%），避免背景重複銜接痕跡
       this.events.on('update', () => {
-        bg.tilePositionX = this.cameras.main.scrollX * 0.15;
+        bg.tilePositionX = this.cameras.main.scrollX * 0.01;
       });
     }
   }
@@ -181,8 +180,9 @@ export class BaseMapScene extends Phaser.Scene {
   _createNPCs() {
     if (!this.mapData.npcs || this.mapData.npcs.length === 0) return;
     for (const npcDef of this.mapData.npcs) {
-      // NPC 圖片
-      const npc = this.physics.add.staticImage(npcDef.x, npcDef.y + 24, npcDef.id || 'npc-shop');
+      // NPC 圖片（限制顯示大小為 60x80，避免大圖壓版）
+      const npc = this.physics.add.staticImage(npcDef.x, npcDef.y + 24, npcDef.id || 'npc_new_2');
+      npc.setDisplaySize(60, 80);
       npc.setDepth(8);
       npc.refreshBody();
       npc._npcData = npcDef;
