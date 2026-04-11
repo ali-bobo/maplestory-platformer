@@ -2,8 +2,8 @@
 .DS_Store
 Thumbs.db
 
-# Build output
-dist/
+# Build output（bundle.js 需提交以便直接開啟遊戲）
+dist/*.map
 node_modules/
 
 # Archon
