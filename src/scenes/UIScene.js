@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { SKILLS, POTIONS, expNeeded, MAP_SCENE_KEYS } from '../config/constants.js';
+import { SKILLS, POTIONS, expNeeded, MAP_SCENE_KEYS, WORLD_HEIGHT } from '../config/constants.js';
 import { MAPS } from '../config/maps.js';
 
 // HUD 場景（平行運行）— 楓之谷風格底部狀態列
@@ -14,9 +14,9 @@ export class UIScene extends Phaser.Scene {
     this._timers = [];
     const { width, height } = this.cameras.main;
 
-    // ── 底部狀態列面板（雙列：上方狀態 + 下方技能/藥水）──────────────────────
-    const barPanelH = 110;
-    const barPanelY = height - barPanelH;   // = 610
+    // ── 底部狀態列面板（單列：角色資訊 + 技能/藥水 + 功能按鈕）───────────────
+    const barPanelH = height - WORLD_HEIGHT;
+    const barPanelY = WORLD_HEIGHT;
 
     // 底部面板背景
     const panelBg = this.add.graphics().setDepth(50).setScrollFactor(0);
@@ -25,13 +25,8 @@ export class UIScene extends Phaser.Scene {
     panelBg.lineStyle(1, 0x334466, 0.8);
     panelBg.strokeRect(0, barPanelY, width, barPanelH);
 
-    // 分隔線（技能列與狀態列之間）
-    const divG = this.add.graphics().setDepth(50).setScrollFactor(0);
-    divG.lineStyle(1, 0x223355, 0.9);
-    divG.lineBetween(0, barPanelY + 50, width, barPanelY + 50);
-
     // ── 角色頭像框（底部左側）────────────────────────────────────────────────
-    const portX = 10, portY = barPanelY + 5, portW = 40, portH = 40;
+    const portX = 10, portY = barPanelY + 10, portW = 40, portH = 40;
     const portBg = this.add.graphics().setDepth(51).setScrollFactor(0);
     portBg.fillStyle(0x112244, 0.95);
     portBg.fillRect(portX, portY, portW, portH);
@@ -45,10 +40,10 @@ export class UIScene extends Phaser.Scene {
     }
 
     // ── HP/MP 條 ─────────────────────────────────────────────────────────────
-    const barStartX = portX + portW + 8;   // = 58
-    const barW = 155, barH = 11, barGap = 12;
-    const hpY = barPanelY + 8;
-    const mpY = hpY + barH + barGap;       // = 631
+    const barStartX = portX + portW + 8;
+    const barW = 145, barH = 10, barGap = 7;
+    const hpY = barPanelY + 10;
+    const mpY = hpY + barH + barGap;
 
     this._hpBg  = this._makeBar(barStartX, hpY, barW, barH, 0x4d0000);
     this._hpBar = this._makeBar(barStartX, hpY, barW, barH, 0xff3333);
@@ -69,26 +64,26 @@ export class UIScene extends Phaser.Scene {
     }).setDepth(53).setScrollFactor(0);
 
     // EXP 條（底部最下方一條細條，全寬）
-    const expBarH = 6;
+    const expBarH = 5;
     this._expBg  = this._makeBar(0, height - expBarH, width, expBarH, 0x221100);
     this._expBar = this._makeBar(0, height - expBarH, width, expBarH, 0xddaa00);
 
-    // ── 角色名稱 / 等級（面板上方）──────────────────────────────────────────
-    this._levelText = this.add.text(portX, barPanelY - 22, 'Lv.1', {
+    // ── 角色名稱 / 等級（收進單列面板）──────────────────────────────────────
+    this._levelText = this.add.text(portX + 2, barPanelY + 43, 'Lv.1', {
       fontSize: '13px', color: '#ffee44', fontFamily: 'Arial',
       stroke: '#000', strokeThickness: 3,
     }).setDepth(51).setScrollFactor(0);
 
-    this._classText = this.add.text(portX, barPanelY - 6, 'Soul Bender', {
-      fontSize: '10px', color: '#aaddff', fontFamily: 'Arial',
+    this._classText = this.add.text(barStartX + 2, barPanelY + 42, 'Soul Bender', {
+      fontSize: '9px', color: '#aaddff', fontFamily: 'Arial',
       stroke: '#000', strokeThickness: 2,
     }).setDepth(51).setScrollFactor(0);
 
     // ── 中段資訊（SP/Meso/Kill）─────────────────────────────────────────────
-    const midX = barStartX + barW + 48;
-    this._spText   = this.add.text(midX, barPanelY + 6,  'SP: 0',  { fontSize: '11px', color: '#88ffcc', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2 }).setDepth(51).setScrollFactor(0);
-    this._mesoText = this.add.text(midX, barPanelY + 20, '💰 0',   { fontSize: '11px', color: '#ffee88', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2 }).setDepth(51).setScrollFactor(0);
-    this._killText = this.add.text(midX, barPanelY + 34, '💀 0/60',{ fontSize: '11px', color: '#ffee88', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2 }).setDepth(51).setScrollFactor(0);
+    const midX = barStartX + barW + 34;
+    this._spText   = this.add.text(midX, barPanelY + 10, 'SP: 0',  { fontSize: '10px', color: '#88ffcc', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2 }).setDepth(51).setScrollFactor(0);
+    this._mesoText = this.add.text(midX, barPanelY + 24, '💰 0',   { fontSize: '10px', color: '#ffee88', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2 }).setDepth(51).setScrollFactor(0);
+    this._killText = this.add.text(midX, barPanelY + 38, '💀 0/60',{ fontSize: '10px', color: '#ffee88', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2 }).setDepth(51).setScrollFactor(0);
 
     // ── 小地圖區域 + 地圖名稱（右上角）─────────────────────────────────────
     this._setupMinimap(width);
@@ -142,7 +137,7 @@ export class UIScene extends Phaser.Scene {
     const btnW = 42, btnH = 22, gap = 3;
     const totalW = btnData.length * (btnW + gap) - gap;
     let bx = width - totalW - 8;
-    const by = barPanelY + (50 - btnH) / 2;  // vertically center in status row
+    const by = barPanelY + 8;
 
     for (const btn of btnData) {
       // 背景方塊（設定 interactive 讓它可點擊）
@@ -261,15 +256,15 @@ export class UIScene extends Phaser.Scene {
     const potionKeys  = ['A', 'S', 'D', 'F', 'G'];
     const skillLabels = { Z: '三連鏢', X: '影步伐', C: '暗殺', V: '漩渦', B: '影分身' };
 
-    const slotW = 44, slotH = 44, gap = 4;
-    const potW  = 38, potH  = 44, potGap = 4;
+    const slotW = 34, slotH = 44, gap = 3;
+    const potW  = 30, potH  = 44, potGap = 3;
     const sepW  = 10;
-    const totalSkillW  = skillKeys.length  * (slotW + gap) - gap;   // 236
-    const totalPotionW = potionKeys.length * (potW  + potGap) - potGap; // 206
-    const totalW = totalSkillW + sepW + totalPotionW;  // 452
+    const totalSkillW  = skillKeys.length  * (slotW + gap) - gap;
+    const totalPotionW = potionKeys.length * (potW  + potGap) - potGap;
+    const totalW = totalSkillW + sepW + totalPotionW;
 
-    const rowY = barPanelY + 54;                      // top of skill/potion row (inside panel)
-    const skillStartX  = Math.floor((width - totalW) / 2);
+    const rowY = barPanelY + 8;
+    const skillStartX  = Math.floor(width / 2 - totalW / 2 + 18);
     const potionStartX = skillStartX + totalSkillW + sepW;
 
     // ── 技能槽 ────────────────────────────────────────────────────────────────
@@ -284,12 +279,12 @@ export class UIScene extends Phaser.Scene {
       slotBg.strokeRoundedRect(sx, sy, slotW, slotH, 5);
 
       const skillLabel = this.add.text(sx + slotW / 2, sy + slotH / 2 - 9, key, {
-        fontSize: '15px', color: '#ffffff', fontFamily: 'Arial',
+        fontSize: '14px', color: '#ffffff', fontFamily: 'Arial',
         stroke: '#000', strokeThickness: 3,
       }).setOrigin(0.5, 0.5).setDepth(52).setScrollFactor(0);
 
       this.add.text(sx + slotW / 2, sy + slotH - 11, skillLabels[key] || key, {
-        fontSize: '8px', color: '#8899cc', fontFamily: 'Arial',
+        fontSize: '7px', color: '#8899cc', fontFamily: 'Arial',
       }).setOrigin(0.5, 1).setDepth(52).setScrollFactor(0);
 
       const cdOverlay = this.add.graphics().setDepth(53).setScrollFactor(0);
@@ -487,8 +482,8 @@ export class UIScene extends Phaser.Scene {
   _openPopup(type) {
     this._closePopup();
     const { width, height } = this.cameras.main;
-    const barPanelH = 110;
-    const barPanelY = height - barPanelH;  // 610
+    const barPanelH = height - WORLD_HEIGHT;
+    const barPanelY = WORLD_HEIGHT;
 
     const popW = 340, popH = 280;
     const popX = width - popW - 10;

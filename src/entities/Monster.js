@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { particles } from '../engine/particles.js';
 import { audio } from '../engine/audio.js';
 import { rollEquipmentDrop } from '../config/equipment.js';
+import { ALIGNMENT_PROFILES, applyAlignmentProfile, getVisualCenterPoint, getVisualCenterY, getVisualTopY } from '../config/alignment.js';
 
 // 怪物 AI 狀態
 const STATE = { PATROL: 'patrol', CHASE: 'chase', ATTACK: 'attack', HURT: 'hurt', DEAD: 'dead', RANGED: 'ranged' };
@@ -36,30 +37,11 @@ export class Monster extends Phaser.Physics.Arcade.Sprite {
     this.attackCooldown = 0;
     this.rangedCooldown = 0;
 
-    // 物理設定 — 根據怪物圖片的透明填充量調整 body，
-    // 讓 body.bottom 對齊平台頂時，怪物腳底視覺上貼齊平台。
-    // 80×80 原版怪物圖有 ~6-11% 底部填充（顯示 56px 時約 4-6px）；
-    // 新版/大型怪物圖片幾乎無填充。
+    // 怪物站位由共享腳底基準 metadata 決定，避免不同圖片來源造成推算漂移。
     this.setCollideWorldBounds(true);
     this.body.setGravityY(0);
     this.setDepth(10);
-    this.setDisplaySize(56, 56);
-
-    // 根據圖片來源決定 body 尺寸：原版 80×80 有較大底部透明填充
-    const isOriginal80 = [
-      'monster_slime', 'monster_mushroom', 'monster_snail', 'monster_stump',
-      'monster_boar', 'monster_robot', 'monster_skeleton', 'monster_snake',
-      'monster_dragon', 'monster_cyclops', 'monster_golem', 'monster_mimic',
-    ].includes(config.spriteKey);
-    if (isOriginal80) {
-      // 原版 80x80 圖：底部 ~8% 透明 → 56px 中約 5px，body 縮短 5px
-      this.body.setSize(44, 47);
-      this.body.setOffset(6, 4);
-    } else {
-      // 新版圖（幾乎無填充）：body 稍微縮短 2px 作微調
-      this.body.setSize(44, 50);
-      this.body.setOffset(6, 4);
-    }
+    applyAlignmentProfile(this, ALIGNMENT_PROFILES.monster);
     if (config.tint) this.setTint(config.tint);
 
     // 血條背景
@@ -81,7 +63,8 @@ export class Monster extends Phaser.Physics.Arcade.Sprite {
   _updateHpBar() {
     if (!this._hpBg || !this._hpBar) return;
     const bw = 32, bh = 4;
-    const bx = this.x - bw / 2, by = this.y - 24;
+    const bx = this.x - bw / 2;
+    const by = getVisualTopY(this) - 8;
     this._hpBg.clear();
     this._hpBg.fillStyle(0x000000, 0.7);
     this._hpBg.fillRect(bx, by, bw, bh);
@@ -131,9 +114,10 @@ export class Monster extends Phaser.Physics.Arcade.Sprite {
         color = '#ffff00'; fontSize = '22px';   // 黃色：一般暴擊
       }
     }
+    const center = getVisualCenterPoint(this);
     const txt = this.scene.add.text(
-      this.x + (Math.random() - 0.5) * 20,
-      this.y - 20,
+      center.x + (Math.random() - 0.5) * 20,
+      center.y - 16,
       isCrit ? `${amount}!` : String(amount),
       { fontSize, color, fontFamily: 'Arial', stroke: '#000000', strokeThickness: 3 }
     );
@@ -151,7 +135,8 @@ export class Monster extends Phaser.Physics.Arcade.Sprite {
     this._destroyHpBar();
 
     audio.playDeath();
-    particles.spawnDeath(this.scene, this.x, this.y, 0xff4444);
+    const center = getVisualCenterPoint(this);
+    particles.spawnDeath(this.scene, center.x, center.y, 0xff4444);
 
     // 掉落物品
     this._dropLoot();
@@ -186,7 +171,7 @@ export class Monster extends Phaser.Physics.Arcade.Sprite {
   _spawnPickup(textureKey, data, type) {
     const pickup = this.scene.physics.add.sprite(
       this.x + (Math.random() - 0.5) * 40,
-      this.y - 10,
+      getVisualCenterY(this),
       textureKey
     );
     pickup.pickupType = type;
@@ -219,7 +204,7 @@ export class Monster extends Phaser.Physics.Arcade.Sprite {
     }
 
     const distX = player.x - this.x;
-    const distY = player.y - this.y;
+    const distY = player.body.center.y - this.body.center.y;
     const dist = Math.sqrt(distX * distX + distY * distY);
 
     switch (this.behavior) {
@@ -295,7 +280,8 @@ export class Monster extends Phaser.Physics.Arcade.Sprite {
     if (this.rangedCooldown > 0) return;
     this.rangedCooldown = 2000;
     const dir = player.x > this.x ? 1 : -1;
-    const proj = this.scene.physics.add.sprite(this.x, this.y - 10, 'skill-orb');
+    const center = getVisualCenterPoint(this);
+    const proj = this.scene.physics.add.sprite(this.x, center.y - 10, 'skill-orb');
     proj.setTint(0xff4444);
     proj.setDepth(20);
     proj.body.setAllowGravity(false);

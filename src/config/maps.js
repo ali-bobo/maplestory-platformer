@@ -1,9 +1,9 @@
 import { WORLD_HEIGHT } from './constants.js';
 
-// 地圖定義 v6.0 — 精簡至 2 層平台 + 地板，加寬平台（改善懸空視覺），地板透明（用背景自然地板）
+// 地圖定義 v6.1 — 精簡至 2 層平台 + 地板，地板頂線直接貼齊 HUD 上緣
 
 const PH = 24;          // 平台高度
-const GROUND_Y = WORLD_HEIGHT - PH;   // 地板頂部固定貼齊 HUD 上方的遊戲區底部
+const GROUND_Y = WORLD_HEIGHT;   // 地板頂部固定貼齊 HUD 上緣，移除角色下方黑帶
 
 const MAP_WIDTH = 2560;
 
@@ -11,8 +11,21 @@ function plat(x, y, width, type = 'stone', thin = true) {
   return { x, y, width, type, thin };
 }
 function ground(x, y, width, type = 'stone') {
-  // isGround: true → BaseMapScene 會讓它透明，靠背景圖的地板視覺
+  // isGround: true → BaseMapScene 會讓它透明，只保留碰撞面
   return { x, y, width, type, thin: false, isGround: true };
+}
+function imageSolidPlatform(platform, options = {}) {
+  return {
+    ...platform,
+    thin: false,
+    decorationKey: options.decorationKey || 'platform_long',
+    renderMode: 'image-native',
+    imageRowIndex: options.imageRowIndex ?? 0,
+    imageCropTopRatio: options.imageCropTopRatio ?? 0.28,
+    imageCropHeightRatio: options.imageCropHeightRatio ?? 0.48,
+    walkableTopRatio: options.walkableTopRatio ?? 0.42,
+    walkableHeight: options.walkableHeight ?? 18,
+  };
 }
 
 // ─────────── 浮空島嶼 ───────────
@@ -38,12 +51,12 @@ const HENESYS_PLATFORMS = [
 
   // 第一層（y=400）：3 個，草地材質
   plat(100,  400, 600, 'grass'),
-  plat(980,  400, 600, 'wood'),
+  imageSolidPlatform(plat(980,  400, 600, 'wood'), { walkableTopRatio: 0.4, walkableHeight: 20 }),
   plat(1860, 400, 600, 'grass'),
 
   // 第二層（y=240）：3 個，木頭材質
   plat(380,  240, 580, 'wood'),
-  plat(1220, 240, 580, 'grass'),
+  imageSolidPlatform(plat(1220, 240, 580, 'grass'), { walkableTopRatio: 0.4, walkableHeight: 20 }),
   plat(2060, 240, 580, 'wood'),
 ];
 
@@ -70,12 +83,12 @@ const ELLINIA_PLATFORMS = [
 
   // 第一層（y=400）：3 個，木頭材質
   plat(100,  400, 600, 'wood'),
-  plat(980,  400, 600, 'brick'),
+  { ...plat(980,  400, 600, 'brick'), decorationKey: 'platform_long' },
   plat(1860, 400, 600, 'wood'),
 
   // 第二層（y=240）：3 個，磚石材質
   plat(380,  240, 580, 'brick'),
-  plat(1220, 240, 580, 'wood'),
+  { ...plat(1220, 240, 580, 'wood'), decorationKey: 'platform_long' },
   plat(2060, 240, 580, 'brick'),
 ];
 
@@ -93,6 +106,20 @@ const KERNING_PLATFORMS = [
   plat(380,  240, 580, 'brick'),
   plat(1220, 240, 580, 'wood'),
   plat(2060, 240, 580, 'brick'),
+];
+
+// ─────────── Taipei City ───────────
+// 2 層（城市高架跳台，保留後續長條平台覆蓋空間）
+const TAIPEI_PLATFORMS = [
+  ground(0, GROUND_Y, MAP_WIDTH, 'brick'),
+
+  plat(120,  400, 620, 'brick'),
+  { ...plat(960,  400, 640, 'wood'), decorationKey: 'platform_long' },
+  plat(1840, 400, 620, 'brick'),
+
+  { ...plat(360,  240, 600, 'wood'), decorationKey: 'platform_long' },
+  plat(1220, 240, 600, 'brick'),
+  plat(2040, 240, 520, 'wood'),
 ];
 
 // ─────────── Boss 房間 ───────────
@@ -116,13 +143,13 @@ export const MAPS = {
     platforms: SKY_PLATFORMS,
     bgType: 'sky', bgImage: 'bg_sky',
     monsters: [
-      // 顏色/外型：鮮豔可愛，符合晴天浮空島嶼風格
-      { id: 'slime',    count: 5 },  // 綠色圓滾滾
-      { id: 'mushroom', count: 4 },  // 紅色蘑菇
-      { id: 'snail',    count: 4 },  // 翅膀蝸牛（天空感）
-      { id: 'sky_imp',  count: 3 },  // 雲端精靈（淡色）
-      { id: 'sky_bird', count: 3 },  // 浮雲鳥（飛行系）
-      { id: 'sky_puff', count: 3 },  // 棉花怪（白色蓬鬆）
+      // 天空 / 奇幻起手區：以飛行、精靈、史萊姆變體為主
+      { id: 'slime',    count: 5 },
+      { id: 'mushroom', count: 4 },
+      { id: 'snail',    count: 4 },
+      { id: 'sky_imp',  count: 3 },
+      { id: 'sky_bird', count: 3 },
+      { id: 'sky_puff', count: 3 },
     ],
     portals: [
       { x: MAP_WIDTH - 50, y: GROUND_Y - 48, width: 40, height: 72, target: 'henesys', label: '→森林獵場', spawnX: 200 },
@@ -140,13 +167,13 @@ export const MAPS = {
     platforms: HENESYS_PLATFORMS,
     bgType: 'henesys', bgImage: 'bg_forest',
     monsters: [
-      // 顏色/外型：棕綠色系，樹木、動物，符合森林自然風格
-      { id: 'mushroom', count: 4 },  // 蘑菇（森林常見）
-      { id: 'stump',    count: 4 },  // 惡樹樁（森林樹木）
-      { id: 'snail',    count: 3 },  // 蝸牛（林間生物）
-      { id: 'boar',     count: 4 },  // 野豬（棕色，森林動物）
-      { id: 'snake',    count: 3 },  // 毒蛇（綠色，森林爬蟲）
-      { id: 'sky_puff', count: 3 },  // 棉花怪（林間雲霧）
+      // 森林主題：植物 / 菇類、林地獸類、自然精靈優先
+      { id: 'mushroom', count: 4 },
+      { id: 'stump',    count: 4 },
+      { id: 'boar',     count: 4 },
+      { id: 'snail',    count: 3 },
+      { id: 'sky_imp',  count: 3 },
+      { id: 'sky_puff', count: 3 },
     ],
     portals: [
       { x: MAP_WIDTH - 50, y: GROUND_Y - 48, width: 40, height: 72, target: 'ruins',   label: '→古代廢墟', spawnX: 200 },
@@ -165,13 +192,13 @@ export const MAPS = {
     platforms: RUINS_PLATFORMS,
     bgType: 'ruins', bgImage: 'bg_ruins',
     monsters: [
-      // 顏色/外型：灰棕色系，機械、骷髏、石頭，符合古代廢墟風格
-      { id: 'robot',       count: 4 },  // 機械直升機（鐵灰色）
-      { id: 'skeleton',    count: 4 },  // 骷髏戰士（米白色骨骼）
-      { id: 'ruin_knight', count: 3 },  // 廢墟騎士（暗色盔甲）
-      { id: 'ruin_golem',  count: 3 },  // 石柱魔像（岩石色）
-      { id: 'ruin_wraith', count: 3 },  // 古代惡靈（灰黑幽靈）
-      { id: 'ruin_beast',  count: 3 },  // 廢墟猛獸（深棕色）
+      // 勇士峽谷 / 廢墟主題：戰士、岩石、重裝與荒野猛獸
+      { id: 'skeleton',    count: 4 },
+      { id: 'ruin_knight', count: 4 },
+      { id: 'ruin_golem',  count: 3 },
+      { id: 'ruin_wraith', count: 3 },
+      { id: 'ruin_beast',  count: 3 },
+      { id: 'ruin_giant',  count: 2 },
     ],
     portals: [
       { x: MAP_WIDTH - 50, y: GROUND_Y - 48, width: 40, height: 72, target: 'ellinia', label: '→神秘之境', spawnX: 200 },
@@ -188,18 +215,19 @@ export const MAPS = {
     key: 'ellinia', name: '神秘之境', sceneKey: 'ElliniaScene',
     width: MAP_WIDTH, bgColor: 0x4422aa,
     platforms: ELLINIA_PLATFORMS,
-    bgType: 'ellinia', bgImage: 'bg_toytown',
+    bgType: 'ellinia', bgImage: 'bg_toytown_refresh',
     monsters: [
-      // 顏色/外型：鮮豔彩色，獨眼、寶箱、精靈，符合奇幻彩色城鎮風格
-      { id: 'sky_imp',     count: 4 },  // 雲端精靈（彩色小精靈）
-      { id: 'ruin_golem',  count: 4 },  // 石柱魔像（方塊彩色）
-      { id: 'cyclops',     count: 3 },  // 獨眼怪（大眼紫色）
-      { id: 'mimic',       count: 3 },  // 飛魚寶箱（金橘寶箱）
-      { id: 'ruin_giant',  count: 3 },  // 廢墟巨人（大型彩色）
-      { id: 'city_thug',   count: 3 },  // 城市流氓（街頭彩色）
+      // 奇幻高空城鎮：精靈、飛行與高辨識幻想怪物
+      { id: 'sky_imp',     count: 4 },
+      { id: 'sky_bird',    count: 4 },
+      { id: 'cyclops',     count: 3 },
+      { id: 'mimic',       count: 3 },
+      { id: 'dragon',      count: 3 },
+      { id: 'ruin_wraith', count: 3 },
     ],
     portals: [
       { x: MAP_WIDTH - 50, y: GROUND_Y - 48, width: 40, height: 72, target: 'kerning', label: '→Kerning City', spawnX: 200 },
+      { x: MAP_WIDTH / 2, y: GROUND_Y - 48, width: 40, height: 72, target: 'taipei', label: '↑台北都會', spawnX: 160 },
       { x: 30,             y: GROUND_Y - 48, width: 40, height: 72, target: 'ruins',   label: '←古代廢墟',    spawnX: MAP_WIDTH - 200 },
     ],
     npcs: [
@@ -215,14 +243,13 @@ export const MAPS = {
     platforms: KERNING_PLATFORMS,
     bgType: 'kerning', bgImage: 'bg_city',
     monsters: [
-      // 顏色/外型：深色霓虹，龍、石頭精、機械衛士，符合暗色都市地下城風格
-      { id: 'dragon',     count: 4 },  // 小藍龍（藍色，暗夜感）
-      { id: 'golem',      count: 3 },  // 石頭精（深灰岩石）
-      { id: 'city_mech',  count: 3 },  // 機械衛士（鐵灰機械）
-      { id: 'city_beast', count: 3 },  // 暗夜猛獸（深色毛皮）
-      { id: 'city_elite', count: 3 },  // 精英衛兵（暗色盔甲）
-      { id: 'city_boss1', count: 1 },  // 小王：暗影使者（特大）
-      { id: 'city_boss2', count: 1 },  // 小王：機械領袖（特大）
+      // 都市黑幫區：城市、機械與菁英敵人為主
+      { id: 'city_thug',  count: 4 },
+      { id: 'city_mech',  count: 4 },
+      { id: 'city_beast', count: 3 },
+      { id: 'city_elite', count: 3 },
+      { id: 'city_boss1', count: 1 },
+      { id: 'city_boss2', count: 1 },
     ],
     portals: [
       { x: 30,             y: GROUND_Y - 48, width: 40, height: 72, target: 'ellinia', label: '←神秘之境',   spawnX: MAP_WIDTH - 200 },
@@ -230,6 +257,29 @@ export const MAPS = {
     ],
     npcs: [
       { x: 350, y: GROUND_Y - 60, id: 'npc_new_4', name: '地下城嚮導', dialog: ['歡迎來到 Kerning City！', '這裡的怪物非常強大，要小心。', '擊敗 60 隻怪物解鎖 Boss！'] },
+    ],
+    spawnX: 150,
+  },
+
+  // ── 地圖 5.5：台北都會（城市支線地圖）─────────────────────────────────
+  taipei: {
+    key: 'taipei', name: '台北都會', sceneKey: 'TaipeiScene',
+    width: MAP_WIDTH, bgColor: 0x2a3558,
+    platforms: TAIPEI_PLATFORMS,
+    bgType: 'taipei', bgImage: 'bg_taipei',
+    monsters: [
+      { id: 'city_thug',  count: 4 },
+      { id: 'city_mech',  count: 4 },
+      { id: 'robot',      count: 3 },
+      { id: 'city_elite', count: 3 },
+      { id: 'city_beast', count: 2 },
+    ],
+    portals: [
+      { x: 30,             y: GROUND_Y - 48, width: 40, height: 72, target: 'ellinia', label: '←神秘之境', spawnX: MAP_WIDTH / 2 + 120 },
+      { x: MAP_WIDTH - 50, y: GROUND_Y - 48, width: 40, height: 72, target: 'kerning', label: '→Kerning City', spawnX: 260 },
+    ],
+    npcs: [
+      { x: 330, y: GROUND_Y - 60, id: 'npc_new_5', name: '台北導遊', dialog: ['這裡是台北都會試作地圖。', '目前先用現有城市系怪物做第一版驗證。', '之後會再把候選怪物族群整併進來。'] },
     ],
     spawnX: 150,
   },

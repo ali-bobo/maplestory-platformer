@@ -5,9 +5,15 @@ import { MAP_SCENE_KEYS, WORLD_HEIGHT } from '../config/constants.js';
 import { Player } from '../entities/Player.js';
 import { Monster } from '../entities/Monster.js';
 import { audio } from '../engine/audio.js';
+import { getVisualFootPadding } from '../config/alignment.js';
 
 const PLATFORM_HEIGHT = 24;
-const GROUND_Y = WORLD_HEIGHT - PLATFORM_HEIGHT;
+const GROUND_Y = WORLD_HEIGHT;
+const PLATFORM_DECORATION_ROW_INDEX = {
+  henesys: 0,
+  ellinia: 2,
+  taipei: 1,
+};
 
 export class BaseMapScene extends Phaser.Scene {
   constructor(key, mapKey) {
@@ -108,23 +114,13 @@ export class BaseMapScene extends Phaser.Scene {
     sky.fillRect(0, 0, SCREEN_W, SCREEN_H);
     sky.setDepth(-10).setScrollFactor(0.0);
 
-    // 地面以下填充色（GROUND_Y → HUD 之間），避免背景接縫或空白
-    const gc = bgColor || 0x111111;
-    const groundFillColor = (Math.floor(((gc >> 16) & 0xff) * 0.15) << 16)
-                          | (Math.floor(((gc >> 8) & 0xff) * 0.15) << 8)
-                          | Math.floor(((gc & 0xff) * 0.15));
-    const groundFill = this.add.graphics();
-    groundFill.fillStyle(groundFillColor, 1);
-    groundFill.fillRect(0, GROUND_Y, SCREEN_W, SCREEN_H - GROUND_Y);
-    groundFill.setDepth(-8).setScrollFactor(0);
-
     if (bgImage && this.textures.exists(bgImage)) {
       const tex = this.textures.get(bgImage);
       const imgW = tex.getSourceImage().width;
       const imgH = tex.getSourceImage().height;
 
-      // 背景僅覆蓋遊戲區域（y=0 到 y=GROUND_Y），底部與地面對齊
-      const bgH = GROUND_Y;
+      // 背景僅覆蓋遊戲區域（y=0 到 y=WORLD_HEIGHT），底部與 HUD 上緣對齊
+      const bgH = WORLD_HEIGHT;
       const bg = this.add.tileSprite(SCREEN_W / 2, bgH / 2, SCREEN_W, bgH, bgImage);
       bg.setScrollFactor(0).setDepth(-9);
 
@@ -149,14 +145,85 @@ export class BaseMapScene extends Phaser.Scene {
     this.platforms      = this.physics.add.staticGroup();
     this.thinPlatforms  = this.physics.add.staticGroup();
     for (const p of this.mapData.platforms) {
-      const textureKey = `platform-${p.type || 'grass'}`;
       const group = p.thin ? this.thinPlatforms : this.platforms;
+      if (p.renderMode === 'image-native' && p.decorationKey && this.textures.exists(p.decorationKey)) {
+        this._createImageNativePlatform(group, p);
+        continue;
+      }
+
+      const textureKey = `platform-${p.type || 'grass'}`;
       const sprite = group.create(p.x + p.width / 2, p.y + PLATFORM_HEIGHT / 2, textureKey);
       sprite.setDisplaySize(p.width, PLATFORM_HEIGHT);
       sprite.refreshBody();
       sprite.setDepth(5);
       if (p.isGround) sprite.setAlpha(0);  // 地板用背景自然地板視覺，不疊加紋理
+      if (p.decorationKey && this.textures.exists(p.decorationKey)) {
+        this._createPlatformDecoration(p);
+      }
     }
+  }
+
+  _createImageNativePlatform(group, platformData) {
+    const {
+      decorationKey,
+      x,
+      y,
+      width,
+      imageRowIndex,
+      imageCropTopRatio = 0.28,
+      imageCropHeightRatio = 0.48,
+      walkableTopRatio = 0.42,
+      walkableHeight = 18,
+    } = platformData;
+
+    const texture = this.textures.get(decorationKey);
+    const source = texture?.getSourceImage?.();
+    if (!source?.width || !source?.height) return null;
+
+    const rowCount = 3;
+    const rowHeight = Math.floor(source.height / rowCount);
+    const rowIndex = imageRowIndex ?? PLATFORM_DECORATION_ROW_INDEX[this.mapKey] ?? 0;
+    const cropTop = rowIndex * rowHeight + Math.floor(rowHeight * imageCropTopRatio);
+    const cropHeight = Math.max(64, Math.floor(rowHeight * imageCropHeightRatio));
+    const displayHeight = Math.round(width * (cropHeight / source.width));
+    const walkableTopOffset = Math.round(displayHeight * walkableTopRatio);
+    const sprite = group.create(x + width / 2, y - walkableTopOffset, decorationKey);
+
+    sprite.setOrigin(0.5, 0);
+    sprite.setCrop(0, cropTop, source.width, cropHeight);
+    sprite.setDisplaySize(width, displayHeight);
+    sprite.setDepth(6);
+    sprite.refreshBody();
+
+    if (sprite.body) {
+      sprite.body.setSize(width, walkableHeight);
+      sprite.body.setOffset(0, walkableTopOffset);
+      if (typeof sprite.body.updateFromGameObject === 'function') {
+        sprite.body.updateFromGameObject();
+      }
+    }
+
+    return sprite;
+  }
+
+  _createPlatformDecoration(platformData) {
+    const { decorationKey, x, y, width } = platformData;
+    const decoration = this.add.image(x + width / 2, y + PLATFORM_HEIGHT / 2, decorationKey);
+    const texture = this.textures.get(decorationKey);
+    const source = texture?.getSourceImage?.();
+
+    if (source?.width && source?.height) {
+      const rowCount = 3;
+      const rowHeight = Math.floor(source.height / rowCount);
+      const rowIndex = PLATFORM_DECORATION_ROW_INDEX[this.mapKey] ?? 0;
+      const cropHeight = Math.max(48, Math.floor(rowHeight * 0.36));
+      const cropTop = rowIndex * rowHeight + Math.floor(rowHeight * 0.37);
+      decoration.setCrop(0, cropTop, source.width, cropHeight);
+    }
+
+    decoration.setDisplaySize(width, PLATFORM_HEIGHT);
+    decoration.setDepth(6);
+    return decoration;
   }
 
   // ── 怪物生成（依平台隨機分佈）─────────────────────────────────────────────
@@ -269,8 +336,8 @@ export class BaseMapScene extends Phaser.Scene {
 
   _alignDynamicEntityToPlatformTop(entity, platformTopY) {
     if (!entity?.body) return;
-    const footOffset = entity.displayHeight * entity.originY - entity.body.offset.y - entity.body.height;
-    entity.setY(platformTopY + footOffset);
+    const footPadding = getVisualFootPadding(entity);
+    entity.setY(platformTopY - entity.displayHeight * (1 - entity.originY) + footPadding);
   }
 
   _getNearbyNpcData() {

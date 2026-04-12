@@ -7,6 +7,7 @@ import { HenesysScene } from './scenes/HenesysScene.js';
 import { ElliniaScene } from './scenes/ElliniaScene.js';
 import { PerionScene } from './scenes/PerionScene.js';
 import { KerningScene } from './scenes/KerningScene.js';
+import { TaipeiScene } from './scenes/TaipeiScene.js';
 import { TownScene } from './scenes/TownScene.js';
 import { BossScene } from './scenes/BossScene.js';
 import { UIScene } from './scenes/UIScene.js';
@@ -49,6 +50,7 @@ const config = {
     ElliniaScene,
     PerionScene,
     KerningScene,
+    TaipeiScene,
     TownScene,
     BossScene,
     UIScene,

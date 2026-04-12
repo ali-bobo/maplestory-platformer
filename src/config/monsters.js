@@ -1,4 +1,49 @@
-// 怪物定義 v5.0 — 新增從遊戲畫面擷取的怪物圖片
+// 怪物定義 v5.1 — 補上主題分類與多地圖棲地資訊
+
+export const MONSTER_FAMILIES = {
+  SPIRIT: '精靈類',
+  WOODLAND: '林地獸類',
+  PLANT: '植物 / 菇類',
+  WARRIOR: '戰士類',
+  HEAVY: '重裝類',
+  ROCK: '岩石類',
+  FANTASY: '奇幻類',
+  FLYING: '飛行類',
+  MACHINE: '機械類',
+  CITY: '城市類',
+  ELITE: '菁英 / 小王',
+  BOSS_SUPPORT: 'Boss 援軍',
+};
+
+const MONSTER_CLASSIFICATION = {
+  slime: { family: MONSTER_FAMILIES.FANTASY, habitats: ['sky'] },
+  mushroom: { family: MONSTER_FAMILIES.PLANT, habitats: ['sky', 'henesys'] },
+  snail: { family: MONSTER_FAMILIES.WOODLAND, habitats: ['sky', 'henesys'] },
+  stump: { family: MONSTER_FAMILIES.PLANT, habitats: ['henesys'] },
+  sky_imp: { family: MONSTER_FAMILIES.SPIRIT, habitats: ['sky', 'henesys', 'ellinia'] },
+  sky_bird: { family: MONSTER_FAMILIES.FLYING, habitats: ['sky', 'ellinia'] },
+  sky_puff: { family: MONSTER_FAMILIES.SPIRIT, habitats: ['sky', 'henesys'] },
+  boar: { family: MONSTER_FAMILIES.WOODLAND, habitats: ['henesys', 'ruins'] },
+  robot: { family: MONSTER_FAMILIES.MACHINE, habitats: ['ruins', 'taipei'] },
+  skeleton: { family: MONSTER_FAMILIES.WARRIOR, habitats: ['ruins'] },
+  snake: { family: MONSTER_FAMILIES.WOODLAND, habitats: ['henesys'] },
+  ruin_knight: { family: MONSTER_FAMILIES.WARRIOR, habitats: ['ruins'] },
+  ruin_golem: { family: MONSTER_FAMILIES.ROCK, habitats: ['ruins'] },
+  ruin_wraith: { family: MONSTER_FAMILIES.SPIRIT, habitats: ['ruins', 'ellinia'] },
+  ruin_beast: { family: MONSTER_FAMILIES.WOODLAND, habitats: ['ruins'] },
+  ruin_giant: { family: MONSTER_FAMILIES.HEAVY, habitats: ['ruins'] },
+  dragon: { family: MONSTER_FAMILIES.FANTASY, habitats: ['ellinia'] },
+  cyclops: { family: MONSTER_FAMILIES.FANTASY, habitats: ['ellinia'] },
+  golem: { family: MONSTER_FAMILIES.ROCK, habitats: ['ruins', 'kerning'] },
+  mimic: { family: MONSTER_FAMILIES.FANTASY, habitats: ['ellinia'] },
+  city_thug: { family: MONSTER_FAMILIES.CITY, habitats: ['kerning', 'taipei'] },
+  city_mech: { family: MONSTER_FAMILIES.MACHINE, habitats: ['kerning', 'taipei'] },
+  city_beast: { family: MONSTER_FAMILIES.CITY, habitats: ['kerning', 'taipei'] },
+  city_boss1: { family: MONSTER_FAMILIES.ELITE, habitats: ['kerning'] },
+  city_boss2: { family: MONSTER_FAMILIES.ELITE, habitats: ['kerning'] },
+  city_elite: { family: MONSTER_FAMILIES.ELITE, habitats: ['kerning', 'taipei'] },
+  'shadow-slime': { family: MONSTER_FAMILIES.BOSS_SUPPORT, habitats: ['boss'] },
+};
 
 export const MONSTERS = [
   // ── 浮空島嶼 (sky) Lv1-8 ─────────────────────────────────────────────────
@@ -40,6 +85,15 @@ export const MONSTERS = [
   { id: 'shadow-slime', name: '影子史萊姆', level: 28, hp: 400,  atk: 80,  exp: 0,   speed: 80,  meso: 0,  dropRate: 0.0,  behavior: 'chase',   spriteKey: 'monster_slime',    area: 'boss', tint: 0x9B30FF },
 ];
 
+for (const monster of MONSTERS) {
+  Object.assign(monster, MONSTER_CLASSIFICATION[monster.id] || {});
+}
+
 export function getMonstersForArea(area) {
-  return MONSTERS.filter(m => m.area === area);
+  return MONSTERS.filter((monster) => {
+    if (Array.isArray(monster.habitats) && monster.habitats.length > 0) {
+      return monster.habitats.includes(area);
+    }
+    return monster.area === area;
+  });
 }

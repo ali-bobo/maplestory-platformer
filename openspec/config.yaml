@@ -1,0 +1,26 @@
+schema: spec-driven
+
+context: |
+  專案：楓之谷風格 2D 橫向平台動作遊戲。
+  技術堆疊：Phaser 3、JavaScript ES Modules、esbuild、WebGL renderer、Phaser Arcade Physics、phaser3-rex-plugins。
+  架構：各地圖場景繼承 BaseMapScene；玩家、怪物、Boss 為 Arcade Physics 動態實體；NPC 為靜態實體；UIScene 為平行 HUD 場景。
+  素材：真實圖片位於 dist/assets；平台、粒子、技能特效與部分 UI 由程式生成；禁止直接修改 dist/bundle.js。
+  狀態保存：多數遊戲狀態透過 scene registry 的 gameState 跨場景保存。
+  驗證方式：以手動驗證為主，優先檢查進場站位、平台碰撞、地圖切換、技能施放與 HUD 顯示；若規格與程式碼不一致，先讓程式碼真實狀態明確，再同步回寫規格。
+  規格來源：GAME_SPEC.md 為設計意圖；ITERATION5_SPEC.md 為目前版本基線與缺口；技能/技能設計.md 為技能效果設計；舊版 openspec-tw-legacy/ 保留歷史 change 與 platform-alignment 規格內容供遷移。
+
+rules:
+  proposal:
+    - 保留 Why、What Changes、Capabilities、Impact 四個區塊。
+    - 明確標示是新增能力還是修改既有能力。
+  design:
+    - 先記錄可驗證的根因與取捨，再記錄解法。
+    - 若有使用者提供截圖案例，需明確寫成情境或驗收基準。
+  specs:
+    - 使用 SHALL 或 MUST 作為規範語氣。
+    - 每個 requirement 至少包含一個精確的 Scenario。
+    - 只把已建立或已確認的能力寫進 current specs；尚未落地的項目放在 gap analysis 或 active change。
+  tasks:
+    - 任務需以可追蹤 checkbox 格式撰寫。
+    - 任務應反映驗證與文件同步工作，不只列程式碼改動。
+

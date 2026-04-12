@@ -4,6 +4,7 @@ import { castShuriken, castDash, castAssassinate, castVortex, castClone } from '
 import { particles } from '../engine/particles.js';
 import { audio } from '../engine/audio.js';
 import { isEquipmentBetter } from '../config/equipment.js';
+import { ALIGNMENT_PROFILES, applyAlignmentProfile, getVisualCenterPoint, getVisualTopY } from '../config/alignment.js';
 
 export class Player extends Phaser.Physics.Arcade.Sprite {
   constructor(scene, x, y, gameState) {
@@ -19,15 +20,11 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.dropThrough = false;
     this.isDashing = false;
     this._jumpKeyWasDown = false;
+    this._throwAnimTween = null;
 
-    // 物理設定 — final_char.png 底部有 ~12.6% 透明填充（29px/231px）
-    // 在 80px displayHeight 中約 10px。將 body 縮短 10px，
-    // 讓 body.bottom 對齊平台頂時，sprite 會向下延伸 10px（透明區域），
-    // 視覺上角色腳底剛好貼齊平台表面。
+    // 角色站位由共享腳底基準 metadata 決定，避免各類實體各自猜測底部留白。
     this.setCollideWorldBounds(true);
-    this.setDisplaySize(80, 80);
-    this.body.setSize(48, 58);
-    this.body.setOffset(16, 12);
+    applyAlignmentProfile(this, ALIGNMENT_PROFILES.player);
     this.setDepth(20);
 
     // 技能施放群組快取
@@ -130,6 +127,30 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     // 使用 final_char 圖片（已去除白色背景）
     this.setTexture('final_char');
     this.setFlipX(!this.facingRight);
+  }
+
+  playThrowAnimation(duration = 200) {
+    if (this.anims && this.anims.animationManager && this.anims.animationManager.exists('throw')) {
+      this.play('throw', true);
+      this.scene.time.delayedCall(duration, () => {
+        if (this.active && this.anims.isPlaying) this.anims.stop();
+      });
+      return;
+    }
+
+    if (this._throwAnimTween) this._throwAnimTween.remove();
+    const throwAngle = this.facingRight ? -18 : 18;
+    this.setAngle(throwAngle);
+    this._throwAnimTween = this.scene.tweens.add({
+      targets: this,
+      angle: 0,
+      duration,
+      ease: 'Cubic.easeOut',
+      onComplete: () => {
+        if (this.active) this.setAngle(0);
+        this._throwAnimTween = null;
+      },
+    });
   }
 
   usePotion(slot) {
@@ -280,7 +301,8 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     }
 
     audio.playLevelUp();
-    particles.spawnLevelUp(this.scene, this.x, this.y);
+    const center = getVisualCenterPoint(this);
+    particles.spawnLevelUp(this.scene, center.x, center.y);
     this.scene.registry.events.emit('changedata-levelup', null, gs.level);
   }
 
@@ -300,10 +322,10 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   }
 
   _showNotice(msg, duration = 2000) {
-    const cam = this.scene.cameras.main;
+    const topY = getVisualTopY(this);
     const txt = this.scene.add.text(
       this.x,
-      this.y - 60,
+      topY - 8,
       msg,
       { fontSize: '14px', color: '#ffff88', fontFamily: 'Arial', stroke: '#000', strokeThickness: 3 }
     ).setDepth(90).setOrigin(0.5, 1);
@@ -316,9 +338,13 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   _die() {
     if (this.isDead) return;
     this.isDead = true;
+    this.isDashing = false;
+    this.setAlpha(1);
+    this.body.setAllowGravity(true);
     this.setVelocity(0, -200);
     this.setTint(0xff0000);
     this.scene.time.delayedCall(1500, () => {
+      this.scene.scene.stop('UIScene');
       this.scene.scene.start('GameOverScene', { victory: false, gameState: this.gameState });
     });
   }

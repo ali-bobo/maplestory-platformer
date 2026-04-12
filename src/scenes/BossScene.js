@@ -33,6 +33,7 @@ export class BossScene extends BaseMapScene {
     this.time.delayedCall(1500, () => {
       warningText.destroy();
       this._boss = new Boss(this, 900, 620);
+      this._alignDynamicEntityToPlatformTop(this._boss, this._getClosestPlatformTopY(this._boss.x, 620));
       this.monsters.add(this._boss);
       this._bossSpawned = true;
 
@@ -48,6 +49,7 @@ export class BossScene extends BaseMapScene {
       const minionDef = MONSTERS.find(m => m.id === 'shadow-slime');
       if (!minionDef) return;
       const minion = new Monster(this, data.x, data.y - 30, minionDef);
+      this._alignDynamicEntityToPlatformTop(minion, this._getClosestPlatformTopY(minion.x, data.y));
       this.monsters.add(minion);
       this.physics.add.collider(minion, this.platforms);
       this.physics.add.collider(minion, this.thinPlatforms);

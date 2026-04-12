@@ -1,5 +1,6 @@
 import { Monster } from './Monster.js';
 import { particles } from '../engine/particles.js';
+import { ALIGNMENT_PROFILES, applyAlignmentProfile } from '../config/alignment.js';
 
 // 暗影魔君 — 3階段 Boss
 export class Boss extends Monster {
@@ -22,7 +23,7 @@ export class Boss extends Monster {
     this.phase = 1;
     this.maxHp = 10000;
     this.hp = 10000;
-    this.setScale(2.5);
+    applyAlignmentProfile(this, ALIGNMENT_PROFILES.boss);
     this._phaseTransitioning = false;
     this._summonCooldown = 0;
     this._slamCooldown = 0;
