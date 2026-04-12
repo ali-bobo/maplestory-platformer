@@ -145,11 +145,11 @@ export const MAPS = {
     monsters: [
       // 天空 / 奇幻起手區：以飛行、精靈、史萊姆變體為主
       { id: 'slime',    count: 5 },
+      { id: 'mushroom', count: 2 },
       { id: 'snail',    count: 4 },
       { id: 'sky_imp',  count: 3 },
       { id: 'sky_bird', count: 3 },
       { id: 'sky_puff', count: 3 },
-      { id: 'mushroom', count: 2 },
     ],
     portals: [
       { x: MAP_WIDTH - 50, y: GROUND_Y - 48, width: 40, height: 72, target: 'henesys', label: '→森林獵場', spawnX: 200 },
