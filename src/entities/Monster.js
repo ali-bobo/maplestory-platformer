@@ -51,6 +51,8 @@ export class Monster extends Phaser.Physics.Arcade.Sprite {
     this.hurtTimer = 0;
     this.attackCooldown = 0;
     this.rangedCooldown = 0;
+    this.jumpProfile = config.jumpProfile || null;
+    this.jumpCooldown = this._rollJumpCooldown();
 
     // 怪物站位由共享腳底基準 metadata 決定，避免不同圖片來源造成推算漂移。
     this.setCollideWorldBounds(true);
@@ -209,6 +211,7 @@ export class Monster extends Phaser.Physics.Arcade.Sprite {
     this.hurtTimer = Math.max(0, this.hurtTimer - delta);
     this.attackCooldown = Math.max(0, this.attackCooldown - delta);
     this.rangedCooldown = Math.max(0, this.rangedCooldown - delta);
+    this.jumpCooldown = Math.max(0, this.jumpCooldown - delta);
 
     if (this.hurtTimer > 0) {
       this.setVelocityX(0);
@@ -272,12 +275,36 @@ export class Monster extends Phaser.Physics.Arcade.Sprite {
     if (this.x >= rightEdge) this.patrolDir = -1;
     this.setVelocityX(this.patrolDir * this.speed * 0.6);
     this.setFlipX(this.patrolDir < 0);
+    this._tryJump();
   }
 
   _doChase(distX) {
     const dir = distX > 0 ? 1 : -1;
     this.setVelocityX(dir * this.speed);
     this.setFlipX(dir < 0);
+    this._tryJump();
+  }
+
+  _rollJumpCooldown() {
+    if (!this.jumpProfile) return Number.POSITIVE_INFINITY;
+    const minInterval = this.jumpProfile.minInterval ?? 3000;
+    const maxInterval = this.jumpProfile.maxInterval ?? minInterval;
+    return Phaser.Math.Between(minInterval, maxInterval);
+  }
+
+  _isGrounded() {
+    return Boolean(this.body?.blocked?.down || this.body?.touching?.down);
+  }
+
+  _tryJump() {
+    if (!this.jumpProfile || this.jumpCooldown > 0 || !this._isGrounded()) return;
+
+    const chance = this.jumpProfile.chance ?? 0.35;
+    this.jumpCooldown = this._rollJumpCooldown();
+    if (Math.random() > chance) return;
+
+    const jumpVelocity = this.jumpProfile.velocity ?? 320;
+    this.setVelocityY(-jumpVelocity);
   }
 
   _doAttack(player) {

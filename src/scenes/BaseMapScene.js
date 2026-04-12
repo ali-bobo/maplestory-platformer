@@ -16,18 +16,24 @@ const PLATFORM_DECORATION_ROW_INDEX = {
 };
 const IMAGE_PLATFORM_STYLE = {
   henesys: {
-    renderHeight: 86,
-    imageCropTopRatio: 0.06,
-    imageCropHeightRatio: 0.6,
-    sourceWindowWidthRatio: 0.72,
-    walkableTopRatio: 0.72,
-  },
-  ellinia: {
-    renderHeight: 92,
+    renderHeight: 112,
     imageCropTopRatio: 0.16,
     imageCropHeightRatio: 0.58,
     sourceWindowWidthRatio: 0.74,
+    renderWidthRatio: 1.04,
     walkableTopRatio: 0.7,
+    removeNearWhite: true,
+    whiteThreshold: 242,
+  },
+  ellinia: {
+    renderHeight: 112,
+    imageCropTopRatio: 0.16,
+    imageCropHeightRatio: 0.58,
+    sourceWindowWidthRatio: 0.74,
+    renderWidthRatio: 1.18,
+    walkableTopRatio: 0.7,
+    removeNearWhite: true,
+    whiteThreshold: 242,
   },
   taipei: {
     renderHeight: 80,
@@ -199,8 +205,11 @@ export class BaseMapScene extends Phaser.Scene {
       imageCropHeightRatio = mapStyle.imageCropHeightRatio ?? 0.48,
       sourceWindowWidthRatio = mapStyle.sourceWindowWidthRatio ?? 1,
       renderHeight = mapStyle.renderHeight,
+      renderWidthRatio = mapStyle.renderWidthRatio,
       walkableTopRatio = mapStyle.walkableTopRatio ?? 0.42,
       walkableHeight = 18,
+      removeNearWhite = mapStyle.removeNearWhite ?? false,
+      whiteThreshold = mapStyle.whiteThreshold ?? 245,
     } = platformData;
 
     const texture = this.textures.get(decorationKey);
@@ -219,20 +228,104 @@ export class BaseMapScene extends Phaser.Scene {
     const cropLeft = Math.max(0, Math.floor((source.width - sourceWindowWidth) / 2));
     const displayHeight = renderHeight
       ?? Math.round(cropHeight * 0.5);
+    const proportionalWidth = Math.max(1, Math.round((displayHeight * sourceWindowWidth) / cropHeight));
+    const displayWidth = platformData.renderWidth
+      ?? (renderWidthRatio
+        ? Math.round(width * renderWidthRatio)
+        : proportionalWidth);
+    const walkableWidth = platformData.walkableWidth ?? displayWidth;
     const walkableTopOffset = Math.round(displayHeight * walkableTopRatio);
-    const collider = group.create(x + width / 2, y + walkableHeight / 2, `platform-${type}`);
-    collider.setDisplaySize(width, walkableHeight);
+    const centerX = x + width / 2;
+    const textureKey = removeNearWhite
+      ? this._getPlatformProcessedTextureKey({
+          decorationKey,
+          rowIndex,
+          cropLeft,
+          cropTop,
+          cropWidth: sourceWindowWidth,
+          cropHeight,
+          whiteThreshold,
+        })
+      : decorationKey;
+
+    platformData.width = walkableWidth;
+    platformData.x = centerX - walkableWidth / 2;
+
+    const collider = group.create(centerX, y + walkableHeight / 2, `platform-${type}`);
+    collider.setDisplaySize(walkableWidth, walkableHeight);
     collider.setAlpha(0);
     collider.refreshBody();
 
-    const sprite = this.add.image(x + width / 2, y - walkableTopOffset, decorationKey);
+    const sprite = this.add.image(centerX, y - walkableTopOffset, textureKey);
 
     sprite.setOrigin(0.5, 0);
-    sprite.setCrop(cropLeft, cropTop, sourceWindowWidth, cropHeight);
-    sprite.setDisplaySize(width, displayHeight);
+    if (!removeNearWhite) {
+      sprite.setCrop(cropLeft, cropTop, sourceWindowWidth, cropHeight);
+    }
+    sprite.setDisplaySize(displayWidth, displayHeight);
     sprite.setDepth(6);
 
     return collider;
+  }
+
+  _getPlatformProcessedTextureKey({
+    decorationKey,
+    rowIndex,
+    cropLeft,
+    cropTop,
+    cropWidth,
+    cropHeight,
+    whiteThreshold,
+  }) {
+    const processedKey = [
+      decorationKey,
+      'processed',
+      rowIndex,
+      cropLeft,
+      cropTop,
+      cropWidth,
+      cropHeight,
+      whiteThreshold,
+    ].join('-');
+
+    if (this.textures.exists(processedKey)) {
+      return processedKey;
+    }
+
+    const source = this.textures.get(decorationKey)?.getSourceImage?.();
+    if (!source?.width || !source?.height) {
+      return decorationKey;
+    }
+
+    const canvasTexture = this.textures.createCanvas(processedKey, cropWidth, cropHeight);
+    const context = canvasTexture.getContext();
+    context.clearRect(0, 0, cropWidth, cropHeight);
+    context.drawImage(
+      source,
+      cropLeft,
+      cropTop,
+      cropWidth,
+      cropHeight,
+      0,
+      0,
+      cropWidth,
+      cropHeight,
+    );
+
+    const imageData = context.getImageData(0, 0, cropWidth, cropHeight);
+    const pixels = imageData.data;
+    for (let index = 0; index < pixels.length; index += 4) {
+      const red = pixels[index];
+      const green = pixels[index + 1];
+      const blue = pixels[index + 2];
+      if (red >= whiteThreshold && green >= whiteThreshold && blue >= whiteThreshold) {
+        pixels[index + 3] = 0;
+      }
+    }
+    context.putImageData(imageData, 0, 0);
+    canvasTexture.refresh();
+
+    return processedKey;
   }
 
   _createPlatformDecoration(platformData) {

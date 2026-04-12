@@ -9,6 +9,8 @@
 - [x] 2.1 為現有 ellinia 地圖寫出玩具城替換規格，明確標示舊背景、新背景、保留的 map key/sceneKey、portal 與 spawn 契約。
 - [x] 2.2 為森林與玩具城建立長條平台 style 規格，記錄候選圖片、renderHeight、collisionPolicy 與預定使用的平台段。
 - [x] 2.3 為台北地圖建立 deferred map spec，定義背景、平台布局、怪物候選組合、推薦等級帶與延後啟用策略。
+- [x] 2.4 將 Toytown 長條平台的放大、去背、站位接觸線與非壓縮原則提升為正式 spec，並讓森林沿用同一套腳底模型。
+- [x] 2.5 將森林圖片平台顯示寬度收回到更接近原始參考構圖，避免沿用 Toytown 放大後造成過寬外觀。
 
 ## 3. Monster Catalog Consolidation
 
@@ -19,6 +21,9 @@
 - [x] 3.5 將 monster3 已辨識出的第一批裁切怪（monster_big_2~4、miniboss_0~1）回填到 runtime / candidate catalog，並完成實際地圖分流。
 - [x] 3.6 依主題重排目前實際上場怪物，允許部分 runtime 怪保留為 reserve，不要求每一張怪圖都同時出現在地圖上。
 - [x] 3.7 將 city_boss1、city_boss2 標記為低頻率的放大小王，並把尺寸策略同步回 runtime 實作與文件。
+- [x] 3.8 重新整理第一章怪物名單，移除視覺上像縮放重複版的起手怪組合。
+- [x] 3.9 為後段大型怪補齊 visualScale，避免只有 miniboss 被放大。
+- [x] 3.10 為選定近戰怪加入低頻率跳躍參數，提升威脅性但避免過度頻繁。
 
 ## 4. Code Alignment Follow-up
 

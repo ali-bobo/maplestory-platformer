@@ -55,8 +55,21 @@
 - 已導入使用者提供的 Boss 主體圖與 Boss 房背景，並接入 runtime asset 流程。
 - 已按地圖主題整理 runtime 怪物配置，移除 Kerning 的奇幻系混入與 Henesys 的天空系重複。
 - 已把三張原始怪物母圖提升為已分類的 candidate sheet，補上 target maps 與候選用途。
+- 已修正長條跳台的比例失真根因：`image-native` 平台改為預設依裁切後來源圖等比例計算顯示寬度，不再把森林、玩具城平台硬拉成和一般平台同寬。
+- 已修正森林 / 玩具城跳台樣式選取錯誤：平台 helper 不再把 `imageRowIndex` 預設寫死為 `0`，因此 Henesys 會吃森林 row、Ellinia 會正確吃 Toytown row。
+- 已移除森林 / 玩具城平台資料中強制覆蓋 `walkableTopRatio: 0.4` 的寫法，恢復以場景樣式定義的站立接觸線，避免角色落在跳台表面以下。
+- 已將 Toytown 的長條跳台裁切 / 站位模型移植到 Henesys：森林 row 現在和 Toytown 一樣使用較高的裁切起點、較厚的 render height 與相同的 `walkableTopRatio`，不再單獨維持舊版站位算法。
+- 已為 Henesys 與 Toytown 的長條跳台加入近白像素去背處理，將母圖中的白底在 runtime 轉為透明，再放大顯示。
+- 已替換第一章地圖中兩隻疑似縮圖重複的起手怪，改回輪廓差異更明顯的 `snail` 與 `stump` 組合。
+- 已將 Toytown 圖片平台的設計原則提升到 OpenSpec：包括放大顯示、去除近白底、維持靠上方的腳底接觸線，以及不以通用平台比例壓縮圖片平台。
+- 已把森林長條跳台調整為「沿用 Toytown 站位模型，但縮回較窄的顯示寬度」；這讓森林平台不再比原始參考圖誇張放寬。
+- 已重新整理第一章怪物名單，改用 `slime / mushroom / snail / sky_bird / sky_puff` 的輪廓分組，避免開局畫面再次出現相似怪種混淆。
+- 已為後段多隻大型怪補上 `visualScale`，覆蓋廢墟、Kerning 與 Taipei 的大型怪，不再只有 miniboss 具備放大量感。
+- 已為部分近戰怪加入低頻率跳躍參數，讓追擊型怪物偶爾透過跳撲形成壓迫，但不會演變成持續亂跳。
 
 **未完成 / 後續**
 - `monster3.jpg` 目前只完成分類與對應地圖規劃；受限於本輪環境無法穩定辨識全部子圖邊界，尚未完成精準逐張裁切。
 - 候選怪物尚未新增對應的 monster id、preload key、alignment metadata 與 spawn 配置。
 - 視覺與站位的最終確認仍依賴 build 後實機驗證；本輪先以 build 與資料契約檢查為主。
+- 台北 row 目前同樣受惠於等比例顯示邏輯，但這次沒有額外做人眼校正；若之後要針對都會跳台單獨微調，需再補一次實機截圖驗證。
+- 由於目前瀏覽器場景沒有對外暴露 debug handle，本輪自我檢驗仍以 build 成功、樣式參數比對與資料契約檢查為主；若後續要做逐地圖自動截圖驗證，需補一個非正式 debug 入口。

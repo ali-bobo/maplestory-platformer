@@ -43,3 +43,34 @@
 - **WHEN** 某些特別怪被提升為小王
 - **THEN** 它們可以透過較大的 display size 與較低 count 在地圖中出場
 - **AND** 不得因小王放大而破壞既有平台站位、碰撞或怪物生成流程
+
+### Requirement: Toytown platform presentation SHALL be treated as the validated image-platform reference
+玩具城長條跳台樣式 MUST 被視為已驗證的圖片平台展示基準，供森林等同類型地圖沿用。
+
+#### Scenario: Toytown keeps enlarged, de-backgrounded, image-native presentation
+- **WHEN** ellinia 套用玩具城背景與長條平台樣式
+- **THEN** 圖片平台必須保留放大後的顯示高度、去除近白底的透明邊界與靠上方的站立接觸線
+- **AND** 不得為了對齊一般平台寬度而再次將其壓縮成扁平外觀
+
+#### Scenario: Forest inherits Toytown footing while narrowing the visible span
+- **WHEN** 森林長條跳台參考玩具城樣式重做
+- **THEN** 森林可以保留相同的裁切 / 腳底接觸線模型，但應使用較窄的顯示寬度來貼近原始森林構圖
+- **AND** 玩家、怪物與 NPC 的站位不得因寬度修正而再次陷入平台
+
+### Requirement: Runtime monster polish SHALL cover roster uniqueness, large-monster sizing, and light mobility pressure
+runtime 怪物整修 MUST 同時處理首章輪廓重複、後段大型怪物尺寸不足與選定怪物缺乏位移威脅的問題。
+
+#### Scenario: The first map avoids duplicate-looking monster silhouettes
+- **WHEN** 第一章地圖整理起手怪名單
+- **THEN** 應移除視覺上像同素材縮放版的重複輪廓組合
+- **AND** 改用輪廓差異更明顯的天空 / 新手區怪物組合
+
+#### Scenario: Larger monsters in later maps use explicit size metadata
+- **WHEN** 廢墟、Kerning 或 Taipei 使用 big 系列或明顯屬於大型體型的怪物
+- **THEN** 這些怪物應透過 `visualScale` 顯式放大到符合預期的區域壓迫感
+- **AND** 不得只讓 miniboss 放大而忽略其他大型怪
+
+#### Scenario: Selected monsters gain low-frequency jumping pressure
+- **WHEN** 某些近戰或追擊型怪物需要提升威脅性
+- **THEN** 系統可為其加入帶冷卻與機率控制的低頻跳躍行為
+- **AND** 跳躍頻率必須維持在不會讓整張地圖變成持續彈跳噪音的範圍內

@@ -101,3 +101,34 @@ Boss 入口 MUST 由玩家在主線地圖中的擊殺進度解鎖，並在 Boss 
 - **WHEN** 使用者提供的新怪物圖尚未完成裁切、分類或地圖歸屬
 - **THEN** 這些怪物必須維持 pending onboarding 狀態
 - **AND** 在完成裁切、分類與地圖綁定前，不得直接塞進正式 runtime roster
+
+### Requirement: Image-native long platforms SHALL preserve themed presentation without breaking footing
+圖片原生長條跳台 MUST 保留主題 row 的視覺特色、站立接觸線與場景辨識度，不得被通用平台尺寸硬壓成失真比例。
+
+#### Scenario: Toytown platform style acts as the reference presentation model
+- **WHEN** 現有玩具城 row 被用作圖片原生長條跳台樣式
+- **THEN** 系統必須保留較高的 display height、去背後的透明邊界與靠上方的可站立接觸線
+- **AND** 不得再把玩具城長條圖壓回通用 24px 平台的視覺比例
+
+#### Scenario: Forest can inherit Toytown footing but use a narrower presentation width
+- **WHEN** 森林長條跳台沿用 Toytown 的裁切與站位模型
+- **THEN** 森林可以收回顯示寬度，使其更接近使用者提供的原始構圖比例
+- **AND** 這種寬度調整不得改壞角色腳底與平台頂部的接觸線
+
+### Requirement: Monster presentation SHALL distinguish silhouette, size, and movement threat by region
+怪物呈現 MUST 同時考慮首章輪廓辨識、後段大怪體型與少量額外位移威脅，避免只靠數值提高難度。
+
+#### Scenario: Early-map rosters avoid duplicate-looking silhouettes
+- **WHEN** 開發者整理第一章地圖的怪物名單
+- **THEN** 應避免同一張圖縮放後看起來像不同怪種的重複輪廓同時上場
+- **AND** 首章名單應優先保留外形差異明顯的怪物組合
+
+#### Scenario: Larger late-game monsters declare explicit visual scales
+- **WHEN** 後段地圖使用大型怪或 big 系列素材
+- **THEN** 對應怪物應透過明確的 `visualScale` metadata 呈現較大的體型
+- **AND** 不得只讓小王放大、卻讓其他大型怪維持與前段小怪相同的視覺量感
+
+#### Scenario: Selected monsters may use low-frequency jumps
+- **WHEN** 開發者希望提高部分怪物的威脅性
+- **THEN** 可為選定怪物加入低頻率、帶冷卻的跳躍行為
+- **AND** 跳躍次數不得過密到破壞平台戰鬥可讀性

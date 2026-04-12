@@ -1,6 +1,6 @@
 import { WORLD_HEIGHT } from './constants.js';
 
-// 地圖定義 v6.3 — 依主題重新分流怪物名單，並讓 Toytown / Taipei 平台樣式正式生效
+// 地圖定義 v6.6 — 森林跳台沿用 Toytown 站位模型但回收寬度，並重排首章怪物輪廓
 
 const PH = 24;          // 平台高度
 const GROUND_Y = WORLD_HEIGHT;   // 地板頂部固定貼齊 HUD 上緣，移除角色下方黑帶
@@ -17,19 +17,23 @@ function ground(x, y, width, type = 'stone') {
   return { x, y, width, type, thin: false, isGround: true };
 }
 function imageSolidPlatform(platform, options = {}) {
-  return {
+  const imagePlatform = {
     ...platform,
     thin: options.thin ?? platform.thin ?? true,
     decorationKey: options.decorationKey || 'platform_long',
     renderMode: 'image-native',
-    imageRowIndex: options.imageRowIndex ?? 0,
-    imageCropTopRatio: options.imageCropTopRatio,
-    imageCropHeightRatio: options.imageCropHeightRatio,
-    sourceWindowWidthRatio: options.sourceWindowWidthRatio,
-    renderHeight: options.renderHeight,
-    walkableTopRatio: options.walkableTopRatio,
     walkableHeight: options.walkableHeight ?? 18,
   };
+
+  if (options.imageRowIndex !== undefined) imagePlatform.imageRowIndex = options.imageRowIndex;
+  if (options.imageCropTopRatio !== undefined) imagePlatform.imageCropTopRatio = options.imageCropTopRatio;
+  if (options.imageCropHeightRatio !== undefined) imagePlatform.imageCropHeightRatio = options.imageCropHeightRatio;
+  if (options.sourceWindowWidthRatio !== undefined) imagePlatform.sourceWindowWidthRatio = options.sourceWindowWidthRatio;
+  if (options.renderHeight !== undefined) imagePlatform.renderHeight = options.renderHeight;
+  if (options.walkableTopRatio !== undefined) imagePlatform.walkableTopRatio = options.walkableTopRatio;
+  if (options.walkableWidth !== undefined) imagePlatform.walkableWidth = options.walkableWidth;
+
+  return imagePlatform;
 }
 
 // ─────────── 浮空島嶼 ───────────
@@ -55,12 +59,12 @@ const HENESYS_PLATFORMS = [
 
   // 第一層（y=400）：3 個，草地材質
   plat(100,  400, 600, 'grass'),
-  imageSolidPlatform(plat(980,  400, 600, 'wood'), { walkableTopRatio: 0.4, walkableHeight: 20 }),
+  imageSolidPlatform(plat(980,  400, 600, 'wood'), { walkableHeight: 20 }),
   plat(1860, 400, 600, 'grass'),
 
   // 第二層（y=240）：3 個，木頭材質
   plat(380,  240, 580, 'wood'),
-  imageSolidPlatform(plat(1220, 240, 580, 'grass'), { walkableTopRatio: 0.4, walkableHeight: 20 }),
+  imageSolidPlatform(plat(1220, 240, 580, 'grass'), { walkableHeight: 20 }),
   plat(2060, 240, 580, 'wood'),
 ];
 
@@ -87,12 +91,12 @@ const ELLINIA_PLATFORMS = [
 
   // 第一層（y=400）：3 個，木頭材質
   plat(100,  400, 600, 'wood'),
-  imageSolidPlatform(plat(980,  400, 600, 'brick'), { walkableTopRatio: 0.4, walkableHeight: 20 }),
+  imageSolidPlatform(plat(980,  400, 600, 'brick'), { walkableHeight: 20 }),
   plat(1860, 400, 600, 'wood'),
 
   // 第二層（y=240）：3 個，磚石材質
   plat(380,  240, 580, 'brick'),
-  imageSolidPlatform(plat(1220, 240, 580, 'wood'), { walkableTopRatio: 0.4, walkableHeight: 20 }),
+  imageSolidPlatform(plat(1220, 240, 580, 'wood'), { walkableHeight: 20 }),
   plat(2060, 240, 580, 'brick'),
 ];
 
@@ -147,11 +151,11 @@ export const MAPS = {
     platforms: SKY_PLATFORMS,
     bgType: 'sky', bgImage: 'bg_sky',
     monsters: [
-      // 天空 / 奇幻起手區：保留雲端與新手怪，不再與森林 / 奇幻後段大量重複
-      { id: 'slime',    count: 5 },
-      { id: 'mushroom', count: 4 },
-      { id: 'sky_imp',  count: 3 },
-      { id: 'sky_bird', count: 3 },
+      // 天空 / 奇幻起手區：避免相似輪廓怪在開局同圖重複出現
+      { id: 'slime',    count: 2 },
+      { id: 'mushroom', count: 3 },
+      { id: 'snail',    count: 3 },
+      { id: 'sky_bird', count: 2 },
       { id: 'sky_puff', count: 2 },
     ],
     portals: [
