@@ -7,7 +7,7 @@ import { isEquipmentBetter } from '../config/equipment.js';
 
 export class Player extends Phaser.Physics.Arcade.Sprite {
   constructor(scene, x, y, gameState) {
-    super(scene, x, y, 'character_player');
+    super(scene, x, y, 'final_char');
     scene.add.existing(this);
     scene.physics.add.existing(this);
 
@@ -20,11 +20,11 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.isDashing = false;
     this._jumpKeyWasDown = false;
 
-    // 物理設定
+    // 物理設定（body bottom 對齊 y+28，與怪物站立高度一致）
     this.setCollideWorldBounds(true);
-    this.setDisplaySize(72, 80);           // 128×128 縮至 72×80 顯示
-    this.body.setSize(28, 52);
-    this.body.setOffset(22, 24);
+    this.setDisplaySize(56, 56);
+    this.body.setSize(28, 56);
+    this.body.setOffset(14, 0);
     this.setDepth(20);
 
     // 技能施放群組快取

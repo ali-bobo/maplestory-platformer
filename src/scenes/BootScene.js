@@ -8,9 +8,10 @@ export class BootScene extends Phaser.Scene {
   }
 
   preload() {
-    // ── 角色圖片（新版 Soul Bender 角色） ──
+    // ── 角色圖片 ──
     this.load.image('character_player', 'dist/assets/character_player.png');
-    this.load.image('thief', 'dist/assets/thief.png');  // fallback
+    this.load.image('thief', 'dist/assets/thief.png');
+    this.load.image('final_char', 'dist/assets/final_char.png');
 
     // ── 地圖背景（新版高解析度） ──
     this.load.image('bg_sky',    'dist/assets/bg_sky.png');

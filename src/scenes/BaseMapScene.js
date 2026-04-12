@@ -6,7 +6,7 @@ import { Player } from '../entities/Player.js';
 import { Monster } from '../entities/Monster.js';
 import { audio } from '../engine/audio.js';
 
-const GROUND_Y = 672;
+const GROUND_Y = 576;
 
 export class BaseMapScene extends Phaser.Scene {
   constructor(key, mapKey) {
@@ -46,7 +46,7 @@ export class BaseMapScene extends Phaser.Scene {
     this._createPlatforms();
 
     const spawnX = this._spawnX !== null ? this._spawnX : (this.mapData.spawnX || 150);
-    this.player = new Player(this, spawnX, 620, gs);
+    this.player = new Player(this, spawnX, 540, gs);
     this.cameras.main.startFollow(this.player, true, 0.1, 0.1);
 
     this.monsters = this.add.group();
@@ -116,6 +116,7 @@ export class BaseMapScene extends Phaser.Scene {
       sprite.setDisplaySize(p.width, PH);
       sprite.refreshBody();
       sprite.setDepth(5);
+      if (p.isGround) sprite.setAlpha(0);  // 地板用背景自然地板視覺，不疊加紋理
     }
   }
 

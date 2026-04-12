@@ -30,9 +30,9 @@ export class UIScene extends Phaser.Scene {
     portBg.lineStyle(2, 0x4488cc, 0.9);
     portBg.strokeRect(portX, portY, portW, portH);
 
-    // 角色圖示（用 character_player 圖縮小顯示）
-    if (this.textures.exists('character_player')) {
-      this.add.image(portX + portW / 2, portY + portH / 2, 'character_player')
+    // 角色圖示（用 final_char 圖縮小顯示）
+    if (this.textures.exists('final_char')) {
+      this.add.image(portX + portW / 2, portY + portH / 2, 'final_char')
         .setDisplaySize(portW - 4, portH - 4)
         .setDepth(52).setScrollFactor(0);
     }

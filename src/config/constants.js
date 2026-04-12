@@ -1,7 +1,7 @@
 // 遊戲常數定義
 
 export const CANVAS = { width: 1280, height: 720 };
-export const WORLD_HEIGHT = 720;
+export const WORLD_HEIGHT = 600;
 
 export const PHYSICS_GRAVITY = 1000;
 

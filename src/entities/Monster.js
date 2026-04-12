@@ -41,7 +41,9 @@ export class Monster extends Phaser.Physics.Arcade.Sprite {
     this.body.setGravityY(0);
     this.setDepth(10);
     this.setDisplaySize(56, 56);  // 真實圖片統一顯示大小
-    if (config.tint) this.setTint(config.tint);  // 特殊色調（shadow-slime 等）
+    this.body.setSize(44, 56);    // 明確設定 body（底部對齊 y+28）
+    this.body.setOffset(6, 0);
+    if (config.tint) this.setTint(config.tint);
 
     // 血條背景
     this._hpBg = null;
