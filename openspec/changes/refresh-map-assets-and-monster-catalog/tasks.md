@@ -21,5 +21,5 @@
 
 - [x] 4.1 以最小變更方式將第一批 catalog 真相同步回程式，至少覆蓋玩具城背景替換入口、台北背景預載入口規劃與怪物群組盤點註記。
 - [x] 4.2 補齊或標記缺失的 alignment metadata，並驗證 catalog 描述與 src/config/alignment.js 的實際狀態一致。
-- [ ] 4.3 驗證視覺替換後既有 map flow、portal、spawn 與怪物生成契約沒有回歸。
-- [ ] 4.4 在後續 coding 過程中持續同步更新規格、design 與 tasks，避免文件與實作脫節。
+- [x] 4.3 驗證視覺替換後既有 map flow、portal、spawn 與怪物生成契約沒有回歸。
+- [x] 4.4 在後續 coding 過程中持續同步更新規格、design 與 tasks，避免文件與實作脫節。

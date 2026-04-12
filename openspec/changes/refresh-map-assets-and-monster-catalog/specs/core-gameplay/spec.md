@@ -13,6 +13,11 @@
 - **THEN** 玩家、怪物與 NPC 的生成位置仍應落在有效的平台或地面基準上
 - **AND** 不得因素材替換而讓進場站位退化為半空、陷地或錯誤 portal 落點
 
+#### Scenario: Boss art replacement keeps the boss scene contract
+- **WHEN** Boss 房背景或 Boss 主體圖被替換為新的 runtime asset
+- **THEN** `BossScene`、Boss 勝利流程與援軍生成契約必須保持不變
+- **AND** 不得因美術替換而要求改寫既有 Boss 場景切換流程
+
 ### Requirement: The main loop SHALL allow deferred map onboarding
 遊戲主流程 MUST 允許新地圖先以規格與資料模型存在，再於後續實作中決定是否接入主線 progression。
 

@@ -145,11 +145,11 @@ export const MAPS = {
     monsters: [
       // 天空 / 奇幻起手區：以飛行、精靈、史萊姆變體為主
       { id: 'slime',    count: 5 },
-      { id: 'mushroom', count: 4 },
       { id: 'snail',    count: 4 },
       { id: 'sky_imp',  count: 3 },
       { id: 'sky_bird', count: 3 },
       { id: 'sky_puff', count: 3 },
+      { id: 'mushroom', count: 2 },
     ],
     portals: [
       { x: MAP_WIDTH - 50, y: GROUND_Y - 48, width: 40, height: 72, target: 'henesys', label: '→森林獵場', spawnX: 200 },
@@ -167,13 +167,12 @@ export const MAPS = {
     platforms: HENESYS_PLATFORMS,
     bgType: 'henesys', bgImage: 'bg_forest',
     monsters: [
-      // 森林主題：植物 / 菇類、林地獸類、自然精靈優先
+      // 森林主題：植物 / 菇類、林地獸類與毒蛇系為主
       { id: 'mushroom', count: 4 },
       { id: 'stump',    count: 4 },
       { id: 'boar',     count: 4 },
+      { id: 'snake',    count: 3 },
       { id: 'snail',    count: 3 },
-      { id: 'sky_imp',  count: 3 },
-      { id: 'sky_puff', count: 3 },
     ],
     portals: [
       { x: MAP_WIDTH - 50, y: GROUND_Y - 48, width: 40, height: 72, target: 'ruins',   label: '→古代廢墟', spawnX: 200 },
@@ -196,9 +195,9 @@ export const MAPS = {
       { id: 'skeleton',    count: 4 },
       { id: 'ruin_knight', count: 4 },
       { id: 'ruin_golem',  count: 3 },
-      { id: 'ruin_wraith', count: 3 },
       { id: 'ruin_beast',  count: 3 },
       { id: 'ruin_giant',  count: 2 },
+      { id: 'golem',       count: 2 },
     ],
     portals: [
       { x: MAP_WIDTH - 50, y: GROUND_Y - 48, width: 40, height: 72, target: 'ellinia', label: '→神秘之境', spawnX: 200 },
@@ -217,13 +216,14 @@ export const MAPS = {
     platforms: ELLINIA_PLATFORMS,
     bgType: 'ellinia', bgImage: 'bg_toytown_refresh',
     monsters: [
-      // 奇幻高空城鎮：精靈、飛行與高辨識幻想怪物
+      // 玩具城 / 神秘之境：精靈、飛行與奇幻怪物為主
       { id: 'sky_imp',     count: 4 },
       { id: 'sky_bird',    count: 4 },
+      { id: 'sky_puff',    count: 3 },
       { id: 'cyclops',     count: 3 },
       { id: 'mimic',       count: 3 },
       { id: 'dragon',      count: 3 },
-      { id: 'ruin_wraith', count: 3 },
+      { id: 'ruin_wraith', count: 2 },
     ],
     portals: [
       { x: MAP_WIDTH - 50, y: GROUND_Y - 48, width: 40, height: 72, target: 'kerning', label: '→Kerning City', spawnX: 200 },
@@ -270,7 +270,7 @@ export const MAPS = {
     monsters: [
       { id: 'city_thug',  count: 4 },
       { id: 'city_mech',  count: 4 },
-      { id: 'robot',      count: 3 },
+      { id: 'robot',      count: 4 },
       { id: 'city_elite', count: 3 },
       { id: 'city_beast', count: 2 },
     ],
@@ -289,7 +289,7 @@ export const MAPS = {
     key: 'boss', name: '暗影領域', sceneKey: 'BossScene',
     width: 1280, bgColor: 0x0D0018,
     platforms: BOSS_PLATFORMS,
-    bgType: 'boss', bgImage: 'bg_boss',
+    bgType: 'boss', bgImage: 'bg_boss_room',
     monsters: [], portals: [], npcs: [],
     spawnX: 200,
   },

@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: Runtime assets SHALL be tracked with stable catalog identifiers
-The system SHALL maintain a runtime asset catalog for background, platform, monster, miniboss, and support-monster assets. Each runtime asset entry SHALL have a unique asset identifier, a group identifier, a source file reference, a runtime status, and a traceable binding to the current code path.
+The system SHALL maintain a runtime asset catalog for background, platform, monster, miniboss, boss, and support-monster assets. Each runtime asset entry SHALL have a unique asset identifier, a group identifier, a source file reference, a runtime status, and a traceable binding to the current code path.
 
 #### Scenario: A runtime monster can be traced end-to-end
 - **WHEN** 開發者查詢任一已上線怪物圖片
@@ -12,6 +12,11 @@ The system SHALL maintain a runtime asset catalog for background, platform, mons
 - **WHEN** 現有玩具城背景準備被新圖片取代
 - **THEN** runtime background catalog 必須標示原背景條目、替代背景條目與對應 target map
 - **AND** 替換規格不得要求先改動該地圖的 map key 或 sceneKey
+
+#### Scenario: Boss art can be traced as runtime assets
+- **WHEN** 使用者提供新的 Boss 主體圖或 Boss 房背景並接入遊戲
+- **THEN** runtime catalog 必須能追溯其 assetId、texture key、來源圖與 target map/scene
+- **AND** 不得只在工作目錄存在圖片卻缺少 runtime 綁定紀錄
 
 ### Requirement: Candidate assets SHALL be separated from runtime assets
 The system MUST keep candidate monster, background, and platform references separate from runtime assets. Candidate entries SHALL record intended use and promotion status, but SHALL NOT be treated as loadable runtime assets until they complete the runtime onboarding path.

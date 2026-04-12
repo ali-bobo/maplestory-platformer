@@ -13,6 +13,7 @@
 | BG-TOY-002 | BG-TOY | dist/assets/bg_toytown_refresh.png | bg_toytown_refresh | used | MAPS.ellinia | 新玩具城背景，已接手 ellinia |
 | BG-CIT-001 | BG-CIT | dist/assets/bg_city.png | bg_city | used | MAPS.kerning | Kerning City 背景 |
 | BG-TPE-001 | BG-TPE | dist/assets/bg_taipei.png | bg_taipei | used | MAPS.taipei | 台北都會背景 |
+| BG-BOSS-001 | BG-BOSS | dist/assets/bg_boss_room.png | bg_boss_room | used | MAPS.boss | 使用者提供的 Boss 房背景 |
 
 ### Monster Assets
 
@@ -50,6 +51,7 @@
 | MON-MB-001 | MON-MB | dist/assets/miniboss_0.png | miniboss_0 | used | city_boss1 | Kerning 小王，alignment complete |
 | MON-MB-002 | MON-MB | dist/assets/miniboss_1.png | miniboss_1 | used | city_boss2 | Kerning 小王，alignment complete |
 | MON-SUP-001 | MON-SUP | dist/assets/monster_slime.png | monster_slime | used | shadow-slime | Boss 房援軍，共用 legacy 資產 |
+| BOSS-MAIN-001 | BOSS-MAIN | dist/assets/boss_main.png | boss_main | used | BossScene | 使用者提供的 Boss 主體圖 |
 
 ### NPC Assets
 
@@ -60,9 +62,10 @@
 | NPC-NEW-002 | NPC-NEW | dist/assets/npc_new_2.png | npc_new_2 | used | MAPS.sky NPC | 浮空島嶼 NPC |
 | NPC-NEW-003 | NPC-NEW | dist/assets/npc_new_3.png | npc_new_3 | used | MAPS.ruins NPC | 古代廢墟 NPC |
 | NPC-NEW-004 | NPC-NEW | dist/assets/npc_new_4.png | npc_new_4 | used | MAPS.kerning NPC | Kerning NPC |
-| NPC-NEW-005 | NPC-NEW | dist/assets/npc_new_5.png | npc_new_5 | reserve | preload only | 已載入但目前未在地圖配置中使用 |
+| NPC-NEW-005 | NPC-NEW | dist/assets/npc_new_5.png | npc_new_5 | used | MAPS.taipei NPC | 台北都會 NPC |
 
 ### Current Runtime Gaps
 
 - 長條平台目前採用 render overlay 方式套在既有碰撞平台上，後續若要完全圖片化仍需額外驗證 collisionPolicy。
 - 台北地圖已可載入與進入，但候選怪物族群尚未正式晉升為 runtime 素材。
+- monster3 原始母圖目前僅完成分類與地圖規劃，尚未能在本輪精準裁切成獨立 runtime sprite。
