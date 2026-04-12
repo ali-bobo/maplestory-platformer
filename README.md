@@ -153,6 +153,22 @@ npm run build
 npx serve .
 ```
 
+### 如何停止本地伺服器
+
+當你不再需要遊戲時，需要手動停止正在運行的本地伺服器：
+
+| 啟動方式 | 停止方法 |
+|---------|---------|
+| `npx serve .` | 在終端機按 **Ctrl + C**（macOS: **⌘ + C** 或 **Ctrl + C**） |
+| `python -m http.server 8000` | 在終端機按 **Ctrl + C** |
+| VS Code Live Server | 點擊 VS Code 右下角狀態列的 **「Port: xxxx」** 按鈕，或按 **Ctrl + Shift + P** → 輸入 **「Stop Live Server」** |
+
+> **注意**：關閉瀏覽器分頁只會關閉遊戲畫面，**不會**停止本地伺服器。伺服器仍會在背景佔用端口（port），你必須回到啟動伺服器的終端機視窗手動終止。
+>
+> 若忘記終止伺服器，下次啟動時可能出現 `port already in use` 錯誤。此時可以：
+> - **找到並結束程序**（Linux/macOS）：`lsof -i :3000` 找到 PID，再 `kill <PID>`
+> - **找到並結束程序**（Windows）：`netstat -ano | findstr :3000` 找到 PID，再 `taskkill /PID <PID> /F`
+
 ---
 
 ## 授權
