@@ -77,7 +77,7 @@ export const MONSTERS = [
   { id: 'city_thug',   name: '城市流氓', level: 20, hp: 950, atk: 110, exp: 275, speed: 90,  meso: 54, dropRate: 0.22, behavior: 'chase',   spriteKey: 'monster_new_6',    area: 'kerning' },
   { id: 'city_mech',   name: '機械衛士', level: 23, hp: 1200,atk: 130, exp: 350, speed: 75,  meso: 62, dropRate: 0.24, behavior: 'ranged',  spriteKey: 'monster_big_2',    area: 'taipei'  },
   { id: 'city_beast',  name: '暗夜猛獸', level: 26, hp: 1500,atk: 150, exp: 440, speed: 80,  meso: 72, dropRate: 0.26, behavior: 'chase',   spriteKey: 'monster_big_3',    area: 'kerning' },
-  { id: 'city_boss1',  name: '小王：暗影使者', level: 27, hp: 3000, atk: 170, exp: 600, speed: 100, meso: 150, dropRate: 0.50, behavior: 'chase', spriteKey: 'miniboss_0',  area: 'taipei',  spawnRole: 'miniboss', visualScale: 1.28 },
+  { id: 'city_boss1',  name: '小王：都會督軍', level: 27, hp: 3000, atk: 170, exp: 600, speed: 100, meso: 150, dropRate: 0.50, behavior: 'chase', spriteKey: 'miniboss_0',  area: 'taipei',  spawnRole: 'miniboss', visualScale: 1.28 },
   { id: 'city_boss2',  name: '小王：機械領袖', level: 29, hp: 4000, atk: 185, exp: 800, speed: 85,  meso: 200, dropRate: 0.50, behavior: 'chase', spriteKey: 'miniboss_1',  area: 'kerning', spawnRole: 'miniboss', visualScale: 1.34 },
   { id: 'city_elite',  name: '精英衛兵', level: 24, hp: 1300,atk: 140, exp: 380, speed: 70,  meso: 66, dropRate: 0.25, behavior: 'patrol',  spriteKey: 'monster_big_4',    area: 'taipei'  },
 

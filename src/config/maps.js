@@ -6,6 +6,8 @@ const PH = 24;          // 平台高度
 const GROUND_Y = WORLD_HEIGHT;   // 地板頂部固定貼齊 HUD 上緣，移除角色下方黑帶
 
 const MAP_WIDTH = 2560;
+const TAIPEI_LOWER_Y = 400;
+const TAIPEI_UPPER_Y = 240;
 
 function plat(x, y, width, type = 'stone', thin = true) {
   return { x, y, width, type, thin };
@@ -113,13 +115,13 @@ const KERNING_PLATFORMS = [
 const TAIPEI_PLATFORMS = [
   ground(0, GROUND_Y, MAP_WIDTH, 'brick'),
 
-  plat(140,  408, 560, 'brick'),
-  imageSolidPlatform(plat(930,  392, 700, 'wood'), { walkableTopRatio: 0.39, walkableHeight: 20 }),
-  plat(1900, 408, 520, 'brick'),
+  plat(140,  TAIPEI_LOWER_Y, 560, 'brick'),
+  imageSolidPlatform(plat(930,  TAIPEI_LOWER_Y, 700, 'wood'), { walkableTopRatio: 0.39, walkableHeight: 20 }),
+  plat(1900, TAIPEI_LOWER_Y, 520, 'brick'),
 
-  imageSolidPlatform(plat(340,  244, 560, 'wood'), { walkableTopRatio: 0.4, walkableHeight: 20 }),
-  plat(1180, 228, 620, 'brick'),
-  imageSolidPlatform(plat(2020, 244, 440, 'wood'), { walkableTopRatio: 0.4, walkableHeight: 18 }),
+  imageSolidPlatform(plat(340,  TAIPEI_UPPER_Y, 560, 'wood'), { walkableTopRatio: 0.4, walkableHeight: 20 }),
+  plat(1180, TAIPEI_UPPER_Y, 620, 'brick'),
+  imageSolidPlatform(plat(2020, TAIPEI_UPPER_Y, 440, 'wood'), { walkableTopRatio: 0.4, walkableHeight: 18 }),
 ];
 
 // ─────────── Boss 房間 ───────────
