@@ -342,9 +342,9 @@ export class BaseMapScene extends Phaser.Scene {
       if (baseAlpha === 0) continue;
 
       let alpha = baseAlpha;
-      const whiteness = Math.min(red, green, blue);
-      if (whiteness >= whiteThreshold) {
-        const fadeRatio = Phaser.Math.Clamp((255 - whiteness) / Math.max(1, 255 - whiteThreshold), 0, 1);
+      const minChannelValue = Math.min(red, green, blue);
+      if (minChannelValue >= whiteThreshold) {
+        const fadeRatio = Phaser.Math.Clamp((255 - minChannelValue) / Math.max(1, 255 - whiteThreshold), 0, 1);
         alpha = Math.round(alpha * fadeRatio);
       }
 

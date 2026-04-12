@@ -6,16 +6,21 @@ import { ALIGNMENT_PROFILES, applyAlignmentProfile, getVisualCenterPoint, getVis
 
 // 怪物 AI 狀態
 const STATE = { PATROL: 'patrol', CHASE: 'chase', ATTACK: 'attack', HURT: 'hurt', DEAD: 'dead', RANGED: 'ranged' };
+const LEGACY_MONSTER_SOURCE_HEIGHT = 80;
+const MAX_MONSTER_DISPLAY_HEIGHT = 160;
+const MAX_MINIBOSS_DISPLAY_HEIGHT = 220;
 
 function getScaledMonsterProfile(entity, config) {
   const baseProfile = ALIGNMENT_PROFILES.monster;
   const scale = Number.isFinite(config?.visualScale) && config.visualScale > 0 ? config.visualScale : 1;
   const sourceImage = entity?.texture?.getSourceImage?.();
-  const sourceWidth = sourceImage?.width || 80;
-  const sourceHeight = sourceImage?.height || 80;
-  const heightScale = Math.sqrt(sourceHeight / 80);
+  const sourceWidth = sourceImage?.width || LEGACY_MONSTER_SOURCE_HEIGHT;
+  const sourceHeight = sourceImage?.height || LEGACY_MONSTER_SOURCE_HEIGHT;
+  // 80x80 是 legacy 怪物圖的共同基準；改用平方根放大可保留大圖相對量感，
+  // 又不會讓 200~600px 的新裁切怪直接依線性比例膨脹到失控。
+  const heightScale = Math.sqrt(sourceHeight / LEGACY_MONSTER_SOURCE_HEIGHT);
   const targetHeight = Math.min(
-    config?.spawnRole === 'miniboss' ? 220 : 160,
+    config?.spawnRole === 'miniboss' ? MAX_MINIBOSS_DISPLAY_HEIGHT : MAX_MONSTER_DISPLAY_HEIGHT,
     Math.max(baseProfile.displayHeight, Math.round(baseProfile.displayHeight * heightScale * scale)),
   );
   const aspectRatio = sourceWidth / Math.max(1, sourceHeight);
