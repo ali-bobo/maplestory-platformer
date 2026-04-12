@@ -19,11 +19,13 @@ const IMAGE_PLATFORM_STYLE = {
     renderHeight: 112,
     imageCropTopRatio: 0.16,
     imageCropHeightRatio: 0.58,
-    sourceWindowWidthRatio: 0.74,
-    renderWidthRatio: 1.04,
-    walkableTopRatio: 0.7,
+    sourceWindowWidthRatio: 0.72,
+    renderWidthRatio: 0.96,
+    walkableTopRatio: 0.64,
     removeNearWhite: true,
     whiteThreshold: 242,
+    edgeFadePixels: 22,
+    bottomFadePixels: 16,
   },
   ellinia: {
     renderHeight: 112,
@@ -31,16 +33,23 @@ const IMAGE_PLATFORM_STYLE = {
     imageCropHeightRatio: 0.58,
     sourceWindowWidthRatio: 0.74,
     renderWidthRatio: 1.18,
-    walkableTopRatio: 0.7,
+    walkableTopRatio: 0.64,
     removeNearWhite: true,
     whiteThreshold: 242,
+    edgeFadePixels: 22,
+    bottomFadePixels: 16,
   },
   taipei: {
-    renderHeight: 80,
+    renderHeight: 88,
     imageCropTopRatio: 0.18,
     imageCropHeightRatio: 0.56,
     sourceWindowWidthRatio: 0.78,
-    walkableTopRatio: 0.74,
+    renderWidthRatio: 1.02,
+    walkableTopRatio: 0.66,
+    removeNearWhite: true,
+    whiteThreshold: 242,
+    edgeFadePixels: 20,
+    bottomFadePixels: 14,
   },
 };
 
@@ -210,6 +219,8 @@ export class BaseMapScene extends Phaser.Scene {
       walkableHeight = 18,
       removeNearWhite = mapStyle.removeNearWhite ?? false,
       whiteThreshold = mapStyle.whiteThreshold ?? 245,
+      edgeFadePixels = mapStyle.edgeFadePixels ?? 0,
+      bottomFadePixels = mapStyle.bottomFadePixels ?? 0,
     } = platformData;
 
     const texture = this.textures.get(decorationKey);
@@ -236,7 +247,7 @@ export class BaseMapScene extends Phaser.Scene {
     const walkableWidth = platformData.walkableWidth ?? displayWidth;
     const walkableTopOffset = Math.round(displayHeight * walkableTopRatio);
     const centerX = x + width / 2;
-    const textureKey = removeNearWhite
+    const textureKey = (removeNearWhite || edgeFadePixels > 0 || bottomFadePixels > 0)
       ? this._getPlatformProcessedTextureKey({
           decorationKey,
           rowIndex,
@@ -245,6 +256,8 @@ export class BaseMapScene extends Phaser.Scene {
           cropWidth: sourceWindowWidth,
           cropHeight,
           whiteThreshold,
+          edgeFadePixels,
+          bottomFadePixels,
         })
       : decorationKey;
 
@@ -276,6 +289,8 @@ export class BaseMapScene extends Phaser.Scene {
     cropWidth,
     cropHeight,
     whiteThreshold,
+    edgeFadePixels,
+    bottomFadePixels,
   }) {
     const processedKey = [
       decorationKey,
@@ -286,6 +301,8 @@ export class BaseMapScene extends Phaser.Scene {
       cropWidth,
       cropHeight,
       whiteThreshold,
+      edgeFadePixels,
+      bottomFadePixels,
     ].join('-');
 
     if (this.textures.exists(processedKey)) {
@@ -315,12 +332,37 @@ export class BaseMapScene extends Phaser.Scene {
     const imageData = context.getImageData(0, 0, cropWidth, cropHeight);
     const pixels = imageData.data;
     for (let index = 0; index < pixels.length; index += 4) {
+      const pixelIndex = index / 4;
+      const x = pixelIndex % cropWidth;
+      const y = Math.floor(pixelIndex / cropWidth);
       const red = pixels[index];
       const green = pixels[index + 1];
       const blue = pixels[index + 2];
-      if (red >= whiteThreshold && green >= whiteThreshold && blue >= whiteThreshold) {
-        pixels[index + 3] = 0;
+      const baseAlpha = pixels[index + 3];
+      if (baseAlpha === 0) continue;
+
+      let alpha = baseAlpha;
+      const whiteness = Math.min(red, green, blue);
+      if (whiteness >= whiteThreshold) {
+        const fadeRatio = Phaser.Math.Clamp((255 - whiteness) / Math.max(1, 255 - whiteThreshold), 0, 1);
+        alpha = Math.round(alpha * fadeRatio);
       }
+
+      if (edgeFadePixels > 0) {
+        const sideDistance = Math.min(x, cropWidth - 1 - x);
+        if (sideDistance < edgeFadePixels) {
+          alpha = Math.round(alpha * Phaser.Math.Clamp(sideDistance / edgeFadePixels, 0, 1));
+        }
+      }
+
+      if (bottomFadePixels > 0) {
+        const bottomDistance = cropHeight - 1 - y;
+        if (bottomDistance < bottomFadePixels) {
+          alpha = Math.round(alpha * Phaser.Math.Clamp(bottomDistance / bottomFadePixels, 0, 1));
+        }
+      }
+
+      pixels[index + 3] = alpha;
     }
     context.putImageData(imageData, 0, 0);
     canvasTexture.refresh();

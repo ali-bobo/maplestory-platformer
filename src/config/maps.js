@@ -1,6 +1,6 @@
 import { WORLD_HEIGHT } from './constants.js';
 
-// 地圖定義 v6.6 — 森林跳台沿用 Toytown 站位模型但回收寬度，並重排首章怪物輪廓
+// 地圖定義 v6.7 — 森林 / 玩具城 / 台北統一採用圖片跳台模型，並重排首章怪物輪廓
 
 const PH = 24;          // 平台高度
 const GROUND_Y = WORLD_HEIGHT;   // 地板頂部固定貼齊 HUD 上緣，移除角色下方黑帶
@@ -57,15 +57,15 @@ const SKY_PLATFORMS = [
 const HENESYS_PLATFORMS = [
   ground(0, GROUND_Y, MAP_WIDTH, 'grass'),
 
-  // 第一層（y=400）：3 個，草地材質
-  plat(100,  400, 600, 'grass'),
-  imageSolidPlatform(plat(980,  400, 600, 'wood'), { walkableHeight: 20 }),
-  plat(1860, 400, 600, 'grass'),
+  // 第一層（y=400）：全部改用森林圖片跳台，沿用 Toytown 腳底接觸線
+  imageSolidPlatform(plat(100,  400, 600, 'grass'), { walkableHeight: 20 }),
+  imageSolidPlatform(plat(980,  400, 600, 'wood'),  { walkableHeight: 20 }),
+  imageSolidPlatform(plat(1860, 400, 600, 'grass'), { walkableHeight: 20 }),
 
-  // 第二層（y=240）：3 個，木頭材質
-  plat(380,  240, 580, 'wood'),
+  // 第二層（y=240）：全部採同一套森林圖片跳台規格
+  imageSolidPlatform(plat(380,  240, 580, 'wood'),  { walkableHeight: 20 }),
   imageSolidPlatform(plat(1220, 240, 580, 'grass'), { walkableHeight: 20 }),
-  plat(2060, 240, 580, 'wood'),
+  imageSolidPlatform(plat(2060, 240, 580, 'wood'),  { walkableHeight: 20 }),
 ];
 
 // ─────────── 古代廢墟 ───────────
@@ -89,15 +89,15 @@ const RUINS_PLATFORMS = [
 const ELLINIA_PLATFORMS = [
   ground(0, GROUND_Y, MAP_WIDTH, 'brick'),
 
-  // 第一層（y=400）：3 個，木頭材質
-  plat(100,  400, 600, 'wood'),
+  // 第一層（y=400）：全部採用已驗證的 Toytown 圖片跳台模式
+  imageSolidPlatform(plat(100,  400, 600, 'wood'),  { walkableHeight: 20 }),
   imageSolidPlatform(plat(980,  400, 600, 'brick'), { walkableHeight: 20 }),
-  plat(1860, 400, 600, 'wood'),
+  imageSolidPlatform(plat(1860, 400, 600, 'wood'),  { walkableHeight: 20 }),
 
-  // 第二層（y=240）：3 個，磚石材質
-  plat(380,  240, 580, 'brick'),
-  imageSolidPlatform(plat(1220, 240, 580, 'wood'), { walkableHeight: 20 }),
-  plat(2060, 240, 580, 'brick'),
+  // 第二層（y=240）：移除舊有自訂跳台，統一改為圖片跳台
+  imageSolidPlatform(plat(380,  240, 580, 'brick'), { walkableHeight: 20 }),
+  imageSolidPlatform(plat(1220, 240, 580, 'wood'),  { walkableHeight: 20 }),
+  imageSolidPlatform(plat(2060, 240, 580, 'brick'), { walkableHeight: 20 }),
 ];
 
 // ─────────── Kerning City ───────────
@@ -121,13 +121,13 @@ const KERNING_PLATFORMS = [
 const TAIPEI_PLATFORMS = [
   ground(0, GROUND_Y, MAP_WIDTH, 'brick'),
 
-  plat(140,  TAIPEI_LOWER_Y, 560, 'brick'),
-  imageSolidPlatform(plat(930,  TAIPEI_LOWER_Y, 700, 'wood'), { walkableTopRatio: 0.39, walkableHeight: 20 }),
-  plat(1900, TAIPEI_LOWER_Y, 520, 'brick'),
+  imageSolidPlatform(plat(140,  TAIPEI_LOWER_Y, 560, 'brick'), { walkableHeight: 20 }),
+  imageSolidPlatform(plat(930,  TAIPEI_LOWER_Y, 700, 'wood'),  { walkableHeight: 20 }),
+  imageSolidPlatform(plat(1900, TAIPEI_LOWER_Y, 520, 'brick'), { walkableHeight: 20 }),
 
-  imageSolidPlatform(plat(340,  TAIPEI_UPPER_Y, 560, 'wood'), { walkableTopRatio: 0.4, walkableHeight: 20 }),
-  plat(1180, TAIPEI_UPPER_Y, 620, 'brick'),
-  imageSolidPlatform(plat(2020, TAIPEI_UPPER_Y, 440, 'wood'), { walkableTopRatio: 0.4, walkableHeight: 18 }),
+  imageSolidPlatform(plat(340,  TAIPEI_UPPER_Y, 560, 'wood'),  { walkableHeight: 20 }),
+  imageSolidPlatform(plat(1180, TAIPEI_UPPER_Y, 620, 'brick'), { walkableHeight: 20 }),
+  imageSolidPlatform(plat(2020, TAIPEI_UPPER_Y, 440, 'wood'),  { walkableHeight: 18 }),
 ];
 
 // ─────────── Boss 房間 ───────────
@@ -155,8 +155,8 @@ export const MAPS = {
       { id: 'slime',    count: 2 },
       { id: 'mushroom', count: 3 },
       { id: 'snail',    count: 3 },
+      { id: 'sky_imp',  count: 2 },
       { id: 'sky_bird', count: 2 },
-      { id: 'sky_puff', count: 2 },
     ],
     portals: [
       { x: MAP_WIDTH - 50, y: GROUND_Y - 48, width: 40, height: 72, target: 'henesys', label: '→森林獵場', spawnX: 200 },

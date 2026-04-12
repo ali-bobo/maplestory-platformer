@@ -57,6 +57,16 @@
 - **THEN** 森林可以保留相同的裁切 / 腳底接觸線模型，但應使用較窄的顯示寬度來貼近原始森林構圖
 - **AND** 玩家、怪物與 NPC 的站位不得因寬度修正而再次陷入平台
 
+#### Scenario: Forest, Toytown, and Taipei use one image-platform flow
+- **WHEN** 森林、玩具城或台北的可見跳台被建立
+- **THEN** 它們都應透過同一套 `image-native` 平台流程建立可見圖層與碰撞面
+- **AND** 不得在同一批長條跳台中混用舊的平面程序跳台，造成接觸線或素材 row 錯置
+
+#### Scenario: Image platforms remove white fringes and fade their seams
+- **WHEN** 長條跳台母圖仍帶有近白背景或明顯矩形邊界
+- **THEN** runtime 處理應將近白像素淡出，並對平台左右端與下緣做融合淡化
+- **AND** 不得留下明顯白邊或硬切矩形邊框破壞背景融合
+
 ### Requirement: Runtime monster polish SHALL cover roster uniqueness, large-monster sizing, and light mobility pressure
 runtime 怪物整修 MUST 同時處理首章輪廓重複、後段大型怪物尺寸不足與選定怪物缺乏位移威脅的問題。
 
@@ -69,6 +79,11 @@ runtime 怪物整修 MUST 同時處理首章輪廓重複、後段大型怪物尺
 - **WHEN** 廢墟、Kerning 或 Taipei 使用 big 系列或明顯屬於大型體型的怪物
 - **THEN** 這些怪物應透過 `visualScale` 顯式放大到符合預期的區域壓迫感
 - **AND** 不得只讓 miniboss 放大而忽略其他大型怪
+
+#### Scenario: Monster rendering preserves source proportions while keeping a baseline size
+- **WHEN** 怪物圖的原始尺寸明顯大於或小於 legacy 80x80 基準
+- **THEN** runtime 顯示尺寸應保留來源圖長寬比，且小型怪不得低於基本可讀尺寸
+- **AND** 較大的怪物不得再被強制壓成與小怪相同的固定方形尺寸而失去量感或清晰度
 
 #### Scenario: Selected monsters gain low-frequency jumping pressure
 - **WHEN** 某些近戰或追擊型怪物需要提升威脅性

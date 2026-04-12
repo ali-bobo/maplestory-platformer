@@ -7,18 +7,31 @@ import { ALIGNMENT_PROFILES, applyAlignmentProfile, getVisualCenterPoint, getVis
 // 怪物 AI 狀態
 const STATE = { PATROL: 'patrol', CHASE: 'chase', ATTACK: 'attack', HURT: 'hurt', DEAD: 'dead', RANGED: 'ranged' };
 
-function getScaledMonsterProfile(config) {
+function getScaledMonsterProfile(entity, config) {
   const baseProfile = ALIGNMENT_PROFILES.monster;
   const scale = Number.isFinite(config?.visualScale) && config.visualScale > 0 ? config.visualScale : 1;
-  if (scale === 1) return baseProfile;
+  const sourceImage = entity?.texture?.getSourceImage?.();
+  const sourceWidth = sourceImage?.width || 80;
+  const sourceHeight = sourceImage?.height || 80;
+  const heightScale = Math.sqrt(sourceHeight / 80);
+  const targetHeight = Math.min(
+    config?.spawnRole === 'miniboss' ? 220 : 160,
+    Math.max(baseProfile.displayHeight, Math.round(baseProfile.displayHeight * heightScale * scale)),
+  );
+  const aspectRatio = sourceWidth / Math.max(1, sourceHeight);
+  const targetWidth = Math.max(baseProfile.displayWidth, Math.round(targetHeight * aspectRatio));
+  const widthRatio = targetWidth / baseProfile.displayWidth;
+  const heightRatio = targetHeight / baseProfile.displayHeight;
+
+  if (widthRatio === 1 && heightRatio === 1) return baseProfile;
   return {
     ...baseProfile,
-    displayWidth: Math.round(baseProfile.displayWidth * scale),
-    displayHeight: Math.round(baseProfile.displayHeight * scale),
-    bodyWidth: Math.round(baseProfile.bodyWidth * scale),
-    bodyOffsetX: Math.round(baseProfile.bodyOffsetX * scale),
-    bodyOffsetY: Math.round(baseProfile.bodyOffsetY * scale),
-    footPadding: Math.max(1, Math.round(baseProfile.footPadding * scale)),
+    displayWidth: targetWidth,
+    displayHeight: targetHeight,
+    bodyWidth: Math.round(baseProfile.bodyWidth * widthRatio),
+    bodyOffsetX: Math.round(baseProfile.bodyOffsetX * widthRatio),
+    bodyOffsetY: Math.round(baseProfile.bodyOffsetY * heightRatio),
+    footPadding: Math.max(1, Math.round(baseProfile.footPadding * heightRatio)),
   };
 }
 
@@ -58,7 +71,7 @@ export class Monster extends Phaser.Physics.Arcade.Sprite {
     this.setCollideWorldBounds(true);
     this.body.setGravityY(0);
     this.setDepth(10);
-    this.alignmentProfile = getScaledMonsterProfile(config);
+    this.alignmentProfile = getScaledMonsterProfile(this, config);
     applyAlignmentProfile(this, this.alignmentProfile);
     if (config.tint) this.setTint(config.tint);
 
