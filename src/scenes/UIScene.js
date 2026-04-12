@@ -10,6 +10,7 @@ export class UIScene extends Phaser.Scene {
   create() {
     this._gs = null;
     this._popup = null;
+    this._timers = [];
     const { width, height } = this.cameras.main;
 
     // ── 底部狀態列面板（雙列：上方狀態 + 下方技能/藥水）──────────────────────
@@ -116,8 +117,10 @@ export class UIScene extends Phaser.Scene {
     this.registry.events.on('changedata-killcount', this._onKillChange,  this);
     this.registry.events.on('changedata-sp',        this._onSpChange,    this);
 
-    this.time.addEvent({ delay: 100, loop: true, callback: this._refreshCooldowns,  callbackScope: this });
-    this.time.addEvent({ delay: 200, loop: true, callback: this._refreshPotionSlots, callbackScope: this });
+    this._timers.push(this.time.addEvent({ delay: 100, loop: true, callback: this._refreshCooldowns,  callbackScope: this }));
+    this._timers.push(this.time.addEvent({ delay: 200, loop: true, callback: this._refreshPotionSlots, callbackScope: this }));
+    this.events.once('shutdown', this._onShutdown, this);
+    this.events.once('destroy', this._onShutdown, this);
   }
 
   _makeBar(x, y, w, h, color) {
@@ -276,6 +279,7 @@ export class UIScene extends Phaser.Scene {
     this._mapText.setText(mapNames[gs.currentMap] || '');
 
     for (const [key, data] of Object.entries(this._cdOverlays)) {
+      const { overlay, x, y, w, h } = data;
       overlay.clear();
       const cd = gs.skillCooldowns[key] || 0;
       const maxCd = SKILLS[key] ? SKILLS[key].cooldown : 1;
@@ -294,6 +298,23 @@ export class UIScene extends Phaser.Scene {
         this._skillSlots[key].setAlpha(unlocked ? 1 : 0.3);
       }
     }
+  }
+
+  _onShutdown() {
+    this._closePopup();
+    this.registry.events.off('changedata-hp',        this._onHpChange,    this);
+    this.registry.events.off('changedata-mp',        this._onMpChange,    this);
+    this.registry.events.off('changedata-exp',       this._onExpChange,   this);
+    this.registry.events.off('changedata-level',     this._onLevelChange, this);
+    this.registry.events.off('changedata-levelup',   this._onLevelUp,     this);
+    this.registry.events.off('changedata-meso',      this._onMesoChange,  this);
+    this.registry.events.off('changedata-killcount', this._onKillChange,  this);
+    this.registry.events.off('changedata-sp',        this._onSpChange,    this);
+
+    for (const timer of this._timers || []) {
+      timer.remove(false);
+    }
+    this._timers = [];
   }
 
   _refreshAll() {

@@ -6,7 +6,8 @@ import { Player } from '../entities/Player.js';
 import { Monster } from '../entities/Monster.js';
 import { audio } from '../engine/audio.js';
 
-const GROUND_Y = 576;
+const PLATFORM_HEIGHT = 24;
+const GROUND_Y = WORLD_HEIGHT - PLATFORM_HEIGHT;
 
 export class BaseMapScene extends Phaser.Scene {
   constructor(key, mapKey) {
@@ -20,6 +21,10 @@ export class BaseMapScene extends Phaser.Scene {
     this.pickups = null;
     this.portals = null;
     this._npcDialog = null;
+    this._npcEntries = [];
+    this._backgroundUpdateHandler = null;
+    this._onEscKeyDown = null;
+    this._onInteractKeyDown = null;
   }
 
   init(data) {
@@ -46,7 +51,8 @@ export class BaseMapScene extends Phaser.Scene {
     this._createPlatforms();
 
     const spawnX = this._spawnX !== null ? this._spawnX : (this.mapData.spawnX || 150);
-    this.player = new Player(this, spawnX, 540, gs);
+    this.player = new Player(this, spawnX, 0, gs);
+    this._alignDynamicEntityToPlatformTop(this.player, this._getClosestPlatformTopY(spawnX, GROUND_Y));
     this.cameras.main.startFollow(this.player, true, 0.1, 0.1);
 
     this.monsters = this.add.group();
@@ -70,7 +76,23 @@ export class BaseMapScene extends Phaser.Scene {
     this._playTimeAccum = 0;
 
     // ESC 關閉 NPC 對話
-    this.input.keyboard.on('keydown-ESC', () => { this._closeNpcDialog(); });
+    this._onEscKeyDown = () => { this._closeNpcDialog(); };
+    this.input.keyboard.on('keydown-ESC', this._onEscKeyDown);
+    this._onInteractKeyDown = () => {
+      const npcData = this._getNearbyNpcData();
+      if (!npcData) {
+        if (this._npcDialog) this._closeNpcDialog();
+        return;
+      }
+      if (this._npcDialog) {
+        this._closeNpcDialog();
+        return;
+      }
+      this._openNpcDialog(npcData);
+    };
+    this.input.keyboard.on('keydown-F', this._onInteractKeyDown);
+    this.events.once('shutdown', this._onSceneShutdown, this);
+    this.events.once('destroy', this._onSceneShutdown, this);
   }
 
   // ── 背景（使用真實圖片 tileSprite，極低視差率避免重複銜接） ─────────────
@@ -96,15 +118,15 @@ export class BaseMapScene extends Phaser.Scene {
       const sc = Math.max(SCREEN_W / imgW, SCREEN_H / imgH);
       bg.setTileScale(sc, sc);
 
-      // 每張背景圖的視覺地面位置不同，需要垂直偏移對齊物理地板（GROUND_Y=576）
-      // bgOffsetY 為負值 → 圖片往下偏移 → 視覺地面往下移到 y=576
-      const bgOffsetY = this.mapData.bgOffsetY || 0;
-      bg.setTilePosition(0, bgOffsetY);
+      // 統一讓背景底部貼齊畫面底部，避免各地圖地面視覺忽高忽低。
+      const baseTileY = SCREEN_H / sc - imgH;
+      bg.setTilePosition(0, baseTileY);
 
       // 視差：使用極低速率（1%），避免背景重複銜接痕跡
-      this.events.on('update', () => {
+      this._backgroundUpdateHandler = () => {
         bg.tilePositionX = this.cameras.main.scrollX * 0.01;
-      });
+      };
+      this.events.on('update', this._backgroundUpdateHandler);
     }
   }
 
@@ -112,13 +134,11 @@ export class BaseMapScene extends Phaser.Scene {
   _createPlatforms() {
     this.platforms      = this.physics.add.staticGroup();
     this.thinPlatforms  = this.physics.add.staticGroup();
-    const PH = 24;
-
     for (const p of this.mapData.platforms) {
       const textureKey = `platform-${p.type || 'grass'}`;
       const group = p.thin ? this.thinPlatforms : this.platforms;
-      const sprite = group.create(p.x + p.width / 2, p.y + PH / 2, textureKey);
-      sprite.setDisplaySize(p.width, PH);
+      const sprite = group.create(p.x + p.width / 2, p.y + PLATFORM_HEIGHT / 2, textureKey);
+      sprite.setDisplaySize(p.width, PLATFORM_HEIGHT);
       sprite.refreshBody();
       sprite.setDepth(5);
       if (p.isGround) sprite.setAlpha(0);  // 地板用背景自然地板視覺，不疊加紋理
@@ -150,10 +170,8 @@ export class BaseMapScene extends Phaser.Scene {
         // 在平台寬度內隨機 x，邊緣留 20px 空間
         const margin = 20;
         const mx = plat.x + margin + Math.random() * Math.max(10, plat.width - margin * 2);
-        // y 座標：平台頂部以上 32px（讓 body top 在平台上方，落下後 body bottom 對齊平台頂部）
-        const my = plat.y - 32;
-
-        const monster = new Monster(this, mx, my, monsterDef);
+        const monster = new Monster(this, mx, 0, monsterDef);
+        this._alignDynamicEntityToPlatformTop(monster, plat.y);
         monster.player = this.player;
         monster.patrolOriginX = mx;
         this.monsters.add(monster);
@@ -185,41 +203,79 @@ export class BaseMapScene extends Phaser.Scene {
   // ── NPC（含對話互動）─────────────────────────────────────────────────────
   _createNPCs() {
     if (!this.mapData.npcs || this.mapData.npcs.length === 0) return;
+    this._npcEntries = [];
     for (const npcDef of this.mapData.npcs) {
-      // NPC 圖片（限制顯示大小為 60x80，避免大圖壓版）
-      const npc = this.physics.add.staticImage(npcDef.x, npcDef.y + 24, npcDef.id || 'npc_new_2');
+      const footY = this._getClosestPlatformTopY(npcDef.x, npcDef.y + 60);
+      // NPC 圖片以腳底貼齊平台頂，和玩家/怪物站在同一平面。
+      const npc = this.physics.add.staticImage(npcDef.x, footY, npcDef.id || 'npc_new_2');
+      npc.setOrigin(0.5, 1);
       npc.setDisplaySize(60, 80);
       npc.setDepth(8);
       npc.refreshBody();
       npc._npcData = npcDef;
 
       // 名稱標籤
-      const lbl = this.add.text(npcDef.x, npcDef.y - 14, npcDef.name || '', {
+      const lbl = this.add.text(npcDef.x, footY - 86, npcDef.name || '', {
         fontSize: '13px', color: '#ffee88', fontFamily: 'Arial',
         stroke: '#000', strokeThickness: 3,
       }).setDepth(9).setOrigin(0.5, 1);
 
       // 互動提示（靠近時才顯示）
-      const hint = this.add.text(npcDef.x, npcDef.y - 34, '[按 F 對話]', {
+      const hint = this.add.text(npcDef.x, footY - 106, '[按 F 對話]', {
         fontSize: '11px', color: '#aaffaa', fontFamily: 'Arial',
         stroke: '#000', strokeThickness: 2,
       }).setDepth(9).setOrigin(0.5, 1).setAlpha(0);
 
       npc._hint = hint;
-
-      // 按 F 開啟對話
-      this.input.keyboard.on('keydown-F', () => {
-        const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, npc.x, npc.y);
-        if (dist < 80) this._openNpcDialog(npcDef);
-      });
-
-      // 每幀更新提示顯示
-      this.events.on('update', () => {
-        if (!this.player) return;
-        const d = Phaser.Math.Distance.Between(this.player.x, this.player.y, npc.x, npc.y);
-        hint.setAlpha(d < 80 ? 1 : 0);
-      });
+      this._npcEntries.push({ npc, hint, label: lbl, data: npcDef });
     }
+  }
+
+  _getClosestPlatformTopY(x, targetY = GROUND_Y) {
+    if (!this.mapData?.platforms?.length) return targetY;
+
+    const containingPlatforms = this.mapData.platforms.filter(
+      (platform) => x >= platform.x && x <= platform.x + platform.width,
+    );
+    if (containingPlatforms.length === 0) return targetY;
+
+    let closestY = containingPlatforms[0].y;
+    let minDistance = Math.abs(closestY - targetY);
+
+    for (const platform of containingPlatforms) {
+      const distance = Math.abs(platform.y - targetY);
+      if (distance < minDistance) {
+        closestY = platform.y;
+        minDistance = distance;
+      }
+    }
+
+    return closestY;
+  }
+
+  _alignDynamicEntityToPlatformTop(entity, platformTopY) {
+    if (!entity?.body) return;
+    const footOffset = entity.displayHeight * entity.originY - entity.body.offset.y - entity.body.height;
+    entity.setY(platformTopY + footOffset);
+  }
+
+  _getNearbyNpcData() {
+    if (!this.player || !this._npcEntries || this._npcEntries.length === 0) return null;
+
+    let closest = null;
+    let minDistance = 80;
+
+    for (const entry of this._npcEntries) {
+      const d = Phaser.Math.Distance.Between(this.player.x, this.player.y, entry.npc.x, entry.npc.y);
+      const visible = d < 80;
+      entry.hint.setAlpha(visible ? 1 : 0);
+      if (visible && d <= minDistance) {
+        closest = entry.data;
+        minDistance = d;
+      }
+    }
+
+    return closest;
   }
 
   _openNpcDialog(npcDef) {
@@ -260,7 +316,6 @@ export class BaseMapScene extends Phaser.Scene {
       .on('pointerout',  () => close.setStyle({ color: '#88aacc' }));
 
     this._npcDialog = { bg, title, msgText, close };
-    this.input.keyboard.on('keydown-F', () => this._closeNpcDialog());
   }
 
   _closeNpcDialog() {
@@ -340,6 +395,7 @@ export class BaseMapScene extends Phaser.Scene {
     this.player.update(delta);
     this.player.recoverMp(delta);
     this.player.recoverHp(delta);
+    this._getNearbyNpcData();
 
     const children = this.monsters.getChildren();
     for (const monster of children) {
@@ -353,5 +409,31 @@ export class BaseMapScene extends Phaser.Scene {
       this.registry.set('gameState', gs);
       this._playTimeAccum = 0;
     }
+  }
+
+  _onSceneShutdown() {
+    this.events.off('monster-died', this._onMonsterDied, this);
+
+    if (this._backgroundUpdateHandler) {
+      this.events.off('update', this._backgroundUpdateHandler);
+      this._backgroundUpdateHandler = null;
+    }
+
+    if (this._onEscKeyDown) {
+      this.input.keyboard.off('keydown-ESC', this._onEscKeyDown);
+      this._onEscKeyDown = null;
+    }
+
+    if (this._onInteractKeyDown) {
+      this.input.keyboard.off('keydown-F', this._onInteractKeyDown);
+      this._onInteractKeyDown = null;
+    }
+
+    this._closeNpcDialog();
+    for (const entry of this._npcEntries) {
+      if (entry?.hint) entry.hint.destroy();
+      if (entry?.label) entry.label.destroy();
+    }
+    this._npcEntries = [];
   }
 }

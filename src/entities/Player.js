@@ -23,11 +23,10 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     // 物理設定 — body bottom 對齊 final_char.png 視覺腳底（content ends at row 202/231 * 56 = 49px from top）
     this.setCollideWorldBounds(true);
     this.setDisplaySize(80, 80);
-    // final_char.png（242×231）：視覺腳底在圖片底部往上 29px(原圖) ≈ 10px(顯示)
-    // 視覺腳底偏移 = 40 - 10 = 30 → body.bottom 設在 y+30
-    // y - 40 + offset_y + body_h = y + 30 → offset_y=2, body_h=68
+    // final_char.png 的實際腳底比先前估計再高一些，將 body 往下縮入，
+    // 讓 body.bottom 對齊平台頂時，角色視覺腳底會落在平台表面而不是陷下去。
     this.body.setSize(48, 68);
-    this.body.setOffset(16, 2);
+    this.body.setOffset(16, 12);
     this.setDepth(20);
 
     // 技能施放群組快取

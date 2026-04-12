@@ -1,7 +1,9 @@
+import { WORLD_HEIGHT } from './constants.js';
+
 // 地圖定義 v6.0 — 精簡至 2 層平台 + 地板，加寬平台（改善懸空視覺），地板透明（用背景自然地板）
 
-const GROUND_Y = 576;   // 地板頂部 y 座標（與背景圖自然地板對齊）
 const PH = 24;          // 平台高度
+const GROUND_Y = WORLD_HEIGHT - PH;   // 地板頂部固定貼齊 HUD 上方的遊戲區底部
 
 const MAP_WIDTH = 2560;
 
@@ -113,7 +115,6 @@ export const MAPS = {
     width: MAP_WIDTH, bgColor: 0x5588ff,
     platforms: SKY_PLATFORMS,
     bgType: 'sky', bgImage: 'bg_sky',
-    bgOffsetY: -47,  // 視覺地面在圖片 77% 處（screen y≈554），向下偏移至 y=576
     monsters: [
       // 顏色/外型：鮮豔可愛，符合晴天浮空島嶼風格
       { id: 'slime',    count: 5 },  // 綠色圓滾滾
@@ -138,7 +139,6 @@ export const MAPS = {
     width: MAP_WIDTH, bgColor: 0x336622,
     platforms: HENESYS_PLATFORMS,
     bgType: 'henesys', bgImage: 'bg_forest',
-    bgOffsetY: 0,  // 森林背景地面在圖片約 80% 處（row≈614/768），自然對齊 y=576
     monsters: [
       // 顏色/外型：棕綠色系，樹木、動物，符合森林自然風格
       { id: 'mushroom', count: 4 },  // 蘑菇（森林常見）
@@ -164,7 +164,6 @@ export const MAPS = {
     width: MAP_WIDTH, bgColor: 0xc8a060,
     platforms: RUINS_PLATFORMS,
     bgType: 'ruins', bgImage: 'bg_ruins',
-    bgOffsetY: -30,  // 視覺地面在圖片 78% 處（screen y≈562），向下偏移至 y=576
     monsters: [
       // 顏色/外型：灰棕色系，機械、骷髏、石頭，符合古代廢墟風格
       { id: 'robot',       count: 4 },  // 機械直升機（鐵灰色）
@@ -190,7 +189,6 @@ export const MAPS = {
     width: MAP_WIDTH, bgColor: 0x4422aa,
     platforms: ELLINIA_PLATFORMS,
     bgType: 'ellinia', bgImage: 'bg_toytown',
-    bgOffsetY: 178,  // 玩具城背景地面在原圖約 80% 處（row≈716/896），調整至 y=576
     monsters: [
       // 顏色/外型：鮮豔彩色，獨眼、寶箱、精靈，符合奇幻彩色城鎮風格
       { id: 'sky_imp',     count: 4 },  // 雲端精靈（彩色小精靈）
@@ -216,7 +214,6 @@ export const MAPS = {
     width: MAP_WIDTH, bgColor: 0x111133,
     platforms: KERNING_PLATFORMS,
     bgType: 'kerning', bgImage: 'bg_city',
-    bgOffsetY: 0,  // 城市背景地面對齊已接近 y=576
     monsters: [
       // 顏色/外型：深色霓虹，龍、石頭精、機械衛士，符合暗色都市地下城風格
       { id: 'dragon',     count: 4 },  // 小藍龍（藍色，暗夜感）

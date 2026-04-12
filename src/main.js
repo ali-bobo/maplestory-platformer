@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import RexUIPlugin from 'phaser3-rex-plugins/templates/ui/ui-plugin.js';
 import { BootScene } from './scenes/BootScene.js';
 import { MenuScene } from './scenes/MenuScene.js';
 import { MapleIslandScene } from './scenes/MapleIslandScene.js';
@@ -12,17 +13,33 @@ import { UIScene } from './scenes/UIScene.js';
 import { GameOverScene } from './scenes/GameOverScene.js';
 
 const config = {
-  type: Phaser.AUTO,
+  type: Phaser.WEBGL,
   width: 1280,
   height: 720,
   parent: 'game-container',
   backgroundColor: '#87ceeb',
+  render: {
+    antialias: false,
+    antialiasGL: false,
+    pixelArt: true,
+    roundPixels: true,
+    powerPreference: 'high-performance',
+  },
   physics: {
     default: 'arcade',
     arcade: {
       gravity: { y: 1000 },
       debug: false,
     },
+  },
+  plugins: {
+    scene: [
+      {
+        key: 'rexUI',
+        plugin: RexUIPlugin,
+        mapping: 'rexUI',
+      },
+    ],
   },
   scene: [
     BootScene,

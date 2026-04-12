@@ -9,7 +9,8 @@
     "serve": "npx serve . -l 3000"
   },
   "dependencies": {
-    "phaser": "^3.88.2"
+    "phaser": "^3.88.2",
+    "phaser3-rex-plugins": "^1.80.20"
   },
   "devDependencies": {
     "esbuild": "^0.25.3"

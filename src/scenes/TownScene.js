@@ -6,6 +6,8 @@ export class TownScene extends BaseMapScene {
   constructor() {
     super('TownScene', 'town');
     this._shopOpen = false;
+    this._shopHint = null;
+    this._shopKey = null;
   }
 
   create() {
@@ -15,25 +17,12 @@ export class TownScene extends BaseMapScene {
 
   _setupShopInteraction() {
     // 顯示互動提示
-    const hint = this.add.text(400, 600, '靠近商人按 F 開啟商店', {
+    this._shopHint = this.add.text(400, 600, '靠近商人按 F 開啟商店', {
       fontSize: '14px', color: '#ffee88', fontFamily: 'Arial',
       stroke: '#000', strokeThickness: 3,
     }).setDepth(30).setOrigin(0.5, 1).setScrollFactor(0).setVisible(false);
 
-    // 偵測靠近
-    this.time.addEvent({
-      delay: 200, loop: true,
-      callback: () => {
-        if (!this.player || !this.player.active) return;
-        const d = Math.abs(this.player.x - 400);
-        hint.setVisible(d < 120);
-        if (d < 120 && this.input.keyboard.checkDown(
-          this.input.keyboard.addKey('F'), 300
-        )) {
-          this._openShop();
-        }
-      },
-    });
+    this._shopKey = this.input.keyboard.addKey('F');
   }
 
   _openShop() {
@@ -98,5 +87,18 @@ export class TownScene extends BaseMapScene {
       closeBtn.destroy();
       this._shopOpen = false;
     });
+  }
+
+  update(time, delta) {
+    super.update(time, delta);
+
+    if (!this.player || !this.player.active || !this._shopHint || !this._shopKey) return;
+
+    const nearShop = Math.abs(this.player.x - 400) < 120;
+    this._shopHint.setVisible(nearShop);
+
+    if (nearShop && Phaser.Input.Keyboard.JustDown(this._shopKey)) {
+      this._openShop();
+    }
   }
 }

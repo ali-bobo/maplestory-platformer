@@ -38,7 +38,9 @@ python -m http.server 8000
 | V | 技能：暗影漩渦（AoE） |
 | B | 技能：影分身 |
 | F | 與 NPC 對話（靠近後） |
-| ESC | 關閉 NPC 對話框 |
+| ESC | 目前用於關閉 NPC 對話框 |
+
+> 備註：ESC 暫停選單仍在待辦清單，尚未接入正式遊戲流程。
 
 ---
 
@@ -53,6 +55,8 @@ Kerning City (Lv18–30)
    ↓ 擊殺 60 隻怪物後，Boss 傳送門解鎖
 暗影魔君 Boss 房
 ```
+
+Boss 傳送門解鎖條件：全流程累積擊殺 60 隻怪物後，在 Kerning City 右側出現傳送門。
 
 ---
 
@@ -114,9 +118,15 @@ Kerning City (Lv18–30)
 
 ### 技術棧
 - **引擎**：[Phaser 3](https://phaser.io/) v3.88
+- **Renderer**：固定使用 WebGL，已啟用 Phaser 3 內建 pipeline 能力
+- **UI/效果延伸**：已接入 phaser3-rex-plugins（scene plugin：rexUI）
 - **打包**：esbuild
 - **語言**：ES Modules (JavaScript)
 - **物理**：Phaser Arcade Physics
+
+### 目前狀態
+- 已完成：主線戰鬥流程、Boss 進入與結算、裝備掉落、技能冷卻 HUD、HP/MP 自動回復、WebGL/rexUI 基礎層
+- 待補強：ESC 暫停選單、目標選取框、Level Up 全屏演出、Boss 第三階段視覺、城鎮商店正式接入
 
 ### 專案結構
 ```

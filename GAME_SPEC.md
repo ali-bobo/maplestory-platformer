@@ -1,55 +1,59 @@
 # GAME_SPEC.md — MapleStory-style Thief Platformer
-# 設計規格書 v3.0
+# 設計規格書 v3.1
 # 目標遊玩時間：約 60 分鐘（1 ~ 30 級）
 # 技術方向：多檔案前端 + 可接後端 / 資料庫（Node.js / SQLite → PostgreSQL）
-# Iteration 4：全面採用真實圖片美術（dist/assets/）
+# Iteration 5：以可玩流程穩定化為主，已接入 WebGL renderer 與 rexUI 基礎層
 
 ---
 
 ## [META] 規格書使用說明
 
 **本文件是設計意圖，不是程式碼。**
-- 怪物/裝備/地圖的具體數值屬於程式碼中的 `config/` 目錄
-- 本文只定義「有哪些東西」「玩起來感覺」「區域對應關係」
-- AI 工具應以本文為藍圖，在程式碼中填入具體數值
+- 怪物、裝備、技能與地圖的具體數值以 src/config 內的實作為準。
+- 本文定義的是玩法方向、視覺語言、區域對應關係與優先順序，不要求每一條都必須在當前版本已完成。
+- 若本文與目前程式碼、README 的已實裝行為衝突，先以目前程式碼為準，再回補本文件。
+- Iteration 文件用於記錄「當前狀態與下一步」，不是阻止後續調整的凍結規格。
 
 ---
 
-## [SELF_CHECK] 自我驗證清單 v2.0
+## [SELF_CHECK] 現況同步 v3.1
 
-```
-/*
-SELF_CHECK RESULTS:
-[ ] 1.  多檔案前端可透過 esbuild 打包為單一 index.html（本機直接開啟）
-[ ] 2.  Canvas 正確渲染，不出現空白黑屏
-[ ] 3.  角色可用方向鍵左右移動，動作流暢
-[ ] 4.  跳躍：Alt 鍵，支援二段跳；↓ + Alt 可穿透薄平台往下跳
-[ ] 5.  技能 Z/X/C 有動作效果（角色有施法動畫，不只是發射物）
-[ ] 6.  技能 V/B 有獨特視覺效果（AoE/分身，不單調）
-[ ] 7.  怪物在各區域正確生成並巡邏，不卡牆
-[ ] 8.  傷害數字飄字 + 粒子效果正確顯示
-[ ] 9.  HP / MP / EXP 條正確顯示並動態更新
-[ ] 10. 擊殺怪物獲得 EXP，升等後顯示動畫並提升能力值
-[ ] 11. 等級系統作用（等級影響傷害、HP、移動速度）
-[ ] 12. 裝備可從怪物掉落，撿起後顯示於 HUD，屬性生效
-[ ] 13. 裝備欄 UI 可查看已裝備物品
-[ ] 14. 地圖系統：5 個戰鬥地圖可切換（有入口/出口）
-[ ] 15. 城鎮地圖（休息區）有商店 NPC，可購買藥水/裝備
-[ ] 16. 各地圖有獨立視覺風格（天空色、地形色、背景）
-[ ] 17. 地圖視差捲動效果正常
-[ ] 18. Boss 地圖：觸發條件達成後可進入，Boss 有多段攻擊模式
-[ ] 19. Boss HP 條顯示，三個血量閾值觸發不同攻擊模式
-[ ] 20. 角色死亡後顯示結算畫面，可重新開始
-[ ] 21. 勝利條件（擊敗 Boss）後顯示勝利結算畫面
-[ ] 22. 遊戲暫停（ESC）可開啟，顯示操作說明與裝備欄
-[ ] 23. 沒有 JavaScript console error
-[ ] 24. FPS 穩定（requestAnimationFrame loop 正確）
-[ ] 25. 城鎮地圖無怪物，角色可安全行走
-[ ] 26. 掉落物 30 秒後消失，撿取時發出粒子效果
-[ ] 27. 技能冷卻在技能快捷列正確顯示
-[ ] 28. 怪物隨角色等級動態調整難度（高等區怪物對低等角色很難打）
-*/
-```
+### 已完成
+- 1. 多檔案前端可透過 esbuild 打包為單一 bundle
+- 2. Canvas 可正常渲染且主流程可進入
+- 3. 角色可左右移動
+- 4. 跳躍、二段跳、薄平台下落可運作
+- 5. 技能 Z/X/C 已有施放動作與效果
+- 7. 怪物可生成、巡邏與戰鬥
+- 8. 傷害數字與粒子效果已接入
+- 9. HP / MP / EXP HUD 會動態更新
+- 10. 擊殺、EXP、升等能力成長已接入
+- 11. 等級系統會影響戰鬥能力
+- 12. 裝備可掉落並套用屬性
+- 13. 裝備欄 UI 可查看已裝備物品
+- 14. 主線地圖切換與 Boss 入口可運作
+- 16. 各地圖已有獨立背景與地形風格
+- 17. 地圖視差背景已接入基礎版
+- 18. Boss 地圖可解鎖進入，Boss 有多段模式
+- 19. Boss HP 條與階段切換已接入
+- 20. 死亡後可進入結算畫面
+- 21. 擊敗 Boss 後可進入勝利結算
+- 23. 以目前版本為目標，應維持沒有 runtime console error
+- 24. 以穩定幀率與無監聽器累積為目標
+- 25. 城鎮地圖無怪物
+- 26. 掉落物 30 秒後消失
+- 27. 技能冷卻會顯示在快捷列
+- 28. 怪物強度會隨地區與角色等級形成差距
+
+### 部分完成
+- 6. 技能 V / B 已有獨特效果，但仍可持續加強視覺層次
+- 15. 城鎮與商店場景已有基礎程式，但尚未正式接入主流程
+
+### 待完成
+- 22. ESC 暫停選單與操作覆蓋層
+- 目標選取框
+- Level Up 全屏演出
+- Boss 第三階段狂暴視覺
 
 ---
 
@@ -60,40 +64,40 @@ SELF_CHECK RESULTS:
 ```
 project/
 ├── src/
+│   ├── assets/
+│   │   └── ProceduralAssets.js  — 平台、特效、UI 程式材質
 │   ├── config/
-│   │   ├── constants.js     — 全域常數（寬高、重力、帧率等）
-│   │   ├── monsters.js      — 所有怪物定義（區域 + 數值）
-│   │   ├── equipment.js     — 所有裝備定義（部位 + 屬性 + 稀有度）
-│   │   └── maps.js          — 地圖清單（ID + 平台 + 背景 + 怪物組合）
+│   │   ├── constants.js         — 全域常數、技能、GameState、地圖索引
+│   │   ├── equipment.js         — 裝備定義
+│   │   ├── maps.js              — 地圖與傳送門設定
+│   │   └── monsters.js          — 怪物與 Boss 召喚單位定義
 │   ├── engine/
-│   │   ├── camera.js        — 鏡頭追蹤、視差計算
-│   │   ├── collision.js     — AABB 碰撞、薄平台穿透判定
-│   │   ├── particles.js     — ParticleSystem（物件池，上限 250）
-│   │   └── audio.js         — Web Audio API 音效合成
+│   │   ├── audio.js             — Web Audio API 音效合成
+│   │   └── particles.js         — 粒子與視覺演出封裝
 │   ├── entities/
-│   │   ├── player.js        — 玩家類：移動、跳躍、技能、等級
-│   │   ├── monster.js       — 怪物基礎類：AI 巡邏、追擊、攻擊
-│   │   ├── boss.js          — Boss 繼承 Monster，多段技能狀態機
-│   │   └── skill.js         — 技能投射物、AoE 效果、分身
-│   ├── maps/
-│   │   ├── maple-island.js  — 楓之島（教學/新手）
-│   │   ├── henesys.js       — 弓箭手村外（中低等）
-│   │   ├── ellinia.js       — 法師村外（中等）
-│   │   ├── perion.js        — 劍士村外（中高等）
-│   │   ├── kerning.js       — 盜賊城外（高等）
-│   │   ├── town.js          — 維多利亞港灣城鎮（休息區）
-│   │   └── boss-room.js     — 暗影魔君戰場
-│   ├── ui/
-│   │   ├── hud.js           — HP/MP/EXP 條、技能欄、裝備欄
-│   │   └── menu.js          — 開始畫面、死亡、勝利、商店 UI
-│   ├── game.js              — Game 主類（init / update / render）
-│   └── main.js              — 入口點，Canvas 設定，gameLoop
+│   │   ├── Player.js            — 玩家控制、成長、技能施放
+│   │   ├── Monster.js           — 一般怪物 AI、掉落、飄字
+│   │   ├── Boss.js              — Boss 三階段行為
+│   │   └── Skill.js             — 技能投射物、AoE、分身效果
+│   ├── scenes/
+│   │   ├── BootScene.js         — 資源預載與初始 GameState
+│   │   ├── MenuScene.js         — 主選單
+│   │   ├── BaseMapScene.js      — 共用地圖流程、NPC、傳送、戰鬥循環
+│   │   ├── MapleIslandScene.js  — 浮空島嶼
+│   │   ├── HenesysScene.js      — 森林獵場
+│   │   ├── ElliniaScene.js      — 神秘之境
+│   │   ├── PerionScene.js       — 高地戰區
+│   │   ├── KerningScene.js      — Kerning City
+│   │   ├── TownScene.js         — 城鎮 / 商店基礎場景
+│   │   ├── BossScene.js         — 暗影領域
+│   │   ├── UIScene.js           — HUD 與彈出式介面
+│   │   └── GameOverScene.js     — 死亡 / 勝利結算
+│   └── main.js                  — Phaser.Game 入口、WebGL renderer、rexUI plugin 掛載
 ├── index.html               — 最小 HTML shell（載入打包後的 JS）
 ├── build.js                 — esbuild 打包腳本（產出 dist/bundle.js）
-└── server/                  — 預留後端目錄（未來擴充）
-    ├── routes/              — API 路由（存檔 / 排行榜 / 帳號）
-    ├── models/              — 資料模型
-    └── db/                  — SQLite（開發）→ PostgreSQL（部署）
+└── dist/
+  ├── bundle.js                — 打包輸出
+  └── assets/                  — 角色、怪物、背景真實圖片素材
 ```
 
 ### 後端擴充方向（預留介面，暫不實作）
@@ -107,7 +111,8 @@ POST /api/auth    — 帳號系統（未來）
 ### Canvas 設定
 - 解析度：1280 × 720（16:9）
 - 世界寬度：依地圖不同（最小 3840px，Boss 房 1280px）
-- 遊戲循環：`Math.min(deltaTime, 0.05)` 限制最大 delta
+- Renderer：固定使用 WebGL，供後續技能特效與 pipeline 使用
+- 已接入 rexUI scene plugin，供後續技能 UI 與特效面板擴充
 
 ---
 
