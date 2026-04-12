@@ -44,8 +44,10 @@ export class BaseMapScene extends Phaser.Scene {
     gs.currentMap = this.mapKey;
     this.registry.set('gameState', gs);
 
-    this.physics.world.setBounds(0, 0, this.mapData.width, WORLD_HEIGHT);
-    this.cameras.main.setBounds(0, 0, this.mapData.width, WORLD_HEIGHT);
+    const CANVAS_H = this.sys.game.canvas.height;   // 720
+    this.physics.world.setBounds(0, 0, this.mapData.width, CANVAS_H);
+    // 使用 canvas 高度作為相機界限，避免 world 高度 < viewport 造成自動置中偏移
+    this.cameras.main.setBounds(0, 0, this.mapData.width, CANVAS_H);
 
     this._createBackground();
     this._createPlatforms();
@@ -95,31 +97,43 @@ export class BaseMapScene extends Phaser.Scene {
     this.events.once('destroy', this._onSceneShutdown, this);
   }
 
-  // ── 背景（使用真實圖片 tileSprite，極低視差率避免重複銜接） ─────────────
+  // ── 背景（使用真實圖片 tileSprite，底部對齊 GROUND_Y）─────────────────────
   _createBackground() {
     const { bgColor, bgImage } = this.mapData;
     const SCREEN_W = 1280, SCREEN_H = 720;
 
-    // 底色
+    // 底色（覆蓋整個畫布，包括 HUD 下方）
     const sky = this.add.graphics();
     sky.fillStyle(bgColor || 0x5588ff);
     sky.fillRect(0, 0, SCREEN_W, SCREEN_H);
     sky.setDepth(-10).setScrollFactor(0.0);
+
+    // 地面以下填充色（GROUND_Y → HUD 之間），避免背景接縫或空白
+    const gc = bgColor || 0x111111;
+    const groundFillColor = ((((gc >> 16) & 0xff) * 0.15) << 16)
+                          | ((((gc >> 8) & 0xff) * 0.15) << 8)
+                          | (((gc & 0xff) * 0.15));
+    const groundFill = this.add.graphics();
+    groundFill.fillStyle(groundFillColor, 1);
+    groundFill.fillRect(0, GROUND_Y, SCREEN_W, SCREEN_H - GROUND_Y);
+    groundFill.setDepth(-8).setScrollFactor(0);
 
     if (bgImage && this.textures.exists(bgImage)) {
       const tex = this.textures.get(bgImage);
       const imgW = tex.getSourceImage().width;
       const imgH = tex.getSourceImage().height;
 
-      const bg = this.add.tileSprite(SCREEN_W / 2, SCREEN_H / 2, SCREEN_W, SCREEN_H, bgImage);
+      // 背景僅覆蓋遊戲區域（y=0 到 y=GROUND_Y），底部與地面對齊
+      const bgH = GROUND_Y;
+      const bg = this.add.tileSprite(SCREEN_W / 2, bgH / 2, SCREEN_W, bgH, bgImage);
       bg.setScrollFactor(0).setDepth(-9);
 
-      // cover 式等比縮放：取寬/高中較大比例，確保完全填滿螢幕
-      const sc = Math.max(SCREEN_W / imgW, SCREEN_H / imgH);
+      // cover 式等比縮放：確保填滿背景區域
+      const sc = Math.max(SCREEN_W / imgW, bgH / imgH);
       bg.setTileScale(sc, sc);
 
-      // 統一讓背景底部貼齊畫面底部，避免各地圖地面視覺忽高忽低。
-      const baseTileY = SCREEN_H / sc - imgH;
+      // 讓背景圖的底部（地面）對齊 tileSprite 底部 = GROUND_Y
+      const baseTileY = imgH - bgH / sc;
       bg.setTilePosition(0, baseTileY);
 
       // 視差：使用極低速率（1%），避免背景重複銜接痕跡
