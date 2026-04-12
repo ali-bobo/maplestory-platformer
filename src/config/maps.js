@@ -1,6 +1,6 @@
 import { WORLD_HEIGHT } from './constants.js';
 
-// 地圖定義 v6.2 — 依主題精選怪物名單，Taipei 平台改為較乾淨的城市高架線
+// 地圖定義 v6.3 — 依主題重新分流怪物名單，並讓 Toytown / Taipei 平台樣式正式生效
 
 const PH = 24;          // 平台高度
 const GROUND_Y = WORLD_HEIGHT;   // 地板頂部固定貼齊 HUD 上緣，移除角色下方黑帶
@@ -19,13 +19,15 @@ function ground(x, y, width, type = 'stone') {
 function imageSolidPlatform(platform, options = {}) {
   return {
     ...platform,
-    thin: false,
+    thin: options.thin ?? platform.thin ?? true,
     decorationKey: options.decorationKey || 'platform_long',
     renderMode: 'image-native',
     imageRowIndex: options.imageRowIndex ?? 0,
-    imageCropTopRatio: options.imageCropTopRatio ?? 0.28,
-    imageCropHeightRatio: options.imageCropHeightRatio ?? 0.48,
-    walkableTopRatio: options.walkableTopRatio ?? 0.42,
+    imageCropTopRatio: options.imageCropTopRatio,
+    imageCropHeightRatio: options.imageCropHeightRatio,
+    sourceWindowWidthRatio: options.sourceWindowWidthRatio,
+    renderHeight: options.renderHeight,
+    walkableTopRatio: options.walkableTopRatio,
     walkableHeight: options.walkableHeight ?? 18,
   };
 }
@@ -85,12 +87,12 @@ const ELLINIA_PLATFORMS = [
 
   // 第一層（y=400）：3 個，木頭材質
   plat(100,  400, 600, 'wood'),
-  { ...plat(980,  400, 600, 'brick'), decorationKey: 'platform_long' },
+  imageSolidPlatform(plat(980,  400, 600, 'brick'), { walkableTopRatio: 0.4, walkableHeight: 20 }),
   plat(1860, 400, 600, 'wood'),
 
   // 第二層（y=240）：3 個，磚石材質
   plat(380,  240, 580, 'brick'),
-  { ...plat(1220, 240, 580, 'wood'), decorationKey: 'platform_long' },
+  imageSolidPlatform(plat(1220, 240, 580, 'wood'), { walkableTopRatio: 0.4, walkableHeight: 20 }),
   plat(2060, 240, 580, 'brick'),
 ];
 
@@ -145,13 +147,12 @@ export const MAPS = {
     platforms: SKY_PLATFORMS,
     bgType: 'sky', bgImage: 'bg_sky',
     monsters: [
-      // 天空 / 奇幻起手區：以飛行、精靈、史萊姆變體為主
+      // 天空 / 奇幻起手區：保留雲端與新手怪，不再與森林 / 奇幻後段大量重複
       { id: 'slime',    count: 5 },
-      { id: 'mushroom', count: 2 },
-      { id: 'snail',    count: 4 },
+      { id: 'mushroom', count: 4 },
       { id: 'sky_imp',  count: 3 },
       { id: 'sky_bird', count: 3 },
-      { id: 'sky_puff', count: 3 },
+      { id: 'sky_puff', count: 2 },
     ],
     portals: [
       { x: MAP_WIDTH - 50, y: GROUND_Y - 48, width: 40, height: 72, target: 'henesys', label: '→森林獵場', spawnX: 200 },
@@ -169,11 +170,11 @@ export const MAPS = {
     platforms: HENESYS_PLATFORMS,
     bgType: 'henesys', bgImage: 'bg_forest',
     monsters: [
-      // 森林主題：以植物 / 菇類為主，僅少量林地獸陪襯，保持版面乾淨
-      { id: 'mushroom', count: 5 },
-      { id: 'stump',    count: 4 },
-      { id: 'snail',    count: 3 },
-      { id: 'boar',     count: 2 },
+      // 森林主題：集中林地與野獸，避免再和天空地圖共用整批怪
+      { id: 'snail',    count: 4 },
+      { id: 'stump',    count: 5 },
+      { id: 'boar',     count: 3 },
+      { id: 'snake',    count: 2 },
     ],
     portals: [
       { x: MAP_WIDTH - 50, y: GROUND_Y - 48, width: 40, height: 72, target: 'ruins',   label: '→古代廢墟', spawnX: 200 },
@@ -192,10 +193,12 @@ export const MAPS = {
     platforms: RUINS_PLATFORMS,
     bgType: 'ruins', bgImage: 'bg_ruins',
     monsters: [
-      // 勇士峽谷 / 廢墟主題：以戰士類為主，僅留少量重裝大怪壓陣
+      // 勇士峽谷 / 廢墟主題：集中戰士、惡靈與大型石怪，不再混入其他區域怪
       { id: 'skeleton',    count: 5 },
       { id: 'ruin_knight', count: 4 },
-      { id: 'ruin_golem',  count: 2 },
+      { id: 'ruin_golem',  count: 3 },
+      { id: 'ruin_wraith', count: 2 },
+      { id: 'ruin_beast',  count: 2 },
       { id: 'ruin_giant',  count: 1 },
     ],
     portals: [
@@ -215,12 +218,10 @@ export const MAPS = {
     platforms: ELLINIA_PLATFORMS,
     bgType: 'ellinia', bgImage: 'bg_toytown_refresh',
     monsters: [
-      // 神秘之境：保留色彩鮮明的精靈、飛行與奇幻怪作為過渡區
-      { id: 'sky_imp',  count: 3 },
-      { id: 'sky_bird', count: 3 },
-      { id: 'sky_puff', count: 2 },
-      { id: 'mimic',    count: 2 },
-      { id: 'dragon',   count: 1 },
+      // 神秘之境：改成純奇幻高空區，避免與天空 / 廢墟地圖再次重複
+      { id: 'dragon',   count: 3 },
+      { id: 'cyclops',  count: 3 },
+      { id: 'mimic',    count: 3 },
     ],
     portals: [
       { x: MAP_WIDTH - 50, y: GROUND_Y - 48, width: 40, height: 72, target: 'kerning', label: '→Kerning City', spawnX: 200 },
@@ -240,11 +241,9 @@ export const MAPS = {
     platforms: KERNING_PLATFORMS,
     bgType: 'kerning', bgImage: 'bg_city',
     monsters: [
-      // 都市主城：保留少量但有記憶點的有趣怪，避免把每張圖都塞滿
-      { id: 'city_thug',  count: 3 },
+      // 都市夜區：保留黑幫 / 夜獸 / 小王，不再與 Taipei 共用機械線
+      { id: 'city_thug',  count: 4 },
       { id: 'city_beast', count: 3 },
-      { id: 'mimic',      count: 2 },
-      { id: 'dragon',     count: 1 },
       { id: 'city_boss2', count: 1 },
     ],
     portals: [
@@ -264,9 +263,9 @@ export const MAPS = {
     platforms: TAIPEI_PLATFORMS,
     bgType: 'taipei', bgImage: 'bg_taipei',
     monsters: [
-      // 台北都會：集中機械 / 菁英 / 都會督軍，保留乾淨輪廓與明確主題
-      { id: 'city_mech',  count: 3 },
+      // 台北都會：集中機械 / 菁英 / 都會督軍，與 Kerning 夜區明確分工
       { id: 'robot',      count: 3 },
+      { id: 'city_mech',  count: 3 },
       { id: 'city_elite', count: 2 },
       { id: 'city_boss1', count: 1 },
     ],

@@ -14,6 +14,29 @@ const PLATFORM_DECORATION_ROW_INDEX = {
   ellinia: 2,
   taipei: 1,
 };
+const IMAGE_PLATFORM_STYLE = {
+  henesys: {
+    renderHeight: 86,
+    imageCropTopRatio: 0.06,
+    imageCropHeightRatio: 0.6,
+    sourceWindowWidthRatio: 0.72,
+    walkableTopRatio: 0.72,
+  },
+  ellinia: {
+    renderHeight: 92,
+    imageCropTopRatio: 0.16,
+    imageCropHeightRatio: 0.58,
+    sourceWindowWidthRatio: 0.74,
+    walkableTopRatio: 0.7,
+  },
+  taipei: {
+    renderHeight: 80,
+    imageCropTopRatio: 0.18,
+    imageCropHeightRatio: 0.56,
+    sourceWindowWidthRatio: 0.78,
+    walkableTopRatio: 0.74,
+  },
+};
 
 export class BaseMapScene extends Phaser.Scene {
   constructor(key, mapKey) {
@@ -164,15 +187,19 @@ export class BaseMapScene extends Phaser.Scene {
   }
 
   _createImageNativePlatform(group, platformData) {
+    const mapStyle = IMAGE_PLATFORM_STYLE[this.mapKey] || {};
     const {
       decorationKey,
+      type = 'wood',
       x,
       y,
       width,
       imageRowIndex,
-      imageCropTopRatio = 0.28,
-      imageCropHeightRatio = 0.48,
-      walkableTopRatio = 0.42,
+      imageCropTopRatio = mapStyle.imageCropTopRatio ?? 0.28,
+      imageCropHeightRatio = mapStyle.imageCropHeightRatio ?? 0.48,
+      sourceWindowWidthRatio = mapStyle.sourceWindowWidthRatio ?? 1,
+      renderHeight = mapStyle.renderHeight,
+      walkableTopRatio = mapStyle.walkableTopRatio ?? 0.42,
       walkableHeight = 18,
     } = platformData;
 
@@ -185,25 +212,27 @@ export class BaseMapScene extends Phaser.Scene {
     const rowIndex = imageRowIndex ?? PLATFORM_DECORATION_ROW_INDEX[this.mapKey] ?? 0;
     const cropTop = rowIndex * rowHeight + Math.floor(rowHeight * imageCropTopRatio);
     const cropHeight = Math.max(64, Math.floor(rowHeight * imageCropHeightRatio));
-    const displayHeight = Math.round(width * (cropHeight / source.width));
+    const sourceWindowWidth = Math.min(
+      source.width,
+      Math.max(width, Math.round(source.width * sourceWindowWidthRatio)),
+    );
+    const cropLeft = Math.max(0, Math.floor((source.width - sourceWindowWidth) / 2));
+    const displayHeight = renderHeight
+      ?? Math.round(cropHeight * 0.5);
     const walkableTopOffset = Math.round(displayHeight * walkableTopRatio);
-    const sprite = group.create(x + width / 2, y - walkableTopOffset, decorationKey);
+    const collider = group.create(x + width / 2, y + walkableHeight / 2, `platform-${type}`);
+    collider.setDisplaySize(width, walkableHeight);
+    collider.setAlpha(0);
+    collider.refreshBody();
+
+    const sprite = this.add.image(x + width / 2, y - walkableTopOffset, decorationKey);
 
     sprite.setOrigin(0.5, 0);
-    sprite.setCrop(0, cropTop, source.width, cropHeight);
+    sprite.setCrop(cropLeft, cropTop, sourceWindowWidth, cropHeight);
     sprite.setDisplaySize(width, displayHeight);
     sprite.setDepth(6);
-    sprite.refreshBody();
 
-    if (sprite.body) {
-      sprite.body.setSize(width, walkableHeight);
-      sprite.body.setOffset(0, walkableTopOffset);
-      if (typeof sprite.body.updateFromGameObject === 'function') {
-        sprite.body.updateFromGameObject();
-      }
-    }
-
-    return sprite;
+    return collider;
   }
 
   _createPlatformDecoration(platformData) {

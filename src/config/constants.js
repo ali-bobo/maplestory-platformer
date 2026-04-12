@@ -41,11 +41,12 @@ export const MAP_SCENE_KEYS = {
   henesys: 'HenesysScene',
   ruins:   'PerionScene',
   ellinia: 'ElliniaScene',
+  taipei:  'TaipeiScene',
   kerning: 'KerningScene',
   boss:    'BossScene',
 };
 
-export const MAP_ORDER = ['sky', 'henesys', 'ruins', 'ellinia', 'kerning'];
+export const MAP_ORDER = ['sky', 'henesys', 'ruins', 'ellinia', 'taipei', 'kerning'];
 
 export const DEFAULT_GAME_STATE = {
   level: 1,

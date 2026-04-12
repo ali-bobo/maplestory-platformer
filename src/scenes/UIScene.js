@@ -346,7 +346,7 @@ export class UIScene extends Phaser.Scene {
   _refreshCooldowns() {
     const gs = this.registry.get('gameState');
     if (!gs) return;
-    const mapNames = { sky: '浮空島嶼', henesys: '森林獵場', ruins: '古代廢墟', ellinia: '神秘之境', kerning: 'Kerning City', boss: '暗影領域', town: '楓葉城' };
+    const mapNames = { sky: '浮空島嶼', henesys: '森林獵場', ruins: '古代廢墟', ellinia: '神秘之境', taipei: '台北都會', kerning: 'Kerning City', boss: '暗影領域', town: '楓葉城' };
     this._mapText.setText(mapNames[gs.currentMap] || '');
 
     for (const [key, data] of Object.entries(this._cdOverlays)) {
@@ -656,7 +656,7 @@ export class UIScene extends Phaser.Scene {
   // ── 地圖資訊彈出 ────────────────────────────────────────────────────────
   _buildMapPopup(push, popX, contentY, popW) {
     const gs = this.registry.get('gameState');
-    const mapNames = { sky: '浮空島嶼', henesys: '森林獵場', ruins: '古代廢墟', ellinia: '神秘之境', kerning: 'Kerning City', boss: '暗影領域', town: '楓葉城' };
+    const mapNames = { sky: '浮空島嶼', henesys: '森林獵場', ruins: '古代廢墟', ellinia: '神秘之境', taipei: '台北都會', kerning: 'Kerning City', boss: '暗影領域', town: '楓葉城' };
     const currentMap = gs ? gs.currentMap : '';
     push(this.add.text(popX + 14, contentY, `目前地圖：${mapNames[currentMap] || '未知'}`, {
       fontSize: '13px', color: '#aaddff', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2,
@@ -668,7 +668,8 @@ export class UIScene extends Phaser.Scene {
       sky:     ['→ 森林獵場（地圖右端）'],
       henesys: ['← 浮空島嶼（地圖左端）', '→ 古代廢墟（地圖右端）'],
       ruins:   ['← 森林獵場（地圖左端）', '→ 神秘之境（地圖右端）'],
-      ellinia: ['← 古代廢墟（地圖左端）', '→ Kerning City（地圖右端）'],
+      ellinia: ['← 古代廢墟（地圖左端）', '↑ 台北都會（地圖中央）', '→ Kerning City（地圖右端）'],
+      taipei:  ['← 神秘之境（地圖左端）', '→ Kerning City（地圖右端）'],
       kerning: ['← 神秘之境（地圖左端）', '⚠ Boss 決戰（地圖右端，需擊殺60怪）'],
       boss:    ['← 逃離 Boss 房間'],
     };
