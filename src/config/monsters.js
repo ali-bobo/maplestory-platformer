@@ -1,4 +1,4 @@
-// 怪物定義 v5.1 — 補上主題分類與多地圖棲地資訊
+// 怪物定義 v5.2 — 依地圖主題精選上場怪，少量特殊怪作為放大小王
 
 export const MONSTER_FAMILIES = {
   SPIRIT: '精靈類',
@@ -32,16 +32,16 @@ const MONSTER_CLASSIFICATION = {
   ruin_wraith: { family: MONSTER_FAMILIES.SPIRIT, habitats: ['ruins', 'ellinia'] },
   ruin_beast: { family: MONSTER_FAMILIES.WOODLAND, habitats: ['ruins'] },
   ruin_giant: { family: MONSTER_FAMILIES.HEAVY, habitats: ['ruins'] },
-  dragon: { family: MONSTER_FAMILIES.FANTASY, habitats: ['ellinia'] },
+  dragon: { family: MONSTER_FAMILIES.FANTASY, habitats: ['ellinia', 'kerning'] },
   cyclops: { family: MONSTER_FAMILIES.FANTASY, habitats: ['ellinia'] },
   golem: { family: MONSTER_FAMILIES.ROCK, habitats: ['ruins'] },
-  mimic: { family: MONSTER_FAMILIES.FANTASY, habitats: ['ellinia'] },
+  mimic: { family: MONSTER_FAMILIES.FANTASY, habitats: ['ellinia', 'kerning'] },
   city_thug: { family: MONSTER_FAMILIES.CITY, habitats: ['kerning'] },
-  city_mech: { family: MONSTER_FAMILIES.MACHINE, habitats: ['kerning', 'taipei'] },
+  city_mech: { family: MONSTER_FAMILIES.MACHINE, habitats: ['taipei'] },
   city_beast: { family: MONSTER_FAMILIES.CITY, habitats: ['kerning'] },
   city_boss1: { family: MONSTER_FAMILIES.ELITE, habitats: ['taipei'] },
   city_boss2: { family: MONSTER_FAMILIES.ELITE, habitats: ['kerning'] },
-  city_elite: { family: MONSTER_FAMILIES.ELITE, habitats: ['kerning', 'taipei'] },
+  city_elite: { family: MONSTER_FAMILIES.ELITE, habitats: ['taipei'] },
   'shadow-slime': { family: MONSTER_FAMILIES.BOSS_SUPPORT, habitats: ['boss'] },
 };
 
@@ -75,11 +75,11 @@ export const MONSTERS = [
   { id: 'mimic',    name: '飛魚寶箱',   level: 28, hp: 1200, atk: 160, exp: 510, speed: 95,  meso: 82, dropRate: 0.28, behavior: 'ranged',  spriteKey: 'monster_mimic',    area: 'kerning' },
   // 新增 Kerning 系怪物
   { id: 'city_thug',   name: '城市流氓', level: 20, hp: 950, atk: 110, exp: 275, speed: 90,  meso: 54, dropRate: 0.22, behavior: 'chase',   spriteKey: 'monster_new_6',    area: 'kerning' },
-  { id: 'city_mech',   name: '機械衛士', level: 23, hp: 1200,atk: 130, exp: 350, speed: 75,  meso: 62, dropRate: 0.24, behavior: 'ranged',  spriteKey: 'monster_big_2',    area: 'kerning' },
+  { id: 'city_mech',   name: '機械衛士', level: 23, hp: 1200,atk: 130, exp: 350, speed: 75,  meso: 62, dropRate: 0.24, behavior: 'ranged',  spriteKey: 'monster_big_2',    area: 'taipei'  },
   { id: 'city_beast',  name: '暗夜猛獸', level: 26, hp: 1500,atk: 150, exp: 440, speed: 80,  meso: 72, dropRate: 0.26, behavior: 'chase',   spriteKey: 'monster_big_3',    area: 'kerning' },
-  { id: 'city_boss1',  name: '小王：暗影使者', level: 27, hp: 3000, atk: 170, exp: 600, speed: 100, meso: 150, dropRate: 0.50, behavior: 'chase', spriteKey: 'miniboss_0',  area: 'kerning' },
-  { id: 'city_boss2',  name: '小王：機械領袖', level: 29, hp: 4000, atk: 185, exp: 800, speed: 85,  meso: 200, dropRate: 0.50, behavior: 'chase', spriteKey: 'miniboss_1',  area: 'kerning' },
-  { id: 'city_elite',  name: '精英衛兵', level: 24, hp: 1300,atk: 140, exp: 380, speed: 70,  meso: 66, dropRate: 0.25, behavior: 'patrol',  spriteKey: 'monster_big_4',    area: 'kerning' },
+  { id: 'city_boss1',  name: '小王：暗影使者', level: 27, hp: 3000, atk: 170, exp: 600, speed: 100, meso: 150, dropRate: 0.50, behavior: 'chase', spriteKey: 'miniboss_0',  area: 'taipei',  spawnRole: 'miniboss', visualScale: 1.28 },
+  { id: 'city_boss2',  name: '小王：機械領袖', level: 29, hp: 4000, atk: 185, exp: 800, speed: 85,  meso: 200, dropRate: 0.50, behavior: 'chase', spriteKey: 'miniboss_1',  area: 'kerning', spawnRole: 'miniboss', visualScale: 1.34 },
+  { id: 'city_elite',  name: '精英衛兵', level: 24, hp: 1300,atk: 140, exp: 380, speed: 70,  meso: 66, dropRate: 0.25, behavior: 'patrol',  spriteKey: 'monster_big_4',    area: 'taipei'  },
 
   // ── Boss 援軍 (boss) ─────────────────────────────────────────────────────
   { id: 'shadow-slime', name: '影子史萊姆', level: 28, hp: 400,  atk: 80,  exp: 0,   speed: 80,  meso: 0,  dropRate: 0.0,  behavior: 'chase',   spriteKey: 'monster_slime',    area: 'boss', tint: 0x9B30FF },

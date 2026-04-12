@@ -7,6 +7,21 @@ import { ALIGNMENT_PROFILES, applyAlignmentProfile, getVisualCenterPoint, getVis
 // 怪物 AI 狀態
 const STATE = { PATROL: 'patrol', CHASE: 'chase', ATTACK: 'attack', HURT: 'hurt', DEAD: 'dead', RANGED: 'ranged' };
 
+function getScaledMonsterProfile(config) {
+  const baseProfile = ALIGNMENT_PROFILES.monster;
+  const scale = Number.isFinite(config?.visualScale) && config.visualScale > 0 ? config.visualScale : 1;
+  if (scale === 1) return baseProfile;
+  return {
+    ...baseProfile,
+    displayWidth: Math.round(baseProfile.displayWidth * scale),
+    displayHeight: Math.round(baseProfile.displayHeight * scale),
+    bodyWidth: Math.round(baseProfile.bodyWidth * scale),
+    bodyOffsetX: Math.round(baseProfile.bodyOffsetX * scale),
+    bodyOffsetY: Math.round(baseProfile.bodyOffsetY * scale),
+    footPadding: Math.max(1, Math.round(baseProfile.footPadding * scale)),
+  };
+}
+
 export class Monster extends Phaser.Physics.Arcade.Sprite {
   constructor(scene, x, y, config) {
     super(scene, x, y, config.spriteKey || 'monster_slime');
@@ -41,7 +56,8 @@ export class Monster extends Phaser.Physics.Arcade.Sprite {
     this.setCollideWorldBounds(true);
     this.body.setGravityY(0);
     this.setDepth(10);
-    applyAlignmentProfile(this, ALIGNMENT_PROFILES.monster);
+    this.alignmentProfile = getScaledMonsterProfile(config);
+    applyAlignmentProfile(this, this.alignmentProfile);
     if (config.tint) this.setTint(config.tint);
 
     // 血條背景
@@ -62,7 +78,8 @@ export class Monster extends Phaser.Physics.Arcade.Sprite {
 
   _updateHpBar() {
     if (!this._hpBg || !this._hpBar) return;
-    const bw = 32, bh = 4;
+    const bw = Phaser.Math.Clamp(Math.round(this.displayWidth * 0.62), 32, 64);
+    const bh = this.config.spawnRole === 'miniboss' ? 5 : 4;
     const bx = this.x - bw / 2;
     const by = getVisualTopY(this) - 8;
     this._hpBg.clear();

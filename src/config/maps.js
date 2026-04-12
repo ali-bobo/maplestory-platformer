@@ -1,6 +1,6 @@
 import { WORLD_HEIGHT } from './constants.js';
 
-// 地圖定義 v6.1 — 精簡至 2 層平台 + 地板，地板頂線直接貼齊 HUD 上緣
+// 地圖定義 v6.2 — 依主題精選怪物名單，Taipei 平台改為較乾淨的城市高架線
 
 const PH = 24;          // 平台高度
 const GROUND_Y = WORLD_HEIGHT;   // 地板頂部固定貼齊 HUD 上緣，移除角色下方黑帶
@@ -109,17 +109,17 @@ const KERNING_PLATFORMS = [
 ];
 
 // ─────────── Taipei City ───────────
-// 2 層（城市高架跳台，保留後續長條平台覆蓋空間）
+// 2 層（城市高架跳台，間距更乾淨，讓機械系與小王更突出）
 const TAIPEI_PLATFORMS = [
   ground(0, GROUND_Y, MAP_WIDTH, 'brick'),
 
-  plat(120,  400, 620, 'brick'),
-  { ...plat(960,  400, 640, 'wood'), decorationKey: 'platform_long' },
-  plat(1840, 400, 620, 'brick'),
+  plat(140,  408, 560, 'brick'),
+  imageSolidPlatform(plat(930,  392, 700, 'wood'), { walkableTopRatio: 0.39, walkableHeight: 20 }),
+  plat(1900, 408, 520, 'brick'),
 
-  { ...plat(360,  240, 600, 'wood'), decorationKey: 'platform_long' },
-  plat(1220, 240, 600, 'brick'),
-  plat(2040, 240, 520, 'wood'),
+  imageSolidPlatform(plat(340,  244, 560, 'wood'), { walkableTopRatio: 0.4, walkableHeight: 20 }),
+  plat(1180, 228, 620, 'brick'),
+  imageSolidPlatform(plat(2020, 244, 440, 'wood'), { walkableTopRatio: 0.4, walkableHeight: 18 }),
 ];
 
 // ─────────── Boss 房間 ───────────
@@ -167,12 +167,11 @@ export const MAPS = {
     platforms: HENESYS_PLATFORMS,
     bgType: 'henesys', bgImage: 'bg_forest',
     monsters: [
-      // 森林主題：植物 / 菇類、林地獸類與毒蛇系為主
-      { id: 'mushroom', count: 4 },
+      // 森林主題：以植物 / 菇類為主，僅少量林地獸陪襯，保持版面乾淨
+      { id: 'mushroom', count: 5 },
       { id: 'stump',    count: 4 },
-      { id: 'boar',     count: 4 },
-      { id: 'snake',    count: 3 },
       { id: 'snail',    count: 3 },
+      { id: 'boar',     count: 2 },
     ],
     portals: [
       { x: MAP_WIDTH - 50, y: GROUND_Y - 48, width: 40, height: 72, target: 'ruins',   label: '→古代廢墟', spawnX: 200 },
@@ -191,13 +190,11 @@ export const MAPS = {
     platforms: RUINS_PLATFORMS,
     bgType: 'ruins', bgImage: 'bg_ruins',
     monsters: [
-      // 勇士峽谷 / 廢墟主題：戰士、岩石、重裝與荒野猛獸
-      { id: 'skeleton',    count: 4 },
+      // 勇士峽谷 / 廢墟主題：以戰士類為主，僅留少量重裝大怪壓陣
+      { id: 'skeleton',    count: 5 },
       { id: 'ruin_knight', count: 4 },
-      { id: 'ruin_golem',  count: 3 },
-      { id: 'ruin_beast',  count: 3 },
-      { id: 'ruin_giant',  count: 2 },
-      { id: 'golem',       count: 2 },
+      { id: 'ruin_golem',  count: 2 },
+      { id: 'ruin_giant',  count: 1 },
     ],
     portals: [
       { x: MAP_WIDTH - 50, y: GROUND_Y - 48, width: 40, height: 72, target: 'ellinia', label: '→神秘之境', spawnX: 200 },
@@ -216,14 +213,12 @@ export const MAPS = {
     platforms: ELLINIA_PLATFORMS,
     bgType: 'ellinia', bgImage: 'bg_toytown_refresh',
     monsters: [
-      // 玩具城 / 神秘之境：精靈、飛行與奇幻怪物為主
-      { id: 'sky_imp',     count: 4 },
-      { id: 'sky_bird',    count: 4 },
-      { id: 'sky_puff',    count: 3 },
-      { id: 'cyclops',     count: 3 },
-      { id: 'mimic',       count: 3 },
-      { id: 'dragon',      count: 3 },
-      { id: 'ruin_wraith', count: 2 },
+      // 神秘之境：保留色彩鮮明的精靈、飛行與奇幻怪作為過渡區
+      { id: 'sky_imp',  count: 3 },
+      { id: 'sky_bird', count: 3 },
+      { id: 'sky_puff', count: 2 },
+      { id: 'mimic',    count: 2 },
+      { id: 'dragon',   count: 1 },
     ],
     portals: [
       { x: MAP_WIDTH - 50, y: GROUND_Y - 48, width: 40, height: 72, target: 'kerning', label: '→Kerning City', spawnX: 200 },
@@ -243,11 +238,11 @@ export const MAPS = {
     platforms: KERNING_PLATFORMS,
     bgType: 'kerning', bgImage: 'bg_city',
     monsters: [
-      // 都市黑幫區：偏黑幫與野獸系，保留重機械頭目鎮守 Boss 入口
-      { id: 'city_thug',  count: 4 },
-      { id: 'city_mech',  count: 2 },
-      { id: 'city_beast', count: 4 },
-      { id: 'city_elite', count: 2 },
+      // 都市主城：保留少量但有記憶點的有趣怪，避免把每張圖都塞滿
+      { id: 'city_thug',  count: 3 },
+      { id: 'city_beast', count: 3 },
+      { id: 'mimic',      count: 2 },
+      { id: 'dragon',     count: 1 },
       { id: 'city_boss2', count: 1 },
     ],
     portals: [
@@ -267,10 +262,10 @@ export const MAPS = {
     platforms: TAIPEI_PLATFORMS,
     bgType: 'taipei', bgImage: 'bg_taipei',
     monsters: [
-      // 台北都會：集中使用 monster3 衍生的機械 / 菁英 / 迷你頭目組
-      { id: 'city_mech',  count: 4 },
-      { id: 'robot',      count: 4 },
-      { id: 'city_elite', count: 3 },
+      // 台北都會：集中機械 / 菁英 / 都會督軍，保留乾淨輪廓與明確主題
+      { id: 'city_mech',  count: 3 },
+      { id: 'robot',      count: 3 },
+      { id: 'city_elite', count: 2 },
       { id: 'city_boss1', count: 1 },
     ],
     portals: [

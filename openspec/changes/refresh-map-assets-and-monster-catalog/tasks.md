@@ -17,6 +17,8 @@
 - [x] 3.3 為 runtime monster catalog 增加 alignment coverage 欄位，並明確列出 monster_big_3、monster_big_4、miniboss_0、miniboss_1 的 pending-alignment 狀態。
 - [x] 3.4 建立 candidate monster master sheet，把怪物總覽圖中的候選怪物分組編號，但不要將其誤標為 runtime asset。
 - [x] 3.5 將 monster3 已辨識出的第一批裁切怪（monster_big_2~4、miniboss_0~1）回填到 runtime / candidate catalog，並完成實際地圖分流。
+- [x] 3.6 依主題重排目前實際上場怪物，允許部分 runtime 怪保留為 reserve，不要求每一張怪圖都同時出現在地圖上。
+- [x] 3.7 將 city_boss1、city_boss2 標記為低頻率的放大小王，並把尺寸策略同步回 runtime 實作與文件。
 
 ## 4. Code Alignment Follow-up
 
@@ -24,3 +26,4 @@
 - [x] 4.2 補齊或標記缺失的 alignment metadata，並驗證 catalog 描述與 src/config/alignment.js 的實際狀態一致。
 - [x] 4.3 驗證視覺替換後既有 map flow、portal、spawn 與怪物生成契約沒有回歸。
 - [x] 4.4 在後續 coding 過程中持續同步更新規格、design 與 tasks，避免文件與實作脫節。
+- [x] 4.5 調整 Taipei 平台配置與主題怪物組，讓支線城市地圖已正式接入且版面保持乾淨。

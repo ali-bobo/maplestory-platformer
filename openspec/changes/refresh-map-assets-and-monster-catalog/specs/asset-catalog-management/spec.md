@@ -49,6 +49,11 @@ The runtime monster catalog SHALL represent generic monsters, minibosses, and su
 - **THEN** catalog 必須明確標示為 pending-alignment
 - **AND** 不得因該圖已能載入與生成，就把對齊缺口視為已解決
 
+#### Scenario: Runtime coverage does not imply mandatory map usage
+- **WHEN** 某張怪物圖片已完成 runtime onboarding
+- **THEN** 文件可以將其標示為 used、reserve 或特定地圖限定使用
+- **AND** 不得因資產已存在 runtime catalog，就要求每張圖都必須在當前版本同時上場
+
 ### Requirement: Asset statuses SHALL distinguish used, replace, candidate, reserve, and unused-research
 The asset catalog SHALL classify tracked assets by lifecycle status so that developers can tell whether a file is active, replacing another file, waiting for onboarding, reserved for future use, or still under research.
 

@@ -29,7 +29,7 @@
 | ruin_knight | MON-NEW-004 | monster_new_3 | ruins | complete | |
 | ruin_golem | MON-NEW-005 | monster_new_4 | ruins | complete | |
 | ruin_wraith | MON-NEW-006 | monster_new_5 | ruins, ellinia | complete | |
-| city_thug | MON-NEW-007 | monster_new_6 | kerning, taipei | complete | |
+| city_thug | MON-NEW-007 | monster_new_6 | kerning | complete | 只留在 Kerning 夜區維持城市分工 |
 
 ### Big Group
 
@@ -37,16 +37,16 @@
 | --- | --- | --- | --- | --- | --- |
 | ruin_beast | MON-BIG-001 | monster_big_0 | ruins | complete | |
 | ruin_giant | MON-BIG-002 | monster_big_1 | ruins | complete | |
-| city_mech | MON-BIG-003 | monster_big_2 | kerning, taipei | complete | 來自 monster3，偏台北都會的機械主力 |
+| city_mech | MON-BIG-003 | monster_big_2 | taipei | complete | 來自 monster3，集中作為台北都會機械主力 |
 | city_beast | MON-BIG-004 | monster_big_3 | kerning | complete | 來自 monster3，保留在 Kerning 黑幫夜區 |
-| city_elite | MON-BIG-005 | monster_big_4 | kerning, taipei | complete | 來自 monster3，作為都會菁英主力 |
+| city_elite | MON-BIG-005 | monster_big_4 | taipei | complete | 來自 monster3，作為台北都會菁英主力 |
 
 ### Miniboss Group
 
 | monsterId | assetId | spriteKey | maps | alignment coverage | notes |
 | --- | --- | --- | --- | --- | --- |
-| city_boss1 | MON-MB-001 | miniboss_0 | taipei | complete | 小王：都會督軍，來自 monster3 |
-| city_boss2 | MON-MB-002 | miniboss_1 | kerning | complete | 小王：機械領袖 |
+| city_boss1 | MON-MB-001 | miniboss_0 | taipei | complete | 小王：都會督軍，來自 monster3，放大顯示且固定低頻率 |
+| city_boss2 | MON-MB-002 | miniboss_1 | kerning | complete | 小王：機械領袖，放大顯示且固定低頻率 |
 
 ### Boss-Support Group
 
@@ -61,7 +61,7 @@
 ### Map Assignment Notes
 
 - sky 保留新手與天空系怪物，避免過多森林/都市怪重複。
-- henesys 改回植物、林地與毒蛇系，移除天空系重複配置。
-- ruins 集中戰士、岩石與大型廢墟怪，golem 也回歸同主題地圖。
-- ellinia / 玩具城保留精靈、飛行與奇幻怪物，不再混入城市小王。
-- kerning 與 taipei 現在進一步分工為「黑幫 / 夜獸 / 重裝頭目」vs「機械 / 菁英 / 都會督軍」，讓 monster3 衍生怪真正分流使用。
+- henesys 現在以植物 / 菇類為主，只留少量林地獸陪襯，避免畫面過雜。
+- ruins 集中戰士、岩石與少量重裝大型怪，讓勇士峽谷主題更明確。
+- ellinia / 玩具城保留精靈、飛行與奇幻怪物，作為進入城市區前的色彩過渡。
+- kerning 與 taipei 進一步分工為「黑幫 / 夜獸 / 有趣異種」vs「機械 / 菁英 / 都會督軍」，且不要求每張 runtime 怪圖都要同時上場。

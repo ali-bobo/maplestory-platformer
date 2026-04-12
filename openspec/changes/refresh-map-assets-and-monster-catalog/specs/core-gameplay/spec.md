@@ -33,3 +33,13 @@
 - **WHEN** 開發者重整玩具城、森林或台北地圖的怪物名單
 - **THEN** 地圖配置仍應以 monster id 與 count 為核心契約
 - **AND** 不得因 monster catalog 分組化而強迫重寫 BaseMapScene 的基本生成流程才能完成第一次整併
+
+#### Scenario: Curated map rosters do not require every runtime monster to appear
+- **WHEN** 開發者依森林、峽谷、城市等主題精簡地圖實際上場怪物
+- **THEN** 可只選用最符合版面與主題的部分 runtime monster
+- **AND** 不得要求每一張已上線怪物圖都必須同時出現在目前版本的所有地圖中
+
+#### Scenario: Miniboss emphasis uses size and rarity instead of crowding
+- **WHEN** 某些特別怪被提升為小王
+- **THEN** 它們可以透過較大的 display size 與較低 count 在地圖中出場
+- **AND** 不得因小王放大而破壞既有平台站位、碰撞或怪物生成流程
