@@ -159,7 +159,7 @@ npx serve .
 
 | 啟動方式 | 停止方法 |
 |---------|---------|
-| `npx serve .` | 在終端機按 **Ctrl + C**（macOS: **⌘ + C** 或 **Ctrl + C**） |
+| `npx serve .` | 在終端機按 **Ctrl + C**（macOS 也是 **Ctrl + C**） |
 | `python -m http.server 8000` | 在終端機按 **Ctrl + C** |
 | VS Code Live Server | 點擊 VS Code 右下角狀態列的 **「Port: xxxx」** 按鈕，或按 **Ctrl + Shift + P** → 輸入 **「Stop Live Server」** |
 

@@ -110,9 +110,9 @@ export class BaseMapScene extends Phaser.Scene {
 
     // 地面以下填充色（GROUND_Y → HUD 之間），避免背景接縫或空白
     const gc = bgColor || 0x111111;
-    const groundFillColor = ((((gc >> 16) & 0xff) * 0.15) << 16)
-                          | ((((gc >> 8) & 0xff) * 0.15) << 8)
-                          | (((gc & 0xff) * 0.15));
+    const groundFillColor = (Math.floor(((gc >> 16) & 0xff) * 0.15) << 16)
+                          | (Math.floor(((gc >> 8) & 0xff) * 0.15) << 8)
+                          | Math.floor(((gc & 0xff) * 0.15));
     const groundFill = this.add.graphics();
     groundFill.fillStyle(groundFillColor, 1);
     groundFill.fillRect(0, GROUND_Y, SCREEN_W, SCREEN_H - GROUND_Y);
