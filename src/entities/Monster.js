@@ -36,12 +36,12 @@ export class Monster extends Phaser.Physics.Arcade.Sprite {
     this.attackCooldown = 0;
     this.rangedCooldown = 0;
 
-    // 物理設定
+    // 物理設定 — 縮小 body 高度以匹配怪物視覺腳底（消除約 4px 的視覺浮空）
     this.setCollideWorldBounds(true);
     this.body.setGravityY(0);
     this.setDepth(10);
-    this.setDisplaySize(56, 56);  // 真實圖片統一顯示大小
-    this.body.setSize(44, 56);    // 明確設定 body（底部對齊 y+28）
+    this.setDisplaySize(56, 56);
+    this.body.setSize(44, 52);   // body bottom = y - 28 + 52 = y + 24（對齊視覺腳底）
     this.body.setOffset(6, 0);
     if (config.tint) this.setTint(config.tint);
 

@@ -113,6 +113,7 @@ export const MAPS = {
     width: MAP_WIDTH, bgColor: 0x5588ff,
     platforms: SKY_PLATFORMS,
     bgType: 'sky', bgImage: 'bg_sky',
+    bgOffsetY: -47,  // 視覺地面在圖片 77% 處（screen y≈554），向下偏移至 y=576
     monsters: [
       { id: 'slime',    count: 5 },
       { id: 'mushroom', count: 4 },
@@ -135,6 +136,7 @@ export const MAPS = {
     width: MAP_WIDTH, bgColor: 0xc8a060,
     platforms: RUINS_PLATFORMS,
     bgType: 'ruins', bgImage: 'bg_ruins',
+    bgOffsetY: -30,  // 視覺地面在圖片 78% 處（screen y≈562），向下偏移至 y=576
     monsters: [
       { id: 'boar',        count: 4 },
       { id: 'robot',       count: 4 },
@@ -159,6 +161,7 @@ export const MAPS = {
     width: MAP_WIDTH, bgColor: 0x111133,
     platforms: KERNING_PLATFORMS,
     bgType: 'kerning', bgImage: 'bg_city',
+    bgOffsetY: 0,  // 城市背景地面對齊已接近 y=576
     monsters: [
       { id: 'dragon',     count: 4 },
       { id: 'cyclops',    count: 3 },

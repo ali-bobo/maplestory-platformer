@@ -96,6 +96,11 @@ export class BaseMapScene extends Phaser.Scene {
       const sc = Math.max(SCREEN_W / imgW, SCREEN_H / imgH);
       bg.setTileScale(sc, sc);
 
+      // 每張背景圖的視覺地面位置不同，需要垂直偏移對齊物理地板（GROUND_Y=576）
+      // bgOffsetY 為負值 → 圖片往下偏移 → 視覺地面往下移到 y=576
+      const bgOffsetY = this.mapData.bgOffsetY || 0;
+      bg.setTilePosition(0, bgOffsetY);
+
       // 視差：使用極低速率（1%），避免背景重複銜接痕跡
       this.events.on('update', () => {
         bg.tilePositionX = this.cameras.main.scrollX * 0.01;
@@ -145,8 +150,8 @@ export class BaseMapScene extends Phaser.Scene {
         // 在平台寬度內隨機 x，邊緣留 20px 空間
         const margin = 20;
         const mx = plat.x + margin + Math.random() * Math.max(10, plat.width - margin * 2);
-        // y 座標：平台頂部以上 20px（怪物中心距平台面）
-        const my = plat.y - 20;
+        // y 座標：平台頂部以上 32px（讓 body top 在平台上方，落下後 body bottom 對齊平台頂部）
+        const my = plat.y - 32;
 
         const monster = new Monster(this, mx, my, monsterDef);
         monster.player = this.player;
