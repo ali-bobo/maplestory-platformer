@@ -36,13 +36,30 @@ export class Monster extends Phaser.Physics.Arcade.Sprite {
     this.attackCooldown = 0;
     this.rangedCooldown = 0;
 
-    // 物理設定 — 將 body 再往下縮入一些，避免怪物視覺上陷入平台表面。
+    // 物理設定 — 根據怪物圖片的透明填充量調整 body，
+    // 讓 body.bottom 對齊平台頂時，怪物腳底視覺上貼齊平台。
+    // 80×80 原版怪物圖有 ~6-11% 底部填充（顯示 56px 時約 4-6px）；
+    // 新版/大型怪物圖片幾乎無填充。
     this.setCollideWorldBounds(true);
     this.body.setGravityY(0);
     this.setDepth(10);
     this.setDisplaySize(56, 56);
-    this.body.setSize(44, 52);
-    this.body.setOffset(6, 4);
+
+    // 根據圖片來源決定 body 尺寸：原版 80×80 有較大底部透明填充
+    const isOriginal80 = [
+      'monster_slime', 'monster_mushroom', 'monster_snail', 'monster_stump',
+      'monster_boar', 'monster_robot', 'monster_skeleton', 'monster_snake',
+      'monster_dragon', 'monster_cyclops', 'monster_golem', 'monster_mimic',
+    ].includes(config.spriteKey);
+    if (isOriginal80) {
+      // 原版 80x80 圖：底部 ~8% 透明 → 56px 中約 5px，body 縮短 5px
+      this.body.setSize(44, 47);
+      this.body.setOffset(6, 4);
+    } else {
+      // 新版圖（幾乎無填充）：body 稍微縮短 2px 作微調
+      this.body.setSize(44, 50);
+      this.body.setOffset(6, 4);
+    }
     if (config.tint) this.setTint(config.tint);
 
     // 血條背景
