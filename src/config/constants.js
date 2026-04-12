@@ -38,12 +38,14 @@ export function expNeeded(level) {
 
 export const MAP_SCENE_KEYS = {
   sky:     'MapleIslandScene',
+  henesys: 'HenesysScene',
   ruins:   'PerionScene',
+  ellinia: 'ElliniaScene',
   kerning: 'KerningScene',
   boss:    'BossScene',
 };
 
-export const MAP_ORDER = ['sky', 'ruins', 'kerning'];
+export const MAP_ORDER = ['sky', 'henesys', 'ruins', 'ellinia', 'kerning'];
 
 export const DEFAULT_GAME_STATE = {
   level: 1,
