@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: Runtime assets SHALL be tracked with stable catalog identifiers
-The system SHALL maintain a runtime asset catalog for background, platform, monster, miniboss, and support-monster assets. Each runtime asset entry SHALL have a unique asset identifier, a group identifier, a source file reference, a runtime status, and a traceable binding to the current code path.
+The system SHALL maintain a runtime asset catalog for background, platform, monster, miniboss, boss, and support-monster assets. Each runtime asset entry SHALL have a unique asset identifier, a group identifier, a source file reference, a runtime status, and a traceable binding to the current code path.
 
 #### Scenario: A runtime monster can be traced end-to-end
 - **WHEN** 開發者查詢任一已上線怪物圖片
@@ -12,6 +12,16 @@ The system SHALL maintain a runtime asset catalog for background, platform, mons
 - **WHEN** 現有玩具城背景準備被新圖片取代
 - **THEN** runtime background catalog 必須標示原背景條目、替代背景條目與對應 target map
 - **AND** 替換規格不得要求先改動該地圖的 map key 或 sceneKey
+
+#### Scenario: Boss art can be traced as runtime assets
+- **WHEN** 使用者提供新的 Boss 主體圖或 Boss 房背景並接入遊戲
+- **THEN** runtime catalog 必須能追溯其 assetId、texture key、來源圖與 target map/scene
+- **AND** 不得只在工作目錄存在圖片卻缺少 runtime 綁定紀錄
+
+#### Scenario: A monster sheet crop is promoted with source traceability
+- **WHEN** `monster3.jpg` 中的子圖被正式裁切並接入 runtime
+- **THEN** runtime catalog 必須保留該 spriteKey 對應的來源母圖資訊
+- **AND** 地圖配置必須能看出這批 monster3 衍生怪目前實際落在哪些 map
 
 ### Requirement: Candidate assets SHALL be separated from runtime assets
 The system MUST keep candidate monster, background, and platform references separate from runtime assets. Candidate entries SHALL record intended use and promotion status, but SHALL NOT be treated as loadable runtime assets until they complete the runtime onboarding path.
@@ -38,6 +48,11 @@ The runtime monster catalog SHALL represent generic monsters, minibosses, and su
 - **WHEN** 某張 runtime 怪物圖尚未有完整的 alignment metadata
 - **THEN** catalog 必須明確標示為 pending-alignment
 - **AND** 不得因該圖已能載入與生成，就把對齊缺口視為已解決
+
+#### Scenario: Runtime coverage does not imply mandatory map usage
+- **WHEN** 某張怪物圖片已完成 runtime onboarding
+- **THEN** 文件可以將其標示為 used、reserve 或特定地圖限定使用
+- **AND** 不得因資產已存在 runtime catalog，就要求每張圖都必須在當前版本同時上場
 
 ### Requirement: Asset statuses SHALL distinguish used, replace, candidate, reserve, and unused-research
 The asset catalog SHALL classify tracked assets by lifecycle status so that developers can tell whether a file is active, replacing another file, waiting for onboarding, reserved for future use, or still under research.

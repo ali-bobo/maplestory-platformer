@@ -9,11 +9,13 @@
 | CAND-BG-TOY-001 | CAND-BG-TOY | 參考用遊戲畫面/toy-TOWN_new (1).png | background | 取代現有玩具城背景 | promoted-runtime | 已複製為 dist/assets/bg_toytown_refresh.png |
 | CAND-BG-TOY-002 | CAND-BG-TOY | 參考用遊戲畫面/toytown.png | background | 備用玩具城背景 | reserve | 與上一張互為候選 |
 | CAND-BG-TPE-001 | CAND-BG-TPE | 參考用遊戲畫面/Taipei_city.png | background | 台北地圖背景 | promoted-runtime | 已複製為 dist/assets/bg_taipei.png 並接入 taipei map |
+| CAND-BG-BOSS-001 | CAND-BG-BOSS | 遊戲畫面/boss_room.png | background | Boss 房背景 | promoted-runtime | 已複製為 dist/assets/bg_boss_room.png |
 | CAND-BG-RUI-001 | CAND-BG-RUI | 參考用遊戲畫面/ruins_background.png | background | 廢墟背景優化參考 | reserve | 本輪不優先實作 |
 | CAND-PLT-LONG-001 | CAND-PLT-LONG | 參考用遊戲畫面/jump_plat.png | platform | 玩具城/森林長條跳台 | promoted-runtime | 已複製為 dist/assets/platform_long.png，先以 overlay 方式接入 |
-| CAND-MON-REF-001 | CAND-MON-REF | 參考用遊戲畫面/monster.png | monster-sheet | 候選怪物風格參考 | unused-research | 未切成 runtime sprite |
-| CAND-MON-REF-002 | CAND-MON-REF | 參考用遊戲畫面/monster2.jpg | monster-sheet | 候選怪物風格參考 | unused-research | 未切成 runtime sprite |
-| CAND-MON-REF-003 | CAND-MON-REF | 參考用遊戲畫面/monster3.jpg | monster-sheet | 候選怪物風格參考 | unused-research | 未切成 runtime sprite |
+| CAND-BOSS-MAIN-001 | CAND-BOSS-MAIN | 遊戲畫面/Boss.png | boss | Boss 主體 | promoted-runtime | 已複製為 dist/assets/boss_main.png |
+| CAND-MON-REF-001 | CAND-MON-REF | 遊戲畫面/monster.png | monster-sheet | slime / mushroom / spirit 候選母圖 | candidate | 對應 sky、henesys、ellinia 系候選 |
+| CAND-MON-REF-002 | CAND-MON-REF | 遊戲畫面/monster2.jpg | monster-sheet | beast / boar / bat 候選母圖 | candidate | 對應 henesys、ruins、夜間地圖候選 |
+| CAND-MON-REF-003 | CAND-MON-REF | 遊戲畫面/monster3.jpg | monster-sheet | machine / elite / boss 候選母圖 | partial-promoted-runtime | 已對應到 monster_big_2 / monster_big_3 / monster_big_4 / miniboss_0 / miniboss_1；其餘候選仍待後續逐張擴編 |
 
 ### User-Provided Monster Overview
 
@@ -36,3 +38,5 @@
 - candidate 不等於 runtime。只要素材還沒有放進 dist/assets 並完成程式綁定，就不得標示為 used。
 - replace 只用於準備接手現有 runtime 條目的素材；candidate 用於新候選或尚未決定是否上線的素材。
 - 使用者後續若再補新的怪物總覽或單張素材，應先新增 candidateId，再決定是否晉升為 runtime asset。
+- monster3 已完成第一批 runtime onboarding：`monster_big_2`、`monster_big_3`、`monster_big_4`、`miniboss_0`、`miniboss_1` 現在都明確標記為來自該母圖。
+- 若 monster3 還有更多未上線子圖，後續仍需逐張補 variantId、命名、alignment 與 map theme。

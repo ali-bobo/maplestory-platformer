@@ -48,3 +48,15 @@
 - [Risk] 使用者提供的怪物總覽圖包含大量候選種族，若一次全部拉進 runtime 會造成範圍失控。 → Mitigation：以 candidate master sheet 分層，只有完成裁切、命名、preload 與配置的資產才能晉升為 runtime。
 - [Risk] 長條平台圖若視覺高度與現有 24px 碰撞模型不一致，會讓角色站位看起來錯。 → Mitigation：規格先要求 style catalog 記錄 renderHeight 與 collisionPolicy，實作前先挑玩具城與森林局部平台驗證。
 - [Risk] 只替換 ellinia 視覺可能讓地圖命名與視覺風格暫時不完全一致。 → Mitigation：先把規格重點放在素材替換與流程穩定，等台北地圖與 catalog 落地後再評估是否重命名 map display name。
+
+## 2026-04-12 實作記錄（成功 / 未完成）
+
+**成功**
+- 已導入使用者提供的 Boss 主體圖與 Boss 房背景，並接入 runtime asset 流程。
+- 已按地圖主題整理 runtime 怪物配置，移除 Kerning 的奇幻系混入與 Henesys 的天空系重複。
+- 已把三張原始怪物母圖提升為已分類的 candidate sheet，補上 target maps 與候選用途。
+
+**未完成 / 後續**
+- `monster3.jpg` 目前只完成分類與對應地圖規劃；受限於本輪環境無法穩定辨識全部子圖邊界，尚未完成精準逐張裁切。
+- 候選怪物尚未新增對應的 monster id、preload key、alignment metadata 與 spawn 配置。
+- 視覺與站位的最終確認仍依賴 build 後實機驗證；本輪先以 build 與資料契約檢查為主。

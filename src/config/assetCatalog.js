@@ -89,6 +89,15 @@ export const BACKGROUND_ASSETS = [
     status: 'used',
     targetMaps: ['taipei'],
   },
+  {
+    assetId: 'BG-BOSS-001',
+    groupId: 'BG-BOSS',
+    kind: 'background',
+    key: 'bg_boss_room',
+    path: 'dist/assets/bg_boss_room.png',
+    status: 'used',
+    targetMaps: ['boss'],
+  },
 ];
 
 export const CANDIDATE_BACKGROUND_ASSETS = [
@@ -111,6 +120,16 @@ export const CANDIDATE_BACKGROUND_ASSETS = [
     status: 'promoted-runtime',
     targetMaps: ['taipei'],
     source: '參考用遊戲畫面/Taipei_city.png',
+  },
+  {
+    candidateId: 'CAND-BG-BOSS-001',
+    groupId: 'CAND-BG-BOSS',
+    kind: 'background',
+    key: 'bg_boss_room',
+    plannedPath: 'dist/assets/bg_boss_room.png',
+    status: 'promoted-runtime',
+    targetMaps: ['boss'],
+    source: '遊戲畫面/boss_room.png',
   },
 ];
 
@@ -346,6 +365,8 @@ export const MONSTER_ASSETS = [
     status: 'used',
     monsterIds: ['city_mech'],
     alignmentStatus: 'complete',
+    sourceSheet: '遊戲畫面/monster3.jpg',
+    sourceFamily: 'machine',
   },
   {
     assetId: 'MON-BIG-004',
@@ -356,6 +377,8 @@ export const MONSTER_ASSETS = [
     status: 'used',
     monsterIds: ['city_beast'],
     alignmentStatus: 'complete',
+    sourceSheet: '遊戲畫面/monster3.jpg',
+    sourceFamily: 'city-beast',
   },
   {
     assetId: 'MON-BIG-005',
@@ -366,6 +389,8 @@ export const MONSTER_ASSETS = [
     status: 'used',
     monsterIds: ['city_elite'],
     alignmentStatus: 'complete',
+    sourceSheet: '遊戲畫面/monster3.jpg',
+    sourceFamily: 'elite',
   },
   {
     assetId: 'MON-MB-001',
@@ -376,6 +401,8 @@ export const MONSTER_ASSETS = [
     status: 'used',
     monsterIds: ['city_boss1'],
     alignmentStatus: 'complete',
+    sourceSheet: '遊戲畫面/monster3.jpg',
+    sourceFamily: 'miniboss',
   },
   {
     assetId: 'MON-MB-002',
@@ -386,6 +413,8 @@ export const MONSTER_ASSETS = [
     status: 'used',
     monsterIds: ['city_boss2'],
     alignmentStatus: 'complete',
+    sourceSheet: '遊戲畫面/monster3.jpg',
+    sourceFamily: 'miniboss',
   },
 ];
 
@@ -436,7 +465,7 @@ export const NPC_ASSETS = [
     kind: 'npc',
     key: 'npc_new_5',
     path: 'dist/assets/npc_new_5.png',
-    status: 'reserve',
+    status: 'used',
   },
 ];
 
@@ -448,6 +477,7 @@ export const BOSS_ASSETS = [
     key: 'boss_main',
     path: 'dist/assets/boss_main.png',
     status: 'used',
+    targetMaps: ['boss'],
   },
 ];
 

@@ -13,6 +13,7 @@
 | BG-TOY-002 | BG-TOY | dist/assets/bg_toytown_refresh.png | bg_toytown_refresh | used | MAPS.ellinia | 新玩具城背景，已接手 ellinia |
 | BG-CIT-001 | BG-CIT | dist/assets/bg_city.png | bg_city | used | MAPS.kerning | Kerning City 背景 |
 | BG-TPE-001 | BG-TPE | dist/assets/bg_taipei.png | bg_taipei | used | MAPS.taipei | 台北都會背景 |
+| BG-BOSS-001 | BG-BOSS | dist/assets/bg_boss_room.png | bg_boss_room | used | MAPS.boss | 使用者提供的 Boss 房背景 |
 
 ### Monster Assets
 
@@ -39,17 +40,18 @@
 | MON-NEW-007 | MON-NEW | dist/assets/monster_new_6.png | monster_new_6 | used | city_thug | 新裁切城市系 6 |
 | MON-BIG-001 | MON-BIG | dist/assets/monster_big_0.png | monster_big_0 | used | ruin_beast | 大型廢墟怪 |
 | MON-BIG-002 | MON-BIG | dist/assets/monster_big_1.png | monster_big_1 | used | ruin_giant | 大型廢墟怪 |
-| MON-BIG-003 | MON-BIG | dist/assets/monster_big_2.png | monster_big_2 | used | city_mech | 大型城市怪 |
-| MON-BIG-004 | MON-BIG | dist/assets/monster_big_3.png | monster_big_3 | used | city_beast | 大型城市怪，alignment complete |
-| MON-BIG-005 | MON-BIG | dist/assets/monster_big_4.png | monster_big_4 | used | city_elite | 大型城市怪，alignment complete |
+| MON-BIG-003 | MON-BIG | dist/assets/monster_big_2.png | monster_big_2 | used | city_mech | 來自 monster3 的機械系裁切，alignment complete |
+| MON-BIG-004 | MON-BIG | dist/assets/monster_big_3.png | monster_big_3 | used | city_beast | 來自 monster3 的都市獸系裁切，alignment complete |
+| MON-BIG-005 | MON-BIG | dist/assets/monster_big_4.png | monster_big_4 | used | city_elite | 來自 monster3 的菁英系裁切，alignment complete |
 
 ### Miniboss And Support Assets
 
 | assetId | groupId | file | textureKey | status | current binding | notes |
 | --- | --- | --- | --- | --- | --- | --- |
-| MON-MB-001 | MON-MB | dist/assets/miniboss_0.png | miniboss_0 | used | city_boss1 | Kerning 小王，alignment complete |
-| MON-MB-002 | MON-MB | dist/assets/miniboss_1.png | miniboss_1 | used | city_boss2 | Kerning 小王，alignment complete |
+| MON-MB-001 | MON-MB | dist/assets/miniboss_0.png | miniboss_0 | used | city_boss1 | 來自 monster3 的都會督軍裁切，alignment complete |
+| MON-MB-002 | MON-MB | dist/assets/miniboss_1.png | miniboss_1 | used | city_boss2 | 來自 monster3 的重裝頭目裁切，alignment complete |
 | MON-SUP-001 | MON-SUP | dist/assets/monster_slime.png | monster_slime | used | shadow-slime | Boss 房援軍，共用 legacy 資產 |
+| BOSS-MAIN-001 | BOSS-MAIN | dist/assets/boss_main.png | boss_main | used | BossScene | 使用者提供的 Boss 主體圖 |
 
 ### NPC Assets
 
@@ -60,9 +62,10 @@
 | NPC-NEW-002 | NPC-NEW | dist/assets/npc_new_2.png | npc_new_2 | used | MAPS.sky NPC | 浮空島嶼 NPC |
 | NPC-NEW-003 | NPC-NEW | dist/assets/npc_new_3.png | npc_new_3 | used | MAPS.ruins NPC | 古代廢墟 NPC |
 | NPC-NEW-004 | NPC-NEW | dist/assets/npc_new_4.png | npc_new_4 | used | MAPS.kerning NPC | Kerning NPC |
-| NPC-NEW-005 | NPC-NEW | dist/assets/npc_new_5.png | npc_new_5 | reserve | preload only | 已載入但目前未在地圖配置中使用 |
+| NPC-NEW-005 | NPC-NEW | dist/assets/npc_new_5.png | npc_new_5 | used | MAPS.taipei NPC | 台北都會 NPC |
 
 ### Current Runtime Gaps
 
 - 長條平台目前採用 render overlay 方式套在既有碰撞平台上，後續若要完全圖片化仍需額外驗證 collisionPolicy。
-- 台北地圖已可載入與進入，但候選怪物族群尚未正式晉升為 runtime 素材。
+- 台北地圖已可載入與進入，並已開始使用 monster3 裁出的機械 / 菁英 / 小王素材。
+- monster3 已完成第一批 runtime 導入；若要擴編其餘候選，仍需逐張補命名與 alignment。
