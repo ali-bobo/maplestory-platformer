@@ -14,6 +14,7 @@ const PLATFORM_DECORATION_ROW_INDEX = {
   ellinia: 2,
   taipei: 1,
 };
+const MAX_PLATFORM_WHITE_THRESHOLD = 253;
 const IMAGE_PLATFORM_STYLE = {
   henesys: {
     renderHeight: 112,
@@ -343,8 +344,9 @@ export class BaseMapScene extends Phaser.Scene {
 
       let alpha = baseAlpha;
       const minChannelValue = Math.min(red, green, blue);
-      if (minChannelValue >= whiteThreshold) {
-        const fadeRatio = Phaser.Math.Clamp((255 - minChannelValue) / Math.max(1, 255 - whiteThreshold), 0, 1);
+      const safeWhiteThreshold = Math.min(whiteThreshold, MAX_PLATFORM_WHITE_THRESHOLD);
+      if (minChannelValue >= safeWhiteThreshold) {
+        const fadeRatio = Phaser.Math.Clamp((255 - minChannelValue) / (255 - safeWhiteThreshold), 0, 1);
         alpha = Math.round(alpha * fadeRatio);
       }
 
