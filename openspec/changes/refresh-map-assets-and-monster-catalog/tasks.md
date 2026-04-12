@@ -16,6 +16,7 @@
 - [x] 3.2 將 city_boss1、city_boss2 升級為正式 miniboss catalog 條目，補齊 spriteKey、地圖使用與對齊狀態欄位。
 - [x] 3.3 為 runtime monster catalog 增加 alignment coverage 欄位，並明確列出 monster_big_3、monster_big_4、miniboss_0、miniboss_1 的 pending-alignment 狀態。
 - [x] 3.4 建立 candidate monster master sheet，把怪物總覽圖中的候選怪物分組編號，但不要將其誤標為 runtime asset。
+- [x] 3.5 將 monster3 已辨識出的第一批裁切怪（monster_big_2~4、miniboss_0~1）回填到 runtime / candidate catalog，並完成實際地圖分流。
 
 ## 4. Code Alignment Follow-up
 

@@ -40,16 +40,16 @@
 | MON-NEW-007 | MON-NEW | dist/assets/monster_new_6.png | monster_new_6 | used | city_thug | 新裁切城市系 6 |
 | MON-BIG-001 | MON-BIG | dist/assets/monster_big_0.png | monster_big_0 | used | ruin_beast | 大型廢墟怪 |
 | MON-BIG-002 | MON-BIG | dist/assets/monster_big_1.png | monster_big_1 | used | ruin_giant | 大型廢墟怪 |
-| MON-BIG-003 | MON-BIG | dist/assets/monster_big_2.png | monster_big_2 | used | city_mech | 大型城市怪 |
-| MON-BIG-004 | MON-BIG | dist/assets/monster_big_3.png | monster_big_3 | used | city_beast | 大型城市怪，alignment complete |
-| MON-BIG-005 | MON-BIG | dist/assets/monster_big_4.png | monster_big_4 | used | city_elite | 大型城市怪，alignment complete |
+| MON-BIG-003 | MON-BIG | dist/assets/monster_big_2.png | monster_big_2 | used | city_mech | 來自 monster3 的機械系裁切，alignment complete |
+| MON-BIG-004 | MON-BIG | dist/assets/monster_big_3.png | monster_big_3 | used | city_beast | 來自 monster3 的都市獸系裁切，alignment complete |
+| MON-BIG-005 | MON-BIG | dist/assets/monster_big_4.png | monster_big_4 | used | city_elite | 來自 monster3 的菁英系裁切，alignment complete |
 
 ### Miniboss And Support Assets
 
 | assetId | groupId | file | textureKey | status | current binding | notes |
 | --- | --- | --- | --- | --- | --- | --- |
-| MON-MB-001 | MON-MB | dist/assets/miniboss_0.png | miniboss_0 | used | city_boss1 | Kerning 小王，alignment complete |
-| MON-MB-002 | MON-MB | dist/assets/miniboss_1.png | miniboss_1 | used | city_boss2 | Kerning 小王，alignment complete |
+| MON-MB-001 | MON-MB | dist/assets/miniboss_0.png | miniboss_0 | used | city_boss1 | 來自 monster3 的都會督軍裁切，alignment complete |
+| MON-MB-002 | MON-MB | dist/assets/miniboss_1.png | miniboss_1 | used | city_boss2 | 來自 monster3 的重裝頭目裁切，alignment complete |
 | MON-SUP-001 | MON-SUP | dist/assets/monster_slime.png | monster_slime | used | shadow-slime | Boss 房援軍，共用 legacy 資產 |
 | BOSS-MAIN-001 | BOSS-MAIN | dist/assets/boss_main.png | boss_main | used | BossScene | 使用者提供的 Boss 主體圖 |
 
@@ -67,5 +67,5 @@
 ### Current Runtime Gaps
 
 - 長條平台目前採用 render overlay 方式套在既有碰撞平台上，後續若要完全圖片化仍需額外驗證 collisionPolicy。
-- 台北地圖已可載入與進入，但候選怪物族群尚未正式晉升為 runtime 素材。
-- monster3 原始母圖目前僅完成分類與地圖規劃，尚未能在本輪精準裁切成獨立 runtime sprite。
+- 台北地圖已可載入與進入，並已開始使用 monster3 裁出的機械 / 菁英 / 小王素材。
+- monster3 已完成第一批 runtime 導入；若要擴編其餘候選，仍需逐張補命名與 alignment。

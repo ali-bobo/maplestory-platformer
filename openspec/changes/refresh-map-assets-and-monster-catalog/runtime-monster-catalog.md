@@ -37,15 +37,15 @@
 | --- | --- | --- | --- | --- | --- |
 | ruin_beast | MON-BIG-001 | monster_big_0 | ruins | complete | |
 | ruin_giant | MON-BIG-002 | monster_big_1 | ruins | complete | |
-| city_mech | MON-BIG-003 | monster_big_2 | kerning, taipei | complete | |
-| city_beast | MON-BIG-004 | monster_big_3 | kerning, taipei | complete | 已補齊 src/config/alignment.js 對應值 |
-| city_elite | MON-BIG-005 | monster_big_4 | kerning, taipei | complete | 已補齊 src/config/alignment.js 對應值 |
+| city_mech | MON-BIG-003 | monster_big_2 | kerning, taipei | complete | 來自 monster3，偏台北都會的機械主力 |
+| city_beast | MON-BIG-004 | monster_big_3 | kerning | complete | 來自 monster3，保留在 Kerning 黑幫夜區 |
+| city_elite | MON-BIG-005 | monster_big_4 | kerning, taipei | complete | 來自 monster3，作為都會菁英主力 |
 
 ### Miniboss Group
 
 | monsterId | assetId | spriteKey | maps | alignment coverage | notes |
 | --- | --- | --- | --- | --- | --- |
-| city_boss1 | MON-MB-001 | miniboss_0 | kerning | complete | 小王：暗影使者 |
+| city_boss1 | MON-MB-001 | miniboss_0 | taipei | complete | 小王：都會督軍，來自 monster3 |
 | city_boss2 | MON-MB-002 | miniboss_1 | kerning | complete | 小王：機械領袖 |
 
 ### Boss-Support Group
@@ -64,4 +64,4 @@
 - henesys 改回植物、林地與毒蛇系，移除天空系重複配置。
 - ruins 集中戰士、岩石與大型廢墟怪，golem 也回歸同主題地圖。
 - ellinia / 玩具城保留精靈、飛行與奇幻怪物，不再混入城市小王。
-- kerning 與 taipei 分工為城市黑幫 vs 都市機械支線，保留共享城市系但避免奇幻系誤入。
+- kerning 與 taipei 現在進一步分工為「黑幫 / 夜獸 / 重裝頭目」vs「機械 / 菁英 / 都會督軍」，讓 monster3 衍生怪真正分流使用。

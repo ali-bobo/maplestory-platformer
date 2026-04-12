@@ -365,6 +365,8 @@ export const MONSTER_ASSETS = [
     status: 'used',
     monsterIds: ['city_mech'],
     alignmentStatus: 'complete',
+    sourceSheet: '遊戲畫面/monster3.jpg',
+    sourceFamily: 'machine',
   },
   {
     assetId: 'MON-BIG-004',
@@ -375,6 +377,8 @@ export const MONSTER_ASSETS = [
     status: 'used',
     monsterIds: ['city_beast'],
     alignmentStatus: 'complete',
+    sourceSheet: '遊戲畫面/monster3.jpg',
+    sourceFamily: 'city-beast',
   },
   {
     assetId: 'MON-BIG-005',
@@ -385,6 +389,8 @@ export const MONSTER_ASSETS = [
     status: 'used',
     monsterIds: ['city_elite'],
     alignmentStatus: 'complete',
+    sourceSheet: '遊戲畫面/monster3.jpg',
+    sourceFamily: 'elite',
   },
   {
     assetId: 'MON-MB-001',
@@ -395,6 +401,8 @@ export const MONSTER_ASSETS = [
     status: 'used',
     monsterIds: ['city_boss1'],
     alignmentStatus: 'complete',
+    sourceSheet: '遊戲畫面/monster3.jpg',
+    sourceFamily: 'miniboss',
   },
   {
     assetId: 'MON-MB-002',
@@ -405,6 +413,8 @@ export const MONSTER_ASSETS = [
     status: 'used',
     monsterIds: ['city_boss2'],
     alignmentStatus: 'complete',
+    sourceSheet: '遊戲畫面/monster3.jpg',
+    sourceFamily: 'miniboss',
   },
 ];
 

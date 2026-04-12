@@ -15,7 +15,7 @@
 | CAND-BOSS-MAIN-001 | CAND-BOSS-MAIN | 遊戲畫面/Boss.png | boss | Boss 主體 | promoted-runtime | 已複製為 dist/assets/boss_main.png |
 | CAND-MON-REF-001 | CAND-MON-REF | 遊戲畫面/monster.png | monster-sheet | slime / mushroom / spirit 候選母圖 | candidate | 對應 sky、henesys、ellinia 系候選 |
 | CAND-MON-REF-002 | CAND-MON-REF | 遊戲畫面/monster2.jpg | monster-sheet | beast / boar / bat 候選母圖 | candidate | 對應 henesys、ruins、夜間地圖候選 |
-| CAND-MON-REF-003 | CAND-MON-REF | 遊戲畫面/monster3.jpg | monster-sheet | machine / elite / boss 候選母圖 | candidate | 本輪完成分類，但尚未成功精準裁切 |
+| CAND-MON-REF-003 | CAND-MON-REF | 遊戲畫面/monster3.jpg | monster-sheet | machine / elite / boss 候選母圖 | partial-promoted-runtime | 已對應到 monster_big_2 / monster_big_3 / monster_big_4 / miniboss_0 / miniboss_1；其餘候選仍待後續逐張擴編 |
 
 ### User-Provided Monster Overview
 
@@ -38,4 +38,5 @@
 - candidate 不等於 runtime。只要素材還沒有放進 dist/assets 並完成程式綁定，就不得標示為 used。
 - replace 只用於準備接手現有 runtime 條目的素材；candidate 用於新候選或尚未決定是否上線的素材。
 - 使用者後續若再補新的怪物總覽或單張素材，應先新增 candidateId，再決定是否晉升為 runtime asset。
-- monster3 已列入 machine / elite / boss 候選來源，但要真正接線仍需逐張裁切與命名。
+- monster3 已完成第一批 runtime onboarding：`monster_big_2`、`monster_big_3`、`monster_big_4`、`miniboss_0`、`miniboss_1` 現在都明確標記為來自該母圖。
+- 若 monster3 還有更多未上線子圖，後續仍需逐張補 variantId、命名、alignment 與 map theme。

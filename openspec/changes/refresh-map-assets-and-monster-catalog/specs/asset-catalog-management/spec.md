@@ -18,6 +18,11 @@ The system SHALL maintain a runtime asset catalog for background, platform, mons
 - **THEN** runtime catalog 必須能追溯其 assetId、texture key、來源圖與 target map/scene
 - **AND** 不得只在工作目錄存在圖片卻缺少 runtime 綁定紀錄
 
+#### Scenario: A monster sheet crop is promoted with source traceability
+- **WHEN** `monster3.jpg` 中的子圖被正式裁切並接入 runtime
+- **THEN** runtime catalog 必須保留該 spriteKey 對應的來源母圖資訊
+- **AND** 地圖配置必須能看出這批 monster3 衍生怪目前實際落在哪些 map
+
 ### Requirement: Candidate assets SHALL be separated from runtime assets
 The system MUST keep candidate monster, background, and platform references separate from runtime assets. Candidate entries SHALL record intended use and promotion status, but SHALL NOT be treated as loadable runtime assets until they complete the runtime onboarding path.
 

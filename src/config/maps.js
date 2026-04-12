@@ -243,12 +243,11 @@ export const MAPS = {
     platforms: KERNING_PLATFORMS,
     bgType: 'kerning', bgImage: 'bg_city',
     monsters: [
-      // 都市黑幫區：城市、機械與菁英敵人為主
+      // 都市黑幫區：偏黑幫與野獸系，保留重機械頭目鎮守 Boss 入口
       { id: 'city_thug',  count: 4 },
-      { id: 'city_mech',  count: 4 },
-      { id: 'city_beast', count: 3 },
-      { id: 'city_elite', count: 3 },
-      { id: 'city_boss1', count: 1 },
+      { id: 'city_mech',  count: 2 },
+      { id: 'city_beast', count: 4 },
+      { id: 'city_elite', count: 2 },
       { id: 'city_boss2', count: 1 },
     ],
     portals: [
@@ -268,18 +267,18 @@ export const MAPS = {
     platforms: TAIPEI_PLATFORMS,
     bgType: 'taipei', bgImage: 'bg_taipei',
     monsters: [
-      { id: 'city_thug',  count: 4 },
+      // 台北都會：集中使用 monster3 衍生的機械 / 菁英 / 迷你頭目組
       { id: 'city_mech',  count: 4 },
       { id: 'robot',      count: 4 },
       { id: 'city_elite', count: 3 },
-      { id: 'city_beast', count: 2 },
+      { id: 'city_boss1', count: 1 },
     ],
     portals: [
       { x: 30,             y: GROUND_Y - 48, width: 40, height: 72, target: 'ellinia', label: '←神秘之境', spawnX: MAP_WIDTH / 2 + 120 },
       { x: MAP_WIDTH - 50, y: GROUND_Y - 48, width: 40, height: 72, target: 'kerning', label: '→Kerning City', spawnX: 260 },
     ],
     npcs: [
-      { x: 330, y: GROUND_Y - 60, id: 'npc_new_5', name: '台北導遊', dialog: ['這裡是台北都會試作地圖。', '目前先用現有城市系怪物做第一版驗證。', '之後會再把候選怪物族群整併進來。'] },
+      { x: 330, y: GROUND_Y - 60, id: 'npc_new_5', name: '台北導遊', dialog: ['這裡是台北都會試作地圖。', 'monster3 裁出的機械與菁英怪現在已經接進來了。', '再往右走前，先小心那隻都會督軍。'] },
     ],
     spawnX: 150,
   },
