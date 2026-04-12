@@ -20,12 +20,13 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.isDashing = false;
     this._jumpKeyWasDown = false;
 
-    // 物理設定 — body bottom 對齊 final_char.png 視覺腳底（content ends at row 202/231 * 56 = 49px from top）
+    // 物理設定 — final_char.png 底部有 ~12.6% 透明填充（29px/231px）
+    // 在 80px displayHeight 中約 10px。將 body 縮短 10px，
+    // 讓 body.bottom 對齊平台頂時，sprite 會向下延伸 10px（透明區域），
+    // 視覺上角色腳底剛好貼齊平台表面。
     this.setCollideWorldBounds(true);
     this.setDisplaySize(80, 80);
-    // final_char.png 的實際腳底比先前估計再高一些，將 body 往下縮入，
-    // 讓 body.bottom 對齊平台頂時，角色視覺腳底會落在平台表面而不是陷下去。
-    this.body.setSize(48, 68);
+    this.body.setSize(48, 58);
     this.body.setOffset(16, 12);
     this.setDepth(20);
 

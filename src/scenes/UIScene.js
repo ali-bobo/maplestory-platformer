@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
-import { SKILLS, POTIONS, expNeeded } from '../config/constants.js';
+import { SKILLS, POTIONS, expNeeded, MAP_SCENE_KEYS } from '../config/constants.js';
+import { MAPS } from '../config/maps.js';
 
 // HUD 場景（平行運行）— 楓之谷風格底部狀態列
 export class UIScene extends Phaser.Scene {
@@ -89,11 +90,8 @@ export class UIScene extends Phaser.Scene {
     this._mesoText = this.add.text(midX, barPanelY + 20, '💰 0',   { fontSize: '11px', color: '#ffee88', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2 }).setDepth(51).setScrollFactor(0);
     this._killText = this.add.text(midX, barPanelY + 34, '💀 0/60',{ fontSize: '11px', color: '#ffee88', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2 }).setDepth(51).setScrollFactor(0);
 
-    // ── 地圖名稱（中央上方）──────────────────────────────────────────────────
-    this._mapText = this.add.text(width / 2, barPanelY - 8, '', {
-      fontSize: '12px', color: '#aaddff', fontFamily: 'Arial',
-      stroke: '#000', strokeThickness: 2,
-    }).setOrigin(0.5, 1).setDepth(51).setScrollFactor(0);
+    // ── 小地圖區域 + 地圖名稱（右上角）─────────────────────────────────────
+    this._setupMinimap(width);
 
     // ── 右側選單按鈕（帶點擊互動）────────────────────────────────────────────
     this._setupMenuButtons(width, barPanelY);
@@ -176,6 +174,84 @@ export class UIScene extends Phaser.Scene {
       });
 
       bx += btnW + gap;
+    }
+  }
+
+  // ── 小地圖 + 地圖名稱（右上角，楓之谷風格）──────────────────────────────
+  _setupMinimap(width) {
+    const mmW = 160, mmH = 100;
+    const mmX = width - mmW - 8, mmY = 8;
+
+    // 半透明小地圖背景框
+    const mmBg = this.add.graphics().setDepth(50).setScrollFactor(0);
+    mmBg.fillStyle(0x000000, 0.45);
+    mmBg.fillRoundedRect(mmX, mmY, mmW, mmH, 4);
+    mmBg.lineStyle(1, 0x4488aa, 0.6);
+    mmBg.strokeRoundedRect(mmX, mmY, mmW, mmH, 4);
+
+    // 地圖名稱（小地圖上方，不額外佔黑色區塊）
+    this._mapText = this.add.text(mmX + mmW / 2, mmY - 2, '', {
+      fontSize: '11px', color: '#aaddff', fontFamily: 'Arial',
+      stroke: '#000', strokeThickness: 3,
+    }).setOrigin(0.5, 1).setDepth(51).setScrollFactor(0);
+
+    // 小地圖內容：簡易平台示意 + 玩家點
+    this._minimapBg = mmBg;
+    this._minimapRect = { x: mmX, y: mmY, w: mmW, h: mmH };
+    this._minimapContent = this.add.graphics().setDepth(51).setScrollFactor(0);
+    this._minimapPlayerDot = this.add.graphics().setDepth(52).setScrollFactor(0);
+
+    // 定期更新小地圖
+    this._timers.push(this.time.addEvent({
+      delay: 200, loop: true,
+      callback: this._updateMinimap,
+      callbackScope: this,
+    }));
+  }
+
+  _updateMinimap() {
+    if (!this._minimapContent || !this._minimapRect) return;
+    const gs = this.registry.get('gameState');
+    if (!gs) return;
+
+    const mapData = MAPS[gs.currentMap];
+    if (!mapData) return;
+
+    const { x: mmX, y: mmY, w: mmW, h: mmH } = this._minimapRect;
+    const mapW = mapData.width || 2560;
+    const mapH = 600;
+    const scaleX = (mmW - 8) / mapW;
+    const scaleY = (mmH - 20) / mapH;
+
+    this._minimapContent.clear();
+    // 繪製平台
+    for (const p of mapData.platforms) {
+      const px = mmX + 4 + p.x * scaleX;
+      const py = mmY + 14 + p.y * scaleY;
+      const pw = Math.max(2, p.width * scaleX);
+      this._minimapContent.fillStyle(p.isGround ? 0x88aa66 : 0x6688aa, 0.8);
+      this._minimapContent.fillRect(px, py, pw, 2);
+    }
+
+    // 繪製玩家位置（黃色小點）
+    this._minimapPlayerDot.clear();
+    if (!mapData.sceneKey) return;
+    const gameScene = this.scene.manager.getScene(mapData.sceneKey);
+    if (gameScene && gameScene.player && gameScene.player.active) {
+      const playerX = mmX + 4 + gameScene.player.x * scaleX;
+      const playerY = mmY + 14 + gameScene.player.y * scaleY;
+      this._minimapPlayerDot.fillStyle(0xffff00, 1);
+      this._minimapPlayerDot.fillCircle(playerX, playerY, 3);
+      // 繪製怪物位置（紅色小點）
+      if (gameScene.monsters) {
+        gameScene.monsters.getChildren().forEach(m => {
+          if (!m.active || m.isDead) return;
+          const mx = mmX + 4 + m.x * scaleX;
+          const my = mmY + 14 + m.y * scaleY;
+          this._minimapPlayerDot.fillStyle(0xff4444, 0.7);
+          this._minimapPlayerDot.fillRect(mx - 1, my - 1, 2, 2);
+        });
+      }
     }
   }
 

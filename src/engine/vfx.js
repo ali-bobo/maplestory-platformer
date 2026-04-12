@@ -65,7 +65,7 @@ export function cameraShockwave(scene, worldX, worldY, duration = 400) {
 }
 
 /**
- * 產生能量拖尾粒子（跟隨指定物件）
+ * 產生能量拖尾粒子（跟隨指定物件）— 強化版：更密集、帶 ADD blend
  * @param {Phaser.Scene} scene
  * @param {Phaser.GameObjects.Sprite} follower — 要跟隨的物件
  * @param {number} color
@@ -74,19 +74,20 @@ export function cameraShockwave(scene, worldX, worldY, duration = 400) {
 export function spawnEnergyTrail(scene, follower, color = 0x8888ff, duration = 500) {
   try {
     const emitter = scene.add.particles(follower.x, follower.y, 'particle-dot', {
-      speed: { min: 20, max: 60 },
-      scale: { start: 1.0, end: 0 },
-      lifespan: 200,
-      frequency: 30,
-      tint: color,
+      speed: { min: 15, max: 50 },
+      scale: { start: 1.2, end: 0 },
+      lifespan: 250,
+      frequency: 20,
+      tint: [color, 0xffffff],
       follow: follower,
       blendMode: 'ADD',
+      alpha: { start: 0.8, end: 0 },
     });
     emitter.setDepth(35);
     scene.time.delayedCall(duration, () => {
       if (emitter && emitter.active) {
         emitter.stop();
-        scene.time.delayedCall(250, () => { if (emitter.active) emitter.destroy(); });
+        scene.time.delayedCall(300, () => { if (emitter.active) emitter.destroy(); });
       }
     });
     return emitter;
@@ -117,7 +118,7 @@ export function screenFlash(scene, duration = 120, alpha = 0.35) {
 }
 
 /**
- * 能量爆發環（暗殺 / 大招用）
+ * 能量爆發環（暗殺 / 大招用）— 強化版：雙層環 + 內部光暈
  * @param {Phaser.Scene} scene
  * @param {number} x
  * @param {number} y
@@ -126,6 +127,7 @@ export function screenFlash(scene, duration = 120, alpha = 0.35) {
  */
 export function energyBurstRing(scene, x, y, color = 0xaa44ff, radius = 80) {
   try {
+    // 外環
     const ring = scene.add.graphics();
     ring.lineStyle(3, color, 0.9);
     ring.strokeCircle(x, y, 10);
@@ -138,6 +140,35 @@ export function energyBurstRing(scene, x, y, color = 0xaa44ff, radius = 80) {
       duration: 400,
       ease: 'Quad.easeOut',
       onComplete: () => ring.destroy(),
+    });
+
+    // 內環（稍慢、稍亮）
+    const innerRing = scene.add.graphics();
+    innerRing.lineStyle(2, 0xffffff, 0.5);
+    innerRing.strokeCircle(x, y, 8);
+    innerRing.setDepth(56);
+    scene.tweens.add({
+      targets: innerRing,
+      scaleX: (radius * 0.6) / 8,
+      scaleY: (radius * 0.6) / 8,
+      alpha: 0,
+      duration: 350,
+      ease: 'Quad.easeOut',
+      onComplete: () => innerRing.destroy(),
+    });
+
+    // 中心光暈
+    const glow = scene.add.graphics();
+    glow.fillStyle(color, 0.3);
+    glow.fillCircle(x, y, 6);
+    glow.setDepth(54);
+    scene.tweens.add({
+      targets: glow,
+      scaleX: 3,
+      scaleY: 3,
+      alpha: 0,
+      duration: 300,
+      onComplete: () => glow.destroy(),
     });
   } catch (_) { /* 靜默 */ }
 }
