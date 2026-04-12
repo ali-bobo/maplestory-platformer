@@ -110,7 +110,7 @@ function generatePlatforms(scene) {
       const offset = (row % 2) * (brickW / 2);
       for (let bx = -brickW + offset; bx < W; bx += brickW + 2) {
         const by = row * (brickH + 2);
-        // 磚塊本體（帶微色差）
+        // 磚塊本體（用 bx/row 做偽隨機微色差，模擬自然風化）
         const shade = 0xAA4422 + (((bx * 7 + row * 13) % 30) << 8);
         g.fillStyle(shade, 0.9);
         g.fillRect(Math.max(0, bx), by, brickW, brickH);

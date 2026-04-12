@@ -235,6 +235,7 @@ export class UIScene extends Phaser.Scene {
 
     // 繪製玩家位置（黃色小點）
     this._minimapPlayerDot.clear();
+    if (!mapData.sceneKey) return;
     const gameScene = this.scene.manager.getScene(mapData.sceneKey);
     if (gameScene && gameScene.player && gameScene.player.active) {
       const playerX = mmX + 4 + gameScene.player.x * scaleX;

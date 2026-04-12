@@ -83,9 +83,12 @@ export function castDash(scene, player, enemies) {
   player.setVelocity(dir * 900, 0);
 
   // ★ 玩家衝刺發光
-  flashGlow(scene, player, 0.05, 350);
+  flashGlow(scene, player, 0.06, 400);
 
-  // ★ 殘影（半透明的角色副本，取代舊的 dot 粒子）
+  // ★ 起始能量爆發
+  energyBurstRing(scene, player.x, player.y, 0x8833FF, 45);
+
+  // ★ 殘影（半透明的角色副本 + 拖尾粒子）
   const trailInterval = scene.time.addEvent({
     delay: 35,
     repeat: 7,
@@ -94,21 +97,24 @@ export function castDash(scene, player, enemies) {
       const ghost = scene.add.image(player.x, player.y, 'final_char');
       ghost.setDisplaySize(80, 80);
       ghost.setFlipX(!player.facingRight);
-      ghost.setAlpha(0.5);
+      ghost.setAlpha(0.55);
       ghost.setTint(0x8800ff);
       ghost.setDepth(15);
       scene.tweens.add({
         targets: ghost,
         alpha: 0,
-        scaleX: ghost.scaleX * 1.1,
-        scaleY: ghost.scaleY * 1.1,
-        duration: 250,
+        scaleX: ghost.scaleX * 1.15,
+        scaleY: ghost.scaleY * 1.15,
+        duration: 280,
         onComplete: () => ghost.destroy(),
       });
-      // 同時保留粒子拖尾
+      // 粒子拖尾
       particles.spawnDashTrail(scene, player.x, player.y);
     },
   });
+
+  // ★ 衝刺路徑光帶（暗紫色長條光跡）
+  spawnEnergyTrail(scene, player, 0xAA44FF, 280);
 
   // 傷害判定（穿越敵人時）
   if (enemies && enemies.getChildren) {
@@ -120,6 +126,8 @@ export function castDash(scene, player, enemies) {
       const { damage, isCrit } = calcDamage(gs.atk, gs.critRate, gs.critMulti, 1.5);
       enemy.takeDamage(damage, isCrit);
       particles.spawnHit(scene, enemy.x, enemy.y, 0x8800ff);
+      // ★ 穿越命中光環
+      energyBurstRing(scene, enemy.x, enemy.y, 0xBB55FF, 30);
     });
     scene.time.delayedCall(250, () => {
       scene.physics.world.removeCollider(overlapCheck);
@@ -131,8 +139,9 @@ export function castDash(scene, player, enemies) {
     player.body.setAllowGravity(true);
     player.setVelocityX(0);
 
-    // ★ 衝刺結束時產生能量環
-    energyBurstRing(scene, player.x, player.y, 0x6600cc, 60);
+    // ★ 衝刺結束能量環 + 微閃
+    energyBurstRing(scene, player.x, player.y, 0x6600cc, 65);
+    screenFlash(scene, 60, 0.15);
   });
 }
 
