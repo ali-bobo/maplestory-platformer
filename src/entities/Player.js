@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { SKILLS, expNeeded, MAP_SCENE_KEYS } from '../config/constants.js';
+import { SKILLS, expNeeded, MAP_SCENE_KEYS, POTIONS } from '../config/constants.js';
 import { castShuriken, castDash, castAssassinate, castVortex, castClone } from './Skill.js';
 import { particles } from '../engine/particles.js';
 import { audio } from '../engine/audio.js';
@@ -20,11 +20,11 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.isDashing = false;
     this._jumpKeyWasDown = false;
 
-    // 物理設定（body bottom 對齊 y+28，與怪物站立高度一致）
+    // 物理設定 — body bottom 對齊 final_char.png 視覺腳底（content ends at row 202/231 * 56 = 49px from top）
     this.setCollideWorldBounds(true);
     this.setDisplaySize(56, 56);
-    this.body.setSize(28, 56);
-    this.body.setOffset(14, 0);
+    this.body.setSize(32, 49);   // body bottom = y - 28 + 49 = y + 21（對齊視覺腳底）
+    this.body.setOffset(12, 0);
     this.setDepth(20);
 
     // 技能施放群組快取
@@ -39,6 +39,12 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.keyV = scene.input.keyboard.addKey('V');
     this.keyB = scene.input.keyboard.addKey('B');
     this.keyAlt = scene.input.keyboard.addKey(ALT);
+    // 藥水快捷鍵
+    this.keyPotA = scene.input.keyboard.addKey('A');
+    this.keyPotS = scene.input.keyboard.addKey('S');
+    this.keyPotD = scene.input.keyboard.addKey('D');
+    this.keyPotF = scene.input.keyboard.addKey('F');
+    this.keyPotG = scene.input.keyboard.addKey('G');
 
     // 攻擊動畫計時
     this._attackAnimTimer = 0;
@@ -105,15 +111,55 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     if (Phaser.Input.Keyboard.JustDown(this.keyV)) this.castSkill('V');
     if (Phaser.Input.Keyboard.JustDown(this.keyB)) this.castSkill('B');
 
+    // ─── 藥水快捷鍵 ─────────────────────────────────────────────────────────
+    if (Phaser.Input.Keyboard.JustDown(this.keyPotA)) this.usePotion('A');
+    if (Phaser.Input.Keyboard.JustDown(this.keyPotS)) this.usePotion('S');
+    if (Phaser.Input.Keyboard.JustDown(this.keyPotD)) this.usePotion('D');
+    if (Phaser.Input.Keyboard.JustDown(this.keyPotF)) this.usePotion('F');
+    if (Phaser.Input.Keyboard.JustDown(this.keyPotG)) this.usePotion('G');
+
     // ─── 更新材質 ────────────────────────────────────────────────────────────
     this._attackAnimTimer = Math.max(0, this._attackAnimTimer - delta);
     this._updateTexture(onGround);
   }
 
   _updateTexture(onGround) {
-    // 使用新版 character_player 圖片
-    this.setTexture('character_player');
+    // 使用 final_char 圖片（已去除白色背景）
+    this.setTexture('final_char');
     this.setFlipX(!this.facingRight);
+  }
+
+  usePotion(slot) {
+    const gs = this.gameState;
+    if (!gs.potions) return;
+    const qty = gs.potions[slot] || 0;
+    if (qty <= 0) {
+      this._showNotice('藥水不足！');
+      return;
+    }
+    const potion = POTIONS[slot];
+    if (!potion) return;
+
+    gs.potions[slot]--;
+    if (potion.hpRestore > 0) {
+      gs.hp = Math.min(gs.maxHp, gs.hp + potion.hpRestore);
+      this.scene.registry.events.emit('changedata-hp', null, gs.hp);
+    }
+    if (potion.mpRestore > 0) {
+      gs.mp = Math.min(gs.maxMp, gs.mp + potion.mpRestore);
+      this.scene.registry.events.emit('changedata-mp', null, gs.mp);
+    }
+    this.scene.registry.set('gameState', gs);
+    // 顯示回復效果（萬靈藥同時回復 HP+MP 時顯示兩者）
+    let restoreMsg;
+    if (potion.hpRestore > 0 && potion.mpRestore > 0) {
+      restoreMsg = 'HP/MP';
+    } else if (potion.hpRestore > 0) {
+      restoreMsg = 'HP';
+    } else {
+      restoreMsg = 'MP';
+    }
+    this._showNotice(`使用 ${potion.name}  +${restoreMsg}`, 1200);
   }
 
   castSkill(key) {

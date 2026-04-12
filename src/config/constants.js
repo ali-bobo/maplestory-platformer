@@ -3,6 +3,15 @@
 export const CANVAS = { width: 1280, height: 720 };
 export const WORLD_HEIGHT = 600;
 
+// 藥水定義（ASDFG 快捷鍵）
+export const POTIONS = {
+  A: { name: 'HP藥水',    color: 0xff4444, hpRestore: 100, mpRestore: 0   },
+  S: { name: '強效HP藥水', color: 0xff8800, hpRestore: 250, mpRestore: 0   },
+  D: { name: 'MP藥水',    color: 0x4466ff, hpRestore: 0,   mpRestore: 150 },
+  F: { name: '強效MP藥水', color: 0x8844ff, hpRestore: 0,   mpRestore: 300 },
+  G: { name: '萬靈藥',    color: 0x44cc44, hpRestore: 200, mpRestore: 200 },
+};
+
 export const PHYSICS_GRAVITY = 1000;
 
 export const PLAYER_DEFAULTS = {
@@ -52,6 +61,7 @@ export const DEFAULT_GAME_STATE = {
   killCount: 0,
   playTime: 0,
   equipment: { weapon: null, armor: null, gloves: null, helmet: null, boots: null },
+  potions: { A: 5, S: 3, D: 5, F: 3, G: 2 },
   skillCooldowns: { Z: 0, X: 0, C: 0, V: 0, B: 0 },
   unlockedSkills: ['Z'],
   skillLevels: { Z: 1, X: 0, C: 0, V: 0, B: 0 },
