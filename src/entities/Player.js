@@ -150,7 +150,16 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       this.scene.registry.events.emit('changedata-mp', null, gs.mp);
     }
     this.scene.registry.set('gameState', gs);
-    this._showNotice(`使用 ${potion.name}  +${potion.hpRestore > 0 ? 'HP' : 'MP'}`, 1200);
+    // 顯示回復效果（萬靈藥同時回復 HP+MP 時顯示兩者）
+    let restoreMsg;
+    if (potion.hpRestore > 0 && potion.mpRestore > 0) {
+      restoreMsg = 'HP/MP';
+    } else if (potion.hpRestore > 0) {
+      restoreMsg = 'HP';
+    } else {
+      restoreMsg = 'MP';
+    }
+    this._showNotice(`使用 ${potion.name}  +${restoreMsg}`, 1200);
   }
 
   castSkill(key) {

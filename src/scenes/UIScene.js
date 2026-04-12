@@ -132,11 +132,11 @@ export class UIScene extends Phaser.Scene {
   // ── 右側選單按鈕（帶點擊彈出選單）────────────────────────────────────────
   _setupMenuButtons(width, barPanelY) {
     const btnData = [
-      { label: '道具', color: 0x225522, type: 'items'    },
-      { label: '裝備', color: 0x332211, type: 'equip'    },
-      { label: '技能', color: 0x112233, type: 'skills'   },
-      { label: '地圖', color: 0x221133, type: 'map'      },
-      { label: '設定', color: 0x333333, type: 'settings' },
+      { label: '道具', color: 0x225522, hoverColor: 0x448844, type: 'items'    },
+      { label: '裝備', color: 0x332211, hoverColor: 0x554433, type: 'equip'    },
+      { label: '技能', color: 0x112233, hoverColor: 0x334455, type: 'skills'   },
+      { label: '地圖', color: 0x221133, hoverColor: 0x443355, type: 'map'      },
+      { label: '設定', color: 0x333333, hoverColor: 0x555555, type: 'settings' },
     ];
     const btnW = 42, btnH = 22, gap = 3;
     const totalW = btnData.length * (btnW + gap) - gap;
@@ -155,7 +155,7 @@ export class UIScene extends Phaser.Scene {
 
       const drawBtn = (hover) => {
         bg.clear();
-        bg.fillStyle(hover ? btn.color + 0x222222 : btn.color, 0.95);
+        bg.fillStyle(hover ? btn.hoverColor : btn.color, 0.95);
         bg.fillRoundedRect(bx, by, btnW, btnH, 3);
         bg.lineStyle(1, hover ? 0xaabbdd : 0x667788, 0.9);
         bg.strokeRoundedRect(bx, by, btnW, btnH, 3);
@@ -283,7 +283,12 @@ export class UIScene extends Phaser.Scene {
       const ratio = cd / maxCd;
       if (ratio > 0) {
         overlay.fillStyle(0x000000, 0.65);
-        overlay.fillRoundedRect(x, y + h * (1 - ratio), w, h * ratio, ratio < 1 ? 0 : 5);
+        // 當冷卻比例 = 1 (剛施放，完全灰暗) 時使用圓角；其他情況方角（從底部向上填充）
+        if (ratio >= 1) {
+          overlay.fillRoundedRect(x, y, w, h, 5);
+        } else {
+          overlay.fillRect(x, y + h * (1 - ratio), w, h * ratio);
+        }
       }
       const unlocked = gs.unlockedSkills && gs.unlockedSkills.includes(key);
       if (this._skillSlots[key]) {
