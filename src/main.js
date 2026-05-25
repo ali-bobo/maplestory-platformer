@@ -74,7 +74,7 @@ export const game = new Phaser.Game(config);
 // （預設不改，仍 60）。確認後由品質系統自動呼叫（Phase 8.2）
 // 用法：__setFps(30) 鎖 30；__setFps(40) 鎖 40；__setFps(60, false) 回 rAF 60
 // 開發 debug 工具：僅在 URL 含 ?debug=1 時啟用，避免暴露於一般玩家
-if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('debug')) {
+if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('debug') === '1') {
   window.__setFps = (target, useTimeout = true) => setGameFps(game, target, useTimeout);
   window.__hpBarMode = (mode) => setHpBarMode(mode);
 }
