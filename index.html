@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-EFqPojFCzZZ84sjz4loTIw/yGhKHuuy41sb6wk5p+84=' 'sha256-MyHMNFcAIum3vAuLsfYazPNW+PIzRzsTe0iM5pZT7Ww='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self';" />
+  <title>楓之谷 盜賊傳說 — Phaser 3</title>
+  <style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(180deg, #23233b 0%, #151522 100%);
+      font-family: "Microsoft JhengHei", sans-serif;
+      overflow: hidden;
+    }
+    #game-container canvas {
+      width: min(100vw, 1280px) !important;
+      height: auto !important;
+      image-rendering: pixelated;
+    }
+    #loading {
+      color: #fff;
+      font-size: 18px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div id="game-container"></div>
+  <div id="loading">載入中... 請稍候</div>
+  <script>
+    // 若 dist/bundle.js 不存在（開發環境），顯示提示
+    window.addEventListener('error', function(e) {
+      if (e.filename && e.filename.includes('bundle.js')) {
+        document.getElementById('loading').innerHTML =
+          '<p>請先執行 <code>npm install &amp;&amp; npm run build</code></p>' +
+          '<p>或開啟 <a href="index-v2.html" style="color:#6af">index-v2.html</a> 使用舊版</p>';
+      }
+    });
+  </script>
+  <script src="dist/bundle.js"></script>
+  <script>
+    document.getElementById('loading').style.display = 'none';
+  </script>
+</body>
+</html>

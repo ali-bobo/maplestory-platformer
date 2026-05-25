@@ -1,0 +1,5 @@
+dist/bundle.js linguist-generated=true -diff
+
+# bash 腳本必須用 LF，否則 #!/usr/bin/env bash 在 macOS / Linux 上會壞
+*.sh text eol=lf
+play.sh text eol=lf

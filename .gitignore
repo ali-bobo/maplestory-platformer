@@ -1,0 +1,32 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# Build output（bundle.js 需提交以便直接開啟遊戲）
+dist/*.map
+node_modules/
+
+# Env files
+.env
+.env.*
+
+# 專案主走 npm，排除其他 package manager 的 lockfile 避免雙 lockfile 漂移
+bun.lock
+yarn.lock
+pnpm-lock.yaml
+
+# Local AI tool config (contains local paths and personal settings)
+.claude/
+CLAUDE.md
+ai-guardrails.md
+
+# Internal development specs and design documents
+openspec/
+
+# GitHub Copilot / AI skills (personal tooling)
+.github/
+
+# Design drafts and reference images
+技能/
+參考用遊戲畫面/
+遊戲畫面/
