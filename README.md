@@ -1,6 +1,6 @@
 # 盜賊傳說 — MapleStory 風格平台遊戲
 
-楓之谷風格的 2D 橫向捲軸平台動作遊戲，採用 Phaser 3 + esbuild 開發。扮演盜賊，從浮空島嶼出發、串接 6 張地圖、挑戰暗影魔君 Boss，並有副本系統提供重複可玩。
+楓之谷風格的 2D 橫向捲軸平台動作遊戲，採用 Phaser 3 + esbuild 開發。扮演盜賊，從浮空島嶼出發、串接 6 張地圖、挑戰暗影魔君 Boss，並有副本系統提升重玩價值。
 
 > **🎮 想直接玩遊戲？請看 [PLAYER_GUIDE.md](PLAYER_GUIDE.md)**（含 30 秒上手、操作說明、地圖介紹、副本系統、FAQ、Troubleshooting）
 >
@@ -10,7 +10,7 @@
 
 ## 環境需求
 
-- Node.js 18 或以上
+- Node.js **18 或以上**（`package.json` 的 `engines` 欄位已限制，安裝時會自動警告）
 - 現代瀏覽器（Chrome / Edge / Firefox 最新版，需 WebGL2）
 
 ---
@@ -25,7 +25,7 @@ npm install
 npm run build
 
 # 3. 啟動本地伺服器
-npx serve .
+npm run serve
 ```
 
 開瀏覽器到 **http://localhost:3000** 即可遊玩。
@@ -35,7 +35,7 @@ npx serve .
 npm run dev
 ```
 
-> 玩家只想啟動遊戲？直接 `npx serve .` 即可（`dist/bundle.js` 已進 git，不用 install/build）。
+> 玩家只想啟動遊戲？直接 `npm run play` 即可（`dist/bundle.js` 已進 git，不需 install / build）。
 
 ---
 
@@ -85,13 +85,15 @@ package.json        — npm scripts
 
 ---
 
-## 待補強 / 後續迭代
+## 安全性說明
 
-- ESC 暫停選單
-- 目標選取框、Level Up 全屏演出、Boss Phase 3 視覺強化
-- 城鎮商店正式接入
-- 更多副本（多主題 / 變體 Boss）、稀有掉落
-- 第二轉職（Phase 15）
+| 機制 | 說明 |
+|------|------|
+| **CSP**（Content Security Policy）| `index.html` 使用 `meta` 標籤宣告 CSP，限制 `script-src` 為 `'self'` + inline script hash，`style-src` 同樣以 hash 限制，阻擋 XSS 注入 |
+| **本機綁定** | `serve` / `play` 腳本均綁定 `127.0.0.1`，不對外開放網路連線 |
+| **debug 工具** | `window.__setFps` / `window.__hpBarMode` 僅在 URL 含 `?debug=1` 時啟用，避免一般玩家誤操作 |
+| **副本次數** | 每日上限存於 `localStorage`（key: `maple_dungeon_daily_record`），本機端記錄，跨日自動歸零；如需重置可在 DevTools 執行 `localStorage.removeItem('maple_dungeon_daily_record')` |
+| **依賴更新** | 已設定 Dependabot 每週自動掃描 npm 依賴安全漏洞並開 PR |
 
 ---
 

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-EFqPojFCzZZ84sjz4loTIw/yGhKHuuy41sb6wk5p+84=' 'sha256-MyHMNFcAIum3vAuLsfYazPNW+PIzRzsTe0iM5pZT7Ww='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self';" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-sMwjOdshdLIb0OdXdJ09VM+ae+jgTLIK49TNuYpvVeo=' 'sha256-MyHMNFcAIum3vAuLsfYazPNW+PIzRzsTe0iM5pZT7Ww='; style-src 'self' 'sha256-Bi531D33Bsd6OqticDDa8RBwLIos04FA9iwUGN8PCzc='; img-src 'self' data: blob:; connect-src 'self';" />
   <title>楓之谷 盜賊傳說 — Phaser 3</title>
   <style>
     :root { color-scheme: dark; }
@@ -39,7 +39,7 @@
       if (e.filename && e.filename.includes('bundle.js')) {
         document.getElementById('loading').innerHTML =
           '<p>請先執行 <code>npm install &amp;&amp; npm run build</code></p>' +
-          '<p>或開啟 <a href="index-v2.html" style="color:#6af">index-v2.html</a> 使用舊版</p>';
+          '<p>詳細說明請參考 <a href="README.md" style="color:#6af">README.md</a></p>';
       }
     });
   </script>

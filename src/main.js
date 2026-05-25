@@ -73,9 +73,8 @@ export const game = new Phaser.Game(config);
 // Phase 8 PoC 測試入口：在 console 呼叫 __setFps(30) 驗證鎖 FPS 是否安全有效
 // （預設不改，仍 60）。確認後由品質系統自動呼叫（Phase 8.2）
 // 用法：__setFps(30) 鎖 30；__setFps(40) 鎖 40；__setFps(60, false) 回 rAF 60
-if (typeof window !== 'undefined') {
+// 開發 debug 工具：僅在 URL 含 ?debug=1 時啟用，避免暴露於一般玩家
+if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('debug')) {
   window.__setFps = (target, useTimeout = true) => setGameFps(game, target, useTimeout);
-  // Phase 10.3 PoC：切換怪物 HP 條渲染模式（'shape'=Rectangle / 'image'=白塊 texture）
-  // 切換後需重進地圖讓新怪物套用。比較 Performance 的 batchFillPath%
   window.__hpBarMode = (mode) => setHpBarMode(mode);
 }

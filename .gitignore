@@ -23,8 +23,8 @@ ai-guardrails.md
 # Internal development specs and design documents
 openspec/
 
-# GitHub Copilot / AI skills (personal tooling)
-.github/
+# GitHub Copilot / AI skills workspace (personal tooling — do NOT commit)
+.github/copilot-workspace/
 
 # Design drafts and reference images
 技能/
