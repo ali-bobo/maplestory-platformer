@@ -12,6 +12,7 @@
     "url": "https://github.com/ali-bobo/maplestory-platformer"
   },
   "scripts": {
+    "preinstall": "node -e \"var v=process.version.slice(1).split('.')[0]; if(v<18){process.stderr.write('\\n[錯誤] 需要 Node.js 18+，目前版本：'+process.version+'\\n請執行：nvm install 20 && nvm use 20\\n\\n');process.exit(1)}\"",
     "build": "node build.js",
     "dev": "node build.js --watch",
     "serve": "npx serve . -l tcp://127.0.0.1:3000",
