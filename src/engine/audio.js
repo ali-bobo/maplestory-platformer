@@ -59,17 +59,21 @@ const BGM_PATTERNS = {
     melody: { steps: ['F4','G4','A4','_','Bb4','A4','G4','F4','G4','A4','C5','_','A4','G4','F4','_'], type: 'triangle', vol: 0.09 },
     bass:   { steps: ['F3','_','_','_','C3','_','_','_','F3','_','_','_','Bb2','_','C3','_'],         type: 'sine',     vol: 0.07 },
   },
-  // Boss 戰：緊張，E 小調，140 BPM
+  // Boss 戰：激昂緊張，E Phrygian，165 BPM
+  // 高音域 E5-G5 全滿，含 Eb5 半音張力 + square 低音 + kick/snare 打擊樂
   boss: {
-    bpm: 140,
-    melody: { steps: ['E4','_','F4','_','G4','_','F4','E4','D4','_','E4','_','B3','_','E4','_'], type: 'sawtooth', vol: 0.09 },
-    bass:   { steps: ['E2','_','_','E2','_','E2','_','_','D2','_','_','D2','_','E2','_','_'],    type: 'sine',     vol: 0.09 },
+    bpm: 165,
+    melody: { steps: ['E5','E5','G5','Eb5','E5','G5','F5','E5','B4','C5','B4','Bb4','A4','B4','E5','_'], type: 'sawtooth', vol: 0.10 },
+    bass:   { steps: ['E2','_','E2','F2','E2','_','E2','G2','E2','_','E2','Eb2','E2','B1','E2','_'],     type: 'square',   vol: 0.10 },
+    perc:   { steps: ['K','_','S','_','K','K','S','_','K','_','S','_','K','_','S','K'],                  vol: 0.18 },
   },
-  // 副本：緊張快節奏，D 小調，135 BPM
+  // 副本：緊張快節奏，D 小調，140 BPM
+  // 旋律密度提高，減少休止符，加入輕版打擊樂
   dungeon: {
-    bpm: 135,
-    melody: { steps: ['D5','_','F5','_','A5','_','F5','D5','E5','_','D5','_','C5','_','Bb4','_'], type: 'sawtooth', vol: 0.08 },
-    bass:   { steps: ['D3','_','_','D3','_','A3','_','_','D3','_','_','C3','_','Bb2','_','_'],    type: 'sine',     vol: 0.08 },
+    bpm: 140,
+    melody: { steps: ['D5','F5','A5','F5','Eb5','D5','_','D5','F5','A5','G5','F5','Eb5','D5','C5','Bb4'], type: 'sawtooth', vol: 0.09 },
+    bass:   { steps: ['D3','_','D3','A3','D3','_','C3','_','D3','_','D3','Bb2','A2','_','D3','_'],        type: 'sine',     vol: 0.08 },
+    perc:   { steps: ['K','_','S','_','K','_','S','_','K','_','S','_','K','K','S','_'],                   vol: 0.14 },
   },
 };
 
@@ -88,6 +92,8 @@ export class AudioSynth {
     // 舊 API 相容（部分場景仍可能存取）
     this._bgmOsc  = null;
     this._bgmGain = null;
+    // 打擊音效：噪音 buffer 懶初始化，一次性建立後重複使用（避免 GC 壓力）
+    this._noiseBuffer = null;
   }
 
   // ─── 內部：排程單一 BGM 音符（Web Audio 精準時間軸）────────
@@ -119,6 +125,68 @@ export class AudioSynth {
       gain.gain.linearRampToValueAtTime(0, time + duration);
       osc.start(time);
       osc.stop(time + duration + 0.02);
+    } catch (e) { /* 靜默失敗 */ }
+  }
+
+  // ─── 內部：kick 鼓（正弦音調快速降頻，衝擊感強）──────────
+  _scheduleKick(time, vol) {
+    if (!this.ctx) return;
+    try {
+      const osc  = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(150, time);
+      osc.frequency.exponentialRampToValueAtTime(40, time + 0.08);
+      gain.gain.setValueAtTime(vol, time);
+      gain.gain.exponentialRampToValueAtTime(0.001, time + 0.12);
+      osc.start(time);
+      osc.stop(time + 0.13);
+    } catch (e) { /* 靜默失敗 */ }
+  }
+
+  // ─── 內部：噪音 buffer 懶初始化（僅建立一次，零 GC）──────
+  _getNoiseBuffer() {
+    if (this._noiseBuffer) return this._noiseBuffer;
+    const len  = Math.ceil(this.ctx.sampleRate * 0.08);  // 80ms 白噪音
+    const buf  = this.ctx.createBuffer(1, len, this.ctx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
+    this._noiseBuffer = buf;
+    return buf;
+  }
+
+  // ─── 內部：snare 鼓（低頻體鳴 + bandpass 噪音）───────────
+  _scheduleSnare(time, vol) {
+    if (!this.ctx) return;
+    try {
+      // 低頻體鳴
+      const osc = this.ctx.createOscillator();
+      const g1  = this.ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.value = 180;
+      osc.connect(g1);
+      g1.connect(this.ctx.destination);
+      g1.gain.setValueAtTime(vol * 0.5, time);
+      g1.gain.exponentialRampToValueAtTime(0.001, time + 0.06);
+      osc.start(time);
+      osc.stop(time + 0.07);
+      // 高頻噪音（重複使用快取 buffer）
+      const src    = this.ctx.createBufferSource();
+      const filter = this.ctx.createBiquadFilter();
+      const g2     = this.ctx.createGain();
+      filter.type = 'bandpass';
+      filter.frequency.value = 3000;
+      filter.Q.value = 0.8;
+      src.buffer = this._getNoiseBuffer();
+      src.connect(filter);
+      filter.connect(g2);
+      g2.connect(this.ctx.destination);
+      g2.gain.setValueAtTime(vol * 0.9, time);
+      g2.gain.exponentialRampToValueAtTime(0.001, time + 0.07);
+      src.start(time);
+      src.stop(time + 0.08);
     } catch (e) { /* 靜默失敗 */ }
   }
 
@@ -190,7 +258,7 @@ export class AudioSynth {
     const pattern = BGM_PATTERNS[mapKey];
     if (!pattern) return;
 
-    const { bpm, melody, bass } = pattern;
+    const { bpm, melody, bass, perc } = pattern;
     const stepSec   = 60 / bpm / 2;        // 1/8 拍時長（秒）
     const loopLen   = melody.steps.length;  // 16 steps = 2 小節
     const LOOKAHEAD = 0.15;                 // 提前排程 150 ms
@@ -207,11 +275,21 @@ export class AudioSynth {
         const step = this._bgmStep % loopLen;
         const t    = this._bgmNextTime;
 
+        // 句首重音：每 8 步（1 小節）旋律音量 ×1.35，製造起伏感
+        const accentMul = (step % 8 === 0) ? 1.35 : 1.0;
+
         const mFreq = noteToFreq(melody.steps[step]);
-        if (mFreq) this._scheduleNote(mFreq, t, stepSec * 0.85, melody.type, melody.vol);
+        if (mFreq) this._scheduleNote(mFreq, t, stepSec * 0.85, melody.type, melody.vol * accentMul);
 
         const bFreq = noteToFreq(bass.steps[step]);
         if (bFreq) this._scheduleNote(bFreq, t, stepSec * 0.90, bass.type, bass.vol);
+
+        // 打擊樂聲部（boss / dungeon 專用，K=kick, S=snare）
+        if (perc) {
+          const p = perc.steps[step];
+          if (p === 'K') this._scheduleKick(t, perc.vol);
+          else if (p === 'S') this._scheduleSnare(t, perc.vol);
+        }
 
         this._bgmStep++;
         this._bgmNextTime += stepSec;
