@@ -1,0 +1,38 @@
+name: Security Audit
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "package.json"
+      - "package-lock.json"
+  pull_request:
+    branches: [main]
+    paths:
+      - "package.json"
+      - "package-lock.json"
+  schedule:
+    # 每週一 UTC 08:00 定時掃描
+    - cron: "0 8 * * 1"
+
+jobs:
+  audit:
+    name: npm audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies (lockfile-exact)
+        # npm ci 使用 lockfile 精確安裝，防止供應鏈攻擊注入非預期版本
+        run: npm ci
+
+      - name: Run security audit
+        # moderate 以上即失敗，阻擋有漏洞的 PR 合入
+        run: npm audit --audit-level=moderate

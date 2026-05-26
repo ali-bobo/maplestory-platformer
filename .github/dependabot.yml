@@ -8,3 +8,15 @@ updates:
     open-pull-requests-limit: 5
     labels:
       - "dependencies"
+    # 把 minor/patch 升級合批成一個 PR，降低 PR 噪音
+    groups:
+      minor-patch-updates:
+        update-types:
+          - "minor"
+          - "patch"
+    # 停更套件（transitive dep，無可用 patch），不開 PR 避免無效噪音
+    ignore:
+      - dependency-name: "webfontloader"
+        update-types: ["version-update:semver-major", "version-update:semver-minor", "version-update:semver-patch"]
+      - dependency-name: "dagre"
+        update-types: ["version-update:semver-major", "version-update:semver-minor", "version-update:semver-patch"]
