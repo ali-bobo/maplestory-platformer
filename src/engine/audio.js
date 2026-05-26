@@ -89,6 +89,8 @@ export class AudioSynth {
     this._bgmTimer    = null;
     this._bgmStep     = 0;
     this._bgmNextTime = 0;
+    // BGM master gain：每次 playBgm 重建，躂斸地圖時用旨諶 gain 淡出舊音符、新音符不重疊
+    this._bgmMasterGain = null;
     // 舊 API 相容（部分場景仍可能存取）
     this._bgmOsc  = null;
     this._bgmGain = null;
@@ -97,8 +99,9 @@ export class AudioSynth {
   }
 
   // ─── 內部：排程單一 BGM 音符（Web Audio 精準時間軸）────────
-  _scheduleNote(freq, time, duration, type, volume) {
+  _scheduleNote(freq, time, duration, type, volume, destNode) {
     if (!this.ctx) return;
+    const dest = destNode || this.ctx.destination;
     try {
       const osc  = this.ctx.createOscillator();
       const gain = this.ctx.createGain();
@@ -109,15 +112,15 @@ export class AudioSynth {
       if (type === 'sawtooth') {
         const filter = this.ctx.createBiquadFilter();
         filter.type = 'lowpass';
-        filter.frequency.value = freq * 4;
-        filter.Q.value = 0.8;
+        filter.frequency.value = freq * 2.5;
+        filter.Q.value = 0.4;
         osc.connect(filter);
         filter.connect(gain);
       } else {
         osc.connect(gain);
       }
 
-      gain.connect(this.ctx.destination);
+      gain.connect(dest);
       // ADSR 包絡：快速 attack → sustain → release
       gain.gain.setValueAtTime(0, time);
       gain.gain.linearRampToValueAtTime(volume, time + 0.015);
@@ -129,13 +132,14 @@ export class AudioSynth {
   }
 
   // ─── 內部：kick 鼓（正弦音調快速降頻，衝擊感強）──────────
-  _scheduleKick(time, vol) {
+  _scheduleKick(time, vol, destNode) {
     if (!this.ctx) return;
+    const dest = destNode || this.ctx.destination;
     try {
       const osc  = this.ctx.createOscillator();
       const gain = this.ctx.createGain();
       osc.connect(gain);
-      gain.connect(this.ctx.destination);
+      gain.connect(dest);
       osc.type = 'sine';
       osc.frequency.setValueAtTime(150, time);
       osc.frequency.exponentialRampToValueAtTime(40, time + 0.08);
@@ -158,8 +162,9 @@ export class AudioSynth {
   }
 
   // ─── 內部：snare 鼓（低頻體鳴 + bandpass 噪音）───────────
-  _scheduleSnare(time, vol) {
+  _scheduleSnare(time, vol, destNode) {
     if (!this.ctx) return;
+    const dest = destNode || this.ctx.destination;
     try {
       // 低頻體鳴
       const osc = this.ctx.createOscillator();
@@ -167,7 +172,7 @@ export class AudioSynth {
       osc.type = 'triangle';
       osc.frequency.value = 180;
       osc.connect(g1);
-      g1.connect(this.ctx.destination);
+      g1.connect(dest);
       g1.gain.setValueAtTime(vol * 0.5, time);
       g1.gain.exponentialRampToValueAtTime(0.001, time + 0.06);
       osc.start(time);
@@ -182,7 +187,7 @@ export class AudioSynth {
       src.buffer = this._getNoiseBuffer();
       src.connect(filter);
       filter.connect(g2);
-      g2.connect(this.ctx.destination);
+      g2.connect(dest);
       g2.gain.setValueAtTime(vol * 0.9, time);
       g2.gain.exponentialRampToValueAtTime(0.001, time + 0.07);
       src.start(time);
@@ -253,7 +258,7 @@ export class AudioSynth {
   // 每 40ms 輪詢，提前 150ms 排程，在任何設備上都不會掉拍。
   playBgm(mapKey) {
     if (!this.ctx) return;
-    this.stopBgm();
+    this.stopBgm();  // 舊 masterGain 淡出 + 停止排程
 
     const pattern = BGM_PATTERNS[mapKey];
     if (!pattern) return;
@@ -264,6 +269,12 @@ export class AudioSynth {
     const LOOKAHEAD = 0.15;                 // 提前排程 150 ms
     const INTERVAL  = 40;                   // 排程器輪詢間隔 ms
 
+    // 每次 playBgm 建立新的 masterGain：舊音符經舊 gain 淡出，新音符經新 gain 滿音，完全不重疊
+    const masterGain = this.ctx.createGain();
+    masterGain.connect(this.ctx.destination);
+    masterGain.gain.setValueAtTime(1, this.ctx.currentTime);
+    this._bgmMasterGain = masterGain;
+
     this._bgmActive   = true;
     this._bgmStep     = 0;
     this._bgmNextTime = this.ctx.currentTime + 0.05;
@@ -272,23 +283,43 @@ export class AudioSynth {
       if (!this._bgmActive) return;
 
       while (this._bgmNextTime < this.ctx.currentTime + LOOKAHEAD) {
-        const step = this._bgmStep % loopLen;
-        const t    = this._bgmNextTime;
+        // 時間錨點保護：context 被暫停（視窗切換）後 resume，舊錨點落在過去會一次噴出音符
+        if (this._bgmNextTime < this.ctx.currentTime - 0.5) {
+          this._bgmNextTime = this.ctx.currentTime + 0.05;
+        }
 
-        // 句首重音：每 8 步（1 小節）旋律音量 ×1.35，製造起伏感
-        const accentMul = (step % 8 === 0) ? 1.35 : 1.0;
+        const step  = this._bgmStep % loopLen;
+        const t     = this._bgmNextTime;
+
+        // ── 段落強弱（每 loopLen 步為一段落，4 段落一週期）──────────────
+        // 週期模式：[1.0, 1.0, 0.68, 0.92]
+        //   段落 0、1：正常音量
+        //   段落 2：輕聲（製造「verse 退回」感）
+        //   段落 3：稍弱後返回（準備下一個高峰）
+        const phrase      = Math.floor(this._bgmStep / loopLen) % 4;
+        const PHRASE_MULS = [1.0, 1.0, 0.68, 0.92];
+        const phraseMul   = PHRASE_MULS[phrase];
+
+        // ── 拍位強弱 ────────────────────────────────────────────────────
+        // 句首重音（step 0, 8）× 1.35；奇數弱拍（off-beat）× 0.82
+        const beatMul   = (step % 8 === 0) ? 1.35
+                        : (step % 2 === 1) ? 0.82
+                        : 1.0;
+
+        const dynMul    = phraseMul * beatMul;
 
         const mFreq = noteToFreq(melody.steps[step]);
-        if (mFreq) this._scheduleNote(mFreq, t, stepSec * 0.85, melody.type, melody.vol * accentMul);
+        if (mFreq) this._scheduleNote(mFreq, t, stepSec * 0.85, melody.type, melody.vol * dynMul, masterGain);
 
         const bFreq = noteToFreq(bass.steps[step]);
-        if (bFreq) this._scheduleNote(bFreq, t, stepSec * 0.90, bass.type, bass.vol);
+        // 低音聲部段落強弱輕微（保持節奏支撐），弱拍不衰減
+        if (bFreq) this._scheduleNote(bFreq, t, stepSec * 0.90, bass.type, bass.vol * phraseMul, masterGain);
 
         // 打擊樂聲部（boss / dungeon 專用，K=kick, S=snare）
         if (perc) {
           const p = perc.steps[step];
-          if (p === 'K') this._scheduleKick(t, perc.vol);
-          else if (p === 'S') this._scheduleSnare(t, perc.vol);
+          if (p === 'K') this._scheduleKick(t, perc.vol * phraseMul, masterGain);
+          else if (p === 'S') this._scheduleSnare(t, perc.vol * phraseMul, masterGain);
         }
 
         this._bgmStep++;
@@ -307,6 +338,17 @@ export class AudioSynth {
       clearTimeout(this._bgmTimer);
       this._bgmTimer = null;
     }
+    // 淡出舊 masterGain：已排程的音符在 80ms 內淡出，不與新 BGM 重疊
+    const oldGain = this._bgmMasterGain;
+    if (oldGain && this.ctx) {
+      try {
+        const t = this.ctx.currentTime;
+        oldGain.gain.cancelScheduledValues(t);
+        oldGain.gain.setValueAtTime(oldGain.gain.value, t);
+        oldGain.gain.linearRampToValueAtTime(0, t + 0.10);
+      } catch (e) {}
+    }
+    this._bgmMasterGain = null;
     this._bgmStep     = 0;
     this._bgmNextTime = 0;
     // 相容舊 API

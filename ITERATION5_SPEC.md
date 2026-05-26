@@ -1,5 +1,5 @@
 # Iteration 5 狀態盤點與下一步
-# 日期：2026-04-12
+# 日期：2026-05-26（上次更新）
 
 ---
 
@@ -26,6 +26,29 @@
 ### 專案清理
 - .archon 已自專案移除。
 - README、GAME_SPEC、Iteration 文件已同步改為現況導向，不再沿用過期差距表。
+
+### Phase 13：任務系統
+- 實作 3 個範例任務（擊殺目標、收集類、探索類）。
+- UIScene 右上角任務追蹤 HUD 面板，F 鍵接任務 NPC。
+- questManager.js 管理進度，quests.js 定義任務資料。
+
+### Phase 14：副本系統
+- DungeonScene：史萊姆洞窟限時波狀關卡。
+- dungeonRecord.js 管理每日進入次數上限（localStorage）。
+- 副本勝負結算 popup，獎勵掉落。
+
+### Phase 15：效能優化
+- HP/MP/EXP 血條改用 `add.rectangle()` + `scaleX`，避免 Graphics earcut。
+- 天空背景改用 `add.rectangle()`。
+- 選單按鈕 5 個 `add.graphics()` 改為 `add.rectangle()`，hover 用 setFillStyle。
+- UIScene 5 個分散 addEvent（100/200/500/1000ms + minimap 200ms）整合為 1 個 100ms 迴圈。
+- Monster HP bar 位置快取粒度由 0.5px 放寬至 2px，降低 setPosition 頻率。
+
+### BGM 音效品質
+- audio.js masterGain 隔離：每次 playBgm 建立獨立 GainNode，消除地圖切換音頻殘留。
+- stopBgm 10ms 線性漸出舊 GainNode，避免爆音。
+- 加入 4 段句子動態 [1.0, 1.0, 0.68, 0.92] + 拍點強弱（downbeat ×1.35, off-beat ×0.82）。
+- 鋸齒波泛音截止頻率從 freq×4 降為 freq×2.5，Q 從 0.8 降為 0.4，減少刺耳感。
 
 ---
 

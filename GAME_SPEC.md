@@ -47,6 +47,12 @@
 - 29. Taipei 支線城市地圖已接入主流程，可由神秘之境進出
 - 30. 怪物名單已改為主題式精選配置，不要求所有 runtime 怪物同時上場
 - 31. 特殊城市怪可作為低頻率、較大尺寸的小王出現
+- 32. 任務系統 MVP：3 個範例任務、HUD 追蹤面板、F 鍵接任務（Phase 13）
+- 33. 副本系統 MVP：史萊姆洞窟波狀關、限時、每日次數上限、勝負結算（Phase 14）
+- 34. 效能優化 Phase 15：HP/MP/EXP 列改用 Rectangle+scaleX、背景改用 Rectangle、
+       選單按鈕 Graphics→Rectangle、5 個定時器整合為 1、HP bar 位置快取粒度 2px
+- 35. BGM masterGain 隔離：每次 playBgm 建立獨立 GainNode，stopBgm 10ms fade-out，
+       消除地圖切換音頻殘留；加入 4 段句子動態 + 拍點強弱變化
 
 ### 部分完成
 - 6. 技能 V / B 已有獨特效果，但仍可持續加強視覺層次
@@ -79,13 +85,23 @@ project/
 │   ├── assets/
 │   │   └── ProceduralAssets.js  — 平台、特效、UI 程式材質
 │   ├── config/
+│   │   ├── alignment.js         — 角色平台對齊偏移定義
+│   │   ├── assetCatalog.js      — 素材 key ↔ 路徑登錄表
 │   │   ├── constants.js         — 全域常數、技能、GameState、地圖索引
+│   │   ├── dungeons.js          — 副本定義（波次、獎勵、限時）
 │   │   ├── equipment.js         — 裝備定義
 │   │   ├── maps.js              — 地圖與傳送門設定
-│   │   └── monsters.js          — 怪物與 Boss 召喚單位定義
+│   │   ├── monsters.js          — 怪物與 Boss 召喚單位定義
+│   │   └── quests.js            — 任務定義（目標、獎勵）
 │   ├── engine/
-│   │   ├── audio.js             — Web Audio API 音效合成
-│   │   └── particles.js         — 粒子與視覺演出封裝
+│   │   ├── audio.js             — Web Audio API 音效合成（BGM lookahead + SFX）
+│   │   ├── dungeonRecord.js     — 副本每日次數紀錄（localStorage）
+│   │   ├── fpsControl.js        — 目標 FPS 節流控制
+│   │   ├── particles.js         — 粒子與視覺演出封裝
+│   │   ├── quality.js           — 自適應品質等級管理
+│   │   ├── questManager.js      — 任務進度追蹤與完成判斷
+│   │   ├── vfx.js               — 螢幕特效（screenFlash、screenDarken）
+│   │   └── vfxTextures.js       — 技能特效材質程式生成
 │   ├── entities/
 │   │   ├── Player.js            — 玩家控制、成長、技能施放
 │   │   ├── Monster.js           — 一般怪物 AI、掉落、飄字
@@ -101,7 +117,9 @@ project/
 │   │   ├── PerionScene.js       — 高地戰區
 │   │   ├── KerningScene.js      — Kerning City
 │   │   ├── TownScene.js         — 城鎮 / 商店基礎場景
+│   │   ├── TaipeiScene.js       — 台北支線城市
 │   │   ├── BossScene.js         — 暗影領域
+│   │   ├── DungeonScene.js      — 副本（史萊姆洞窟波狀關）
 │   │   ├── UIScene.js           — HUD 與彈出式介面
 │   │   └── GameOverScene.js     — 死亡 / 勝利結算
 │   └── main.js                  — Phaser.Game 入口、WebGL renderer、rexUI plugin 掛載

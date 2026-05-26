@@ -168,10 +168,9 @@ export class BaseMapScene extends Phaser.Scene {
     const bgH = WORLD_HEIGHT;
 
     // 底色（覆蓋整個畫布，包括 HUD 下方）
-    const sky = this.add.graphics();
-    sky.fillStyle(bgColor || 0x5588ff);
-    sky.fillRect(0, 0, SCREEN_W, SCREEN_H);
-    sky.setDepth(-10).setScrollFactor(0);
+    // Phase 15 效能：Rectangle 走 batchSprite，消除靜態 Graphics 每幀 batchFillPath。
+    this.add.rectangle(0, 0, SCREEN_W, SCREEN_H, bgColor || 0x5588ff)
+      .setOrigin(0, 0).setDepth(-10).setScrollFactor(0);
 
     // 用單張 Image 以 cover 方式填滿遊戲區（y=0~WORLD_HEIGHT），底部對齊地面線。
     // 不使用 tileSprite：背景圖多為非 2 次方尺寸，平鋪時接縫處會出現裂痕／破圖，

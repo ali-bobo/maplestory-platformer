@@ -226,8 +226,8 @@ export class Monster extends Phaser.Physics.Arcade.Sprite {
     if (!this._hpBg || !this._hpBar) return;
     const bx = this.x - this._hpBarW / 2;
     const by = getVisualTopY(this) - 8;
-    // 位置快取：差距 < 0.5px 不更新（避免每幀都觸發 transform dirty）
-    if (Math.abs(bx - this._lastBarX) >= 0.5 || Math.abs(by - this._lastBarY) >= 0.5) {
+    // 位置快取：差距 < 2px 不更新（怪物速度低，2px 粒度無視覺差異，減少 setPosition 調用次數）
+    if (Math.abs(bx - this._lastBarX) >= 2 || Math.abs(by - this._lastBarY) >= 2) {
       this._lastBarX = bx;
       this._lastBarY = by;
       this._hpBg.setPosition(bx, by);

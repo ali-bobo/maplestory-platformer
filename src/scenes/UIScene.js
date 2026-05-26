@@ -117,19 +117,29 @@ export class UIScene extends Phaser.Scene {
     this.registry.events.on('changedata-killcount', this._onKillChange,  this);
     this.registry.events.on('changedata-sp',        this._onSpChange,    this);
 
-    this._timers.push(this.time.addEvent({ delay: 100, loop: true, callback: this._refreshCooldowns,  callbackScope: this }));
-    this._timers.push(this.time.addEvent({ delay: 200, loop: true, callback: this._refreshPotionSlots, callbackScope: this }));
-
     // Phase 13：任務追蹤面板（右上小地圖下方）
     this._setupQuestPanel(width);
-    this._timers.push(this.time.addEvent({ delay: 500, loop: true, callback: this._refreshQuestPanel, callbackScope: this }));
 
     // Phase 6.3：自適應品質 FPS 監測
     // warm-up 計數讓開場前幾秒不判斷（場景載入 FPS 不穩會誤判）
     this._fpsWarmup = 0;
     this._lowFpsCount = 0;
     this._highFpsCount = 0;
-    this._timers.push(this.time.addEvent({ delay: 1000, loop: true, callback: this._monitorFps, callbackScope: this }));
+
+    // 統一定時器（Phase 15）：1 個 100ms loop 取代 5 個分散 addEvent
+    // minimap 的 200ms timer 已移出 _setupMinimap，統一在此管理
+    let _uiTick = 0;
+    this._timers.push(this.time.addEvent({
+      delay: 100, loop: true, callbackScope: this,
+      callback: () => {
+        _uiTick++;
+        this._refreshCooldowns();                            // 100ms：冷卻遮罩 + 地圖名稱
+        if (_uiTick % 2  === 0) this._refreshPotionSlots(); // 200ms：藥水數量
+        if (_uiTick % 2  === 0) this._updateMinimap();      // 200ms：小地圖動態點
+        if (_uiTick % 5  === 0) this._refreshQuestPanel();  // 500ms：任務面板
+        if (_uiTick % 10 === 0) this._monitorFps();         // 1000ms：FPS 品質監測
+      },
+    }));
 
     // Phase 14：副本 HUD（預設隱藏，dungeon-start 事件觸發顯示）
     this._setupDungeonHUD(width);
@@ -167,12 +177,14 @@ export class UIScene extends Phaser.Scene {
   }
 
   _makeBar(x, y, w, h, color) {
-    const g = this.add.graphics();
-    g.fillStyle(color, 0.9);
-    g.fillRect(x, y, w, h);
-    g.setDepth(50).setScrollFactor(0);
-    g.setData('x', x).setData('y', y).setData('w', w).setData('h', h).setData('color', color);
-    return g;
+    // Phase 15 效能：Rectangle 走 batchSprite，消除 Graphics 每幀 batchFillPath。
+    // scaleX 控制血量長度：GPU pure-transform，無 path/earcut 重繪。
+    const bar = this.add.rectangle(x, y, w, h, color, 0.9)
+      .setOrigin(0, 0)
+      .setDepth(50)
+      .setScrollFactor(0);
+    bar.setData('w', w);
+    return bar;
   }
 
   // Phase 12：把「畫完不變」的 Graphics 凍結為 image（規則 A）
@@ -208,22 +220,15 @@ export class UIScene extends Phaser.Scene {
       const zone = this.add.zone(bx, by, btnW, btnH)
         .setOrigin(0, 0).setInteractive().setDepth(55).setScrollFactor(0);
 
-      const bg = this.add.graphics().setDepth(51).setScrollFactor(0);
+      // Rectangle 走 batchSprite；setFillStyle 改色無 earcut，消除每次 hover 的 rounded rect 重繪
+      const bgRect = this.add.rectangle(bx + btnW / 2, by + btnH / 2, btnW, btnH, btn.color, 0.95)
+        .setDepth(51).setScrollFactor(0);
       const lbl = this.add.text(bx + btnW / 2, by + btnH / 2, btn.label, {
         fontSize: '10px', color: '#dddddd', fontFamily: 'Arial',
       }).setOrigin(0.5, 0.5).setDepth(52).setScrollFactor(0);
 
-      const drawBtn = (hover) => {
-        bg.clear();
-        bg.fillStyle(hover ? btn.hoverColor : btn.color, 0.95);
-        bg.fillRoundedRect(bx, by, btnW, btnH, 3);
-        bg.lineStyle(1, hover ? 0xaabbdd : 0x667788, 0.9);
-        bg.strokeRoundedRect(bx, by, btnW, btnH, 3);
-      };
-      drawBtn(false);
-
-      zone.on('pointerover',  () => drawBtn(true));
-      zone.on('pointerout',   () => drawBtn(false));
+      zone.on('pointerover',  () => bgRect.setFillStyle(btn.hoverColor, 0.95));
+      zone.on('pointerout',   () => bgRect.setFillStyle(btn.color, 0.95));
       zone.on('pointerdown',  () => {
         if (this._popup && this._popup.type === btn.type) {
           this._closePopup();
@@ -269,12 +274,7 @@ export class UIScene extends Phaser.Scene {
     // 怪物點 Pool（動態擴充）
     this._minimapMonsterDots = [];
 
-    // 定期更新小地圖（只更新動態點，靜態平台層不重繪）
-    this._timers.push(this.time.addEvent({
-      delay: 200, loop: true,
-      callback: this._updateMinimap,
-      callbackScope: this,
-    }));
+    // 定期更新小地圖：已整合至 create() 統一定時器（每 200ms），此處不再另建 addEvent
   }
 
   // 將 mapData.platforms 預繪到 RenderTexture 並產生 texture，地圖切換時呼叫
@@ -773,18 +773,10 @@ export class UIScene extends Phaser.Scene {
   }
 
   _updateBar(barObj, current, max, color, isExpBar = false) {
-    const x = barObj.getData('x'), y = barObj.getData('y');
-    const w = barObj.getData('w'), h = barObj.getData('h');
+    // Phase 15 效能：Rectangle.scaleX 是純 GPU transform，無 path 重繪。
+    // color / isExpBar 參數保留以維持呼叫端相容性，不再使用。
     const ratio = max > 0 ? Math.max(0, Math.min(1, current / max)) : 0;
-    barObj.clear();
-    barObj.fillStyle(color, 0.92);
-    if (isExpBar) {
-      barObj.fillRect(x, y, w * ratio, h);
-      barObj.fillStyle(0xffdd44, 0.3);
-      barObj.fillRect(x, y, w * ratio, 3);
-    } else {
-      barObj.fillRect(x, y, w * ratio, h);
-    }
+    barObj.scaleX = ratio;
   }
 
   _onHpChange(parent, value) {
