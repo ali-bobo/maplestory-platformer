@@ -4,6 +4,7 @@ import { MAPS } from '../config/maps.js';
 import { getQualityLevel, setQualityLevel, downgradeQuality, upgradeQuality } from '../engine/quality.js';
 import { getActiveQuests } from '../engine/questManager.js';
 import { getQuestDef } from '../config/quests.js';
+import { screenFlash } from '../engine/vfx.js';
 
 // HUD 場景（平行運行）— 楓之谷風格底部狀態列
 export class UIScene extends Phaser.Scene {
@@ -150,6 +151,12 @@ export class UIScene extends Phaser.Scene {
 
     // 只註冊 shutdown（理由同 BaseMapScene）：避免 relaunch 時 destroy 監聽累積
     this.events.once('shutdown', this._onShutdown, this);
+
+    // Phase 15：ESC 暫停選單
+    this._isPaused = false;
+    this._pauseOverlayObjs = [];
+    this._onUiEscKey = () => this._onEscKeyDown();
+    this.input.keyboard.on('keydown-ESC', this._onUiEscKey);
   }
 
   // 每秒讀一次 actualFps，連續低/高於門檻才調整品質（避免抖動跳檔）
@@ -755,6 +762,19 @@ export class UIScene extends Phaser.Scene {
       timer.remove(false);
     }
     this._timers = [];
+
+    // Phase 15：清除 ESC 暫停選單
+    if (this._onUiEscKey) {
+      this.input.keyboard.off('keydown-ESC', this._onUiEscKey);
+      this._onUiEscKey = null;
+    }
+    if (this._isPaused) {
+      const mapSceneKey = this._getCurrentMapSceneKey();
+      if (mapSceneKey) this.scene.resume(mapSceneKey);
+      this._isPaused = false;
+    }
+    for (const obj of this._pauseOverlayObjs || []) { if (obj?.active) obj.destroy(); }
+    this._pauseOverlayObjs = [];
   }
 
   _refreshAll() {
@@ -810,15 +830,112 @@ export class UIScene extends Phaser.Scene {
 
   _onLevelUp(parent, level) {
     const { width, height } = this.cameras.main;
+    // 全屏白閃
+    screenFlash(this, 400, 0.55);
+    // 升級文字：從 scale 0 彈出，再上飄淡出
     const txt = this.add.text(width / 2, height / 2 - 80, `🎉 Level Up!  Lv.${level}`, {
       fontSize: '40px', color: '#ffff00', fontFamily: 'Arial',
       stroke: '#aa6600', strokeThickness: 6,
-    }).setOrigin(0.5, 0.5).setDepth(200).setScrollFactor(0);
+    }).setOrigin(0.5, 0.5).setDepth(200).setScrollFactor(0).setScale(0);
 
     this.tweens.add({
-      targets: txt, y: txt.y - 80, alpha: 0, duration: 2000,
-      onComplete: () => txt.destroy(),
+      targets: txt,
+      scaleX: 1, scaleY: 1,
+      duration: 250,
+      ease: 'Back.easeOut',
+      onComplete: () => {
+        this.tweens.add({
+          targets: txt, y: txt.y - 80, alpha: 0, duration: 2000,
+          onComplete: () => txt.destroy(),
+        });
+      },
     });
+  }
+
+  // ── Phase 15：ESC 暫停選單 ─────────────────────────────────────────────────
+
+  _getCurrentMapSceneKey() {
+    const gs = this.registry.get('gameState');
+    const key = MAP_SCENE_KEYS[gs?.currentMap];
+    if (key && this.scene.isActive(key)) return key;
+    if (this.scene.isActive('DungeonScene')) return 'DungeonScene';
+    if (this.scene.isActive('BossScene')) return 'BossScene';
+    return null;
+  }
+
+  _onEscKeyDown() {
+    const mapSceneKey = this._getCurrentMapSceneKey();
+    if (!mapSceneKey) return;
+
+    // 若 NPC 對話開啟中，讓 BaseMapScene 的 ESC 處理器優先
+    const mapScene = this.scene.manager.getScene(mapSceneKey);
+    if (mapScene?._npcDialog) return;
+
+    if (this._isPaused) {
+      this._closePauseMenu();
+    } else {
+      this._openPauseMenu();
+    }
+  }
+
+  _openPauseMenu() {
+    if (this._isPaused) return;
+    this._isPaused = true;
+
+    const mapSceneKey = this._getCurrentMapSceneKey();
+    if (mapSceneKey) this.scene.pause(mapSceneKey);
+
+    const { width, height } = this.cameras.main;
+    const objs = this._pauseOverlayObjs;
+    const push = (obj) => { objs.push(obj); return obj; };
+
+    // 半透明黑底
+    push(this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.6)
+      .setDepth(190).setScrollFactor(0));
+
+    // 標題
+    push(this.add.text(width / 2, height / 2 - 70, '⏸ 遊戲暫停', {
+      fontSize: '36px', color: '#ffffff', fontFamily: 'Arial',
+      stroke: '#000000', strokeThickness: 4,
+    }).setOrigin(0.5).setDepth(195).setScrollFactor(0));
+
+    const btnW = 200, btnH = 46;
+
+    // 繼續遊戲
+    const resumeBtn = push(this.add.rectangle(width / 2, height / 2 + 10, btnW, btnH, 0x226622, 0.95)
+      .setStrokeStyle(2, 0x44cc44).setDepth(195).setScrollFactor(0).setInteractive({ useHandCursor: true }));
+    push(this.add.text(width / 2, height / 2 + 10, '繼續遊戲', {
+      fontSize: '20px', color: '#aaffaa', fontFamily: 'Arial', stroke: '#000', strokeThickness: 3,
+    }).setOrigin(0.5).setDepth(196).setScrollFactor(0));
+    resumeBtn.on('pointerover', () => resumeBtn.setFillStyle(0x338833, 0.95));
+    resumeBtn.on('pointerout',  () => resumeBtn.setFillStyle(0x226622, 0.95));
+    resumeBtn.on('pointerdown', () => this._closePauseMenu());
+
+    // 返回主選單
+    const menuBtn = push(this.add.rectangle(width / 2, height / 2 + 68, btnW, btnH, 0x442222, 0.95)
+      .setStrokeStyle(2, 0xcc4444).setDepth(195).setScrollFactor(0).setInteractive({ useHandCursor: true }));
+    push(this.add.text(width / 2, height / 2 + 68, '返回主選單', {
+      fontSize: '20px', color: '#ffaaaa', fontFamily: 'Arial', stroke: '#000', strokeThickness: 3,
+    }).setOrigin(0.5).setDepth(196).setScrollFactor(0));
+    menuBtn.on('pointerover', () => menuBtn.setFillStyle(0x663333, 0.95));
+    menuBtn.on('pointerout',  () => menuBtn.setFillStyle(0x442222, 0.95));
+    menuBtn.on('pointerdown', () => {
+      this._isPaused = false;
+      for (const obj of this._pauseOverlayObjs) { if (obj?.active) obj.destroy(); }
+      this._pauseOverlayObjs = [];
+      const key = this._getCurrentMapSceneKey();
+      if (key) this.scene.stop(key);
+      this.scene.start('MenuScene');
+    });
+  }
+
+  _closePauseMenu() {
+    if (!this._isPaused) return;
+    this._isPaused = false;
+    for (const obj of this._pauseOverlayObjs) { if (obj?.active) obj.destroy(); }
+    this._pauseOverlayObjs = [];
+    const mapSceneKey = this._getCurrentMapSceneKey();
+    if (mapSceneKey) this.scene.resume(mapSceneKey);
   }
 
   _onMesoChange(parent, value) {

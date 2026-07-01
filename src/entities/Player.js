@@ -34,6 +34,9 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     // 技能施放群組快取
     this.enemies = null;
 
+    // 目標選取框（單一 Graphics 物件複用，每幀同步最近怪物的位置）
+    this._targetGfx = scene.add.graphics().setDepth(13);
+
     // 輸入按鍵
     const { LEFT, RIGHT, UP, DOWN, ALT } = Phaser.Input.Keyboard.KeyCodes;
     this.cursors = scene.input.keyboard.createCursorKeys();
@@ -88,6 +91,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
 
     if (this.isDashing) {
       this._updateFacing();
+      this._updateTargetBox();
       return;
     }
 
@@ -138,12 +142,47 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     if (Phaser.Input.Keyboard.JustDown(this.keyPotR)) this.usePotion('R');
     if (Phaser.Input.Keyboard.JustDown(this.keyPotG)) this.usePotion('G');
 
-    // ─── 更新面向 ────────────────────────────────────────────────────────────
+    // ─── 更新面向 + 目標框 ──────────────────────────────────────────────────
     this._updateFacing();
+    this._updateTargetBox();
   }
 
   _updateFacing() {
     this.setFlipX(!this.facingRight);
+  }
+
+  // 找到最近的活怪物（供目標選取框用）
+  _findNearestMonster() {
+    if (!this.enemies) return null;
+    let nearest = null;
+    let minDist = Infinity;
+    for (const m of this.enemies.getChildren()) {
+      if (!m.active || (m.hp !== undefined && m.hp <= 0)) continue;
+      const dx = m.x - this.x;
+      const dy = m.y - this.y;
+      const dist = dx * dx + dy * dy;
+      if (dist < minDist) {
+        minDist = dist;
+        nearest = m;
+      }
+    }
+    return nearest;
+  }
+
+  // 每幀更新目標選取框位置（橙色外框，跟隨最近怪物）
+  _updateTargetBox() {
+    if (!this._targetGfx || !this._targetGfx.active) return;
+    const target = this._findNearestMonster();
+    if (target && target.active) {
+      const pad = 5;
+      const hw = target.displayWidth / 2 + pad;
+      const hh = target.displayHeight / 2 + pad;
+      this._targetGfx.clear();
+      this._targetGfx.lineStyle(2, 0xff8800, 0.85);
+      this._targetGfx.strokeRect(target.x - hw, target.y - hh, hw * 2, hh * 2);
+    } else {
+      this._targetGfx.clear();
+    }
   }
 
   playThrowAnimation(duration = 200) {
@@ -289,6 +328,11 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.scene.registry.events.emit('changedata-exp', null, gs.exp);
     if (leveledUp) {
       this.scene.registry.events.emit('changedata-level', null, gs.level);
+      // 升級音效 + 粒子 + UI 全屏演出一律發出一次（避免多級同時累加）
+      audio.playLevelUp();
+      const center = getVisualCenterPoint(this);
+      particles.spawnLevelUp(this.scene, center.x, center.y);
+      this.scene.registry.events.emit('changedata-levelup', null, gs.level);
     }
   }
 
@@ -318,11 +362,6 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       gs.bossUnlocked = true;
       this._showNotice('暗影魔君現身！前往盜賊地下城右側傳送門！', 3000);
     }
-
-    audio.playLevelUp();
-    const center = getVisualCenterPoint(this);
-    particles.spawnLevelUp(this.scene, center.x, center.y);
-    this.scene.registry.events.emit('changedata-levelup', null, gs.level);
   }
 
   pickupEquipment(equip) {
@@ -409,6 +448,10 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     if (this._throwAnimTween) {
       this._throwAnimTween.remove();
       this._throwAnimTween = null;
+    }
+    if (this._targetGfx) {
+      this._targetGfx.destroy();
+      this._targetGfx = null;
     }
     super.destroy(fromScene);
   }
