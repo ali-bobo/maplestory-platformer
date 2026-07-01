@@ -20,11 +20,11 @@
     "audit": "npm audit --audit-level=moderate"
   },
   "dependencies": {
-    "phaser": "^3.88.2",
-    "phaser3-rex-plugins": "^1.80.20"
+    "phaser": "3.90.0",
+    "phaser3-rex-plugins": "1.80.20"
   },
   "devDependencies": {
-    "esbuild": "^0.25.3"
+    "esbuild": "0.25.12"
   },
   "overrides": {
     "i18next-http-backend": "3.0.5"
