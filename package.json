@@ -24,7 +24,7 @@
     "phaser3-rex-plugins": "1.80.20"
   },
   "devDependencies": {
-    "esbuild": "0.25.12"
+    "esbuild": "0.28.2"
   },
   "overrides": {
     "i18next-http-backend": "3.0.5"
