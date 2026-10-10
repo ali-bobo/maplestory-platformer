@@ -12,52 +12,21 @@ import { getDungeonDef } from '../config/dungeons.js';
 
 const PLATFORM_HEIGHT = 24;
 const GROUND_Y = WORLD_HEIGHT;
-const PLATFORM_DECORATION_ROW_INDEX = {
-  henesys: 0,
-  ellinia: 2,
-  taipei: 1,
+// 每張地圖專屬的跳台圖：左端、中段（可重複鋪）、右端由同一張圖切出
+// surfaceTop：圖片頂端到可站立表面的距離（px）
+const PLATFORM_THEMES = {
+  sky:     { key: 'platform_sky',     surfaceTop: 7 },
+  henesys: { key: 'platform_forest',  surfaceTop: 12 },
+  ruins:   { key: 'platform_ruins',   surfaceTop: 0 },
+  ellinia: { key: 'platform_mystic',  surfaceTop: 10 },
+  kerning: { key: 'platform_city',    surfaceTop: 11 },
+  taipei:  { key: 'platform_city',    surfaceTop: 11 },
+  town:    { key: 'platform_town',    surfaceTop: 1 },
+  boss:    { key: 'platform_boss',    surfaceTop: 0 },
+  dungeon: { key: 'platform_dungeon', surfaceTop: 0 },
 };
-const MAX_PLATFORM_WHITE_THRESHOLD = 253;
-const IMAGE_PLATFORM_STYLE = {
-  henesys: {
-    renderHeight: 84,
-    imageCropTopRatio: 0.16,
-    imageCropHeightRatio: 0.58,
-    sourceWindowWidthRatio: 0.72,
-    renderWidthRatio: 1.12,
-    walkableTopRatio: 0.30,
-    standingLineRatio: 0.12,
-    removeNearWhite: true,
-    whiteThreshold: 242,
-    edgeFadePixels: 22,
-    bottomFadePixels: 16,
-  },
-  ellinia: {
-    renderHeight: 112,
-    imageCropTopRatio: 0.16,
-    imageCropHeightRatio: 0.58,
-    sourceWindowWidthRatio: 0.74,
-    renderWidthRatio: 1.18,
-    walkableTopRatio: 0.64,
-    removeNearWhite: true,
-    whiteThreshold: 242,
-    edgeFadePixels: 22,
-    bottomFadePixels: 16,
-  },
-  taipei: {
-    renderHeight: 88,
-    imageCropTopRatio: 0.18,
-    imageCropHeightRatio: 0.56,
-    sourceWindowWidthRatio: 0.78,
-    renderWidthRatio: 1.02,
-    walkableTopRatio: 0.66,
-    standingLineRatio: 0.88,
-    removeNearWhite: true,
-    whiteThreshold: 242,
-    edgeFadePixels: 20,
-    bottomFadePixels: 14,
-  },
-};
+const PLATFORM_CAP_RATIO = 0.2;
+const PLATFORM_TILE_RATIO = 0.3;
 
 export class BaseMapScene extends Phaser.Scene {
   constructor(key, mapKey) {
@@ -190,268 +159,67 @@ export class BaseMapScene extends Phaser.Scene {
   _createPlatforms() {
     this.platforms      = this.physics.add.staticGroup();
     this.thinPlatforms  = this.physics.add.staticGroup();
+    const theme = PLATFORM_THEMES[this.mapKey];
+    const useTheme = theme && this.textures.exists(theme.key);
     for (const p of this.mapData.platforms) {
       const group = p.thin ? this.thinPlatforms : this.platforms;
-      if (p.renderMode === 'image-native' && p.decorationKey && this.textures.exists(p.decorationKey)) {
-        this._createImageNativePlatform(group, p);
-        continue;
-      }
-
-      const textureKey = `platform-${p.type || 'grass'}`;
-      const sprite = group.create(p.x + p.width / 2, p.y + PLATFORM_HEIGHT / 2, textureKey);
+      const sprite = group.create(p.x + p.width / 2, p.y + PLATFORM_HEIGHT / 2, `platform-${p.type || 'grass'}`);
       sprite.setDisplaySize(p.width, PLATFORM_HEIGHT);
       sprite.refreshBody();
       sprite.setDepth(5);
-      if (p.isGround) sprite.setAlpha(0);  // 地板用背景自然地板視覺，不疊加紋理
-      if (p.decorationKey && this.textures.exists(p.decorationKey)) {
-        this._createPlatformDecoration(p);
-      }
+      // 地板用背景自然地板視覺；有主題跳台圖時碰撞體透明，改畫主題圖
+      if (p.isGround || useTheme) sprite.setAlpha(0);
+      if (!p.isGround && useTheme) this._drawThemedPlatform(p, theme);
     }
   }
 
-  _createImageNativePlatform(group, platformData) {
-    const mapStyle = IMAGE_PLATFORM_STYLE[this.mapKey] || {};
-    const {
-      decorationKey,
-      type = 'wood',
-      x,
-      y,
-      width,
-      imageRowIndex,
-      imageCropTopRatio = mapStyle.imageCropTopRatio ?? 0.28,
-      imageCropHeightRatio = mapStyle.imageCropHeightRatio ?? 0.48,
-      sourceWindowWidthRatio = mapStyle.sourceWindowWidthRatio ?? 1,
-      renderHeight = mapStyle.renderHeight,
-      renderWidthRatio = mapStyle.renderWidthRatio,
-      walkableTopRatio = mapStyle.walkableTopRatio ?? 0.42,
-      standingLineRatio = mapStyle.standingLineRatio ?? walkableTopRatio,
-      walkableHeight = 18,
-      walkableLeftInset = mapStyle.walkableLeftInset,
-      walkableRightInset = mapStyle.walkableRightInset,
-      walkableLeftInsetRatio = mapStyle.walkableLeftInsetRatio ?? 0,
-      walkableRightInsetRatio = mapStyle.walkableRightInsetRatio ?? 0,
-      walkableCenterOffset = mapStyle.walkableCenterOffset ?? 0,
-      removeNearWhite = mapStyle.removeNearWhite ?? false,
-      whiteThreshold = mapStyle.whiteThreshold ?? 245,
-      edgeFadePixels = mapStyle.edgeFadePixels ?? 0,
-      bottomFadePixels = mapStyle.bottomFadePixels ?? 0,
-    } = platformData;
+  // 把主題圖切成左端 / 中段 / 右端三張紋理（中段左右邊緣交叉淡化，重複鋪時看不出接縫）
+  _ensurePlatformSlices(themeKey) {
+    const leftKey = `${themeKey}__L`;
+    if (this.textures.exists(leftKey)) return;
+    const src = this.textures.get(themeKey).getSourceImage();
+    const w = src.width, h = src.height;
+    const capW = Math.round(w * PLATFORM_CAP_RATIO);
+    const tileW = Math.round(w * PLATFORM_TILE_RATIO);
+    const blendW = Math.round(tileW * 0.25);
+    const tileX = Math.round((w - tileW) / 2);
 
-    const texture = this.textures.get(decorationKey);
-    const source = texture?.getSourceImage?.();
-    if (!source?.width || !source?.height) return null;
-
-    const rowCount = 3;
-    const rowHeight = Math.floor(source.height / rowCount);
-    const rowIndex = imageRowIndex ?? PLATFORM_DECORATION_ROW_INDEX[this.mapKey] ?? 0;
-    const cropTop = rowIndex * rowHeight + Math.floor(rowHeight * imageCropTopRatio);
-    const cropHeight = Math.max(64, Math.floor(rowHeight * imageCropHeightRatio));
-    const sourceWindowWidth = Math.min(
-      source.width,
-      Math.max(width, Math.round(source.width * sourceWindowWidthRatio)),
-    );
-    const cropLeft = Math.max(0, Math.floor((source.width - sourceWindowWidth) / 2));
-    const displayHeight = renderHeight
-      ?? Math.round(cropHeight * 0.5);
-    const proportionalWidth = Math.max(1, Math.round((displayHeight * sourceWindowWidth) / cropHeight));
-    const displayWidth = platformData.renderWidth
-      ?? (renderWidthRatio
-        ? Math.round(width * renderWidthRatio)
-        : proportionalWidth);
-    const centerX = x + width / 2;
-    const visualLeftX = centerX - displayWidth / 2;
-    const baseEdgeInset = Math.max(0, Math.round((displayWidth - width) / 2));
-    const resolvedLeftInset = this._resolvePlatformEdgeInset({
-      explicitInset: walkableLeftInset,
-      insetRatio: walkableLeftInsetRatio,
-      displayWidth,
-      baseInset: baseEdgeInset,
-    });
-    const resolvedRightInset = this._resolvePlatformEdgeInset({
-      explicitInset: walkableRightInset,
-      insetRatio: walkableRightInsetRatio,
-      displayWidth,
-      baseInset: baseEdgeInset,
-    });
-    const walkableMinX = visualLeftX + resolvedLeftInset;
-    const walkableMaxX = visualLeftX + displayWidth - resolvedRightInset;
-    const computedWalkableWidth = Math.max(24, Math.round(walkableMaxX - walkableMinX));
-    const walkableWidth = platformData.walkableWidth ?? computedWalkableWidth;
-    const walkableCenterX = (walkableMinX + walkableMaxX) / 2 + walkableCenterOffset;
-    const walkableLeftX = computedWalkableWidth > walkableWidth
-      ? Phaser.Math.Clamp(walkableCenterX - walkableWidth / 2, walkableMinX, walkableMaxX - walkableWidth)
-      : walkableMinX;
-    const colliderCenterX = walkableLeftX + walkableWidth / 2;
-    const walkableTopOffset = Math.round(displayHeight * walkableTopRatio);
-    const visualTopY = y - walkableTopOffset;
-    const standingTopOffset = Math.round(displayHeight * standingLineRatio);
-    const walkableTopY = visualTopY + standingTopOffset;
-    const textureKey = (removeNearWhite || edgeFadePixels > 0 || bottomFadePixels > 0)
-      ? this._getPlatformProcessedTextureKey({
-          decorationKey,
-          rowIndex,
-          cropLeft,
-          cropTop,
-          cropWidth: sourceWindowWidth,
-          cropHeight,
-          whiteThreshold,
-          edgeFadePixels,
-          bottomFadePixels,
-        })
-      : decorationKey;
-
-    platformData.width = walkableWidth;
-    platformData.x = walkableLeftX;
-    platformData.standingBounds = {
-      left: walkableLeftX,
-      right: walkableLeftX + walkableWidth,
-      width: walkableWidth,
-      centerX: colliderCenterX,
-      topY: walkableTopY,
-      bottomY: walkableTopY + walkableHeight,
-      visualLeftX,
-      visualRightX: visualLeftX + displayWidth,
-      visualWidth: displayWidth,
-      visualTopY,
-      visualBottomY: visualTopY + displayHeight,
-      standingTopOffset,
-      edgeInsetLeft: walkableLeftX - visualLeftX,
-      edgeInsetRight: visualLeftX + displayWidth - (walkableLeftX + walkableWidth),
+    const slice = (key, sx, sw) => {
+      const tex = this.textures.createCanvas(key, sw, h);
+      tex.getContext().drawImage(src, sx, 0, sw, h, 0, 0, sw, h);
+      tex.refresh();
     };
+    slice(leftKey, 0, capW);
+    slice(`${themeKey}__R`, w - capW, capW);
 
-    const collider = group.create(colliderCenterX, walkableTopY + walkableHeight / 2, `platform-${type}`);
-    collider.setDisplaySize(walkableWidth, walkableHeight);
-    collider.setAlpha(0);
-    collider.refreshBody();
-
-    const sprite = this.add.image(centerX, y - walkableTopOffset, textureKey);
-
-    sprite.setOrigin(0.5, 0);
-    if (!removeNearWhite) {
-      sprite.setCrop(cropLeft, cropTop, sourceWindowWidth, cropHeight);
+    const mid = this.textures.createCanvas(`${themeKey}__M`, tileW, h);
+    const ctx = mid.getContext();
+    ctx.drawImage(src, tileX, 0, tileW, h, 0, 0, tileW, h);
+    // 左緣用 tile 右側之後的像素淡入，讓 tile 首尾相接
+    for (let i = 0; i < blendW; i++) {
+      ctx.globalAlpha = 1 - i / blendW;
+      ctx.drawImage(src, tileX + tileW + i, 0, 1, h, i, 0, 1, h);
     }
-    sprite.setDisplaySize(displayWidth, displayHeight);
-    sprite.setDepth(6);
-
-    return collider;
+    ctx.globalAlpha = 1;
+    mid.refresh();
   }
 
-  _resolvePlatformEdgeInset({ explicitInset, insetRatio = 0, displayWidth, baseInset = 0 }) {
-    if (typeof explicitInset === 'number') {
-      return Math.max(0, Math.round(explicitInset));
+  _drawThemedPlatform(p, theme) {
+    this._ensurePlatformSlices(theme.key);
+    const leftTex = this.textures.get(`${theme.key}__L`).getSourceImage();
+    const h = leftTex.height;
+    const fullCapW = leftTex.width;
+    const capW = Math.min(fullCapW, Math.floor(p.width / 2));
+    const top = p.y - theme.surfaceTop;
+
+    const left = this.add.image(p.x, top, `${theme.key}__L`).setOrigin(0, 0).setDepth(5);
+    if (capW < fullCapW) left.setCrop(0, 0, capW, h);
+    const right = this.add.image(p.x + p.width - fullCapW, top, `${theme.key}__R`).setOrigin(0, 0).setDepth(5);
+    if (capW < fullCapW) right.setCrop(fullCapW - capW, 0, capW, h);
+    const midW = p.width - capW * 2;
+    if (midW > 0) {
+      this.add.tileSprite(p.x + capW, top, midW, h, `${theme.key}__M`).setOrigin(0, 0).setDepth(5);
     }
-
-    return Math.max(baseInset, Math.round(displayWidth * insetRatio));
-  }
-
-  _getPlatformProcessedTextureKey({
-    decorationKey,
-    rowIndex,
-    cropLeft,
-    cropTop,
-    cropWidth,
-    cropHeight,
-    whiteThreshold,
-    edgeFadePixels,
-    bottomFadePixels,
-  }) {
-    const processedKey = [
-      decorationKey,
-      'processed',
-      rowIndex,
-      cropLeft,
-      cropTop,
-      cropWidth,
-      cropHeight,
-      whiteThreshold,
-      edgeFadePixels,
-      bottomFadePixels,
-    ].join('-');
-
-    if (this.textures.exists(processedKey)) {
-      return processedKey;
-    }
-
-    const source = this.textures.get(decorationKey)?.getSourceImage?.();
-    if (!source?.width || !source?.height) {
-      return decorationKey;
-    }
-
-    const canvasTexture = this.textures.createCanvas(processedKey, cropWidth, cropHeight);
-    const context = canvasTexture.getContext();
-    context.clearRect(0, 0, cropWidth, cropHeight);
-    context.drawImage(
-      source,
-      cropLeft,
-      cropTop,
-      cropWidth,
-      cropHeight,
-      0,
-      0,
-      cropWidth,
-      cropHeight,
-    );
-
-    const imageData = context.getImageData(0, 0, cropWidth, cropHeight);
-    const pixels = imageData.data;
-    for (let index = 0; index < pixels.length; index += 4) {
-      const pixelIndex = index / 4;
-      const x = pixelIndex % cropWidth;
-      const y = Math.floor(pixelIndex / cropWidth);
-      const red = pixels[index];
-      const green = pixels[index + 1];
-      const blue = pixels[index + 2];
-      const baseAlpha = pixels[index + 3];
-      if (baseAlpha === 0) continue;
-
-      let alpha = baseAlpha;
-      const minChannelValue = Math.min(red, green, blue);
-      const safeWhiteThreshold = Math.min(whiteThreshold, MAX_PLATFORM_WHITE_THRESHOLD);
-      if (minChannelValue >= safeWhiteThreshold) {
-        const fadeRatio = Phaser.Math.Clamp((255 - minChannelValue) / (255 - safeWhiteThreshold), 0, 1);
-        alpha = Math.round(alpha * fadeRatio);
-      }
-
-      if (edgeFadePixels > 0) {
-        const sideDistance = Math.min(x, cropWidth - 1 - x);
-        if (sideDistance < edgeFadePixels) {
-          alpha = Math.round(alpha * Phaser.Math.Clamp(sideDistance / edgeFadePixels, 0, 1));
-        }
-      }
-
-      if (bottomFadePixels > 0) {
-        const bottomDistance = cropHeight - 1 - y;
-        if (bottomDistance < bottomFadePixels) {
-          alpha = Math.round(alpha * Phaser.Math.Clamp(bottomDistance / bottomFadePixels, 0, 1));
-        }
-      }
-
-      pixels[index + 3] = alpha;
-    }
-    context.putImageData(imageData, 0, 0);
-    canvasTexture.refresh();
-
-    return processedKey;
-  }
-
-  _createPlatformDecoration(platformData) {
-    const { decorationKey, x, y, width } = platformData;
-    const decoration = this.add.image(x + width / 2, y + PLATFORM_HEIGHT / 2, decorationKey);
-    const texture = this.textures.get(decorationKey);
-    const source = texture?.getSourceImage?.();
-
-    if (source?.width && source?.height) {
-      const rowCount = 3;
-      const rowHeight = Math.floor(source.height / rowCount);
-      const rowIndex = PLATFORM_DECORATION_ROW_INDEX[this.mapKey] ?? 0;
-      const cropHeight = Math.max(48, Math.floor(rowHeight * 0.36));
-      const cropTop = rowIndex * rowHeight + Math.floor(rowHeight * 0.37);
-      decoration.setCrop(0, cropTop, source.width, cropHeight);
-    }
-
-    decoration.setDisplaySize(width, PLATFORM_HEIGHT);
-    decoration.setDepth(6);
-    return decoration;
   }
 
   // ── 怪物生成（依平台隨機分佈）─────────────────────────────────────────────

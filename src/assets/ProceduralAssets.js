@@ -266,7 +266,7 @@ function generateItems(scene){
     {key:'item-helmet', fn:g=>{ g.fillStyle(0x334466); g.fillEllipse(8,7,14,12); R(g,2,10,12,4,0x3355aa); g.fillStyle(0x7799cc); g.fillEllipse(8,5,8,6); }},
     {key:'item-boots',  fn:g=>{ R(g,4,2,8,10,0x553311); R(g,2,10,11,4,0x442211); R(g,5,3,3,7,0x886644); }},
   ];
-  eqs.forEach(({key,fn})=>{ const g=g_(scene); fn(g); g.generateTexture(key,16,16); g.destroy(); });
+  eqs.forEach(({key,fn})=>{ if (scene.textures.exists(key)) return; const g=g_(scene); fn(g); g.generateTexture(key,16,16); g.destroy(); });
 }
 
 // ── UI ──────────────────────────────────────────────────────────────────────

@@ -9,12 +9,18 @@ export class MenuScene extends Phaser.Scene {
   create() {
     const { width, height } = this.cameras.main;
 
-    // 白色背景
-    this.add.rectangle(width / 2, height / 2, width, height, 0xffffff);
+    // 主選單背景（等比放大填滿畫面）
+    if (this.textures.exists('title_bg')) {
+      const bg = this.add.image(width / 2, height / 2, 'title_bg');
+      bg.setScale(Math.max(width / bg.width, height / bg.height));
+    } else {
+      this.add.rectangle(width / 2, height / 2, width, height, 0xffffff);
+    }
 
     // 遊戲標題
     this.add.text(width / 2, 140, '盜賊傳說', {
-      fontSize: '72px', color: '#222222', fontFamily: 'Arial, sans-serif',
+      fontSize: '72px', color: '#3a2410', fontFamily: 'Arial, sans-serif',
+      stroke: '#fff4dc', strokeThickness: 8,
       fontStyle: 'bold',
     }).setOrigin(0.5, 0.5);
 

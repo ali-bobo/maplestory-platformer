@@ -28,7 +28,7 @@ export const DUNGEONS = {
     dailyLimit: 3,
     mapWidth: 1600,
     bgColor: 0x2a1a3a, // 紫暗色洞窟感
-    bgImage: 'bg_ruins', // 復用既有背景
+    bgImage: 'bg_dungeon',
   },
 };
 

@@ -9,12 +9,6 @@ const MAP_WIDTH = 2560;
 const TOWN_WIDTH = 1600;
 const TAIPEI_LOWER_Y = 400;
 const TAIPEI_UPPER_Y = 240;
-const HENESYS_PLATFORM_OPTIONS = {
-  decorationKey: 'platform_forest',
-  walkableLeftInsetRatio: 0.08,
-  walkableRightInsetRatio: 0.08,
-};
-
 function plat(x, y, width, type = 'stone', thin = true) {
   return { x, y, width, type, thin };
 }
@@ -22,31 +16,6 @@ function ground(x, y, width, type = 'stone') {
   // isGround: true → BaseMapScene 會讓它透明，只保留碰撞面
   return { x, y, width, type, thin: false, isGround: true };
 }
-function imageSolidPlatform(platform, options = {}) {
-  const imagePlatform = {
-    ...platform,
-    thin: options.thin ?? platform.thin ?? true,
-    decorationKey: options.decorationKey || 'platform_long',
-    renderMode: 'image-native',
-    walkableHeight: options.walkableHeight ?? 18,
-  };
-
-  if (options.imageRowIndex !== undefined) imagePlatform.imageRowIndex = options.imageRowIndex;
-  if (options.imageCropTopRatio !== undefined) imagePlatform.imageCropTopRatio = options.imageCropTopRatio;
-  if (options.imageCropHeightRatio !== undefined) imagePlatform.imageCropHeightRatio = options.imageCropHeightRatio;
-  if (options.sourceWindowWidthRatio !== undefined) imagePlatform.sourceWindowWidthRatio = options.sourceWindowWidthRatio;
-  if (options.renderHeight !== undefined) imagePlatform.renderHeight = options.renderHeight;
-  if (options.walkableTopRatio !== undefined) imagePlatform.walkableTopRatio = options.walkableTopRatio;
-  if (options.walkableWidth !== undefined) imagePlatform.walkableWidth = options.walkableWidth;
-  if (options.walkableLeftInset !== undefined) imagePlatform.walkableLeftInset = options.walkableLeftInset;
-  if (options.walkableRightInset !== undefined) imagePlatform.walkableRightInset = options.walkableRightInset;
-  if (options.walkableLeftInsetRatio !== undefined) imagePlatform.walkableLeftInsetRatio = options.walkableLeftInsetRatio;
-  if (options.walkableRightInsetRatio !== undefined) imagePlatform.walkableRightInsetRatio = options.walkableRightInsetRatio;
-  if (options.walkableCenterOffset !== undefined) imagePlatform.walkableCenterOffset = options.walkableCenterOffset;
-
-  return imagePlatform;
-}
-
 // ─────────── 浮空島嶼 ───────────
 // 2 層浮空平台（sky blue 系，草地＋石頭）
 const SKY_PLATFORMS = [
@@ -69,14 +38,14 @@ const HENESYS_PLATFORMS = [
   ground(0, GROUND_Y, MAP_WIDTH, 'grass'),
 
   // 第一層（y=400）：全部改用森林圖片跳台，沿用 Toytown 腳底接觸線
-  imageSolidPlatform(plat(100,  400, 600, 'grass'), HENESYS_PLATFORM_OPTIONS),
-  imageSolidPlatform(plat(980,  400, 600, 'wood'),  HENESYS_PLATFORM_OPTIONS),
-  imageSolidPlatform(plat(1860, 400, 600, 'grass'), HENESYS_PLATFORM_OPTIONS),
+  plat(100,  400, 600, 'grass'),
+  plat(980,  400, 600, 'wood'),
+  plat(1860, 400, 600, 'grass'),
 
   // 第二層（y=240）：全部採同一套森林圖片跳台規格
-  imageSolidPlatform(plat(380,  240, 580, 'wood'),  HENESYS_PLATFORM_OPTIONS),
-  imageSolidPlatform(plat(1220, 240, 580, 'grass'), HENESYS_PLATFORM_OPTIONS),
-  imageSolidPlatform(plat(2060, 240, 580, 'wood'),  HENESYS_PLATFORM_OPTIONS),
+  plat(380,  240, 580, 'wood'),
+  plat(1220, 240, 580, 'grass'),
+  plat(2060, 240, 580, 'wood'),
 ];
 
 // ─────────── 古代廢墟 ───────────
@@ -101,14 +70,14 @@ const ELLINIA_PLATFORMS = [
   ground(0, GROUND_Y, MAP_WIDTH, 'brick'),
 
   // 第一層（y=400）：全部採用已驗證的 Toytown 圖片跳台模式
-  imageSolidPlatform(plat(100,  400, 600, 'wood'),  { walkableHeight: 20 }),
-  imageSolidPlatform(plat(980,  400, 600, 'brick'), { walkableHeight: 20 }),
-  imageSolidPlatform(plat(1860, 400, 600, 'wood'),  { walkableHeight: 20 }),
+  plat(100,  400, 600, 'wood'),
+  plat(980,  400, 600, 'brick'),
+  plat(1860, 400, 600, 'wood'),
 
   // 第二層（y=240）：移除舊有自訂跳台，統一改為圖片跳台
-  imageSolidPlatform(plat(380,  240, 580, 'brick'), { walkableHeight: 20 }),
-  imageSolidPlatform(plat(1220, 240, 580, 'wood'),  { walkableHeight: 20 }),
-  imageSolidPlatform(plat(2060, 240, 580, 'brick'), { walkableHeight: 20 }),
+  plat(380,  240, 580, 'brick'),
+  plat(1220, 240, 580, 'wood'),
+  plat(2060, 240, 580, 'brick'),
 ];
 
 // ─────────── 暗巷城 ───────────
@@ -132,13 +101,13 @@ const KERNING_PLATFORMS = [
 const TAIPEI_PLATFORMS = [
   ground(0, GROUND_Y, MAP_WIDTH, 'brick'),
 
-  imageSolidPlatform(plat(140,  TAIPEI_LOWER_Y, 560, 'brick'), { walkableHeight: 20 }),
-  imageSolidPlatform(plat(930,  TAIPEI_LOWER_Y, 700, 'wood'),  { walkableHeight: 20 }),
-  imageSolidPlatform(plat(1900, TAIPEI_LOWER_Y, 520, 'brick'), { walkableHeight: 20 }),
+  plat(140,  TAIPEI_LOWER_Y, 560, 'brick'),
+  plat(930,  TAIPEI_LOWER_Y, 700, 'wood'),
+  plat(1900, TAIPEI_LOWER_Y, 520, 'brick'),
 
-  imageSolidPlatform(plat(340,  TAIPEI_UPPER_Y, 560, 'wood'),  { walkableHeight: 20 }),
-  imageSolidPlatform(plat(1180, TAIPEI_UPPER_Y, 620, 'brick'), { walkableHeight: 20 }),
-  imageSolidPlatform(plat(2020, TAIPEI_UPPER_Y, 440, 'wood'),  { walkableHeight: 18 }),
+  plat(340,  TAIPEI_UPPER_Y, 560, 'wood'),
+  plat(1180, TAIPEI_UPPER_Y, 620, 'brick'),
+  plat(2020, TAIPEI_UPPER_Y, 440, 'wood'),
 ];
 
 // ─────────── Boss 房間 ───────────
@@ -331,7 +300,7 @@ export const MAPS = {
     key: 'town', name: '晨曦鎮', sceneKey: 'TownScene',
     width: TOWN_WIDTH, bgColor: 0x46306a,
     platforms: TOWN_PLATFORMS,
-    bgType: 'town', bgImage: 'bg_toytown',
+    bgType: 'town', bgImage: 'bg_town',
     monsters: [],
     portals: [
       { x: TOWN_WIDTH - 50, y: GROUND_Y - 48, width: 40, height: 72, target: 'sky', label: '→浮空島嶼', spawnX: 200 },

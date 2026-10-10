@@ -106,8 +106,8 @@ export const BACKGROUND_ASSETS = [
     assetId: 'BG-TOY-001',
     groupId: 'BG-TOY',
     kind: 'background',
-    key: 'bg_toytown',
-    path: 'dist/assets/bg_toytown.png',
+    key: 'bg_town',
+    path: 'dist/assets/bg_town.png',
     status: 'used',
     targetMaps: ['town'],
   },
@@ -138,50 +138,34 @@ export const BACKGROUND_ASSETS = [
     status: 'used',
     targetMaps: ['boss'],
   },
-];
-
-export const CANDIDATE_BACKGROUND_ASSETS = [
   {
-    candidateId: 'CAND-BG-TOY-001',
-    groupId: 'CAND-BG-TOY',
+    assetId: 'BG-DGN-001',
+    groupId: 'BG-DGN',
     kind: 'background',
-    key: 'bg_toytown_refresh',
-    plannedPath: 'dist/assets/bg_toytown_refresh.png',
-    status: 'promoted-runtime',
-    targetMaps: ['ellinia'],
-    source: '參考用遊戲畫面/toy-TOWN_new (1).png',
+    key: 'bg_dungeon',
+    path: 'dist/assets/bg_dungeon.png',
+    status: 'used',
+    targetMaps: ['dungeon'],
   },
   {
-    candidateId: 'CAND-BG-TPE-001',
-    groupId: 'CAND-BG-TPE',
+    assetId: 'BG-TTL-001',
+    groupId: 'BG-TTL',
     kind: 'background',
-    key: 'bg_taipei',
-    plannedPath: 'dist/assets/bg_taipei.png',
-    status: 'promoted-runtime',
-    targetMaps: ['taipei'],
-    source: '參考用遊戲畫面/Taipei_city.png',
-  },
-  {
-    candidateId: 'CAND-BG-BOSS-001',
-    groupId: 'CAND-BG-BOSS',
-    kind: 'background',
-    key: 'bg_boss_room',
-    plannedPath: 'dist/assets/bg_boss_room.png',
-    status: 'promoted-runtime',
-    targetMaps: ['boss'],
-    source: '遊戲畫面/boss_room.png',
+    key: 'title_bg',
+    path: 'dist/assets/title_bg.png',
+    status: 'used',
+    targetMaps: ['menu'],
   },
 ];
 
 export const PLATFORM_ASSETS = [
   {
-    assetId: 'PLT-LONG-001',
-    groupId: 'PLT-LONG',
+    assetId: 'PLT-SKY-001',
+    groupId: 'PLT-SKY',
     kind: 'platform',
-    key: 'platform_long',
-    path: 'dist/assets/platform_long.png',
+    key: 'platform_sky',
+    path: 'dist/assets/platform_sky.png',
     status: 'used',
-    targetMaps: ['ellinia', 'taipei'],
   },
   {
     assetId: 'PLT-FOR-001',
@@ -190,7 +174,54 @@ export const PLATFORM_ASSETS = [
     key: 'platform_forest',
     path: 'dist/assets/platform_forest.png',
     status: 'used',
-    targetMaps: ['henesys'],
+  },
+  {
+    assetId: 'PLT-RUI-001',
+    groupId: 'PLT-RUI',
+    kind: 'platform',
+    key: 'platform_ruins',
+    path: 'dist/assets/platform_ruins.png',
+    status: 'used',
+  },
+  {
+    assetId: 'PLT-MYS-001',
+    groupId: 'PLT-MYS',
+    kind: 'platform',
+    key: 'platform_mystic',
+    path: 'dist/assets/platform_mystic.png',
+    status: 'used',
+  },
+  {
+    assetId: 'PLT-CIT-001',
+    groupId: 'PLT-CIT',
+    kind: 'platform',
+    key: 'platform_city',
+    path: 'dist/assets/platform_city.png',
+    status: 'used',
+  },
+  {
+    assetId: 'PLT-TOW-001',
+    groupId: 'PLT-TOW',
+    kind: 'platform',
+    key: 'platform_town',
+    path: 'dist/assets/platform_town.png',
+    status: 'used',
+  },
+  {
+    assetId: 'PLT-BOS-001',
+    groupId: 'PLT-BOS',
+    kind: 'platform',
+    key: 'platform_boss',
+    path: 'dist/assets/platform_boss.png',
+    status: 'used',
+  },
+  {
+    assetId: 'PLT-DUN-001',
+    groupId: 'PLT-DUN',
+    kind: 'platform',
+    key: 'platform_dungeon',
+    path: 'dist/assets/platform_dungeon.png',
+    status: 'used',
   },
 ];
 
@@ -588,6 +619,16 @@ export const BOSS_ASSETS = [
   },
 ];
 
+// 裝備掉落圖示：沿用程序材質的 key，載入後 generateItems 會跳過已存在的 key
+export const ICON_ASSETS = ['weapon', 'armor', 'gloves', 'helmet'].map((slot) => ({
+  assetId: `ICO-${slot.toUpperCase()}-001`,
+  groupId: 'ICO-EQP',
+  kind: 'icon',
+  key: `item-${slot}`,
+  path: `dist/assets/item_${slot}.png`,
+  status: 'used',
+}));
+
 export const PRELOAD_IMAGE_ASSETS = [
   ...CHARACTER_ASSETS,
   ...BACKGROUND_ASSETS,
@@ -595,6 +636,7 @@ export const PRELOAD_IMAGE_ASSETS = [
   ...MONSTER_ASSETS,
   ...BOSS_ASSETS,
   ...NPC_ASSETS,
+  ...ICON_ASSETS,
 ];
 
 export const PENDING_ALIGNMENT_ASSETS = MONSTER_ASSETS.filter(
