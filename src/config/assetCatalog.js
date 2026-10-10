@@ -629,6 +629,36 @@ export const ICON_ASSETS = ['weapon', 'armor', 'gloves', 'helmet'].map((slot) =>
   status: 'used',
 }));
 
+// 藥水圖示：key 對應 POTIONS 的快捷鍵
+export const POTION_ICON_KEYS = {
+  A: 'potion_hp',
+  S: 'potion_hp_big',
+  D: 'potion_mp',
+  R: 'potion_mp_big',
+  G: 'potion_elixir',
+};
+
+export const POTION_ICON_ASSETS = Object.values(POTION_ICON_KEYS).map((key) => ({
+  assetId: `ICO-${key.toUpperCase()}-001`,
+  groupId: 'ICO-POT',
+  kind: 'icon',
+  key,
+  path: `dist/assets/${key}.png`,
+  status: 'used',
+}));
+
+// HUD 木質介面：血條框（3-slice）、技能/藥水格、羊皮紙面板（9-slice）
+export const UI_ASSETS = [
+  'hud_bar_frame', 'hud_slot_42', 'hud_slot_52', 'hud_slot_80', 'hud_panel', 'hud_panel_sm',
+].map((key) => ({
+  assetId: `UI-${key.toUpperCase()}-001`,
+  groupId: 'UI-HUD',
+  kind: 'ui',
+  key,
+  path: `dist/assets/${key}.png`,
+  status: 'used',
+}));
+
 export const PRELOAD_IMAGE_ASSETS = [
   ...CHARACTER_ASSETS,
   ...BACKGROUND_ASSETS,
@@ -637,6 +667,8 @@ export const PRELOAD_IMAGE_ASSETS = [
   ...BOSS_ASSETS,
   ...NPC_ASSETS,
   ...ICON_ASSETS,
+  ...POTION_ICON_ASSETS,
+  ...UI_ASSETS,
 ];
 
 export const PENDING_ALIGNMENT_ASSETS = MONSTER_ASSETS.filter(

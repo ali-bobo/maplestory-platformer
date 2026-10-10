@@ -5,6 +5,8 @@ import { getQualityLevel, setQualityLevel, downgradeQuality, upgradeQuality } fr
 import { getActiveQuests } from '../engine/questManager.js';
 import { getQuestDef } from '../config/quests.js';
 import { screenFlash } from '../engine/vfx.js';
+import { POTION_ICON_KEYS } from '../config/assetCatalog.js';
+import { ensureSkillIcons } from '../assets/skillIcons.js';
 
 // HUD 場景（平行運行）— 橫向捲軸風格底部狀態列
 export class UIScene extends Phaser.Scene {
@@ -18,79 +20,54 @@ export class UIScene extends Phaser.Scene {
     this._timers = [];
     const { width, height } = this.cameras.main;
 
-    // ── 底部狀態列面板（單列：角色資訊 + 技能/藥水 + 功能按鈕）───────────────
+    // ── 底部狀態列面板（木質底板：角色資訊 + 技能/藥水 + 功能按鈕）──────────
     const barPanelH = height - WORLD_HEIGHT;
     const barPanelY = WORLD_HEIGHT;
+    this._createWoodPanelTexture(width, barPanelH);
+    this.add.image(0, barPanelY, 'hud_wood_bg').setOrigin(0, 0).setDepth(50).setScrollFactor(0);
 
-    // Phase 12：底部面板背景——凍結為 image（消除每幀 batchLine）
-    this._freezeStaticGraphics('hud_panel_bg', width, barPanelH, 0, barPanelY, 50, (g) => {
-      g.fillStyle(0x0a0a1a, 0.93);
-      g.fillRect(0, 0, width, barPanelH);
-      g.lineStyle(1, 0x334466, 0.8);
-      g.strokeRect(0, 0, width, barPanelH);
+    const textStyle = (size, color, extra = {}) => ({
+      fontSize: `${size}px`, color, fontFamily: 'Arial', fontStyle: 'bold',
+      stroke: '#1a0e06', strokeThickness: 3, ...extra,
     });
 
-    // ── 角色頭像框（底部左側）────────────────────────────────────────────────
-    const portX = 10, portY = barPanelY + 10, portW = 40, portH = 40;
-    // Phase 12：頭像框凍結為 image
-    this._freezeStaticGraphics('hud_port_bg', portW, portH, portX, portY, 51, (g) => {
-      g.fillStyle(0x112244, 0.95);
-      g.fillRect(0, 0, portW, portH);
-      g.lineStyle(2, 0x4488cc, 0.9);
-      g.strokeRect(0, 0, portW, portH);
-    });
-
+    // ── 角色頭像（木框格）＋ 等級徽章 ─────────────────────────────────────────
+    const portSize = 80;
+    const portX = 14, portY = barPanelY + 12;
+    this.add.image(portX, portY, 'hud_slot_80').setOrigin(0, 0).setDepth(51).setScrollFactor(0);
     if (this.textures.exists('player_portrait')) {
-      const portrait = this.add.image(portX + portW / 2, portY + portH / 2, 'player_portrait');
-      portrait.setScale(Math.min((portW - 4) / portrait.width, (portH - 4) / portrait.height))
+      const portrait = this.add.image(portX + portSize / 2, portY + portSize / 2, 'player_portrait');
+      portrait.setScale(Math.min(56 / portrait.width, 56 / portrait.height))
         .setDepth(52).setScrollFactor(0);
     }
+    this._levelText = this.add.text(portX + portSize / 2, portY + portSize + 2, 'Lv.1', textStyle(14, '#ffe27a'))
+      .setOrigin(0.5, 0.5).setDepth(53).setScrollFactor(0);
 
-    // ── HP/MP 條 ─────────────────────────────────────────────────────────────
-    const barStartX = portX + portW + 8;
-    const barW = 145, barH = 10, barGap = 7;
-    const hpY = barPanelY + 10;
-    const mpY = hpY + barH + barGap;
+    // ── HP / MP 條（木框 3-slice + 內部填色）─────────────────────────────────
+    const barStartX = portX + portSize + 10;
+    const barW = 300;
+    const hpY = barPanelY + 20;
+    const mpY = hpY + 38;
+    this._classText = this.add.text(barStartX + 6, barPanelY + 4, '盜賊', textStyle(12, '#e8d3a8'))
+      .setDepth(53).setScrollFactor(0);
 
-    this._hpBg  = this._makeBar(barStartX, hpY, barW, barH, 0x4d0000);
-    this._hpBar = this._makeBar(barStartX, hpY, barW, barH, 0xff3333);
-    this._hpLabel = this.add.text(barStartX + 3, hpY + 1, 'HP', {
-      fontSize: '9px', color: '#ffffff', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2,
-    }).setDepth(53).setScrollFactor(0);
-    this._hpNum = this.add.text(barStartX + barW + 4, hpY + 1, '', {
-      fontSize: '9px', color: '#ffaaaa', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2,
-    }).setDepth(53).setScrollFactor(0);
+    const hp = this._makeFramedBar(barStartX, hpY, barW, 0x5a0d10, [0xff5a4f, 0xc8202a], 'HP');
+    this._hpBg = hp.bg; this._hpBar = hp.fill; this._hpLabel = hp.label; this._hpNum = hp.num;
+    const mp = this._makeFramedBar(barStartX, mpY, barW, 0x0c1a4d, [0x5aa0ff, 0x2546c8], 'MP');
+    this._mpBg = mp.bg; this._mpBar = mp.fill; this._mpLabel = mp.label; this._mpNum = mp.num;
 
-    this._mpBg  = this._makeBar(barStartX, mpY, barW, barH, 0x000044);
-    this._mpBar = this._makeBar(barStartX, mpY, barW, barH, 0x3355ff);
-    this._mpLabel = this.add.text(barStartX + 3, mpY + 1, 'MP', {
-      fontSize: '9px', color: '#ffffff', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2,
-    }).setDepth(53).setScrollFactor(0);
-    this._mpNum = this.add.text(barStartX + barW + 4, mpY + 1, '', {
-      fontSize: '9px', color: '#aaaaff', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2,
-    }).setDepth(53).setScrollFactor(0);
+    // EXP 條（面板最下方一條細條，全寬）
+    const expBarH = 7;
+    this._expBg  = this._makeBar(0, height - expBarH, width, expBarH, 0x24160a).setDepth(51);
+    this._expBar = this._makeBar(0, height - expBarH, width, expBarH, 0xf2c14e).setDepth(52);
+    this._expText = this.add.text(width / 2, height - expBarH / 2 - 1, '', textStyle(9, '#fff3c8', { strokeThickness: 2 }))
+      .setOrigin(0.5, 0.5).setDepth(53).setScrollFactor(0);
 
-    // EXP 條（底部最下方一條細條，全寬）
-    const expBarH = 5;
-    this._expBg  = this._makeBar(0, height - expBarH, width, expBarH, 0x221100);
-    this._expBar = this._makeBar(0, height - expBarH, width, expBarH, 0xddaa00);
-
-    // ── 角色名稱 / 等級（收進單列面板）──────────────────────────────────────
-    this._levelText = this.add.text(portX + 2, barPanelY + 43, 'Lv.1', {
-      fontSize: '13px', color: '#ffee44', fontFamily: 'Arial',
-      stroke: '#000', strokeThickness: 3,
-    }).setDepth(51).setScrollFactor(0);
-
-    this._classText = this.add.text(barStartX + 2, barPanelY + 42, '盜賊', {
-      fontSize: '9px', color: '#aaddff', fontFamily: 'Arial',
-      stroke: '#000', strokeThickness: 2,
-    }).setDepth(51).setScrollFactor(0);
-
-    // ── 中段資訊（SP/Meso/Kill）─────────────────────────────────────────────
-    const midX = barStartX + barW + 34;
-    this._spText   = this.add.text(midX, barPanelY + 10, 'SP: 0',  { fontSize: '10px', color: '#88ffcc', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2 }).setDepth(51).setScrollFactor(0);
-    this._mesoText = this.add.text(midX, barPanelY + 24, '💰 0',   { fontSize: '10px', color: '#ffee88', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2 }).setDepth(51).setScrollFactor(0);
-    this._killText = this.add.text(midX, barPanelY + 38, '💀 0/60',{ fontSize: '10px', color: '#ffee88', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2 }).setDepth(51).setScrollFactor(0);
+    // ── 中段資訊（SP / 金幣 / 擊殺）──────────────────────────────────────────
+    const midX = barStartX + barW + 14;
+    this._spText   = this.add.text(midX, barPanelY + 20, 'SP: 0', textStyle(13, '#9ff0c8')).setDepth(53).setScrollFactor(0);
+    this._mesoText = this.add.text(midX, barPanelY + 44, '💰 0',  textStyle(13, '#ffe27a')).setDepth(53).setScrollFactor(0);
+    this._killText = this.add.text(midX, barPanelY + 68, '💀 0/60', textStyle(13, '#ffe27a')).setDepth(53).setScrollFactor(0);
 
     // ── 小地圖區域 + 地圖名稱（右上角）─────────────────────────────────────
     this._setupMinimap(width);
@@ -183,6 +160,80 @@ export class UIScene extends Phaser.Scene {
     }
   }
 
+  // 木質底板：深褐漸層 + 隨機木紋 + 上緣金色飾條（canvas 一次繪製）
+  _createWoodPanelTexture(w, h) {
+    if (this.textures.exists('hud_wood_bg')) return;
+    const tex = this.textures.createCanvas('hud_wood_bg', w, h);
+    const ctx = tex.getContext();
+    const grad = ctx.createLinearGradient(0, 0, 0, h);
+    grad.addColorStop(0, '#4a2e18');
+    grad.addColorStop(0.5, '#3a2312');
+    grad.addColorStop(1, '#22140a');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, w, h);
+    // 木紋：細長的半透明波浪線
+    const rng = new Phaser.Math.RandomDataGenerator(['hud-wood']);
+    for (let i = 0; i < 26; i++) {
+      const y = rng.between(8, h - 6);
+      ctx.strokeStyle = `rgba(${rng.pick([20, 90])},${rng.pick([10, 55])},0,${rng.realInRange(0.12, 0.28)})`;
+      ctx.lineWidth = rng.realInRange(0.8, 2);
+      ctx.beginPath();
+      const x0 = rng.between(-100, w * 0.6);
+      const len = rng.between(200, 700);
+      ctx.moveTo(x0, y);
+      for (let x = x0; x < x0 + len; x += 40) {
+        ctx.lineTo(x, y + Math.sin(x * 0.01 + i) * 2);
+      }
+      ctx.stroke();
+    }
+    // 上緣飾條
+    ctx.fillStyle = '#140a04';
+    ctx.fillRect(0, 0, w, 6);
+    const trim = ctx.createLinearGradient(0, 0, 0, 4);
+    trim.addColorStop(0, '#f3d27a');
+    trim.addColorStop(1, '#a8742c');
+    ctx.fillStyle = trim;
+    ctx.fillRect(0, 1, w, 3);
+    tex.refresh();
+  }
+
+  // 木框血條：底色 + 漸層填色（scaleX 控制長度）+ 3-slice 木框蓋在最上層
+  _makeFramedBar(x, y, w, bgColor, [topColor, bottomColor], label) {
+    const FRAME_H = 34;
+    const CAP = 20;
+    const inX = x + 19;
+    const inY = y + 7;
+    const inW = w - 38;
+    const inH = 19;
+    const bg = this.add.rectangle(inX, inY, inW, inH, bgColor, 1).setOrigin(0, 0).setDepth(51).setScrollFactor(0);
+    const fillKey = `hud_bar_fill_${topColor.toString(16)}`;
+    if (!this.textures.exists(fillKey)) {
+      const t = this.textures.createCanvas(fillKey, 4, inH);
+      const c = t.getContext();
+      const g = c.createLinearGradient(0, 0, 0, inH);
+      const hex = (n) => `#${n.toString(16).padStart(6, '0')}`;
+      g.addColorStop(0, '#ffffff');
+      g.addColorStop(0.18, hex(topColor));
+      g.addColorStop(1, hex(bottomColor));
+      c.fillStyle = g;
+      c.fillRect(0, 0, 4, inH);
+      t.refresh();
+    }
+    const fill = this.add.image(inX, inY, fillKey).setOrigin(0, 0).setDisplaySize(inW, inH)
+      .setDepth(52).setScrollFactor(0);
+    // _updateBar 以 scaleX 比例縮放；記住滿格時的 scaleX
+    fill.setData('fullScaleX', fill.scaleX);
+    this.add.nineslice(x, y, 'hud_bar_frame', undefined, w, FRAME_H, CAP, CAP)
+      .setOrigin(0, 0).setDepth(53).setScrollFactor(0);
+    const lbl = this.add.text(inX + 6, inY + inH / 2, label, {
+      fontSize: '12px', color: '#ffffff', fontFamily: 'Arial', fontStyle: 'bold', stroke: '#000', strokeThickness: 3,
+    }).setOrigin(0, 0.5).setDepth(54).setScrollFactor(0);
+    const num = this.add.text(inX + inW / 2 + 10, inY + inH / 2, '', {
+      fontSize: '12px', color: '#ffffff', fontFamily: 'Arial', fontStyle: 'bold', stroke: '#000', strokeThickness: 3,
+    }).setOrigin(0.5, 0.5).setDepth(54).setScrollFactor(0);
+    return { bg, fill, label: lbl, num };
+  }
+
   _makeBar(x, y, w, h, color) {
     // Phase 15 效能：Rectangle 走 batchSprite，消除 Graphics 每幀 batchFillPath。
     // scaleX 控制血量長度：GPU pure-transform，無 path/earcut 重繪。
@@ -211,41 +262,40 @@ export class UIScene extends Phaser.Scene {
   // ── 右側選單按鈕（帶點擊彈出選單）────────────────────────────────────────
   _setupMenuButtons(width, barPanelY) {
     const btnData = [
-      { label: '道具', color: 0x225522, hoverColor: 0x448844, type: 'items'    },
-      { label: '裝備', color: 0x332211, hoverColor: 0x554433, type: 'equip'    },
-      { label: '技能', color: 0x112233, hoverColor: 0x334455, type: 'skills'   },
-      { label: '地圖', color: 0x221133, hoverColor: 0x443355, type: 'map'      },
-      { label: '設定', color: 0x333333, hoverColor: 0x555555, type: 'settings' },
+      { label: '道具', type: 'items'    },
+      { label: '裝備', type: 'equip'    },
+      { label: '技能', type: 'skills'   },
+      { label: '地圖', type: 'map'      },
+      { label: '設定', type: 'settings' },
     ];
-    const btnW = 42, btnH = 22, gap = 3;
-    const totalW = btnData.length * (btnW + gap) - gap;
-    let bx = width - totalW - 8;
-    const by = barPanelY + 8;
+    // 羊皮紙按鈕（9-slice），兩列：3 + 2
+    const btnW = 72, btnH = 30, gap = 5;
+    const startX = width - (3 * btnW + 2 * gap) - 14;
+    const NORMAL_TINT = 0xe6d6bc;
 
-    for (const btn of btnData) {
-      // 背景方塊（設定 interactive 讓它可點擊）
-      const zone = this.add.zone(bx, by, btnW, btnH)
-        .setOrigin(0, 0).setInteractive().setDepth(55).setScrollFactor(0);
+    btnData.forEach((btn, i) => {
+      const col = i < 3 ? i : i - 3;
+      const row = i < 3 ? 0 : 1;
+      const bx = startX + col * (btnW + gap) + (row === 1 ? (btnW + gap) / 2 : 0);
+      const by = barPanelY + 18 + row * (btnH + 8);
 
-      // Rectangle 走 batchSprite；setFillStyle 改色無 earcut，消除每次 hover 的 rounded rect 重繪
-      const bgRect = this.add.rectangle(bx + btnW / 2, by + btnH / 2, btnW, btnH, btn.color, 0.95)
-        .setDepth(51).setScrollFactor(0);
+      const plate = this.add.nineslice(bx, by, 'hud_panel_sm', undefined, btnW, btnH, 9, 9, 9, 9)
+        .setOrigin(0, 0).setDepth(51).setScrollFactor(0).setTint(NORMAL_TINT)
+        .setInteractive({ useHandCursor: true });
       const lbl = this.add.text(bx + btnW / 2, by + btnH / 2, btn.label, {
-        fontSize: '10px', color: '#dddddd', fontFamily: 'Arial',
+        fontSize: '13px', color: '#3a2410', fontFamily: 'Arial', fontStyle: 'bold',
       }).setOrigin(0.5, 0.5).setDepth(52).setScrollFactor(0);
 
-      zone.on('pointerover',  () => bgRect.setFillStyle(btn.hoverColor, 0.95));
-      zone.on('pointerout',   () => bgRect.setFillStyle(btn.color, 0.95));
-      zone.on('pointerdown',  () => {
+      plate.on('pointerover', () => { plate.clearTint(); lbl.setColor('#6b2a00'); });
+      plate.on('pointerout',  () => { plate.setTint(NORMAL_TINT); lbl.setColor('#3a2410'); });
+      plate.on('pointerdown', () => {
         if (this._popup && this._popup.type === btn.type) {
           this._closePopup();
         } else {
           this._openPopup(btn.type);
         }
       });
-
-      bx += btnW + gap;
-    }
+    });
   }
 
   // ── 小地圖 + 地圖名稱（右上角，橫向捲軸風格）──────────────────────────────
@@ -378,101 +428,87 @@ export class UIScene extends Phaser.Scene {
 
   // ── 技能 + 藥水列（內嵌在底部面板）────────────────────────────────────────
   _setupSkillAndPotionBar(width, barPanelY) {
+    ensureSkillIcons(this);
     const skillKeys   = ['Z', 'X', 'C', 'V', 'B'];
     const potionKeys  = ['A', 'S', 'D', 'R', 'G'];
     const skillLabels = { Z: '三連鏢', X: '影步伐', C: '暗殺', V: '漩渦', B: '影分身' };
 
-    const slotW = 34, slotH = 44, gap = 3;
-    const potW  = 30, potH  = 44, potGap = 3;
-    const sepW  = 10;
-    const totalSkillW  = skillKeys.length  * (slotW + gap) - gap;
-    const totalPotionW = potionKeys.length * (potW  + potGap) - potGap;
-    const totalW = totalSkillW + sepW + totalPotionW;
-
-    const rowY = barPanelY + 8;
-    const skillStartX  = Math.floor(width / 2 - totalW / 2 + 18);
+    const slot = 52, gap = 4;
+    const pot = 42, potGap = 4;
+    const sepW = 16;
+    const totalSkillW = skillKeys.length * (slot + gap) - gap;
+    const skillStartX = 520;
     const potionStartX = skillStartX + totalSkillW + sepW;
+    const rowY = barPanelY + 16;
+    const labelStyle = {
+      fontSize: '10px', color: '#e8d3a8', fontFamily: 'Arial', fontStyle: 'bold', stroke: '#1a0e06', strokeThickness: 3,
+    };
 
-    // ── 技能槽 ────────────────────────────────────────────────────────────────
-    // Phase 12：5 個技能格邊框/底色相同，預渲染「1 張共用紋理」+ 5 個 image
+    // ── 技能槽：木框 + 程式繪製圖示 + 冷卻遮罩/秒數 + 等級 ───────────────────
     skillKeys.forEach((key, i) => {
-      const sx = skillStartX + i * (slotW + gap);
+      const sx = skillStartX + i * (slot + gap);
       const sy = rowY;
+      this.add.image(sx, sy, 'hud_slot_52').setOrigin(0, 0).setDepth(51).setScrollFactor(0);
+      const icon = this.add.image(sx + slot / 2, sy + slot / 2, `skill_icon_${key}`)
+        .setDepth(52).setScrollFactor(0);
 
-      this._freezeStaticGraphics('hud_skill_slot', slotW, slotH, sx, sy, 50, (g) => {
-        g.fillStyle(0x0d0d22, 0.9);
-        g.fillRoundedRect(0, 0, slotW, slotH, 5);
-        g.lineStyle(2, 0x3344aa, 0.8);
-        g.strokeRoundedRect(0, 0, slotW, slotH, 5);
-      });
+      // 快捷鍵（左上角）
+      this.add.text(sx + 5, sy + 3, key, {
+        fontSize: '12px', color: '#ffffff', fontFamily: 'Arial', fontStyle: 'bold', stroke: '#000', strokeThickness: 3,
+      }).setDepth(55).setScrollFactor(0);
+      // 技能名稱（格子下方）
+      this.add.text(sx + slot / 2, sy + slot + 3, skillLabels[key] || key, labelStyle)
+        .setOrigin(0.5, 0).setDepth(53).setScrollFactor(0);
 
-      const skillLabel = this.add.text(sx + slotW / 2, sy + slotH / 2 - 9, key, {
-        fontSize: '14px', color: '#ffffff', fontFamily: 'Arial',
-        stroke: '#000', strokeThickness: 3,
-      }).setOrigin(0.5, 0.5).setDepth(52).setScrollFactor(0);
+      // 技能等級（右下角）
+      const lvText = this.add.text(sx + slot - 5, sy + slot - 4, '', {
+        fontSize: '10px', color: '#ffe27a', fontFamily: 'Arial', fontStyle: 'bold', stroke: '#000', strokeThickness: 3,
+      }).setOrigin(1, 1).setDepth(55).setScrollFactor(0);
 
-      this.add.text(sx + slotW / 2, sy + slotH - 11, skillLabels[key] || key, {
-        fontSize: '7px', color: '#8899cc', fontFamily: 'Arial',
-      }).setOrigin(0.5, 1).setDepth(52).setScrollFactor(0);
-
-      // 技能等級小數字（右上角）
-      const lvText = this.add.text(sx + slotW - 3, sy + 2, '', {
-        fontSize: '8px', color: '#ffdd66', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2,
-      }).setOrigin(1, 0).setDepth(54).setScrollFactor(0);
+      // 未解鎖提示
+      const lockText = this.add.text(sx + slot / 2, sy + slot / 2, `Lv${SKILLS[key]?.unlockLevel ?? ''}`, {
+        fontSize: '11px', color: '#ffb0b0', fontFamily: 'Arial', fontStyle: 'bold', stroke: '#000', strokeThickness: 3,
+      }).setOrigin(0.5, 0.5).setDepth(55).setScrollFactor(0).setVisible(false);
 
       const cdOverlay = this.add.graphics().setDepth(53).setScrollFactor(0);
-      this._cdOverlays[key] = { overlay: cdOverlay, x: sx, y: sy, w: slotW, h: slotH };
-      this._skillSlots[key] = skillLabel;
+      const cdText = this.add.text(sx + slot / 2, sy + slot / 2, '', {
+        fontSize: '15px', color: '#ffffff', fontFamily: 'Arial', fontStyle: 'bold', stroke: '#000', strokeThickness: 4,
+      }).setOrigin(0.5, 0.5).setDepth(56).setScrollFactor(0);
+      const ix = sx + (slot - 38) / 2;
+      const iy = sy + (slot - 38) / 2;
+      this._cdOverlays[key] = { overlay: cdOverlay, cdText, lockText, x: ix, y: iy, w: 38, h: 38 };
+      this._skillSlots[key] = icon;
       this._skillLevelTexts[key] = lvText;
     });
 
-    // ── 分隔線 ────────────────────────────────────────────────────────────────
-    // Phase 12：分隔線改用 rectangle（無 stroke）取代 graphics lineBetween
+    // ── 分隔飾條 ──────────────────────────────────────────────────────────────
     const sepX = skillStartX + totalSkillW + sepW / 2;
-    this.add.rectangle(sepX, rowY + 4, 1, slotH - 8, 0x334466, 0.7)
+    this.add.rectangle(sepX, rowY + 4, 2, slot - 8, 0xa8742c, 0.8)
       .setOrigin(0.5, 0).setDepth(51).setScrollFactor(0);
 
-    // ── 藥水槽 ────────────────────────────────────────────────────────────────
-    // Phase 12：5 個藥水格邊框共用紋理；藥水圓改 image + setTint(potion.color)
+    // ── 藥水槽：木框 + 藥水圖示 + 數量 ───────────────────────────────────────
     potionKeys.forEach((key, i) => {
-      const px = potionStartX + i * (potW + potGap);
-      const py = rowY;
-      const potion = POTIONS[key];
-
-      // 藥水格底（共用 hud_potion_slot 紋理）
-      const slotBg = this._freezeStaticGraphics('hud_potion_slot', potW, potH, px, py, 50, (g) => {
-        g.fillStyle(0x0d0d1a, 0.9);
-        g.fillRoundedRect(0, 0, potW, potH, 5);
-        g.lineStyle(2, 0x445566, 0.7);
-        g.strokeRoundedRect(0, 0, potW, potH, 5);
-      });
-
-      // 藥水顏色圓點：共用「白色 fillCircle + 白色 strokeCircle」紋理 + setTint 染色
-      // 紋理 20×20，圓心 (10, 10)，半徑 8
-      if (!this.textures.exists('hud_potion_dot')) {
-        const g = this.add.graphics();
-        g.fillStyle(0xffffff, 0.85);
-        g.fillCircle(10, 10, 8);
-        g.lineStyle(1, 0xffffff, 0.3);
-        g.strokeCircle(10, 10, 8);
-        g.generateTexture('hud_potion_dot', 20, 20);
-        g.destroy();
+      const px = potionStartX + i * (pot + potGap);
+      const py = rowY + (slot - pot) / 2;
+      const slotBg = this.add.image(px, py, 'hud_slot_42').setOrigin(0, 0).setDepth(51).setScrollFactor(0);
+      const iconKey = POTION_ICON_KEYS[key];
+      let icon;
+      if (iconKey && this.textures.exists(iconKey)) {
+        icon = this.add.image(px + pot / 2, py + pot / 2, iconKey).setDepth(52).setScrollFactor(0);
+        icon.setScale(30 / icon.height);
+      } else {
+        icon = this.add.circle(px + pot / 2, py + pot / 2, 9, POTIONS[key].color).setDepth(52).setScrollFactor(0);
       }
-      const dotG = this.add.image(px + potW / 2, py + potH / 2 - 8, 'hud_potion_dot')
-        .setDepth(52).setScrollFactor(0).setTint(potion.color);
 
-      // 快捷鍵標籤
-      this.add.text(px + potW / 2, py + potH - 16, key, {
-        fontSize: '9px', color: '#cccccc', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2,
-      }).setOrigin(0.5, 0.5).setDepth(52).setScrollFactor(0);
+      this.add.text(px + 4, py + 2, key, {
+        fontSize: '10px', color: '#ffffff', fontFamily: 'Arial', fontStyle: 'bold', stroke: '#000', strokeThickness: 3,
+      }).setDepth(54).setScrollFactor(0);
 
-      // 數量標籤（動態更新）
-      const qtyText = this.add.text(px + potW - 4, py + 4, '', {
-        fontSize: '10px', color: '#ffff88', fontFamily: 'Arial',
-        stroke: '#000', strokeThickness: 2,
-      }).setOrigin(1, 0).setDepth(53).setScrollFactor(0);
+      const qtyText = this.add.text(px + pot - 3, py + pot - 2, '', {
+        fontSize: '11px', color: '#fff3a0', fontFamily: 'Arial', fontStyle: 'bold', stroke: '#000', strokeThickness: 3,
+      }).setOrigin(1, 1).setDepth(54).setScrollFactor(0);
 
-      this._potionSlots[key] = { bg: slotBg, dot: dotG, qtyText };
+      this._potionSlots[key] = { bg: slotBg, dot: icon, qtyText };
     });
   }
 
@@ -499,26 +535,32 @@ export class UIScene extends Phaser.Scene {
     }
 
     for (const [key, data] of Object.entries(this._cdOverlays)) {
-      const { overlay, x, y, w, h } = data;
+      const { overlay, cdText, lockText, x, y, w, h } = data;
       const cd = gs.skillCooldowns[key] || 0;
       const maxCd = SKILLS[key] ? SKILLS[key].cooldown : 1;
-      const ratio = cd / maxCd;
+      const ratio = Math.min(1, cd / maxCd);
       // dirty flag：ratio 量化到 50 step（0.02 精度），避免每 100ms 重繪
       const quantized = Math.round(ratio * 50);
       if (quantized !== data._lastRatioQ) {
         data._lastRatioQ = quantized;
         overlay.clear();
         if (ratio > 0) {
-          overlay.fillStyle(0x000000, 0.65);
-          // 統一使用 fillRect（從底部向上填充），避免 fillRoundedRect 的 earcut 路徑
+          overlay.fillStyle(0x000000, 0.6);
+          // 從上往下收：剩餘冷卻越少，遮罩越短
           overlay.fillRect(x, y + h * (1 - ratio), w, h * ratio);
         }
+      }
+      const cdLabel = cd >= 1 ? `${Math.ceil(cd)}` : '';
+      if (cdLabel !== data._lastCdLabel) {
+        data._lastCdLabel = cdLabel;
+        cdText.setText(cdLabel);
       }
       // 解鎖狀態加 dirty flag
       const unlocked = !!(gs.unlockedSkills && gs.unlockedSkills.includes(key));
       if (this._skillSlots[key] && unlocked !== data._lastUnlocked) {
         data._lastUnlocked = unlocked;
         this._skillSlots[key].setAlpha(unlocked ? 1 : 0.3);
+        lockText.setVisible(!unlocked);
       }
       // 技能等級加 dirty flag
       if (this._skillLevelTexts[key]) {
@@ -793,9 +835,12 @@ export class UIScene extends Phaser.Scene {
   }
 
   _updateBar(barObj, current, max) {
-    // Phase 15 效能：Rectangle.scaleX 是純 GPU transform，無 path 重繪。
+    // Phase 15 效能：scaleX 是純 GPU transform，無 path 重繪。
     const ratio = max > 0 ? Math.max(0, Math.min(1, current / max)) : 0;
-    barObj.scaleX = ratio;
+    barObj.scaleX = ratio * (barObj.getData('fullScaleX') ?? 1);
+    if (barObj === this._expBar && this._expText) {
+      this._expText.setText(`EXP ${(ratio * 100).toFixed(1)}%`);
+    }
   }
 
   _onHpChange(parent, value) {
@@ -822,9 +867,8 @@ export class UIScene extends Phaser.Scene {
   }
 
   _onSpChange(parent, value) {
-    const color = value > 0 ? '#ffff44' : '#88ffcc';
     this._spText.setText(`SP: ${value}`);
-    this._spText.setStyle({ fontSize: '11px', color, fontFamily: 'Arial', stroke: '#000', strokeThickness: 2 });
+    this._spText.setColor(value > 0 ? '#ffff44' : '#9ff0c8');
   }
 
   _onLevelUp(parent, level) {
@@ -945,13 +989,12 @@ export class UIScene extends Phaser.Scene {
     const gs = this.registry.get('gameState');
     if (gs && gs.bossUnlocked) {
       this._killText.setText(`💀 Boss 解鎖！`);
-      this._killText.setStyle({ color: '#ff44ff', fontSize: '11px', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2 });
+      this._killText.setColor('#ff77ff');
     } else {
       const needed = 60;
       this._killText.setText(`💀 ${value}/${needed}`);
       const pct = value / needed;
-      const color = pct >= 0.8 ? '#ffaa44' : '#ffee88';
-      this._killText.setStyle({ color, fontSize: '11px', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2 });
+      this._killText.setColor(pct >= 0.8 ? '#ffaa44' : '#ffe27a');
     }
   }
 
@@ -969,32 +1012,29 @@ export class UIScene extends Phaser.Scene {
     const objs = [];
     const push = (obj) => { objs.push(obj); return obj; };
 
-    // 背景板
-    const bg = push(this.add.graphics().setDepth(150).setScrollFactor(0));
-    bg.fillStyle(0x0a0a1a, 0.97);
-    bg.fillRoundedRect(popX, popY, popW, popH, 8);
-    bg.lineStyle(2, 0x4488cc, 0.9);
-    bg.strokeRoundedRect(popX, popY, popW, popH, 8);
+    // 背景板：羊皮紙 9-slice 染成深褐，配合淺色文字
+    push(this.add.nineslice(popX, popY, 'hud_panel', undefined, popW, popH, 30, 30, 30, 34)
+      .setOrigin(0, 0).setDepth(150).setScrollFactor(0).setTint(0x5a4232));
 
     // 標題
     const titles = { items: '道具欄', equip: '裝備欄', skills: '技能欄', map: '地圖資訊', settings: '設定' };
-    push(this.add.text(popX + 14, popY + 12, titles[type] || '', {
+    push(this.add.text(popX + 24, popY + 14, titles[type] || '', {
       fontSize: '15px', color: '#ffee88', fontFamily: 'Arial', stroke: '#000', strokeThickness: 3,
     }).setDepth(151).setScrollFactor(0));
 
     // 關閉按鈕 ×
-    const closeZone = push(this.add.zone(popX + popW - 28, popY + 6, 24, 24)
+    const closeZone = push(this.add.zone(popX + popW - 40, popY + 12, 24, 24)
       .setOrigin(0, 0).setInteractive().setDepth(155).setScrollFactor(0));
     const closeG = push(this.add.graphics().setDepth(154).setScrollFactor(0));
     const drawClose = (hover) => {
       closeG.clear();
       closeG.fillStyle(hover ? 0xaa3333 : 0x553333, 0.9);
-      closeG.fillRoundedRect(popX + popW - 28, popY + 6, 22, 22, 4);
+      closeG.fillRoundedRect(popX + popW - 40, popY + 12, 22, 22, 4);
       closeG.lineStyle(1, 0xff4444, 0.6);
-      closeG.strokeRoundedRect(popX + popW - 28, popY + 6, 22, 22, 4);
+      closeG.strokeRoundedRect(popX + popW - 40, popY + 12, 22, 22, 4);
     };
     drawClose(false);
-    push(this.add.text(popX + popW - 17, popY + 17, '×', {
+    push(this.add.text(popX + popW - 29, popY + 23, '×', {
       fontSize: '14px', color: '#ff8888', fontFamily: 'Arial',
     }).setOrigin(0.5, 0.5).setDepth(155).setScrollFactor(0));
     closeZone.on('pointerover',  () => drawClose(true));
@@ -1003,8 +1043,8 @@ export class UIScene extends Phaser.Scene {
 
     // 分隔線
     const divG = push(this.add.graphics().setDepth(151).setScrollFactor(0));
-    divG.lineStyle(1, 0x334466, 0.8);
-    divG.lineBetween(popX + 10, popY + 34, popX + popW - 10, popY + 34);
+    divG.lineStyle(1, 0xc99a4a, 0.7);
+    divG.lineBetween(popX + 22, popY + 36, popX + popW - 22, popY + 36);
 
     const contentY = popY + 44;
 
