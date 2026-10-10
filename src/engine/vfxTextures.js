@@ -26,6 +26,7 @@ export const VFX_TEX = {
   VORTEX_CORE: 'vfx_vortex_core', // 128×128 黑洞核心（深色中心 + 亮邊）
   GROUND_RUNE: 'vfx_ground_rune', // 256×256 符文環（使用時 scaleY 壓扁成地面橢圓）
   SOFT_GLOW: 'vfx_soft_glow', // 64×64 白色徑向柔光
+  PORTAL_RING: 'vfx_portal_ring', // 100×150 傳送門橢圓光環（白色，tint 染色）
 };
 
 /**
@@ -328,6 +329,7 @@ export function initVfxTextures(scene) {
   canvasTexture(scene, VFX_TEX.VORTEX_SPIRAL, 256, 256, drawVortexSpiralCanvas);
   canvasTexture(scene, VFX_TEX.VORTEX_CORE, 128, 128, drawVortexCoreCanvas);
   canvasTexture(scene, VFX_TEX.GROUND_RUNE, 256, 256, drawGroundRuneCanvas);
+  canvasTexture(scene, VFX_TEX.PORTAL_RING, 100, 150, drawPortalRingCanvas);
   canvasTexture(scene, VFX_TEX.SOFT_GLOW, 64, 64, (ctx, w) => {
     const grad = ctx.createRadialGradient(w / 2, w / 2, 0, w / 2, w / 2, w / 2);
     grad.addColorStop(0, 'rgba(255,255,255,1)');
@@ -450,6 +452,30 @@ function drawGroundRuneCanvas(ctx, w) {
       const y = Math.sin(ang) * (c - 16);
       if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
     }
+    ctx.stroke();
+  }
+}
+
+function drawPortalRingCanvas(ctx, w, h) {
+  const cx = w / 2;
+  const cy = h / 2;
+  // 內部半透明填色（越靠中心越亮）
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.scale(1, (h - 12) / (w - 12));
+  const fill = ctx.createRadialGradient(0, 0, 4, 0, 0, (w - 12) / 2);
+  fill.addColorStop(0, 'rgba(255,255,255,0.55)');
+  fill.addColorStop(0.7, 'rgba(255,255,255,0.18)');
+  fill.addColorStop(1, 'rgba(255,255,255,0.05)');
+  ctx.fillStyle = fill;
+  ctx.beginPath(); ctx.arc(0, 0, (w - 12) / 2, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+  // 外環：粗柔光 + 細亮線
+  for (const [lw, a] of [[10, 0.25], [5, 0.55], [2, 1]]) {
+    ctx.strokeStyle = `rgba(255,255,255,${a})`;
+    ctx.lineWidth = lw;
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, w / 2 - 7, h / 2 - 7, 0, 0, Math.PI * 2);
     ctx.stroke();
   }
 }

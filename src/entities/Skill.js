@@ -7,7 +7,7 @@ import {
 } from '../engine/vfx.js';
 import { VFX_TEX } from '../engine/vfxTextures.js';
 import { getQuality } from '../engine/quality.js';
-import { getVisualCenterPoint } from '../config/alignment.js';
+import { getVisualCenterPoint, ALIGNMENT_PROFILES, applyAlignmentProfile } from '../config/alignment.js';
 import { skillDamageScale } from '../config/constants.js';
 
 function getEntityEffectPoint(entity) {
@@ -221,7 +221,7 @@ function createCloneLifeBar(scene, clone, duration = 5000) {
     const progress = Phaser.Math.Clamp((scene.time.now - startedAt) / duration, 0, 1);
     const remaining = 1 - progress;
     const x = clone.x - barWidth / 2;
-    const y = clone.y - clone.displayHeight * 0.9;
+    const y = clone.y - clone.displayHeight - 2;
 
     // dirty flag：位置變化 < 0.5px 且剩餘量變化 < 0.02 時跳過更新
     if (
@@ -939,7 +939,7 @@ function mirrorShurikenFromClone(scene, player, enemies) {
     if (!clone.active) return;
     clone.lockPose?.('player_attack', 180);
     launchShuriken(scene, player, enemies, {
-      x: clone.x + dir * 22, y: clone.y - 4, vx: dir * 680, vy: 0,
+      x: clone.x + dir * 22, y: clone.y - clone.displayHeight * 0.45, vx: dir * 680, vy: 0,
       multiplier: 0.6, skillKey: 'B', tint: 0xc9a0ff, alpha: 0.9,
       trailTint: [0xc9a0ff, 0x8a4dff, 0x4a1d99],
     });
@@ -948,24 +948,33 @@ function mirrorShurikenFromClone(scene, player, enemies) {
 
 export function castClone(scene, player, enemies) {
   audio.playSkill('B');
-  const DURATION = 8000;
+  const DURATION = 12000;
+  const gs = player.gameState;
   const dir = player.facingRight ? 1 : -1;
 
   // 同時只存在一個分身：重放時先收掉舊的
   if (scene._shadowClone?.active) scene._shadowClone.emit('expire');
 
-  // 分身 = 玩家當下貼圖的黑影（姿勢、方向每幀同步）+ 一層紫色外光
-  const aura = scene.add.image(player.x - dir * 50, player.y, player.texture.key)
-    .setDepth(14).setTint(0x9a5cff).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0);
-  const clone = scene.add.image(player.x - dir * 50, player.y, player.texture.key)
-    .setDepth(15).setTint(0x1c0f33).setAlpha(0);
-  clone.setOrigin(player.originX, player.originY);
-  aura.setOrigin(player.originX, player.originY);
-  clone.setScale(player.scaleX, player.scaleY);
-  aura.setScale(player.scaleX * 1.08, player.scaleY * 1.06);
+  // 分身 = 有物理身體的黑影：會自己跑、跳、追怪，近身斬擊、遠距丟鏢
+  const startX = player.x - dir * 40;
+  const clone = scene.physics.add.sprite(startX, player.y, player.texture.key);
+  applyAlignmentProfile(clone, ALIGNMENT_PROFILES.player);
+  clone.setPosition(startX, player.y);
+  clone.setDepth(15).setTint(0x1c0f33).setAlpha(0);
   clone.setFlipX(player.flipX);
-  aura.setFlipX(player.flipX);
+  clone.setCollideWorldBounds(true);
+  const aura = scene.add.image(clone.x, clone.y, clone.texture.key)
+    .setOrigin(clone.originX, clone.originY).setDepth(14)
+    .setTint(0x9a5cff).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0);
+  aura.setDisplaySize(clone.displayWidth * 1.08, clone.displayHeight * 1.05);
   scene._shadowClone = clone;
+
+  const colliders = [];
+  if (scene.platforms) colliders.push(scene.physics.add.collider(clone, scene.platforms));
+  if (scene.thinPlatforms) {
+    colliders.push(scene.physics.add.collider(clone, scene.thinPlatforms, null,
+      (c, plat) => !c._dropThrough && c.body.velocity.y >= 0 && c.body.bottom <= plat.body.top + 12));
+  }
 
   let poseLockUntil = 0;
   let poseLockKey = null;
@@ -975,8 +984,8 @@ export function castClone(scene, player, enemies) {
     poseLockUntil = scene.time.now + ms;
   };
 
-  // 入場：從地面黑煙升起
-  scene.tweens.add({ targets: clone, alpha: 0.82, duration: 300 });
+  // 入場：黑煙 + 地面符文
+  scene.tweens.add({ targets: clone, alpha: 0.85, duration: 300 });
   scene.tweens.add({ targets: aura, alpha: 0.35, duration: 300 });
   const smokeBurst = (x, y) => spawnBurstEmitter(scene, x, y, {
     angle: { min: 200, max: 340 },
@@ -987,9 +996,8 @@ export function castClone(scene, player, enemies) {
     gravityY: -60,
     tint: [0x2a1450, 0x4a2a80, 0x8a4dff],
   }, 18, 560);
-  smokeBurst(clone.x, player.body ? player.body.bottom : player.y + 30);
-  const runeY = player.body ? player.body.bottom - 2 : player.y + 30;
-  const rune = scene.add.image(clone.x, runeY, VFX_TEX.GROUND_RUNE).setDepth(9)
+  smokeBurst(clone.x, clone.y - 4);
+  const rune = scene.add.image(clone.x, clone.y - 2, VFX_TEX.GROUND_RUNE).setDepth(9)
     .setTint(0x8a4dff).setBlendMode(Phaser.BlendModes.ADD).setScale(0.1, 0.03).setAlpha(0.9);
   scene.tweens.add({
     targets: rune, scaleX: 0.42, scaleY: 0.12, alpha: 0, duration: 650, ease: 'Quad.easeOut',
@@ -999,56 +1007,124 @@ export function castClone(scene, player, enemies) {
 
   const lifeBar = createCloneLifeBar(scene, clone, DURATION);
 
-  // 每幀跟隨：站在玩家身後一步，輕微上下浮動
-  const follow = (time) => {
-    if (!clone.active || !player.active) return;
-    const back = player.facingRight ? -1 : 1;
-    const tx = player.x + back * 46;
-    const ty = player.y - 4 + Math.sin(time / 260) * 3;
-    clone.x += (tx - clone.x) * 0.18;
-    clone.y += (ty - clone.y) * 0.25;
-    const key = time < poseLockUntil && poseLockKey ? poseLockKey : player.texture.key;
-    if (clone.texture.key !== key) { clone.setTexture(key); aura.setTexture(key); }
-    if (time >= poseLockUntil) { clone.setFlipX(player.flipX); }
+  const RUN_SPEED = Math.max(240, gs.speed + 30);
+  const MELEE_RANGE = 70;
+  const THROW_RANGE = 380;
+  let nextMeleeAt = 0;
+  let nextThrowAt = 0;
+  let nextJumpAt = 0;
+  let target = null;
+  let retargetAt = 0;
+
+  const slash = (enemy) => {
+    const c = getEntityEffectPoint(enemy);
+    const face = c.x >= clone.x ? 1 : -1;
+    clone.setFlipX(face < 0);
+    clone.lockPose('player_attack', 220);
+    const { damage, isCrit } = calcDamage(gs.atk, gs.critRate, gs.critMulti, 0.9 * skillDamageScale(gs.skillLevels.B));
+    enemy.takeDamage(damage, isCrit);
+    enemy.applyKnockback?.(face * 180, 160);
+    audio.playImpact(isCrit);
+    spawnSlashWave(scene, c.x - face * 10, c.y, face > 0, { radius: 48, color: 0xd8b0ff, duration: 200, scale: 1.4 });
+    spawnImpactSpark(scene, c.x, c.y, isCrit ? 0xffdd66 : 0xc9a0ff, 1);
+  };
+
+  const throwAt = (enemy) => {
+    const c = getEntityEffectPoint(enemy);
+    const face = c.x >= clone.x ? 1 : -1;
+    clone.setFlipX(face < 0);
+    clone.lockPose('player_attack', 200);
+    const oy = clone.y - clone.displayHeight * 0.45;
+    const angle = Math.atan2(c.y - oy, c.x - clone.x);
+    launchShuriken(scene, player, enemies, {
+      x: clone.x + face * 20, y: oy,
+      vx: Math.cos(angle) * 720, vy: Math.sin(angle) * 720,
+      multiplier: 0.7, skillKey: 'B', tint: 0xc9a0ff, alpha: 0.9,
+      trailTint: [0xc9a0ff, 0x8a4dff, 0x4a1d99],
+    });
+  };
+
+  // 每幀 AI：鎖定最近的怪 → 跑過去（必要時跳）→ 近身斬 / 中距丟鏢；沒有怪就跟回玩家身邊
+  const think = (time) => {
+    if (!clone.active || !clone.body) return;
+    const onGround = clone.body.blocked.down || clone.body.touching.down;
+
+    if (time >= retargetAt || !target?.active || target.isDead) {
+      target = findNearestEnemy(enemies, clone.x, clone.y - 30, 650);
+      retargetAt = time + 400;
+    }
+
+    let goalX;
+    if (target) {
+      const c = getEntityEffectPoint(target);
+      const dx = c.x - clone.x;
+      const dist = Math.abs(dx);
+      const dy = target.body ? target.body.bottom - clone.body.bottom : 0;
+      if (dist <= MELEE_RANGE && Math.abs(dy) < 70) {
+        goalX = clone.x;
+        if (time >= nextMeleeAt) { slash(target); nextMeleeAt = time + 420; }
+      } else {
+        goalX = c.x - Math.sign(dx) * 40;
+        if (dist <= THROW_RANGE && time >= nextThrowAt) { throwAt(target); nextThrowAt = time + 900; }
+      }
+      // 目標在上層平台 → 跳；在下層 → 穿過薄平台
+      if (onGround && dy < -60 && dist < 260 && time >= nextJumpAt) {
+        clone.setVelocityY(-560);
+        nextJumpAt = time + 700;
+      }
+      clone._dropThrough = dy > 60 && dist < 200;
+    } else {
+      const back = player.facingRight ? -1 : 1;
+      goalX = player.x + back * 50;
+      clone._dropThrough = false;
+      const dyp = player.body ? player.body.bottom - clone.body.bottom : 0;
+      if (onGround && dyp < -60 && time >= nextJumpAt) {
+        clone.setVelocityY(-560);
+        nextJumpAt = time + 700;
+      }
+      // 離玩家太遠（例如掉下去）就瞬移回來
+      if (Math.abs(player.x - clone.x) > 700 || Math.abs(dyp) > 400) {
+        smokeBurst(clone.x, clone.y - 20);
+        clone.body.reset(goalX, player.y);
+      }
+    }
+
+    const gap = goalX - clone.x;
+    if (Math.abs(gap) > 8) {
+      clone.setVelocityX(Math.sign(gap) * RUN_SPEED);
+      if (time >= poseLockUntil) clone.setFlipX(gap < 0);
+    } else {
+      clone.setVelocityX(0);
+    }
+
+    // 姿勢
+    let key;
+    if (time < poseLockUntil && poseLockKey) key = poseLockKey;
+    else if (!onGround) key = 'player_jump';
+    else if (Math.abs(clone.body.velocity.x) > 10) key = Math.floor(time / 140) % 2 ? 'player_walk_1' : 'player_walk_2';
+    else key = 'player_idle';
+    if (scene.textures.exists(key) && clone.texture.key !== key) {
+      clone.setTexture(key);
+      aura.setTexture(key);
+    }
     aura.setFlipX(clone.flipX);
     aura.setPosition(clone.x, clone.y);
   };
-  scene.events.on('update', follow);
-
-  // 自動攻擊：每 600ms 朝最近的敵人丟一支影鏢
-  const attackTimer = scene.time.addEvent({
-    delay: 600,
-    loop: true,
-    callback: () => {
-      if (!clone.active) return;
-      const target = findNearestEnemy(enemies, clone.x, clone.y, 480);
-      if (!target) return;
-      const c = getEntityEffectPoint(target);
-      const tdir = c.x >= clone.x ? 1 : -1;
-      clone.setFlipX(tdir < 0);
-      clone.lockPose('player_attack', 200);
-      const angle = Math.atan2(c.y - (clone.y - 4), c.x - clone.x);
-      launchShuriken(scene, player, enemies, {
-        x: clone.x + tdir * 20, y: clone.y - 4,
-        vx: Math.cos(angle) * 700, vy: Math.sin(angle) * 700,
-        multiplier: 0.7, skillKey: 'B', tint: 0xc9a0ff, alpha: 0.9,
-        trailTint: [0xc9a0ff, 0x8a4dff, 0x4a1d99],
-      });
-    },
-  });
+  scene.events.on('update', think);
 
   let expired = false;
   const expire = () => {
     if (expired) return;
     expired = true;
-    scene.events.off('update', follow);
-    attackTimer.remove();
+    scene.events.off('update', think);
+    colliders.forEach((c) => scene.physics.world.removeCollider(c));
     lifeBar.destroy();
     if (scene._shadowClone === clone) scene._shadowClone = null;
-    if (!clone.active) return;
-    smokeBurst(clone.x, clone.y + 20);
+    if (!clone.active) { aura.destroy(); return; }
+    clone.body.enable = false;
+    smokeBurst(clone.x, clone.y - 20);
     scene.tweens.add({
-      targets: [clone, aura], alpha: 0, scaleY: clone.scaleY * 0.2, y: clone.y + 20, duration: 320, ease: 'Quad.easeIn',
+      targets: [clone, aura], alpha: 0, y: clone.y + 10, duration: 320, ease: 'Quad.easeIn',
       onComplete: () => { clone.destroy(); aura.destroy(); },
     });
   };
@@ -1056,7 +1132,7 @@ export function castClone(scene, player, enemies) {
   const expireTimer = scene.time.delayedCall(DURATION, expire);
   scene.events.once('shutdown', () => {
     expireTimer.remove();
-    scene.events.off('update', follow);
+    scene.events.off('update', think);
     if (scene._shadowClone === clone) scene._shadowClone = null;
   });
 

@@ -7,6 +7,7 @@ import { Monster } from '../entities/Monster.js';
 import { audio } from '../engine/audio.js';
 import { getVisualFootPadding } from '../config/alignment.js';
 import { addParchmentPanel } from '../engine/woodUi.js';
+import { VFX_TEX } from '../engine/vfxTextures.js';
 import { saveGame, isSavableMap } from '../engine/saveGame.js';
 import { onMonsterKilled, onMapEntered, acceptQuest, isQuestActive, isQuestCompleted } from '../engine/questManager.js';
 import { canEnterDungeon, getRemainingEntries } from '../engine/dungeonRecord.js';
@@ -311,7 +312,7 @@ export class BaseMapScene extends Phaser.Scene {
       if (pd.requireBoss && !gs.bossUnlocked) continue;
 
       const portal = this.portals.create(pd.x, pd.y, 'portal');
-      portal.setDepth(6);
+      portal.setVisible(false);  // 只當碰撞區，畫面由下方的光門特效負責
       portal.targetMap = pd.target;
       portal.spawnX   = pd.spawnX;  // 目標地圖的重生位置
       portal.dungeonId = pd.dungeonId;  // Phase 14：副本 ID（target='dungeon' 時用）
@@ -326,17 +327,54 @@ export class BaseMapScene extends Phaser.Scene {
           labelText = `${labelText}（今日剩 ${remaining} 次）`;
         }
       }
+      this._createPortalVisual(pd, labelText);
+    }
+  }
 
-      this.add.text(pd.x, pd.y - 10, labelText, {
-        fontSize: '12px', color: '#ddaaff', fontFamily: 'Arial',
-      }).setDepth(7).setOrigin(0.5, 1);
+  // 光門：橢圓光環 + 旋轉漩渦 + 地面符文 + 上升光點 + 木牌標籤
+  // 顏色依目的地區分：一般地圖青藍、副本翠綠、Boss 暗紅紫
+  _createPortalVisual(pd, labelText) {
+    const color = pd.target === 'dungeon' ? 0x5cf08a : pd.target === 'boss' ? 0xff4f8a : 0x6fd8ff;
+    const x = pd.x;
+    const cy = pd.y - 6;
+    const feetY = pd.y + 39;
+    const ADD = Phaser.BlendModes.ADD;
+    this._portalTweens = this._portalTweens || [];
+    const loop = (cfg) => this._portalTweens.push(this.tweens.add({ repeat: -1, ...cfg }));
 
-      // Phase 6.5：portal 無限循環 tween 必須在場景 shutdown 時 stop，
-      // 否則跳地圖時殘留的 tween 會累積（Phaser 場景切換不自動清 tween）
-      this._portalTweens = this._portalTweens || [];
-      this._portalTweens.push(
-        this.tweens.add({ targets: portal, alpha: 0.5, duration: 800, yoyo: true, repeat: -1 })
-      );
+    const rune = this.add.image(x, feetY - 3, VFX_TEX.GROUND_RUNE).setDepth(6)
+      .setTint(color).setBlendMode(ADD).setScale(0.36, 0.09).setAlpha(0.8);
+    const glow = this.add.image(x, cy, VFX_TEX.SOFT_GLOW).setDepth(6)
+      .setTint(color).setBlendMode(ADD).setScale(2.2, 3.1).setAlpha(0.55);
+    const swirl = this.add.image(x, cy, VFX_TEX.VORTEX_SPIRAL).setDepth(6)
+      .setTint(color).setBlendMode(ADD).setScale(0.3, 0.46).setAlpha(0.75);
+    const ring = this.add.image(x, cy, VFX_TEX.PORTAL_RING).setDepth(7)
+      .setTint(color).setBlendMode(ADD).setScale(0.62, 0.62);
+
+    loop({ targets: rune, angle: 360, duration: 6000 });
+    loop({ targets: swirl, angle: -360, duration: 2600 });
+    loop({ targets: glow, alpha: 0.3, duration: 900, yoyo: true, ease: 'Sine.easeInOut' });
+    loop({ targets: ring, scaleX: 0.66, scaleY: 0.65, duration: 1100, yoyo: true, ease: 'Sine.easeInOut' });
+
+    const motes = this.add.particles(x, feetY - 6, 'particle-dot', {
+      x: { min: -22, max: 22 },
+      speedY: { min: -70, max: -30 },
+      speedX: { min: -6, max: 6 },
+      lifespan: 1300,
+      frequency: 110,
+      scale: { start: 0.9, end: 0 },
+      alpha: { start: 0.9, end: 0 },
+      tint: [color, 0xffffff],
+      blendMode: 'ADD',
+    });
+    motes.setDepth(7);
+
+    if (labelText) {
+      const label = this.add.text(x, cy - 62, labelText, {
+        fontSize: '13px', color: '#3a2410', fontFamily: 'Arial', fontStyle: 'bold',
+      }).setOrigin(0.5, 0.5).setDepth(9);
+      this.add.nineslice(x, cy - 62, 'hud_panel_sm', undefined, Math.max(64, label.width + 24), 26, 9, 9, 9, 9)
+        .setOrigin(0.5, 0.5).setDepth(8).setTint(0xe6d6bc);
     }
   }
 

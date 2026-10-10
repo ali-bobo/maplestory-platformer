@@ -38,7 +38,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.enemies = null;
 
     // 目標選取框（單一 Graphics 物件複用，每幀同步最近怪物的位置）
-    this._targetGfx = scene.add.graphics().setDepth(13);
+    this._targetGfx = scene.add.graphics().setDepth(30);
 
     // 輸入按鍵
     const { LEFT, RIGHT, UP, DOWN, ALT } = Phaser.Input.Keyboard.KeyCodes;
@@ -198,19 +198,21 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     return nearest;
   }
 
-  // 每幀更新目標選取框位置（橙色外框，跟隨最近怪物）
+  // 每幀更新鎖定標記：最近怪物頭上一個上下浮動的小箭頭（取代舊的橙色方框）
   _updateTargetBox() {
     if (!this._targetGfx || !this._targetGfx.active) return;
     const target = this._findNearestMonster();
-    if (target && target.active) {
-      // 以碰撞框為準，Boss 等寬畫布（含特效留白）也能框在身體上
-      const pad = 5;
+    if (target && target.active && target.body) {
+      // 以碰撞框為準，Boss 等寬畫布（含特效留白）也能標在身體正上方
       const b = target.body;
-      const hw = b.width / 2 + pad;
-      const hh = b.height / 2 + pad;
-      this._targetGfx.clear();
-      this._targetGfx.lineStyle(2, 0xff8800, 0.85);
-      this._targetGfx.strokeRect(b.center.x - hw, b.center.y - hh, hw * 2, hh * 2);
+      const x = b.center.x;
+      const y = b.top - 22 + Math.sin(this.scene.time.now / 160) * 3;
+      const g = this._targetGfx;
+      g.clear();
+      g.fillStyle(0x1a0e06, 0.7);
+      g.fillTriangle(x - 8, y - 2, x + 8, y - 2, x, y + 10);
+      g.fillStyle(0xffd24a, 0.95);
+      g.fillTriangle(x - 6, y, x + 6, y, x, y + 8);
     } else {
       this._targetGfx.clear();
     }
