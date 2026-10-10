@@ -112,11 +112,11 @@ export const BACKGROUND_ASSETS = [
     targetMaps: ['town'],
   },
   {
-    assetId: 'BG-TOY-002',
-    groupId: 'BG-TOY',
+    assetId: 'BG-MYS-001',
+    groupId: 'BG-MYS',
     kind: 'background',
-    key: 'bg_toytown_refresh',
-    path: 'dist/assets/bg_toytown_refresh.png',
+    key: 'bg_mystic',
+    path: 'dist/assets/bg_mystic.png',
     status: 'used',
     targetMaps: ['ellinia'],
   },
@@ -534,7 +534,7 @@ export const NPC_ASSETS = [
   },
 ];
 
-// 暗影魔君動作圖：由 boss_main.png（9 格動作對照表）裁切去背而成
+// 暗影魔君動作圖：每個動作一張，統一 460x220 畫布
 export const BOSS_ASSETS = [
   {
     assetId: 'BOSS-SHADOW-IDLE',
@@ -545,7 +545,6 @@ export const BOSS_ASSETS = [
     status: 'used',
     targetMaps: ['boss'],
     pose: 'idle',
-    sourceSheet: 'dist/assets/boss_main.png',
   },
   {
     assetId: 'BOSS-SHADOW-MOVE',
@@ -556,7 +555,6 @@ export const BOSS_ASSETS = [
     status: 'used',
     targetMaps: ['boss'],
     pose: 'move',
-    sourceSheet: 'dist/assets/boss_main.png',
   },
   {
     assetId: 'BOSS-SHADOW-ATTACK',
@@ -567,7 +565,6 @@ export const BOSS_ASSETS = [
     status: 'used',
     targetMaps: ['boss'],
     pose: 'attack',
-    sourceSheet: 'dist/assets/boss_main.png',
   },
   {
     assetId: 'BOSS-SHADOW-DEATH1',
@@ -578,7 +575,6 @@ export const BOSS_ASSETS = [
     status: 'used',
     targetMaps: ['boss'],
     pose: 'death1',
-    sourceSheet: 'dist/assets/boss_main.png',
   },
   {
     assetId: 'BOSS-SHADOW-DEATH2',
@@ -589,7 +585,6 @@ export const BOSS_ASSETS = [
     status: 'used',
     targetMaps: ['boss'],
     pose: 'death2',
-    sourceSheet: 'dist/assets/boss_main.png',
   },
 ];
 

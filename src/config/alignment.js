@@ -8,7 +8,7 @@ const createProfile = ({ displayWidth, displayHeight, bodyWidth, bodyOffsetX, bo
   bodyHeight: displayHeight - bodyOffsetY - footPadding,
 });
 
-// 新版角色/怪物圖已裁到腳底貼齊圖片底邊，只有 Boss 仍沿用 profile 內的 footPadding。
+// 新版角色/怪物/Boss 圖都已裁到腳底貼齊圖片底邊，直接使用 profile 內的 footPadding。
 function resolveFootPadding(entity, profile) {
   return profile.footPadding;
 }
@@ -31,14 +31,14 @@ export const ALIGNMENT_PROFILES = {
     bodyOffsetY: 4,
     footPadding: 0,
   }),
-  // 暗影魔君：對齊裁切後的動作圖比例（來源 275x222）
+  // 暗影魔君：動作圖統一為 460x220 畫布，身體置中、腳底貼齊底邊（攻擊特效需要較寬畫布）
   boss: createProfile({
-    displayWidth: 260,
-    displayHeight: 210,
-    bodyWidth: 120,
-    bodyOffsetX: 70,
-    bodyOffsetY: 38,
-    footPadding: 11,
+    displayWidth: 460,
+    displayHeight: 220,
+    bodyWidth: 110,
+    bodyOffsetX: 175,
+    bodyOffsetY: 40,
+    footPadding: 0,
   }),
 };
 

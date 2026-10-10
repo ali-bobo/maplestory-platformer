@@ -4,7 +4,7 @@ import { particles } from '../engine/particles.js';
 import { ALIGNMENT_PROFILES, applyAlignmentProfile } from '../config/alignment.js';
 
 // 暗影魔君 — 3 階段 Boss
-// 使用由 boss_main.png 裁切的多動作圖（待機 / 移動 / 攻擊 / 死亡），以狀態驅動姿勢動畫
+// 使用多張動作圖（待機 / 移動 / 攻擊 / 死亡），以狀態驅動姿勢動畫
 export class Boss extends Monster {
   constructor(scene, x, y) {
     super(scene, x, y, {

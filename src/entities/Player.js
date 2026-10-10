@@ -202,12 +202,14 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     if (!this._targetGfx || !this._targetGfx.active) return;
     const target = this._findNearestMonster();
     if (target && target.active) {
+      // 以碰撞框為準，Boss 等寬畫布（含特效留白）也能框在身體上
       const pad = 5;
-      const hw = target.displayWidth / 2 + pad;
-      const hh = target.displayHeight / 2 + pad;
+      const b = target.body;
+      const hw = b.width / 2 + pad;
+      const hh = b.height / 2 + pad;
       this._targetGfx.clear();
       this._targetGfx.lineStyle(2, 0xff8800, 0.85);
-      this._targetGfx.strokeRect(target.x - hw, target.y - hh, hw * 2, hh * 2);
+      this._targetGfx.strokeRect(b.center.x - hw, b.center.y - hh, hw * 2, hh * 2);
     } else {
       this._targetGfx.clear();
     }

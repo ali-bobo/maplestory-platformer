@@ -247,7 +247,7 @@ export const MAPS = {
     key: 'ellinia', name: '神秘之境', sceneKey: 'ElliniaScene',
     width: MAP_WIDTH, bgColor: 0x4422aa,
     platforms: ELLINIA_PLATFORMS,
-    bgType: 'ellinia', bgImage: 'bg_toytown_refresh',
+    bgType: 'ellinia', bgImage: 'bg_mystic',
     monsters: [
       // 神秘之境：改成純奇幻高空區，避免與天空 / 廢墟地圖再次重複
       { id: 'dragon',   count: 3 },
