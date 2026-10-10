@@ -267,10 +267,11 @@ export const MAPS = {
     platforms: TAIPEI_PLATFORMS,
     bgType: 'taipei', bgImage: 'bg_taipei',
     monsters: [
-      // 台北都會：集中機械 / 菁英 / 都會督軍，與 Kerning 夜區明確分工
-      { id: 'robot',      count: 3 },
-      { id: 'city_mech',  count: 3 },
-      { id: 'city_elite', count: 2 },
+      // 台北都會：夜市街頭混混、扒手與巡邏空拍機，與暗巷城夜區分工
+      { id: 'robot',       count: 2 },
+      { id: 'street_punk', count: 2 },
+      { id: 'city_mech',   count: 3 },
+      { id: 'city_elite',  count: 3 },
       { id: 'city_boss1', count: 1 },
     ],
     portals: [
@@ -280,7 +281,7 @@ export const MAPS = {
     npcs: [
       { x: 330, y: GROUND_Y - 60, id: 'npc_new_5', name: '台北導遊',
         questIds: ['mech_purge', 'elite_takedown'],
-        dialog: ['這裡是台北都會試作地圖。', 'monster3 裁出的機械與菁英怪現在已經接進來了。', '再往右走前，先小心那隻都會督軍。'] },
+        dialog: ['歡迎來到台北都會，夜市人多，小心錢包。', '最近龐克飆仔和扒手在街頭鬧事。', '扒手頭目就躲在巷子深處，要去的話小心點。'] },
     ],
     spawnX: 150,
   },

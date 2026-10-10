@@ -37,7 +37,8 @@ const MONSTER_CLASSIFICATION = {
   golem: { family: MONSTER_FAMILIES.ROCK, habitats: ['ruins'] },
   mimic: { family: MONSTER_FAMILIES.FANTASY, habitats: ['ellinia', 'kerning'] },
   city_thug: { family: MONSTER_FAMILIES.CITY, habitats: ['kerning'] },
-  city_mech: { family: MONSTER_FAMILIES.MACHINE, habitats: ['taipei'] },
+  city_mech: { family: MONSTER_FAMILIES.CITY, habitats: ['taipei'] },
+  street_punk: { family: MONSTER_FAMILIES.CITY, habitats: ['taipei'] },
   city_beast: { family: MONSTER_FAMILIES.CITY, habitats: ['kerning'] },
   city_boss1: { family: MONSTER_FAMILIES.ELITE, habitats: ['taipei'] },
   city_boss2: { family: MONSTER_FAMILIES.ELITE, habitats: ['kerning'] },
@@ -58,7 +59,7 @@ export const MONSTERS = [
 
   // ── 古代廢墟 (ruins) Lv9-18 ──────────────────────────────────────────────
   { id: 'boar',     name: '岩牙野豬',   level: 9,  hp: 380,  atk: 48,  exp: 90,  speed: 90,  meso: 22, dropRate: 0.15, behavior: 'chase',   spriteKey: 'monster_boar',     area: 'ruins', jumpProfile: { minInterval: 3400, maxInterval: 5200, velocity: 320, chance: 0.38 } },
-  { id: 'robot',    name: '機械直升機', level: 11, hp: 450,  atk: 58,  exp: 115, speed: 75,  meso: 28, dropRate: 0.16, behavior: 'ranged',  spriteKey: 'monster_robot',    area: 'ruins'   },
+  { id: 'robot',    name: '巡邏空拍機', level: 11, hp: 450,  atk: 58,  exp: 115, speed: 75,  meso: 28, dropRate: 0.16, behavior: 'ranged',  spriteKey: 'monster_robot',    area: 'ruins'   },
   { id: 'skeleton', name: '骷髏戰士',   level: 14, hp: 560,  atk: 70,  exp: 150, speed: 70,  meso: 34, dropRate: 0.18, behavior: 'chase',   spriteKey: 'monster_skeleton', area: 'ruins'   },
   { id: 'snake',    name: '毒眼鏡蛇',   level: 17, hp: 680,  atk: 86,  exp: 195, speed: 100, meso: 40, dropRate: 0.20, behavior: 'chase',   spriteKey: 'monster_snake',    area: 'ruins'   },
   // 新增廢墟系怪物
@@ -75,11 +76,12 @@ export const MONSTERS = [
   { id: 'mimic',    name: '飛魚寶箱',   level: 28, hp: 1200, atk: 160, exp: 510, speed: 95,  meso: 82, dropRate: 0.28, behavior: 'ranged',  spriteKey: 'monster_mimic',    area: 'kerning' },
   // 新增 Kerning 系怪物
   { id: 'city_thug',   name: '城市流氓', level: 20, hp: 950, atk: 110, exp: 275, speed: 90,  meso: 54, dropRate: 0.22, behavior: 'chase',   spriteKey: 'monster_new_6',    area: 'kerning' },
-  { id: 'city_mech',   name: '機械衛士', level: 23, hp: 1200,atk: 130, exp: 350, speed: 75,  meso: 62, dropRate: 0.24, behavior: 'ranged',  spriteKey: 'monster_big_2',    area: 'taipei' },
+  { id: 'city_mech',   name: '龐克飆仔', level: 23, hp: 1200,atk: 130, exp: 350, speed: 95,  meso: 62, dropRate: 0.24, behavior: 'chase',   spriteKey: 'monster_punk',    area: 'taipei' },
+  { id: 'street_punk', name: '夜市混混', level: 22, hp: 1100,atk: 125, exp: 320, speed: 90,  meso: 58, dropRate: 0.23, behavior: 'chase',   spriteKey: 'monster_punk_red', area: 'taipei' },
   { id: 'city_beast',  name: '暗夜猛獸', level: 26, hp: 1500,atk: 150, exp: 440, speed: 80,  meso: 72, dropRate: 0.26, behavior: 'chase',   spriteKey: 'monster_big_3',    area: 'kerning', jumpProfile: { minInterval: 2400, maxInterval: 3800, velocity: 390, chance: 0.44 } },
-  { id: 'city_boss1',  name: '小王：都會督軍', level: 27, hp: 3000, atk: 170, exp: 600, speed: 100, meso: 150, dropRate: 0.50, behavior: 'chase', spriteKey: 'miniboss_0',  area: 'taipei',  spawnRole: 'miniboss' },
+  { id: 'city_boss1',  name: '小王：扒手頭目', level: 27, hp: 3000, atk: 170, exp: 600, speed: 105, meso: 150, dropRate: 0.50, behavior: 'chase', spriteKey: 'miniboss_street',  area: 'taipei',  spawnRole: 'miniboss' },
   { id: 'city_boss2',  name: '小王：機械領袖', level: 29, hp: 4000, atk: 185, exp: 800, speed: 85,  meso: 200, dropRate: 0.50, behavior: 'chase', spriteKey: 'miniboss_1',  area: 'kerning', spawnRole: 'miniboss' },
-  { id: 'city_elite',  name: '精英衛兵', level: 24, hp: 1300,atk: 140, exp: 380, speed: 70,  meso: 66, dropRate: 0.25, behavior: 'patrol',  spriteKey: 'monster_big_4',    area: 'taipei', jumpProfile: { minInterval: 3600, maxInterval: 5400, velocity: 310, chance: 0.3 } },
+  { id: 'city_elite',  name: '夜市扒手', level: 24, hp: 1300,atk: 140, exp: 380, speed: 85,  meso: 66, dropRate: 0.25, behavior: 'patrol',  spriteKey: 'monster_pickpocket',    area: 'taipei', jumpProfile: { minInterval: 3600, maxInterval: 5400, velocity: 310, chance: 0.3 } },
 
   // ── Boss 援軍 (boss) ─────────────────────────────────────────────────────
   { id: 'shadow-slime', name: '影子史萊姆', level: 28, hp: 400,  atk: 80,  exp: 0,   speed: 80,  meso: 0,  dropRate: 0.0,  behavior: 'chase',   spriteKey: 'monster_slime',    area: 'boss', tint: 0x9B30FF },

@@ -442,8 +442,8 @@ export const MONSTER_ASSETS = [
     kind: 'monster',
     key: 'monster_big_2',
     path: 'dist/assets/monster_big_2.png',
-    status: 'used',
-    monsterIds: ['city_mech'],
+    status: 'unused',
+    monsterIds: [],
     alignmentStatus: 'complete',
     sourceSheet: '遊戲畫面/monster3.jpg',
     sourceFamily: 'machine',
@@ -466,8 +466,8 @@ export const MONSTER_ASSETS = [
     kind: 'monster',
     key: 'monster_big_4',
     path: 'dist/assets/monster_big_4.png',
-    status: 'used',
-    monsterIds: ['city_elite'],
+    status: 'unused',
+    monsterIds: [],
     alignmentStatus: 'complete',
     sourceSheet: '遊戲畫面/monster3.jpg',
     sourceFamily: 'elite',
@@ -478,8 +478,8 @@ export const MONSTER_ASSETS = [
     kind: 'miniboss',
     key: 'miniboss_0',
     path: 'dist/assets/miniboss_0.png',
-    status: 'used',
-    monsterIds: ['city_boss1'],
+    status: 'unused',
+    monsterIds: [],
     alignmentStatus: 'complete',
     sourceSheet: '遊戲畫面/monster3.jpg',
     sourceFamily: 'miniboss',
@@ -496,6 +496,12 @@ export const MONSTER_ASSETS = [
     sourceSheet: '遊戲畫面/monster3.jpg',
     sourceFamily: 'miniboss',
   },
+  // 台北街頭怪：由 art-source/characters 的兩張原始總表裁切（夜市扒手 / 龐克），
+  // 混混與扒手頭目是現有圖的換色版
+  { assetId: 'MON-CITY-001', groupId: 'MON-CITY', kind: 'monster', key: 'monster_punk', path: 'dist/assets/monster_punk.png', status: 'used', monsterIds: ['city_mech'], alignmentStatus: 'complete' },
+  { assetId: 'MON-CITY-002', groupId: 'MON-CITY', kind: 'monster', key: 'monster_punk_red', path: 'dist/assets/monster_punk_red.png', status: 'used', monsterIds: ['street_punk'], alignmentStatus: 'complete' },
+  { assetId: 'MON-CITY-003', groupId: 'MON-CITY', kind: 'monster', key: 'monster_pickpocket', path: 'dist/assets/monster_pickpocket.png', status: 'used', monsterIds: ['city_elite'], alignmentStatus: 'complete' },
+  { assetId: 'MON-CITY-004', groupId: 'MON-CITY', kind: 'miniboss', key: 'miniboss_street', path: 'dist/assets/miniboss_street.png', status: 'used', monsterIds: ['city_boss1'], alignmentStatus: 'complete' },
 ];
 
 export const NPC_ASSETS = [

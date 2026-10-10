@@ -96,8 +96,8 @@ export const QUESTS = {
   // ── 台北都會（taipei）── 由「台北導遊」發佈 ──────────────────────────────
   mech_purge: {
     id: 'mech_purge',
-    name: '機械淨化',
-    desc: '都會中的失控機械需要被解除。',
+    name: '街頭掃蕩',
+    desc: '把在街頭鬧事的龐克飆仔趕出台北都會。',
     type: 'kill',
     target: 'city_mech',
     count: 4,
@@ -105,8 +105,8 @@ export const QUESTS = {
   },
   elite_takedown: {
     id: 'elite_takedown',
-    name: '精英斬首',
-    desc: '台北都會的精英衛兵是更高難度的挑戰。',
+    name: '抓扒手',
+    desc: '夜市扒手偷走了攤商的錢，把他們抓起來。',
     type: 'kill',
     target: 'city_elite',
     count: 2,
