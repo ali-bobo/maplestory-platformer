@@ -1,6 +1,5 @@
 // 遊戲常數定義
 
-export const CANVAS = { width: 1280, height: 720 };
 export const WORLD_HEIGHT = 600;
 
 // Phase 6：自適應品質等級。每檔定義 GPU 開銷旋鈕，由 FPS 監測器動態切換。
@@ -21,18 +20,6 @@ export const POTIONS = {
   D: { name: 'MP藥水',    color: 0x4466ff, hpRestore: 0,   mpRestore: 150 },
   R: { name: '強效MP藥水', color: 0x8844ff, hpRestore: 0,   mpRestore: 300 },
   G: { name: '萬靈藥',    color: 0x44cc44, hpRestore: 200, mpRestore: 200 },
-};
-
-export const PHYSICS_GRAVITY = 1000;
-
-export const PLAYER_DEFAULTS = {
-  maxHp: 400,
-  maxMp: 250,
-  atk: 70,
-  speed: 220,
-  jumpVelocity: -520,
-  critRate: 0.2,
-  critMulti: 1.8,
 };
 
 export const SKILLS = {
@@ -62,8 +49,6 @@ export const MAP_SCENE_KEYS = {
   boss:    'BossScene',
   town:    'TownScene',
 };
-
-export const MAP_ORDER = ['sky', 'henesys', 'ruins', 'ellinia', 'taipei', 'kerning'];
 
 // 建立一份全新的初始遊戲狀態。
 // 重要：巢狀物件（equipment / potions / skillCooldowns / skillLevels）與陣列
@@ -98,6 +83,3 @@ export function createInitialGameState() {
   };
 }
 
-// 唯讀的預設值參考。⚠ 請勿直接 spread（`{ ...DEFAULT_GAME_STATE }`）使用，
-// 巢狀物件會共用參照、造成跨局污染。要取得可寫入的遊戲狀態請用 createInitialGameState()。
-export const DEFAULT_GAME_STATE = createInitialGameState();

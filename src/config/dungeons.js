@@ -35,7 +35,3 @@ export const DUNGEONS = {
 export function getDungeonDef(id) {
   return DUNGEONS[id] || null;
 }
-
-export function listDungeonIds() {
-  return Object.keys(DUNGEONS);
-}

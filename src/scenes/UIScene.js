@@ -81,7 +81,7 @@ export class UIScene extends Phaser.Scene {
       stroke: '#000', strokeThickness: 3,
     }).setDepth(51).setScrollFactor(0);
 
-    this._classText = this.add.text(barStartX + 2, barPanelY + 42, 'Soul Bender', {
+    this._classText = this.add.text(barStartX + 2, barPanelY + 42, '盜賊', {
       fontSize: '9px', color: '#aaddff', fontFamily: 'Arial',
       stroke: '#000', strokeThickness: 2,
     }).setDepth(51).setScrollFactor(0);
@@ -781,9 +781,9 @@ export class UIScene extends Phaser.Scene {
     const gs = this.registry.get('gameState');
     if (!gs) return;
     this._gs = gs;
-    this._updateBar(this._hpBar,  gs.hp,  gs.maxHp,  0xff3333);
-    this._updateBar(this._mpBar,  gs.mp,  gs.maxMp,  0x3355ff);
-    this._updateBar(this._expBar, gs.exp, gs.expNeeded, 0xddaa00, true);
+    this._updateBar(this._hpBar,  gs.hp,  gs.maxHp);
+    this._updateBar(this._mpBar,  gs.mp,  gs.maxMp);
+    this._updateBar(this._expBar, gs.exp, gs.expNeeded);
     this._hpNum.setText(`${Math.ceil(gs.hp)}/${gs.maxHp}`);
     this._mpNum.setText(`${Math.ceil(gs.mp)}/${gs.maxMp}`);
     this._levelText.setText(`Lv.${gs.level}`);
@@ -792,28 +792,27 @@ export class UIScene extends Phaser.Scene {
     this._onKillChange(null, gs.killCount);
   }
 
-  _updateBar(barObj, current, max, color, isExpBar = false) {
+  _updateBar(barObj, current, max) {
     // Phase 15 效能：Rectangle.scaleX 是純 GPU transform，無 path 重繪。
-    // color / isExpBar 參數保留以維持呼叫端相容性，不再使用。
     const ratio = max > 0 ? Math.max(0, Math.min(1, current / max)) : 0;
     barObj.scaleX = ratio;
   }
 
   _onHpChange(parent, value) {
     const gs = this.registry.get('gameState');
-    this._updateBar(this._hpBar, value, gs.maxHp, 0xff3333);
+    this._updateBar(this._hpBar, value, gs.maxHp);
     this._hpNum.setText(`${Math.ceil(value)}/${gs.maxHp}`);
   }
 
   _onMpChange(parent, value) {
     const gs = this.registry.get('gameState');
-    this._updateBar(this._mpBar, value, gs.maxMp, 0x3355ff);
+    this._updateBar(this._mpBar, value, gs.maxMp);
     this._mpNum.setText(`${Math.ceil(value)}/${gs.maxMp}`);
   }
 
   _onExpChange(parent, value) {
     const gs = this.registry.get('gameState');
-    this._updateBar(this._expBar, value, gs.expNeeded, 0xddaa00, true);
+    this._updateBar(this._expBar, value, gs.expNeeded);
   }
 
   _onLevelChange(parent, value) {
@@ -1040,7 +1039,7 @@ export class UIScene extends Phaser.Scene {
       { key: 'A', label: 'HP藥水',    desc: 'HP +100',  color: '#ff6666' },
       { key: 'S', label: '強效HP藥水', desc: 'HP +250', color: '#ff9944' },
       { key: 'D', label: 'MP藥水',    desc: 'MP +150',  color: '#6688ff' },
-      { key: 'F', label: '強效MP藥水', desc: 'MP +300', color: '#aa66ff' },
+      { key: 'R', label: '強效MP藥水', desc: 'MP +300', color: '#aa66ff' },
       { key: 'G', label: '萬靈藥',    desc: 'HP+200/MP+200', color: '#88ff88' },
     ];
     rows.forEach((row, i) => {
@@ -1221,7 +1220,7 @@ export class UIScene extends Phaser.Scene {
       { label: '跳躍（可雙跳）',  key: 'Alt / ↑' },
       { label: '落下/穿越平台',   key: '↓' },
       { label: '技能',           key: 'Z X C V B' },
-      { label: '藥水',           key: 'A S D F G' },
+      { label: '藥水',           key: 'A S D R G' },
       { label: 'NPC 對話',       key: 'F' },
       { label: '關閉選單',       key: 'ESC' },
     ];

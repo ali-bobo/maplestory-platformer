@@ -88,12 +88,3 @@ export const MONSTERS = [
 for (const monster of MONSTERS) {
   Object.assign(monster, MONSTER_CLASSIFICATION[monster.id] || {});
 }
-
-export function getMonstersForArea(area) {
-  return MONSTERS.filter((monster) => {
-    if (Array.isArray(monster.habitats) && monster.habitats.length > 0) {
-      return monster.habitats.includes(area);
-    }
-    return monster.area === area;
-  });
-}
