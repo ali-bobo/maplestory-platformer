@@ -6,6 +6,7 @@ import { Player } from '../entities/Player.js';
 import { Monster } from '../entities/Monster.js';
 import { audio } from '../engine/audio.js';
 import { getVisualFootPadding } from '../config/alignment.js';
+import { addParchmentPanel } from '../engine/woodUi.js';
 import { onMonsterKilled, onMapEntered, acceptQuest, isQuestActive, isQuestCompleted } from '../engine/questManager.js';
 import { canEnterDungeon, getRemainingEntries } from '../engine/dungeonRecord.js';
 import { getDungeonDef } from '../config/dungeons.js';
@@ -27,6 +28,9 @@ const PLATFORM_THEMES = {
 };
 const PLATFORM_CAP_RATIO = 0.2;
 const PLATFORM_TILE_RATIO = 0.3;
+
+const MONSTER_RESPAWN_MS = 8000;
+const MINIBOSS_RESPAWN_MS = 45000;
 
 export class BaseMapScene extends Phaser.Scene {
   constructor(key, mapKey) {
@@ -231,6 +235,8 @@ export class BaseMapScene extends Phaser.Scene {
     // 排除寬度太窄的平台
     const validPlats = allPlats.filter((platform) => this._getPlatformStandingBounds(platform).width >= 80);
 
+    this._spawnPlatforms = validPlats;
+
     let platIdx = 0;
 
     for (const spawn of this.mapData.monsters) {
@@ -243,21 +249,45 @@ export class BaseMapScene extends Phaser.Scene {
         // 輪流使用各個平台，確保均勻分佈
         const plat = validPlats[platIdx % validPlats.length];
         platIdx++;
-
-        // 在平台寬度內隨機 x，邊緣留 20px 空間
-        const bounds = this._getPlatformStandingBounds(plat);
-        const margin = 20;
-        const usableWidth = bounds.width - margin * 2;
-        const mx = usableWidth > 10
-          ? bounds.left + margin + Math.random() * usableWidth
-          : bounds.centerX;
-        const monster = new Monster(this, mx, 0, monsterDef);
-        this._alignDynamicEntityToPlatformTop(monster, bounds.topY);
-        monster.player = this.player;
-        monster.patrolOriginX = mx;
-        this.monsters.add(monster);
+        this._spawnMonsterOn(monsterDef, plat);
       }
     }
+  }
+
+  _spawnMonsterOn(monsterDef, plat) {
+    // 在平台寬度內隨機 x，邊緣留 20px 空間
+    const bounds = this._getPlatformStandingBounds(plat);
+    const margin = 20;
+    const usableWidth = bounds.width - margin * 2;
+    const mx = usableWidth > 10
+      ? bounds.left + margin + Math.random() * usableWidth
+      : bounds.centerX;
+    const monster = new Monster(this, mx, 0, monsterDef);
+    this._alignDynamicEntityToPlatformTop(monster, bounds.topY);
+    monster.player = this.player;
+    monster.patrolOriginX = mx;
+    // 一般地圖的怪會重生（副本 / Boss 戰自己生怪，不帶這個標記）
+    monster._respawnDef = monsterDef;
+    this.monsters.add(monster);
+    return monster;
+  }
+
+  // 怪物死亡 8 秒後（小王 45 秒）在隨機平台重生，優先選離玩家較遠的平台，淡入登場
+  _scheduleRespawn(monsterDef) {
+    const delay = monsterDef.spawnRole === 'miniboss' ? MINIBOSS_RESPAWN_MS : MONSTER_RESPAWN_MS;
+    this.time.delayedCall(delay, () => {
+      if (!this.sys.isActive() || !this._spawnPlatforms?.length) return;
+      const px = this.player?.x ?? 0;
+      const far = this._spawnPlatforms.filter((plat) => {
+        const b = this._getPlatformStandingBounds(plat);
+        return Math.abs(b.centerX - px) > 320;
+      });
+      const pool = far.length ? far : this._spawnPlatforms;
+      const plat = pool[Math.floor(Math.random() * pool.length)];
+      const monster = this._spawnMonsterOn(monsterDef, plat);
+      monster.setAlpha(0);
+      this.tweens.add({ targets: monster, alpha: 1, duration: 500 });
+    });
   }
 
   // ── 傳送門 ─────────────────────────────────────────────────────────────────
@@ -442,29 +472,26 @@ export class BaseMapScene extends Phaser.Scene {
       '你可以在這裡購買補給品。',
     ];
 
-    const bg = this.add.graphics().setDepth(100);
-    bg.fillStyle(0x001122, 0.92);
-    bg.fillRoundedRect(cx - 220, cy - 70, 440, 140, 10);
-    bg.lineStyle(2, 0x4488aa, 0.9);
-    bg.strokeRoundedRect(cx - 220, cy - 70, 440, 140, 10);
+    const bg = addParchmentPanel(this, cx - 240, cy - 84, 480, 170, { depth: 100, world: true });
 
-    const title = this.add.text(cx, cy - 52, npcDef.name || 'NPC', {
-      fontSize: '15px', color: '#ffee88', fontFamily: 'Arial',
-      stroke: '#000', strokeThickness: 3,
+    const title = this.add.text(cx, cy - 58, npcDef.name || 'NPC', {
+      fontSize: '16px', color: '#ffe27a', fontFamily: 'Arial', fontStyle: 'bold',
+      stroke: '#1a0e06', strokeThickness: 4,
     }).setOrigin(0.5, 0).setDepth(101);
 
     const msgText = this.add.text(cx, cy - 24, dialogLines.join('\n'), {
-      fontSize: '13px', color: '#ddffee', fontFamily: 'Arial',
+      fontSize: '14px', color: '#fff3dc', fontFamily: 'Arial',
+      stroke: '#1a0e06', strokeThickness: 2,
       wordWrap: { width: 400 }, lineSpacing: 4,
     }).setOrigin(0.5, 0).setDepth(101);
 
-    const close = this.add.text(cx, cy + 58, '[ 按 F 或 ESC 關閉 ]', {
-      fontSize: '12px', color: '#88aacc', fontFamily: 'Arial',
+    const close = this.add.text(cx, cy + 60, '[ 按 F 或 ESC 關閉 ]', {
+      fontSize: '12px', color: '#e8d3a8', fontFamily: 'Arial', stroke: '#1a0e06', strokeThickness: 3,
     }).setOrigin(0.5, 0.5).setDepth(101)
       .setInteractive({ useHandCursor: true })
       .on('pointerdown', () => this._closeNpcDialog())
-      .on('pointerover', () => close.setStyle({ color: '#aaccff' }))
-      .on('pointerout',  () => close.setStyle({ color: '#88aacc' }));
+      .on('pointerover', () => close.setColor('#ffe27a'))
+      .on('pointerout',  () => close.setColor('#e8d3a8'));
 
     this._npcDialog = { bg, title, msgText, close };
   }
@@ -573,6 +600,7 @@ export class BaseMapScene extends Phaser.Scene {
   }
 
   _onMonsterDied(monster) {
+    if (monster?._respawnDef) this._scheduleRespawn(monster._respawnDef);
     const gs = this.registry.get('gameState');
     gs.killCount++;
     this.player.gainExp(monster.exp || 0);

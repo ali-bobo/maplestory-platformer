@@ -35,8 +35,10 @@ export function skillDamageScale(level) {
   return 1 + Math.max(0, (level || 0) - 1) * 0.12;
 }
 
+// 升級所需經驗：100 × Lv^1.45。以同級怪計算，每級約 12～28 隻
+//（舊版 1.3^Lv 在 20 級後每級要 60～130 隻，練功太久）
 export function expNeeded(level) {
-  return Math.floor(100 * Math.pow(1.3, level - 1));
+  return Math.floor(100 * Math.pow(level, 1.45));
 }
 
 export const MAP_SCENE_KEYS = {

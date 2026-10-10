@@ -7,6 +7,7 @@ import { getQuestDef } from '../config/quests.js';
 import { screenFlash } from '../engine/vfx.js';
 import { POTION_ICON_KEYS } from '../config/assetCatalog.js';
 import { ensureSkillIcons } from '../assets/skillIcons.js';
+import { addParchmentPanel, addWoodButton } from '../engine/woodUi.js';
 
 // HUD 場景（平行運行）— 橫向捲軸風格底部狀態列
 export class UIScene extends Phaser.Scene {
@@ -268,33 +269,22 @@ export class UIScene extends Phaser.Scene {
       { label: '地圖', type: 'map'      },
       { label: '設定', type: 'settings' },
     ];
-    // 羊皮紙按鈕（9-slice），兩列：3 + 2
+    // 羊皮紙按鈕，兩列：3 + 2
     const btnW = 72, btnH = 30, gap = 5;
     const startX = width - (3 * btnW + 2 * gap) - 14;
-    const NORMAL_TINT = 0xe6d6bc;
 
     btnData.forEach((btn, i) => {
       const col = i < 3 ? i : i - 3;
       const row = i < 3 ? 0 : 1;
       const bx = startX + col * (btnW + gap) + (row === 1 ? (btnW + gap) / 2 : 0);
       const by = barPanelY + 18 + row * (btnH + 8);
-
-      const plate = this.add.nineslice(bx, by, 'hud_panel_sm', undefined, btnW, btnH, 9, 9, 9, 9)
-        .setOrigin(0, 0).setDepth(51).setScrollFactor(0).setTint(NORMAL_TINT)
-        .setInteractive({ useHandCursor: true });
-      const lbl = this.add.text(bx + btnW / 2, by + btnH / 2, btn.label, {
-        fontSize: '13px', color: '#3a2410', fontFamily: 'Arial', fontStyle: 'bold',
-      }).setOrigin(0.5, 0.5).setDepth(52).setScrollFactor(0);
-
-      plate.on('pointerover', () => { plate.clearTint(); lbl.setColor('#6b2a00'); });
-      plate.on('pointerout',  () => { plate.setTint(NORMAL_TINT); lbl.setColor('#3a2410'); });
-      plate.on('pointerdown', () => {
+      addWoodButton(this, bx + btnW / 2, by + btnH / 2, btnW, btnH, btn.label, () => {
         if (this._popup && this._popup.type === btn.type) {
           this._closePopup();
         } else {
           this._openPopup(btn.type);
         }
-      });
+      }, { depth: 51, fontSize: 13 });
     });
   }
 
@@ -723,21 +713,16 @@ export class UIScene extends Phaser.Scene {
     // 半透明遮罩（rectangle，無 stroke）
     push(this.add.rectangle(0, 0, width, height, 0x000000, 0.6)
       .setOrigin(0, 0).setDepth(199).setScrollFactor(0));
-    // popup 邊框（白色稍大）
-    push(this.add.rectangle(px - 3, py - 3, pw + 6, ph + 6,
-      payload.victory ? 0xffdd44 : 0xff4444, 0.9)
-      .setOrigin(0, 0).setDepth(200).setScrollFactor(0));
-    // popup 底色
-    push(this.add.rectangle(px, py, pw, ph, 0x14182a, 0.96)
-      .setOrigin(0, 0).setDepth(201).setScrollFactor(0));
+    // 羊皮紙木框
+    push(addParchmentPanel(this, px, py, pw, ph, { depth: 201 }));
     // 標題
-    push(this.add.text(width / 2, py + 24,
+    push(this.add.text(width / 2, py + 30,
       payload.victory ? '◆ 副本通關 ◆' : '☠ 挑戰失敗 ☠',
       { fontSize: '28px', color: payload.victory ? '#ffee99' : '#ff8888',
         fontFamily: 'Arial', stroke: '#000', strokeThickness: 4 })
       .setOrigin(0.5, 0).setDepth(202).setScrollFactor(0));
     // 副本名
-    push(this.add.text(width / 2, py + 64, payload.def?.name || '',
+    push(this.add.text(width / 2, py + 70, payload.def?.name || '',
       { fontSize: '16px', color: '#ffffff', fontFamily: 'Arial',
         stroke: '#000', strokeThickness: 3 })
       .setOrigin(0.5, 0).setDepth(202).setScrollFactor(0));
@@ -760,26 +745,16 @@ export class UIScene extends Phaser.Scene {
           stroke: '#000', strokeThickness: 2 })
         .setOrigin(0.5, 0).setDepth(202).setScrollFactor(0));
     });
-    // 確認按鈕（rectangle + text 可點擊）
-    const btnW = 160, btnH = 38;
-    const btnX = width / 2 - btnW / 2;
-    const btnY = py + ph - 60;
-    const btnBg = push(this.add.rectangle(btnX, btnY, btnW, btnH, 0x3366aa, 0.92)
-      .setOrigin(0, 0).setDepth(203).setScrollFactor(0).setInteractive({ useHandCursor: true }));
-    push(this.add.text(width / 2, btnY + btnH / 2, '回到晨曦鎮',
-      { fontSize: '15px', color: '#ffffff', fontFamily: 'Arial',
-        stroke: '#000', strokeThickness: 3 })
-      .setOrigin(0.5, 0.5).setDepth(204).setScrollFactor(0));
-    btnBg.on('pointerover', () => btnBg.setFillStyle(0x4488dd, 0.95));
-    btnBg.on('pointerout',  () => btnBg.setFillStyle(0x3366aa, 0.92));
-    btnBg.on('pointerdown', () => {
+    // 確認按鈕
+    const btn = addWoodButton(this, width / 2, py + ph - 52, 160, 38, '回到晨曦鎮', () => {
       // 清除 popup + 通知 DungeonScene 退出
       objs.forEach((o) => o.destroy());
       const dungeonScene = this.scene.get('DungeonScene');
       if (dungeonScene && typeof dungeonScene.exitDungeon === 'function') {
         dungeonScene.exitDungeon();
       }
-    });
+    }, { depth: 203, fontSize: 15 });
+    btn.objects.forEach(push);
 
     this._dungeonResultObjs = objs;
   }
@@ -925,7 +900,9 @@ export class UIScene extends Phaser.Scene {
     if (this._isPaused) return;
     this._isPaused = true;
 
+    // 記住被暫停的場景：暫停後 isActive() 會回 false，關閉時不能再用 _getCurrentMapSceneKey 找
     const mapSceneKey = this._getCurrentMapSceneKey();
+    this._pausedSceneKey = mapSceneKey;
     if (mapSceneKey) this.scene.pause(mapSceneKey);
 
     const { width, height } = this.cameras.main;
@@ -936,40 +913,26 @@ export class UIScene extends Phaser.Scene {
     push(this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.6)
       .setDepth(190).setScrollFactor(0));
 
+    push(addParchmentPanel(this, width / 2 - 150, height / 2 - 120, 300, 250, { depth: 192 }));
+
     // 標題
-    push(this.add.text(width / 2, height / 2 - 70, '⏸ 遊戲暫停', {
-      fontSize: '36px', color: '#ffffff', fontFamily: 'Arial',
-      stroke: '#000000', strokeThickness: 4,
+    push(this.add.text(width / 2, height / 2 - 72, '遊戲暫停', {
+      fontSize: '30px', color: '#ffe9b0', fontFamily: 'Arial', fontStyle: 'bold',
+      stroke: '#1a0e06', strokeThickness: 5,
     }).setOrigin(0.5).setDepth(195).setScrollFactor(0));
 
-    const btnW = 200, btnH = 46;
+    addWoodButton(this, width / 2, height / 2 + 4, 190, 42, '繼續遊戲', () => this._closePauseMenu(),
+      { depth: 195, fontSize: 18 }).objects.forEach(push);
 
-    // 繼續遊戲
-    const resumeBtn = push(this.add.rectangle(width / 2, height / 2 + 10, btnW, btnH, 0x226622, 0.95)
-      .setStrokeStyle(2, 0x44cc44).setDepth(195).setScrollFactor(0).setInteractive({ useHandCursor: true }));
-    push(this.add.text(width / 2, height / 2 + 10, '繼續遊戲', {
-      fontSize: '20px', color: '#aaffaa', fontFamily: 'Arial', stroke: '#000', strokeThickness: 3,
-    }).setOrigin(0.5).setDepth(196).setScrollFactor(0));
-    resumeBtn.on('pointerover', () => resumeBtn.setFillStyle(0x338833, 0.95));
-    resumeBtn.on('pointerout',  () => resumeBtn.setFillStyle(0x226622, 0.95));
-    resumeBtn.on('pointerdown', () => this._closePauseMenu());
-
-    // 返回主選單
-    const menuBtn = push(this.add.rectangle(width / 2, height / 2 + 68, btnW, btnH, 0x442222, 0.95)
-      .setStrokeStyle(2, 0xcc4444).setDepth(195).setScrollFactor(0).setInteractive({ useHandCursor: true }));
-    push(this.add.text(width / 2, height / 2 + 68, '返回主選單', {
-      fontSize: '20px', color: '#ffaaaa', fontFamily: 'Arial', stroke: '#000', strokeThickness: 3,
-    }).setOrigin(0.5).setDepth(196).setScrollFactor(0));
-    menuBtn.on('pointerover', () => menuBtn.setFillStyle(0x663333, 0.95));
-    menuBtn.on('pointerout',  () => menuBtn.setFillStyle(0x442222, 0.95));
-    menuBtn.on('pointerdown', () => {
+    addWoodButton(this, width / 2, height / 2 + 60, 190, 42, '返回主選單', () => {
       this._isPaused = false;
       for (const obj of this._pauseOverlayObjs) { if (obj?.active) obj.destroy(); }
       this._pauseOverlayObjs = [];
-      const key = this._getCurrentMapSceneKey();
+      const key = this._pausedSceneKey;
+      this._pausedSceneKey = null;
       if (key) this.scene.stop(key);
       this.scene.start('MenuScene');
-    });
+    }, { depth: 195, fontSize: 18 }).objects.forEach(push);
   }
 
   _closePauseMenu() {
@@ -977,7 +940,8 @@ export class UIScene extends Phaser.Scene {
     this._isPaused = false;
     for (const obj of this._pauseOverlayObjs) { if (obj?.active) obj.destroy(); }
     this._pauseOverlayObjs = [];
-    const mapSceneKey = this._getCurrentMapSceneKey();
+    const mapSceneKey = this._pausedSceneKey;
+    this._pausedSceneKey = null;
     if (mapSceneKey) this.scene.resume(mapSceneKey);
   }
 
@@ -1013,8 +977,7 @@ export class UIScene extends Phaser.Scene {
     const push = (obj) => { objs.push(obj); return obj; };
 
     // 背景板：羊皮紙 9-slice 染成深褐，配合淺色文字
-    push(this.add.nineslice(popX, popY, 'hud_panel', undefined, popW, popH, 30, 30, 30, 34)
-      .setOrigin(0, 0).setDepth(150).setScrollFactor(0).setTint(0x5a4232));
+    push(addParchmentPanel(this, popX, popY, popW, popH, { depth: 150 }));
 
     // 標題
     const titles = { items: '道具欄', equip: '裝備欄', skills: '技能欄', map: '地圖資訊', settings: '設定' };
