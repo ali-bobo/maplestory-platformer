@@ -7,6 +7,7 @@ import { Monster } from '../entities/Monster.js';
 import { audio } from '../engine/audio.js';
 import { getVisualFootPadding } from '../config/alignment.js';
 import { addParchmentPanel } from '../engine/woodUi.js';
+import { saveGame, isSavableMap } from '../engine/saveGame.js';
 import { onMonsterKilled, onMapEntered, acceptQuest, isQuestActive, isQuestCompleted } from '../engine/questManager.js';
 import { canEnterDungeon, getRemainingEntries } from '../engine/dungeonRecord.js';
 import { getDungeonDef } from '../config/dungeons.js';
@@ -30,6 +31,7 @@ const PLATFORM_CAP_RATIO = 0.2;
 const PLATFORM_TILE_RATIO = 0.3;
 
 const MONSTER_RESPAWN_MS = 8000;
+const AUTOSAVE_INTERVAL_MS = 30000;
 const MINIBOSS_RESPAWN_MS = 45000;
 
 export class BaseMapScene extends Phaser.Scene {
@@ -132,6 +134,18 @@ export class BaseMapScene extends Phaser.Scene {
     // 只註冊 shutdown：場景被 destroy 前 Phaser 必先觸發 shutdown，且本遊戲場景
     // 從不被 scene.remove()，重複註冊 destroy 監聽只會在 relaunch 時累積死監聽。
     this.events.once('shutdown', this._onSceneShutdown, this);
+
+    // 自動存檔：進入一般地圖時存一次，之後每 30 秒存一次
+    if (isSavableMap(this.mapKey)) {
+      const gs = this.registry.get('gameState');
+      if (gs) gs.currentMap = this.mapKey;
+      saveGame(gs);
+      this.time.addEvent({
+        delay: AUTOSAVE_INTERVAL_MS,
+        loop: true,
+        callback: () => saveGame(this.registry.get('gameState')),
+      });
+    }
   }
 
   // ── 背景（單張 Image 以 cover 填滿，底部對齊 GROUND_Y）────────────────────

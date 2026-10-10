@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { SKILLS, expNeeded, MAP_SCENE_KEYS, POTIONS, createInitialGameState } from '../config/constants.js';
+import { saveGame } from '../engine/saveGame.js';
 import { castShuriken, castDash, castAssassinate, castVortex, castClone } from './Skill.js';
 import { particles } from '../engine/particles.js';
 import { audio } from '../engine/audio.js';
@@ -346,6 +347,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.scene.registry.set('gameState', gs);
     this.scene.registry.events.emit('changedata-exp', null, gs.exp);
     if (leveledUp) {
+      saveGame(gs);
       this.scene.registry.events.emit('changedata-level', null, gs.level);
       // 升級音效 + 粒子 + UI 全屏演出一律發出一次（避免多級同時累加）
       audio.playLevelUp();

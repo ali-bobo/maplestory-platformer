@@ -1,5 +1,8 @@
 import Phaser from 'phaser';
-import { createInitialGameState } from '../config/constants.js';
+import { createInitialGameState, MAP_SCENE_KEYS } from '../config/constants.js';
+import { MAPS } from '../config/maps.js';
+import { addWoodButton } from '../engine/woodUi.js';
+import { getSaveSummary, loadGame } from '../engine/saveGame.js';
 
 export class MenuScene extends Phaser.Scene {
   constructor() {
@@ -7,6 +10,7 @@ export class MenuScene extends Phaser.Scene {
   }
 
   create() {
+    this._starting = false;
     const { width, height } = this.cameras.main;
 
     // 主選單背景（等比放大填滿畫面）
@@ -33,26 +37,45 @@ export class MenuScene extends Phaser.Scene {
       yoyo: true, repeat: -1, ease: 'Sine.easeInOut',
     });
 
-    // 開始遊戲按鈕
-    const btnBg = this.add.rectangle(width / 2, 530, 260, 60, 0x222222, 1)
-      .setInteractive({ useHandCursor: true });
-    const btnText = this.add.text(width / 2, 530, '開始遊戲', {
-      fontSize: '30px', color: '#ffffff', fontFamily: 'Arial', fontStyle: 'bold',
-    }).setOrigin(0.5, 0.5);
+    const summary = getSaveSummary();
+    if (summary) {
+      // 有存檔：繼續遊戲（主按鈕）+ 新遊戲（要按兩次確認，避免誤蓋存檔）
+      const mapName = MAPS[summary.map]?.name || '晨曦鎮';
+      addWoodButton(this, width / 2, 520, 300, 58, '繼續遊戲', () => this._continueGame(), { fontSize: 26 });
+      this.add.text(width / 2, 560, `Lv.${summary.level} · ${mapName}`, {
+        fontSize: '16px', color: '#fff4dc', fontFamily: 'Arial', fontStyle: 'bold',
+        stroke: '#3a2410', strokeThickness: 4,
+      }).setOrigin(0.5, 0);
+      let confirmNew = false;
+      const newBtn = addWoodButton(this, width / 2, 618, 220, 42, '新遊戲', () => {
+        if (!confirmNew) {
+          confirmNew = true;
+          newBtn.label.setText('再按一次：覆蓋存檔');
+          this.time.delayedCall(2500, () => { confirmNew = false; newBtn.label.setText('新遊戲'); });
+          return;
+        }
+        this._startGame();
+      }, { fontSize: 17 });
+      this.input.keyboard.once('keydown', () => this._continueGame());
+    } else {
+      addWoodButton(this, width / 2, 530, 300, 60, '開始遊戲', () => this._startGame(), { fontSize: 28 });
+      // 按任意鍵也可開始
+      this.input.keyboard.once('keydown', () => this._startGame());
+    }
+  }
 
-    btnBg.on('pointerover', () => {
-      btnBg.setFillStyle(0x444444);
-    });
-    btnBg.on('pointerout', () => {
-      btnBg.setFillStyle(0x222222);
-    });
-    btnBg.on('pointerdown', () => this._startGame());
-
-    // 按任意鍵也可開始
-    this.input.keyboard.once('keydown', () => this._startGame());
+  _continueGame() {
+    if (this._starting) return;
+    const gs = loadGame();
+    if (!gs) { this._startGame(); return; }
+    this._starting = true;
+    this.registry.set('gameState', gs);
+    this.scene.start(MAP_SCENE_KEYS[gs.currentMap] || 'TownScene', { gameState: gs });
   }
 
   _startGame() {
+    if (this._starting) return;
+    this._starting = true;
     const gs = createInitialGameState();
     this.registry.set('gameState', gs);
     this.scene.start('MapleIslandScene');

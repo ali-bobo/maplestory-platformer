@@ -8,6 +8,7 @@ import { screenFlash } from '../engine/vfx.js';
 import { POTION_ICON_KEYS } from '../config/assetCatalog.js';
 import { ensureSkillIcons } from '../assets/skillIcons.js';
 import { addParchmentPanel, addWoodButton } from '../engine/woodUi.js';
+import { saveGame } from '../engine/saveGame.js';
 
 // HUD 場景（平行運行）— 橫向捲軸風格底部狀態列
 export class UIScene extends Phaser.Scene {
@@ -924,7 +925,8 @@ export class UIScene extends Phaser.Scene {
     addWoodButton(this, width / 2, height / 2 + 4, 190, 42, '繼續遊戲', () => this._closePauseMenu(),
       { depth: 195, fontSize: 18 }).objects.forEach(push);
 
-    addWoodButton(this, width / 2, height / 2 + 60, 190, 42, '返回主選單', () => {
+    addWoodButton(this, width / 2, height / 2 + 60, 190, 42, '存檔並回主選單', () => {
+      saveGame(this.registry.get('gameState'));
       this._isPaused = false;
       for (const obj of this._pauseOverlayObjs) { if (obj?.active) obj.destroy(); }
       this._pauseOverlayObjs = [];
