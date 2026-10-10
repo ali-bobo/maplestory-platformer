@@ -115,7 +115,7 @@ project/
 │   │   ├── HenesysScene.js      — 森林獵場
 │   │   ├── ElliniaScene.js      — 神秘之境
 │   │   ├── PerionScene.js       — 高地戰區
-│   │   ├── KerningScene.js      — Kerning City
+│   │   ├── KerningScene.js      — 暗巷城
 │   │   ├── TownScene.js         — 城鎮 / 商店基礎場景
 │   │   ├── TaipeiScene.js       — 台北支線城市
 │   │   ├── BossScene.js         — 暗影領域
@@ -152,7 +152,7 @@ POST /api/auth    — 帳號系統（未來）
 
 | 類型 | 來源 | 實作位置 |
 |------|------|---------|
-| 角色（盜賊） | 真實圖片 `dist/assets/thief.png`（128×128） | `BootScene.preload()` + `Player` setDisplaySize(72,80) |
+| 角色（盜賊） | 6 張動作圖 `dist/assets/player_*.png`（100×80） | `BootScene.preload()` + `Player._updatePose()` 依狀態切換 |
 | 怪物（12種） | 真實圖片 `dist/assets/monster_*.png`（各 80×80） | `BootScene.preload()` + `Monster` setDisplaySize(56,56) |
 | 背景（3張） | 真實圖片 `dist/assets/bg_sky/ruins/city.png` | `BaseMapScene._createBackground()` tileSprite |
 | 平台 | 程式生成（`ProceduralAssets.js`） | grass/stone/brick/wood 四種類型 |
@@ -327,7 +327,7 @@ POST /api/auth    — 帳號系統（未來）
   Layer 2（0.15x） : 厚重圓形白雲 × 4~6，多圓疊加，shadowBlur:10
   Layer 3（0.3x）  : 遠景深綠樹叢 #1C4A1C 剪影
   Layer 4（0.6x）  : 中景橘葉楓樹，落葉粒子（橙/紅，每2s飄落）
-  Layer 5（0.9x）  : 地面密鋪蘑菇（每 40px 一個，橙蘑菇或紅蘑菇交替）
+  Layer 5（0.9x）  : 地面密鋪蘑菇（每 40px 一個，橙蘑菇或帽帽菇交替）
 
   蘑菇裝飾（純視覺，不可互動，參考 Henesys 截圖密集感）：
     傘 r=6，白點 × 3，柄高 8px，顏色 #E8543A
@@ -468,7 +468,7 @@ MP 每秒自動回復 10
 |----------|--------------|--------------------|---------|---------|-----------------|
 | `sky`    | 浮空島嶼      | MapleIslandScene   | 1–8     | 1–10    | bg_sky.png       |
 | `ruins`  | 古代廢墟      | PerionScene        | 9–18    | 9–20    | bg_ruins.png     |
-| `kerning`| Kerning City | KerningScene       | 19–28   | 18–30   | bg_city.png      |
+| `kerning`| 暗巷城 | KerningScene       | 19–28   | 18–30   | bg_city.png      |
 
 進程：`sky` → `ruins` → `kerning`（單向，透過右側傳送門推進）
 
@@ -486,7 +486,7 @@ MP 每秒自動回復 10
 |--------------|---------------------------|-----------------|-------------------------------------|
 | 浮空島嶼(sky) | bg_sky.png（浮空島嶼風景）  | stone + grass   | slime, mushroom, snail, stump       |
 | 古代廢墟(ruins)| bg_ruins.png（廢墟石拱）   | stone + brick   | boar, robot, skeleton, snake        |
-| Kerning City  | bg_city.png（城市夜景磚牆） | brick + wood    | dragon, cyclops, golem, mimic       |
+| 暗巷城  | bg_city.png（城市夜景磚牆） | brick + wood    | dragon, cyclops, golem, mimic       |
 
 ### NPC（目前已實作）
 ```
@@ -525,7 +525,7 @@ MP 每秒自動回復 10
 | skeleton | monster_skeleton | Lv14    | chase  |
 | snake    | monster_snake    | Lv17    | ranged |
 
-#### Kerning City kerning（Lv19–28）
+#### 暗巷城 kerning（Lv19–28）
 | 怪物 ID  | 圖片 key         | 建議等級 | 行為   |
 |---------|-----------------|---------|--------|
 | dragon  | monster_dragon  | Lv19    | chase  |
@@ -654,7 +654,7 @@ Boss 死亡：分解成黑色粒子群，1s 淡出，播放「勝利！」音效
   ↓ 右側傳送門
 古代廢墟 ruins（Lv9–20，boar/robot/skeleton/snake）
   ↓ 右側傳送門
-Kerning City kerning（Lv18–30，dragon/cyclops/golem/mimic）
+暗巷城 kerning（Lv18–30，dragon/cyclops/golem/mimic）
   ↓ 累積擊殺 60 隻 → Boss 傳送門解鎖
 Boss 房（暗影魔君）
   ├── 死亡 → 死亡畫面（擊殺數、等級、遊玩時間）→ 可重新開始
