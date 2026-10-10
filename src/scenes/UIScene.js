@@ -6,7 +6,7 @@ import { getActiveQuests } from '../engine/questManager.js';
 import { getQuestDef } from '../config/quests.js';
 import { screenFlash } from '../engine/vfx.js';
 
-// HUD 場景（平行運行）— 楓之谷風格底部狀態列
+// HUD 場景（平行運行）— 橫向捲軸風格底部狀態列
 export class UIScene extends Phaser.Scene {
   constructor() {
     super({ key: 'UIScene' });
@@ -40,9 +40,9 @@ export class UIScene extends Phaser.Scene {
       g.strokeRect(0, 0, portW, portH);
     });
 
-    if (this.textures.exists('final_char')) {
-      this.add.image(portX + portW / 2, portY + portH / 2, 'final_char')
-        .setDisplaySize(portW - 4, portH - 4)
+    if (this.textures.exists('player_portrait')) {
+      const portrait = this.add.image(portX + portW / 2, portY + portH / 2, 'player_portrait');
+      portrait.setScale(Math.min((portW - 4) / portrait.width, (portH - 4) / portrait.height))
         .setDepth(52).setScrollFactor(0);
     }
 
@@ -248,7 +248,7 @@ export class UIScene extends Phaser.Scene {
     }
   }
 
-  // ── 小地圖 + 地圖名稱（右上角，楓之谷風格）──────────────────────────────
+  // ── 小地圖 + 地圖名稱（右上角，橫向捲軸風格）──────────────────────────────
   _setupMinimap(width) {
     const mmW = 160, mmH = 100;
     const mmX = width - mmW - 8, mmY = 8;
@@ -491,7 +491,7 @@ export class UIScene extends Phaser.Scene {
     const gs = this.registry.get('gameState');
     if (!gs) return;
     // 地圖名稱也加 dirty flag：值沒變就跳過 setText
-    const mapNames = { sky: '浮空島嶼', henesys: '森林獵場', ruins: '古代廢墟', ellinia: '神秘之境', taipei: '台北都會', kerning: 'Kerning City', boss: '暗影領域', town: '楓葉城' };
+    const mapNames = { sky: '浮空島嶼', henesys: '森林獵場', ruins: '古代廢墟', ellinia: '神秘之境', taipei: '台北都會', kerning: '暗巷城', boss: '暗影領域', town: '晨曦鎮' };
     const mapName = mapNames[gs.currentMap] || '';
     if (mapName !== this._lastMapName) {
       this._lastMapName = mapName;
@@ -601,7 +601,7 @@ export class UIScene extends Phaser.Scene {
 
   _showQuestCompleteToast(def) {
     if (!this._questToast) return;
-    this._questToast.setText(`◆ 任務完成：${def.name}\n+${def.rewards?.exp || 0} EXP  +${def.rewards?.meso || 0} 楓幣`)
+    this._questToast.setText(`◆ 任務完成：${def.name}\n+${def.rewards?.exp || 0} EXP  +${def.rewards?.meso || 0} 金幣`)
       .setVisible(true).setAlpha(1);
     this.tweens.add({
       targets: this._questToast,
@@ -702,14 +702,14 @@ export class UIScene extends Phaser.Scene {
     // 獎勵內文
     const lines = [];
     if (payload.victory) {
-      lines.push(`基礎獎勵：+${payload.baseExp} EXP   +${payload.meso} 楓幣`);
+      lines.push(`基礎獎勵：+${payload.baseExp} EXP   +${payload.meso} 金幣`);
       if (payload.bonusExp > 0) {
         lines.push(`時間加成：剩餘 ${payload.timeRemaining}s × ${payload.def?.timeBonus || 5} = +${payload.bonusExp} EXP`);
       }
     } else {
       lines.push(`原因：${payload.reason === 'timeout' ? '時間到' : '角色陣亡'}`);
       if (payload.baseExp > 0 || payload.meso > 0) {
-        lines.push(`安慰獎勵：+${payload.baseExp} EXP   +${payload.meso} 楓幣`);
+        lines.push(`安慰獎勵：+${payload.baseExp} EXP   +${payload.meso} 金幣`);
       }
     }
     lines.forEach((line, i) => {
@@ -724,7 +724,7 @@ export class UIScene extends Phaser.Scene {
     const btnY = py + ph - 60;
     const btnBg = push(this.add.rectangle(btnX, btnY, btnW, btnH, 0x3366aa, 0.92)
       .setOrigin(0, 0).setDepth(203).setScrollFactor(0).setInteractive({ useHandCursor: true }));
-    push(this.add.text(width / 2, btnY + btnH / 2, '回到楓葉城',
+    push(this.add.text(width / 2, btnY + btnH / 2, '回到晨曦鎮',
       { fontSize: '15px', color: '#ffffff', fontFamily: 'Arial',
         stroke: '#000', strokeThickness: 3 })
       .setOrigin(0.5, 0.5).setDepth(204).setScrollFactor(0));
@@ -1184,7 +1184,7 @@ export class UIScene extends Phaser.Scene {
   // ── 地圖資訊彈出 ────────────────────────────────────────────────────────
   _buildMapPopup(push, popX, contentY, popW) {
     const gs = this.registry.get('gameState');
-    const mapNames = { sky: '浮空島嶼', henesys: '森林獵場', ruins: '古代廢墟', ellinia: '神秘之境', taipei: '台北都會', kerning: 'Kerning City', boss: '暗影領域', town: '楓葉城' };
+    const mapNames = { sky: '浮空島嶼', henesys: '森林獵場', ruins: '古代廢墟', ellinia: '神秘之境', taipei: '台北都會', kerning: '暗巷城', boss: '暗影領域', town: '晨曦鎮' };
     const currentMap = gs ? gs.currentMap : '';
     push(this.add.text(popX + 14, contentY, `目前地圖：${mapNames[currentMap] || '未知'}`, {
       fontSize: '13px', color: '#aaddff', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2,
@@ -1194,11 +1194,11 @@ export class UIScene extends Phaser.Scene {
     }).setDepth(152).setScrollFactor(0));
     const portalInfo = {
       town:    ['→ 浮空島嶼（地圖右端）'],
-      sky:     ['← 楓葉城（地圖左端）', '→ 森林獵場（地圖右端）'],
+      sky:     ['← 晨曦鎮（地圖左端）', '→ 森林獵場（地圖右端）'],
       henesys: ['← 浮空島嶼（地圖左端）', '→ 古代廢墟（地圖右端）'],
       ruins:   ['← 森林獵場（地圖左端）', '→ 神秘之境（地圖右端）'],
-      ellinia: ['← 古代廢墟（地圖左端）', '↑ 台北都會（地圖中央）', '→ Kerning City（地圖右端）'],
-      taipei:  ['← 神秘之境（地圖左端）', '→ Kerning City（地圖右端）'],
+      ellinia: ['← 古代廢墟（地圖左端）', '↑ 台北都會（地圖中央）', '→ 暗巷城（地圖右端）'],
+      taipei:  ['← 神秘之境（地圖左端）', '→ 暗巷城（地圖右端）'],
       kerning: ['← 神秘之境（地圖左端）', '⚠ Boss 決戰（地圖右端，需擊殺60怪）'],
       boss:    ['擊敗暗影魔君即可獲勝'],
     };

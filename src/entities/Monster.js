@@ -106,21 +106,16 @@ export function prewarmMonsterTextures(scene) {
   }
 }
 
+// 新版怪物圖已依體型分級預先縮放（S 56 / M 80 / L 120 / XL 200 px 高），
+// 直接以原圖尺寸顯示，避免二次縮放造成模糊。
 function getScaledMonsterProfile(entity, config) {
   const baseProfile = ALIGNMENT_PROFILES.monster;
-  const scale = Number.isFinite(config?.visualScale) && config.visualScale > 0 ? config.visualScale : 1;
   const sourceImage = entity?.texture?.getSourceImage?.();
   const sourceWidth = sourceImage?.width || LEGACY_MONSTER_SOURCE_SIZE;
   const sourceHeight = sourceImage?.height || LEGACY_MONSTER_SOURCE_SIZE;
-  // 80x80 是 legacy 怪物圖的共同基準；改用平方根放大可保留大圖相對量感，
-  // 又不會讓 200~600px 的新裁切怪直接依線性比例膨脹到失控。
-  const heightScale = Math.sqrt(sourceHeight / LEGACY_MONSTER_SOURCE_SIZE);
-  const targetHeight = Math.min(
-    config?.spawnRole === 'miniboss' ? MAX_MINIBOSS_DISPLAY_HEIGHT : MAX_MONSTER_DISPLAY_HEIGHT,
-    Math.max(baseProfile.displayHeight, Math.round(baseProfile.displayHeight * heightScale * scale)),
-  );
-  const aspectRatio = sourceWidth / Math.max(1, sourceHeight);
-  const targetWidth = Math.max(baseProfile.displayWidth, Math.round(targetHeight * aspectRatio));
+  const maxHeight = config?.spawnRole === 'miniboss' ? MAX_MINIBOSS_DISPLAY_HEIGHT : MAX_MONSTER_DISPLAY_HEIGHT;
+  const targetHeight = Math.min(maxHeight, sourceHeight);
+  const targetWidth = Math.round(targetHeight * (sourceWidth / Math.max(1, sourceHeight)));
   const widthRatio = targetWidth / baseProfile.displayWidth;
   const heightRatio = targetHeight / baseProfile.displayHeight;
 
@@ -132,7 +127,6 @@ function getScaledMonsterProfile(entity, config) {
     bodyWidth: Math.round(baseProfile.bodyWidth * widthRatio),
     bodyOffsetX: Math.round(baseProfile.bodyOffsetX * widthRatio),
     bodyOffsetY: Math.round(baseProfile.bodyOffsetY * heightRatio),
-    footPadding: Math.max(1, Math.round(baseProfile.footPadding * heightRatio)),
   };
 }
 

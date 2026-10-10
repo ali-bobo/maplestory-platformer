@@ -20,7 +20,7 @@ function B(g, x, y, w, h, c) {
   g.fillStyle(c);        g.fillRect(x,y,w,h);
 }
 
-// ── 平台（楓之谷風格精緻版）───────────────────────────────────────────────
+// ── 平台（橫向捲軸風格精緻版）───────────────────────────────────────────────
 function generatePlatforms(scene) {
   const W = 128, H = 24;
 

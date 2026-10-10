@@ -13,14 +13,13 @@ export class MenuScene extends Phaser.Scene {
     this.add.rectangle(width / 2, height / 2, width, height, 0xffffff);
 
     // 遊戲標題
-    this.add.text(width / 2, 160, 'MapleGame', {
-      fontSize: '80px', color: '#222222', fontFamily: 'Arial Black, Arial',
+    this.add.text(width / 2, 140, '盜賊傳說', {
+      fontSize: '72px', color: '#222222', fontFamily: 'Arial, sans-serif',
       fontStyle: 'bold',
     }).setOrigin(0.5, 0.5);
 
-    // 封面角色圖（thief，浮動動畫）
-    const charImg = this.add.image(width / 2, 370, 'thief')
-      .setDisplaySize(240, 240)
+    // 封面角色圖（title_hero，保持原比例，浮動動畫）
+    const charImg = this.add.image(width / 2, 370, 'title_hero')
       .setOrigin(0.5, 0.5);
 
     this.tweens.add({

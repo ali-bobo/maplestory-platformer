@@ -8,7 +8,7 @@ import { ALIGNMENT_PROFILES, applyAlignmentProfile, getVisualCenterPoint, getVis
 
 export class Player extends Phaser.Physics.Arcade.Sprite {
   constructor(scene, x, y, gameState) {
-    super(scene, x, y, 'final_char');
+    super(scene, x, y, 'player_idle');
     scene.add.existing(this);
     scene.physics.add.existing(this);
 
@@ -21,7 +21,9 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.dropThrough = false;
     this.isDashing = false;
     this._jumpKeyWasDown = false;
-    this._throwAnimTween = null;
+    // 動作圖切換：攻擊/受傷期間鎖定姿勢到 _poseLockUntil
+    this._poseLockKey = null;
+    this._poseLockUntil = 0;
     // HP/MP 自然回復的 UI 節流：只在顯示整數改變時才更新 registry/事件
     this._lastEmittedHp = -1;
     this._lastEmittedMp = -1;
@@ -142,9 +144,35 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     if (Phaser.Input.Keyboard.JustDown(this.keyPotR)) this.usePotion('R');
     if (Phaser.Input.Keyboard.JustDown(this.keyPotG)) this.usePotion('G');
 
-    // ─── 更新面向 + 目標框 ──────────────────────────────────────────────────
+    // ─── 更新面向 + 目標框 + 動作圖 ─────────────────────────────────────────
     this._updateFacing();
     this._updateTargetBox();
+    this._updatePose(onGround);
+  }
+
+  _lockPose(key, duration) {
+    this._poseLockKey = key;
+    this._poseLockUntil = this.scene.time.now + duration;
+    this._setPose(key);
+  }
+
+  _setPose(key) {
+    if (this.texture.key !== key && this.scene.textures.exists(key)) this.setTexture(key);
+  }
+
+  _updatePose(onGround) {
+    const now = this.scene.time.now;
+    if (now < this._poseLockUntil) {
+      this._setPose(this._poseLockKey);
+      return;
+    }
+    if (!onGround) {
+      this._setPose('player_jump');
+    } else if (this.body.velocity.x !== 0) {
+      this._setPose(Math.floor(now / 150) % 2 === 0 ? 'player_walk_1' : 'player_walk_2');
+    } else {
+      this._setPose('player_idle');
+    }
   }
 
   _updateFacing() {
@@ -194,19 +222,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       return;
     }
 
-    if (this._throwAnimTween) this._throwAnimTween.remove();
-    const throwAngle = this.facingRight ? -18 : 18;
-    this.setAngle(throwAngle);
-    this._throwAnimTween = this.scene.tweens.add({
-      targets: this,
-      angle: 0,
-      duration,
-      ease: 'Cubic.easeOut',
-      onComplete: () => {
-        if (this.active) this.setAngle(0);
-        this._throwAnimTween = null;
-      },
-    });
+    this._lockPose('player_attack', Math.max(duration, 180));
   }
 
   usePotion(slot) {
@@ -291,7 +307,8 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.scene.registry.set('gameState', gs);
     this.scene.registry.events.emit('changedata-hp', null, gs.hp);
 
-    // 傷害閃紅
+    // 傷害閃紅 + 受傷動作
+    this._lockPose('player_hurt', 300);
     this.setTint(0xff4444);
     this.scene.time.delayedCall(200, () => { if (this.active) this.clearTint(); });
 
@@ -445,10 +462,6 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   }
 
   destroy(fromScene) {
-    if (this._throwAnimTween) {
-      this._throwAnimTween.remove();
-      this._throwAnimTween = null;
-    }
     if (this._targetGfx) {
       this._targetGfx.destroy();
       this._targetGfx = null;

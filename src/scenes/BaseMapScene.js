@@ -538,7 +538,9 @@ export class BaseMapScene extends Phaser.Scene {
       // NPC 圖片以腳底貼齊平台頂，和玩家/怪物站在同一平面。
       const npc = this.physics.add.staticImage(placement.x, footY, npcDef.id || 'npc_new_2');
       npc.setOrigin(0.5, 1);
-      npc.setDisplaySize(60, 80);
+      // NPC 圖統一 80px 高，依原圖比例縮放避免變形
+      const npcSrc = npc.texture.getSourceImage();
+      npc.setScale(80 / Math.max(1, npcSrc.height || 80));
       npc.setDepth(8);
       npc.refreshBody();
       npc._npcData = npcDef;

@@ -111,7 +111,7 @@ const ELLINIA_PLATFORMS = [
   imageSolidPlatform(plat(2060, 240, 580, 'brick'), { walkableHeight: 20 }),
 ];
 
-// ─────────── Kerning City ───────────
+// ─────────── 暗巷城 ───────────
 // 2 層（木頭＋磚石，暗夜都市風）
 const KERNING_PLATFORMS = [
   ground(0, GROUND_Y, MAP_WIDTH, 'brick'),
@@ -154,7 +154,7 @@ const BOSS_PLATFORMS = [
   plat(440,  164, 400, 'brick'),
 ];
 
-// ─────────── 楓葉城（城鎮樞紐） ───────────
+// ─────────── 晨曦鎮（城鎮樞紐） ───────────
 const TOWN_PLATFORMS = [
   ground(0, GROUND_Y, TOWN_WIDTH, 'wood'),
 
@@ -179,13 +179,13 @@ export const MAPS = {
       { id: 'sky_bird', count: 2 },
     ],
     portals: [
-      { x: 30,             y: GROUND_Y - 48, width: 40, height: 72, target: 'town',    label: '←楓葉城',   spawnX: 240 },
+      { x: 30,             y: GROUND_Y - 48, width: 40, height: 72, target: 'town',    label: '←晨曦鎮',   spawnX: 240 },
       { x: MAP_WIDTH - 50, y: GROUND_Y - 48, width: 40, height: 72, target: 'henesys', label: '→森林獵場', spawnX: 200 },
     ],
     npcs: [
-      { x: 250, y: GROUND_Y - 60, id: 'npc_new_2', name: '楓葉義工',
+      { x: 250, y: GROUND_Y - 60, id: 'npc_new_2', name: '島嶼義工',
         questIds: ['slime_hunt', 'snail_collect'],
-        dialog: ['歡迎來到浮空島嶼！', '這裡是新手練功的好地方。', '往左可回楓葉城補給，往右是森林獵場。'] },
+        dialog: ['歡迎來到浮空島嶼！', '這裡是新手練功的好地方。', '往左可回晨曦鎮補給，往右是森林獵場。'] },
     ],
     spawnX: 150,
   },
@@ -255,7 +255,7 @@ export const MAPS = {
       { id: 'mimic',    count: 3 },
     ],
     portals: [
-      { x: MAP_WIDTH - 50, y: GROUND_Y - 48, width: 40, height: 72, target: 'kerning', label: '→Kerning City', spawnX: 200 },
+      { x: MAP_WIDTH - 50, y: GROUND_Y - 48, width: 40, height: 72, target: 'kerning', label: '→暗巷城', spawnX: 200 },
       { x: MAP_WIDTH / 2, y: GROUND_Y - 48, width: 40, height: 72, target: 'taipei', label: '↑台北都會', spawnX: 160 },
       { x: 30,             y: GROUND_Y - 48, width: 40, height: 72, target: 'ruins',   label: '←古代廢墟',    spawnX: MAP_WIDTH - 200 },
     ],
@@ -267,9 +267,9 @@ export const MAPS = {
     spawnX: 150,
   },
 
-  // ── 地圖 5：Kerning City（Lv19-29）暗黑都市，強力城市系怪物 ─────────────
+  // ── 地圖 5：暗巷城（Lv19-29）暗黑都市，強力城市系怪物 ─────────────
   kerning: {
-    key: 'kerning', name: 'Kerning City', sceneKey: 'KerningScene',
+    key: 'kerning', name: '暗巷城', sceneKey: 'KerningScene',
     width: MAP_WIDTH, bgColor: 0x111133,
     platforms: KERNING_PLATFORMS,
     bgType: 'kerning', bgImage: 'bg_city',
@@ -286,7 +286,7 @@ export const MAPS = {
     npcs: [
       { x: 350, y: GROUND_Y - 60, id: 'npc_new_4', name: '地下城嚮導',
         questIds: ['thug_cleanup', 'beast_hunt'],
-        dialog: ['歡迎來到 Kerning City！', '這裡的怪物非常強大，要小心。', '擊敗 60 隻怪物解鎖 Boss！'] },
+        dialog: ['歡迎來到 暗巷城！', '這裡的怪物非常強大，要小心。', '擊敗 60 隻怪物解鎖 Boss！'] },
     ],
     spawnX: 150,
   },
@@ -306,7 +306,7 @@ export const MAPS = {
     ],
     portals: [
       { x: 30,             y: GROUND_Y - 48, width: 40, height: 72, target: 'ellinia', label: '←神秘之境', spawnX: MAP_WIDTH / 2 + 120 },
-      { x: MAP_WIDTH - 50, y: GROUND_Y - 48, width: 40, height: 72, target: 'kerning', label: '→Kerning City', spawnX: 260 },
+      { x: MAP_WIDTH - 50, y: GROUND_Y - 48, width: 40, height: 72, target: 'kerning', label: '→暗巷城', spawnX: 260 },
     ],
     npcs: [
       { x: 330, y: GROUND_Y - 60, id: 'npc_new_5', name: '台北導遊',
@@ -326,9 +326,9 @@ export const MAPS = {
     spawnX: 200,
   },
 
-  // ── 楓葉城（城鎮樞紐，無戰鬥，提供補給商店）──────────────────────────────
+  // ── 晨曦鎮（城鎮樞紐，無戰鬥，提供補給商店）──────────────────────────────
   town: {
-    key: 'town', name: '楓葉城', sceneKey: 'TownScene',
+    key: 'town', name: '晨曦鎮', sceneKey: 'TownScene',
     width: TOWN_WIDTH, bgColor: 0x46306a,
     platforms: TOWN_PLATFORMS,
     bgType: 'town', bgImage: 'bg_toytown',
@@ -339,11 +339,11 @@ export const MAPS = {
       { x: 800, y: GROUND_Y - 48, width: 40, height: 72, target: 'dungeon', dungeonId: 'slime_cave', label: '⚔ 史萊姆洞窟' },
     ],
     npcs: [
-      { x: 520,  y: GROUND_Y - 60, id: 'npc_new_2', name: '商人老陳', shop: true,
+      { x: 520,  y: GROUND_Y - 60, id: 'npc_merchant', name: '商人老陳', shop: true,
         dialog: ['歡迎光臨雜貨店！'] },
-      { x: 1000, y: GROUND_Y - 60, id: 'npc_new_4', name: '城鎮居民',
+      { x: 1000, y: GROUND_Y - 60, id: 'npc_townsfolk', name: '城鎮居民',
         questIds: ['reach_town'],
-        dialog: ['楓葉城是安全的休息站，這裡不會有怪物。', '需要補給就找商人老陳。', '右邊的傳送門可以回到浮空島嶼。'] },
+        dialog: ['晨曦鎮是安全的休息站，這裡不會有怪物。', '需要補給就找商人老陳。', '右邊的傳送門可以回到浮空島嶼。'] },
     ],
     spawnX: 200,
   },
