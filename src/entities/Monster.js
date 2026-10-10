@@ -164,6 +164,9 @@ export class Monster extends Phaser.Physics.Arcade.Sprite {
     // AI 節流：每 3 幀做一次決策，跳過幀沿用上次 velocity（玩家無感）
     this._aiTick = 0;
     this.hurtTimer = 0;
+    this._kbTimer = 0;
+    this._kbVx = 0;
+    this._kbDuration = 1;
     this.attackCooldown = 0;
     this.rangedCooldown = 0;
     this.jumpProfile = config.jumpProfile || null;
@@ -254,11 +257,15 @@ export class Monster extends Phaser.Physics.Arcade.Sprite {
     // 傷害數字
     this._showDamageNumber(amount, isCrit);
 
-    // 閃紅
-    this.setTint(0xff8888);
+    // 命中閃白 → 轉紅 → 恢復，比單純閃紅更有打擊感
+    this.setTintFill(0xffffff);
     if (this._flashTimer) this._flashTimer.remove();
-    this._flashTimer = this.scene.time.delayedCall(150, () => {
-      if (this.active && !this.isDead) this.clearTint();
+    this._flashTimer = this.scene.time.delayedCall(60, () => {
+      if (!this.active || this.isDead) return;
+      this.setTint(0xff8888);
+      this._flashTimer = this.scene.time.delayedCall(110, () => {
+        if (this.active && !this.isDead) this.clearTint();
+      });
     });
 
     if (this.hp <= 0) {
@@ -267,6 +274,21 @@ export class Monster extends Phaser.Physics.Arcade.Sprite {
       this.state = STATE.HURT;
       this.hurtTimer = 300;
     }
+  }
+
+  /**
+   * 擊退或牽引。vx 為初速（px/s），duration 內線性衰減到 0。
+   * Boss 與小王有 knockbackResist，只吃一小部分。
+   */
+  applyKnockback(vx, duration = 180, vy = 0) {
+    if (this.isDead || !this.body) return;
+    const resist = this.knockbackResist ?? (this.config?.spawnRole === 'miniboss' ? 0.6 : 0);
+    const scaled = vx * (1 - resist);
+    if (Math.abs(scaled) < 1) return;
+    this._kbVx = scaled;
+    this._kbDuration = duration;
+    this._kbTimer = duration;
+    if (vy && resist < 0.5 && this.body.blocked.down) this.setVelocityY(vy);
   }
 
   _showDamageNumber(amount, isCrit) {
@@ -371,6 +393,13 @@ export class Monster extends Phaser.Physics.Arcade.Sprite {
     this.attackCooldown = Math.max(0, this.attackCooldown - delta);
     this.rangedCooldown = Math.max(0, this.rangedCooldown - delta);
     this.jumpCooldown = Math.max(0, this.jumpCooldown - delta);
+
+    if (this._kbTimer > 0) {
+      // 擊退 / 牽引：速度隨剩餘時間線性衰減
+      this._kbTimer = Math.max(0, this._kbTimer - delta);
+      this.setVelocityX(this._kbVx * (this._kbTimer / this._kbDuration));
+      if (this.hurtTimer > 0) return;
+    }
 
     if (this.hurtTimer > 0) {
       this.setVelocityX(0);
