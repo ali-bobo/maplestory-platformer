@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { poseKey } from '../config/poses.js';
-import { jobOf, jobIdOf, skillDefOf, expNeeded, MAP_SCENE_KEYS, POTIONS, createInitialGameState, BASIC_ATTACK, skillForSlot } from '../config/constants.js';
+import { jobOf, jobIdOf, skillDefOf, expNeeded, MAX_LEVEL, MAP_SCENE_KEYS, POTIONS, createInitialGameState, BASIC_ATTACK, skillForSlot } from '../config/constants.js';
 import { saveGame } from '../engine/saveGame.js';
 import { castSlash, castShuriken, castDash, castAssassinate, castVortex, castClone } from './Skill.js';
 import { castTwinBlade, castSabre, castBackstab, castPoison, castMark, castWhirl, castSteal, castSmoke } from './JobSkills.js';
@@ -412,14 +412,14 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     gs.exp += amount;
     let leveledUp = false;
 
-    while (gs.exp >= gs.expNeeded && gs.level < 30) {
+    while (gs.exp >= gs.expNeeded && gs.level < MAX_LEVEL) {
       gs.exp -= gs.expNeeded;
       gs.level++;
       gs.expNeeded = expNeeded(gs.level);
       this._onLevelUp(gs);
       leveledUp = true;
     }
-    if (gs.level >= 30) gs.exp = Math.min(gs.exp, gs.expNeeded - 1);
+    if (gs.level >= MAX_LEVEL) gs.exp = Math.min(gs.exp, gs.expNeeded - 1);
 
     this.scene.registry.set('gameState', gs);
     this.scene.registry.events.emit('changedata-exp', null, gs.exp);
@@ -453,12 +453,6 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         gs.skillLevels[key] = Math.max(1, gs.skillLevels[key] || 0);
         this._showNotice(`習得新技能：${skill.name}！`);
       }
-    }
-
-    // Boss 解鎖
-    if (gs.killCount >= 60 && !gs.bossUnlocked) {
-      gs.bossUnlocked = true;
-      this._showNotice('暗影魔君現身！前往盜賊地下城右側傳送門！', 3000);
     }
   }
 

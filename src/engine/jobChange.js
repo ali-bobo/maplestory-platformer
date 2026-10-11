@@ -2,7 +2,7 @@
 // 任務流程在 questManager、演出在 BaseMapScene；這裡只負責把 gameState 改成新職業。
 
 import {
-  JOBS, isJobId, DEFAULT_JOB, JOB_CHANGE_LEVEL, JOB_CHANGE_SKILL_POINTS, expNeeded,
+  JOBS, isJobId, DEFAULT_JOB, JOB_CHANGE_LEVEL, JOB_CHANGE_SKILL_POINTS, expNeeded, MAX_LEVEL, titleFor,
 } from '../config/constants.js';
 
 export function canChangeJob(gs, jobId) {
@@ -32,7 +32,7 @@ export function applyJobChange(gs, jobId, opts = {}) {
   }
 
   gs.job = jobId;
-  gs.title = job.title;
+  gs.title = titleFor(jobId, (gs.shards || []).length);
   gs.jobChoice = null;
   gs.skillLevels = skillLevels;
   gs.unlockedSkills = unlocked;
@@ -53,7 +53,7 @@ export function debugSetJob(gs, jobId, level) {
   if (!isJobId(jobId)) return false;
   let lv = Number.isFinite(level) ? Math.floor(level) : gs.level;
   if (jobId !== DEFAULT_JOB) lv = Math.max(JOB_CHANGE_LEVEL, lv);
-  lv = Math.max(1, Math.min(30, lv));
+  lv = Math.max(1, Math.min(MAX_LEVEL, lv));
   const gain = lv - gs.level;
   if (gain !== 0) {
     gs.maxHp += 20 * gain; gs.maxMp += 12 * gain; gs.atk += 5 * gain;

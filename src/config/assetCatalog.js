@@ -993,6 +993,44 @@ export const QUEST_ITEM_ASSETS = [
   },
 ];
 
+// 星光碎片圖示（key 是遊戲內貼圖名；檔案 dist/assets/item_star_shard.png）
+QUEST_ITEM_ASSETS.push({
+  assetId: 'ITM-SHD-001',
+  groupId: 'ITM-SHD',
+  kind: 'icon',
+  key: 'item-star-shard',
+  path: 'dist/assets/item_star_shard.png',
+  status: 'used',
+});
+
+// ── 選配素材（美術還沒到位，由程式畫占位圖）─────────────────────────────────────
+// 只有 dist/assets 裡真的有這個檔案才會登錄、預載（建置時掃描，見 scripts/distAssets.cjs），
+// 所以檔案還沒到時不會有 404 請求。啟用真圖的步驟：把檔案放進 dist/assets，然後執行 `npm run build`。
+// 檔案在但 dist/bundle.js 沒重建時，test/assets.test.js 會失敗並提醒重建。
+export const OPTIONAL_ASSETS = [
+  { assetId: 'BG-DST-001', groupId: 'BG-DST', kind: 'background', key: 'bg_desert', path: 'dist/assets/bg_desert.webp', status: 'used', targetMaps: ['desert'] },
+  { assetId: 'BG-SNW-001', groupId: 'BG-SNW', kind: 'background', key: 'bg_snow',   path: 'dist/assets/bg_snow.webp',   status: 'used', targetMaps: ['snow'] },
+  { assetId: 'BG-LAV-001', groupId: 'BG-LAV', kind: 'background', key: 'bg_lava',   path: 'dist/assets/bg_lava.webp',   status: 'used', targetMaps: ['lava'] },
+  { assetId: 'BG-CST-001', groupId: 'BG-CST', kind: 'background', key: 'bg_castle', path: 'dist/assets/bg_castle.webp', status: 'used', targetMaps: ['castle'] },
+  // 星光之塔（晨曦鎮）：約 220×420，綠底去背；缺檔時 ProceduralAssets.js 畫占位塔
+  { assetId: 'PRP-TWR-001', groupId: 'PRP-TWR', kind: 'prop', key: 'prop_star_tower', path: 'dist/assets/prop_star_tower.png', status: 'used' },
+  // 世界地圖：底圖 960×540，節點 36×36 三種（已解鎖 / 目前所在 / 鎖定）；缺檔時世界地圖用程式畫的羊皮紙與圓點
+  { assetId: 'UI-WMP-001', groupId: 'UI-WMP', kind: 'ui', key: 'ui_world_map', path: 'dist/assets/ui_world_map.webp', status: 'used' },
+  { assetId: 'UI-WMP-002', groupId: 'UI-WMP', kind: 'ui', key: 'ui_map_node_unlocked', path: 'dist/assets/ui_map_node_unlocked.png', status: 'used' },
+  { assetId: 'UI-WMP-003', groupId: 'UI-WMP', kind: 'ui', key: 'ui_map_node_current', path: 'dist/assets/ui_map_node_current.png', status: 'used' },
+  { assetId: 'UI-WMP-004', groupId: 'UI-WMP', kind: 'ui', key: 'ui_map_node_locked', path: 'dist/assets/ui_map_node_locked.png', status: 'used' },
+];
+
+// 建置時注入的 dist/assets 檔名清單（| 分隔）；沒注入（例如直接 import 原始碼）視為一個都沒有
+const DIST_FILES = new Set(typeof __DIST_ASSET_FILES__ === 'string' ? __DIST_ASSET_FILES__.split('|') : []);
+export const PRESENT_OPTIONAL_ASSETS = OPTIONAL_ASSETS.filter((a) => DIST_FILES.has(a.path.split('/').pop()));
+BACKGROUND_ASSETS.push(...PRESENT_OPTIONAL_ASSETS.filter((a) => a.kind === 'background'));
+export const OPTIONAL_OTHER_ASSETS = PRESENT_OPTIONAL_ASSETS.filter((a) => a.kind !== 'background');
+// 這張選配素材是否已載入（執行期用，例如 scene.textures.exists 的替代判斷）
+export function hasOptionalAsset(key) {
+  return PRESENT_OPTIONAL_ASSETS.some((a) => a.key === key);
+}
+
 export const PRELOAD_IMAGE_ASSETS = [
   ...CHARACTER_ASSETS,
   ...BACKGROUND_ASSETS,
@@ -1005,6 +1043,7 @@ export const PRELOAD_IMAGE_ASSETS = [
   ...UI_ASSETS,
   ...SKILL_ICON_ASSETS,
   ...QUEST_ITEM_ASSETS,
+  ...OPTIONAL_OTHER_ASSETS,
 ];
 
 export const PENDING_ALIGNMENT_ASSETS = MONSTER_ASSETS.filter(

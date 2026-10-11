@@ -6,6 +6,7 @@
 
 import { JOBS } from '../config/constants.js';
 import { TRIAL_ITEM_NAME } from '../config/quests.js';
+import { towerLines } from './shards.js';
 
 const DEFAULT_LINES = [
   '歡迎光臨！勇士請多保重。',
@@ -27,7 +28,7 @@ export function buildNpcDialog(gs, npcDef) {
   // 城鎮居民：Lv.10 後轉交神祕信（影之召喚進行中時多一段話）
   if (npcDef.jobLetter && activeEntry('job_call')) {
     return {
-      lines: ['有你的信！「影之長老在影之殿堂等你」，', '從鎮上最右邊的傳送門進去，快去找她吧。', ...lines],
+      lines: ['有你的信！「影之長老在影之殿堂等你」，', '從鎮上右端、浮空島嶼傳送門左邊那道傳送門進去，快去找她吧。', ...lines],
       choices: null,
     };
   }
@@ -40,6 +41,9 @@ export function buildNpcDialog(gs, npcDef) {
       : sp > 0 ? `你還有 ${sp} 點 SP 沒有用，快去升級技能吧。` : '你的 SP 都花完了，繼續升級會再拿到新的點數。';
     return { lines: [...lines, extra], choices: null };
   }
+
+  // 星光之塔：碎片進度與下一步（點亮的演出在 BaseMapScene._interactStarTower）
+  if (npcDef.role === 'starTower') return { lines: towerLines(gs), choices: null };
 
   if (npcDef.role !== 'jobAdvisor') return { lines, choices: null };
 

@@ -5,6 +5,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { spawnSync } = require('child_process');
+const { distAssetDefine } = require('../scripts/distAssets.cjs');
 
 const dir = __dirname;
 const files = fs.readdirSync(dir).filter((f) => f.endsWith('.test.js'));
@@ -18,6 +19,7 @@ for (const f of files) {
     entryPoints: [path.join(dir, f)],
     bundle: true, platform: 'node', format: 'cjs', outfile,
     external: ['node:*'],
+    define: distAssetDefine(),
   });
   bundled.push(outfile);
 }

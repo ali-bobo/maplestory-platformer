@@ -33,10 +33,10 @@ const MONSTER_CLASSIFICATION = {
   ruin_wraith: { family: MONSTER_FAMILIES.SPIRIT, habitats: ['ruins', 'ellinia'] },
   ruin_beast: { family: MONSTER_FAMILIES.WOODLAND, habitats: ['ruins'] },
   ruin_giant: { family: MONSTER_FAMILIES.HEAVY, habitats: ['ruins'] },
-  dragon: { family: MONSTER_FAMILIES.FANTASY, habitats: ['ellinia', 'kerning'] },
+  dragon: { family: MONSTER_FAMILIES.FANTASY, habitats: ['ellinia'] },
   cyclops: { family: MONSTER_FAMILIES.FANTASY, habitats: ['ellinia'] },
   golem: { family: MONSTER_FAMILIES.ROCK, habitats: ['ruins'] },
-  mimic: { family: MONSTER_FAMILIES.FANTASY, habitats: ['ellinia', 'kerning'] },
+  mimic: { family: MONSTER_FAMILIES.FANTASY, habitats: ['ellinia'] },
   city_thug: { family: MONSTER_FAMILIES.CITY, habitats: ['kerning'] },
   city_mech: { family: MONSTER_FAMILIES.CITY, habitats: ['taipei'] },
   street_punk: { family: MONSTER_FAMILIES.CITY, habitats: ['taipei'] },
@@ -67,9 +67,9 @@ export const MONSTERS = [
 
   // ── 古代廢墟 (ruins) Lv9-18 ──────────────────────────────────────────────
   { id: 'boar',     name: '岩牙野豬',   level: 9,  hp: 380,  atk: 48,  exp: 90,  speed: 90,  meso: 22, dropRate: 0.15, behavior: 'chase',   spriteKey: 'monster_boar',     area: 'ruins', jumpProfile: { minInterval: 3400, maxInterval: 5200, velocity: 320, chance: 0.38 } },
-  { id: 'robot',    name: '巡邏空拍機', level: 11, hp: 450,  atk: 58,  exp: 115, speed: 75,  meso: 28, dropRate: 0.16, behavior: 'ranged',  spriteKey: 'monster_robot',    area: 'ruins'   },
+  { id: 'robot',    name: '巡邏空拍機', level: 25, hp: 1350, atk: 150, exp: 430, speed: 75,  meso: 70, dropRate: 0.26, behavior: 'ranged',  spriteKey: 'monster_robot',    area: 'ruins'   },
   { id: 'skeleton', name: '骷髏戰士',   level: 14, hp: 560,  atk: 70,  exp: 150, speed: 70,  meso: 34, dropRate: 0.18, behavior: 'chase',   spriteKey: 'monster_skeleton', area: 'ruins'   },
-  { id: 'snake',    name: '毒眼鏡蛇',   level: 17, hp: 680,  atk: 86,  exp: 195, speed: 100, meso: 40, dropRate: 0.20, behavior: 'chase',   spriteKey: 'monster_snake',    area: 'ruins'   },
+  { id: 'snake',    name: '毒眼鏡蛇',   level: 12, hp: 500,  atk: 62,  exp: 125, speed: 100, meso: 30, dropRate: 0.16, behavior: 'chase',   spriteKey: 'monster_snake',    area: 'ruins'   },
   // 新增廢墟系怪物
   { id: 'ruin_knight', name: '廢墟騎士', level: 10, hp: 420, atk: 52,  exp: 100, speed: 65,  meso: 24, dropRate: 0.15, behavior: 'chase',   spriteKey: 'monster_new_3',    area: 'ruins'   },
   { id: 'ruin_golem',  name: '石柱魔像', level: 13, hp: 520, atk: 65,  exp: 135, speed: 50,  meso: 32, dropRate: 0.17, behavior: 'patrol',  spriteKey: 'monster_new_4',    area: 'ruins' },
@@ -78,10 +78,10 @@ export const MONSTERS = [
   { id: 'ruin_giant',  name: '廢墟巨人', level: 15, hp: 700, atk: 78,  exp: 160, speed: 55,  meso: 36, dropRate: 0.18, behavior: 'patrol',  spriteKey: 'monster_big_1',    area: 'ruins' },
 
   // ── 暗巷城 (kerning) Lv19-28 ────────────────────────────────────────
-  { id: 'dragon',   name: '小藍龍',     level: 19, hp: 900,  atk: 105, exp: 260, speed: 85,  meso: 52, dropRate: 0.22, behavior: 'chase',   spriteKey: 'monster_dragon',   area: 'kerning' },
-  { id: 'cyclops',  name: '獨眼怪',     level: 22, hp: 1100, atk: 125, exp: 330, speed: 70,  meso: 60, dropRate: 0.24, behavior: 'patrol',  spriteKey: 'monster_cyclops',  area: 'kerning' },
+  { id: 'dragon',   name: '小藍龍',     level: 14, hp: 560,  atk: 70,  exp: 150, speed: 85,  meso: 34, dropRate: 0.18, behavior: 'chase',   spriteKey: 'monster_dragon',   area: 'kerning' },
+  { id: 'cyclops',  name: '獨眼怪',     level: 17, hp: 680,  atk: 86,  exp: 195, speed: 70,  meso: 40, dropRate: 0.20, behavior: 'patrol',  spriteKey: 'monster_cyclops',  area: 'kerning' },
   { id: 'golem',    name: '石頭精',     level: 25, hp: 1400, atk: 145, exp: 420, speed: 45,  meso: 70, dropRate: 0.26, behavior: 'patrol',  spriteKey: 'monster_golem',    area: 'kerning' },
-  { id: 'mimic',    name: '飛魚寶箱',   level: 28, hp: 1200, atk: 160, exp: 510, speed: 95,  meso: 82, dropRate: 0.28, behavior: 'ranged',  spriteKey: 'monster_mimic',    area: 'kerning' },
+  { id: 'mimic',    name: '飛魚寶箱',   level: 20, hp: 950,  atk: 110, exp: 275, speed: 95,  meso: 54, dropRate: 0.22, behavior: 'ranged',  spriteKey: 'monster_mimic',    area: 'kerning' },
   // 新增 Kerning 系怪物
   { id: 'city_thug',   name: '城市流氓', level: 20, hp: 950, atk: 110, exp: 275, speed: 90,  meso: 54, dropRate: 0.22, behavior: 'chase',   spriteKey: 'monster_new_6',    area: 'kerning' },
   { id: 'city_mech',   name: '龐克飆仔', level: 23, hp: 1200,atk: 130, exp: 350, speed: 95,  meso: 62, dropRate: 0.24, behavior: 'chase',   spriteKey: 'monster_punk',    area: 'taipei' },
@@ -91,15 +91,16 @@ export const MONSTERS = [
   { id: 'city_boss2',  name: '小王：機械領袖', level: 29, hp: 4000, atk: 185, exp: 800, speed: 85,  meso: 200, dropRate: 0.50, behavior: 'chase', spriteKey: 'miniboss_1',  area: 'kerning', spawnRole: 'miniboss' },
   { id: 'city_elite',  name: '夜市扒手', level: 24, hp: 1300,atk: 140, exp: 380, speed: 85,  meso: 66, dropRate: 0.25, behavior: 'patrol',  spriteKey: 'monster_pickpocket',    area: 'taipei', jumpProfile: { minInterval: 3600, maxInterval: 5400, velocity: 310, chance: 0.3 } },
 
-  // ── 碧濤港 (harbor) Lv12-18 ──────────────────────────────────────────────
-  // 數值接在古代廢墟（同 Lv 的 ruin_beast / skeleton / snake）後面：Lv12 約 hp 480-500 / atk 60，Lv17 約 hp 680 / atk 86。
+  // ── 碧濤港 (harbor) Lv14-20 ──────────────────────────────────────────────
+  // 世界重整後碧濤港排在古代廢墟之後（Lv14-20）：數值對齊同級的廢墟 / 暗巷城怪（Lv14 hp 560 / atk 70，Lv17 hp 680 / atk 86，Lv20 hp 950 / atk 110）。
+  // 小王海盜船長 Lv22（= 等級帶上限 + 2），血量約同級小怪的 7 倍。掉落第 1 塊星光碎片（config/shards.js）。
   // 引擎沒有飛行 / 漂浮行為：水母用 patrol + 頻繁小跳（像浮沉），海鷗用 chase + 高跳（像俯衝拍翅）。
-  { id: 'crab',         name: '螃蟹',     level: 12, hp: 500, atk: 62,  exp: 125, speed: 60,  meso: 30, dropRate: 0.16, behavior: 'patrol', spriteKey: 'monster_crab',         area: 'harbor' },
-  { id: 'jellyfish',    name: '水母',     level: 13, hp: 470, atk: 66,  exp: 135, speed: 45,  meso: 32, dropRate: 0.16, behavior: 'patrol', spriteKey: 'monster_jellyfish',    area: 'harbor', jumpProfile: { minInterval: 700, maxInterval: 1300, velocity: 230, chance: 0.9 } },
-  { id: 'seagull',      name: '海鷗',     level: 14, hp: 540, atk: 72,  exp: 150, speed: 95,  meso: 34, dropRate: 0.17, behavior: 'chase',  spriteKey: 'monster_seagull',      area: 'harbor', jumpProfile: { minInterval: 1500, maxInterval: 2600, velocity: 390, chance: 0.6 } },
-  { id: 'pirate_ghost', name: '海盜幽靈', level: 16, hp: 640, atk: 80,  exp: 175, speed: 80,  meso: 38, dropRate: 0.18, behavior: 'chase',  spriteKey: 'monster_pirate_ghost', area: 'harbor' },
-  { id: 'octopus',      name: '章魚',     level: 17, hp: 700, atk: 86,  exp: 195, speed: 55,  meso: 40, dropRate: 0.19, behavior: 'ranged', spriteKey: 'monster_octopus',      area: 'harbor' },
-  { id: 'pirate_captain', name: '小王：海盜船長', level: 18, hp: 3200, atk: 105, exp: 700, speed: 80, meso: 160, dropRate: 0.50, behavior: 'chase', spriteKey: 'miniboss_captain', area: 'harbor', spawnRole: 'miniboss' },
+  { id: 'crab',         name: '螃蟹',     level: 14, hp: 560, atk: 70,  exp: 150, speed: 60,  meso: 34, dropRate: 0.18, behavior: 'patrol', spriteKey: 'monster_crab',         area: 'harbor' },
+  { id: 'jellyfish',    name: '水母',     level: 15, hp: 600, atk: 76,  exp: 165, speed: 45,  meso: 36, dropRate: 0.18, behavior: 'patrol', spriteKey: 'monster_jellyfish',    area: 'harbor', jumpProfile: { minInterval: 700, maxInterval: 1300, velocity: 230, chance: 0.9 } },
+  { id: 'seagull',      name: '海鷗',     level: 17, hp: 680, atk: 86,  exp: 195, speed: 95,  meso: 40, dropRate: 0.20, behavior: 'chase',  spriteKey: 'monster_seagull',      area: 'harbor', jumpProfile: { minInterval: 1500, maxInterval: 2600, velocity: 390, chance: 0.6 } },
+  { id: 'pirate_ghost', name: '海盜幽靈', level: 18, hp: 760, atk: 92,  exp: 220, speed: 80,  meso: 44, dropRate: 0.20, behavior: 'chase',  spriteKey: 'monster_pirate_ghost', area: 'harbor' },
+  { id: 'octopus',      name: '章魚',     level: 20, hp: 950, atk: 110, exp: 275, speed: 55,  meso: 54, dropRate: 0.22, behavior: 'ranged', spriteKey: 'monster_octopus',      area: 'harbor' },
+  { id: 'pirate_captain', name: '小王：海盜船長', level: 22, hp: 7800, atk: 140, exp: 1100, speed: 80, meso: 260, dropRate: 0.50, behavior: 'chase', spriteKey: 'miniboss_captain', area: 'harbor', spawnRole: 'miniboss' },
 
   // ── Boss 援軍 (boss) ─────────────────────────────────────────────────────
   // 一轉「影之試煉」守衛（小王；圖暫用街頭小王染紫，專屬美術待補）

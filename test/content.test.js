@@ -10,14 +10,19 @@ import { TRACKS } from '../src/engine/music/tracks.js';
 import {
   CHARACTER_ASSETS, BACKGROUND_ASSETS, PLATFORM_ASSETS, MONSTER_ASSETS, NPC_ASSETS, BOSS_ASSETS,
   ICON_ASSETS, UI_ASSETS, POTION_ICON_ASSETS, FX_ASSETS, JOB_POSES, SKILL_ICON_ASSETS, QUEST_ITEM_ASSETS,
+  OPTIONAL_ASSETS,
 } from '../src/config/assetCatalog.js';
+import { SHARDS, SHARD_TEXTURE } from '../src/config/shards.js';
+import { neighborsOf } from '../src/engine/worldGraph.js';
 
 const monsterIds = new Set(MONSTERS.map((m) => m.id));
 const npcIds = new Set(Object.values(MAPS).flatMap((m) => (m.npcs || []).map((n) => n.npcId).filter(Boolean)));
 const assetKeys = new Set([
   ...CHARACTER_ASSETS, ...BACKGROUND_ASSETS, ...PLATFORM_ASSETS, ...MONSTER_ASSETS,
-  ...NPC_ASSETS, ...BOSS_ASSETS, ...ICON_ASSETS, ...UI_ASSETS, ...POTION_ICON_ASSETS,
+  ...NPC_ASSETS, ...BOSS_ASSETS, ...ICON_ASSETS, ...UI_ASSETS, ...POTION_ICON_ASSETS, ...QUEST_ITEM_ASSETS,
 ].map((a) => a.key));
+// 選配素材（背景、星光之塔…）還沒到位時由程式替代，不在上面的集合裡也算有效
+const optionalKeys = new Set(OPTIONAL_ASSETS.map((a) => a.key));
 
 test('怪物 id 不重複、數值為正', () => {
   assert.equal(monsterIds.size, MONSTERS.length);
@@ -34,7 +39,7 @@ test('地圖：怪物 id、背景、場景鍵都存在；傳送門目標有效',
   for (const [key, map] of Object.entries(MAPS)) {
     assert.equal(map.key, key, `${key} 的 key 欄位`);
     assert.ok(MAP_SCENE_KEYS[key] === map.sceneKey, `${key} sceneKey 與 MAP_SCENE_KEYS 一致`);
-    assert.ok(assetKeys.has(map.bgImage), `${key} 背景 ${map.bgImage}`);
+    assert.ok(assetKeys.has(map.bgImage) || (optionalKeys.has(map.bgImage) && map.bgPlaceholder), `${key} 背景 ${map.bgImage}（選配背景要有 bgPlaceholder）`);
     for (const m of map.monsters) assert.ok(monsterIds.has(m.id), `${key} 怪物 ${m.id}`);
     for (const p of map.portals) {
       if (p.requiresQuest) assert.ok(QUESTS[p.requiresQuest], `${key} 傳送門要求的任務 ${p.requiresQuest}`);
@@ -42,7 +47,7 @@ test('地圖：怪物 id、背景、場景鍵都存在；傳送門目標有效',
       else assert.ok(MAPS[p.target], `${key} 傳送門目標 ${p.target}`);
     }
     for (const n of map.npcs || []) {
-      assert.ok(assetKeys.has(n.id), `${key} NPC 圖 ${n.id}`);
+      assert.ok(assetKeys.has(n.id) || optionalKeys.has(n.id), `${key} NPC 圖 ${n.id}`);
       for (const q of n.questIds || []) assert.ok(QUESTS[q], `${key} NPC 任務 ${q}`);
     }
   }
@@ -148,11 +153,10 @@ test('地圖連通：從起始地圖出發，沿傳送門能到每一張地圖�
   assert.deepEqual(Object.keys(MAPS).filter((k) => !seen.has(k)), []);
 });
 
-test('傳送門成對：A 能走到 B，B 也有一條能回 A（Boss 房與台北→暗巷城的環狀單向除外）', () => {
-  const ONE_WAY = new Set(['taipei>kerning']);
+test('傳送門成對：A 能走到 B，B 也有一條能回 A（Boss 房除外）', () => {
   for (const [key, map] of Object.entries(MAPS)) {
     for (const p of map.portals) {
-      if (p.target === 'dungeon' || p.target === 'boss' || ONE_WAY.has(`${key}>${p.target}`)) continue;
+      if (p.target === 'dungeon' || p.target === 'boss') continue;
       assert.ok(MAPS[p.target].portals.some((q) => q.target === key), `${key} → ${p.target} 沒有回程`);
     }
   }
@@ -189,10 +193,10 @@ test('碧濤港：5 種怪 + 1 小王、素材都在目錄且標為使用中、3
     const asset = MONSTER_ASSETS.find((a) => a.key === def.spriteKey);
     assert.ok(asset && asset.status === 'used' && asset.monsterIds.includes(id), `${id} 素材登記`);
   }
-  // 等級帶 12-18，小王比同圖最強的小怪血量高 4 倍以上
+  // 等級帶 14-20（接在古代廢墟之後），小王 = 帶上限 + 2，比同圖最強的小怪血量高 4 倍以上
   const regs = ids.map((id) => MONSTERS.find((x) => x.id === id));
-  for (const r of regs) assert.ok(r.level >= 12 && r.level <= 18, `${r.id} 等級`);
-  assert.equal(captain.level, 18);
+  for (const r of regs) assert.ok(r.level >= 14 && r.level <= 20, `${r.id} 等級`);
+  assert.equal(captain.level, 22);
   assert.ok(captain.hp >= 4 * Math.max(...regs.map((r) => r.hp)));
   // NPC、平台、背景素材
   for (const n of m.npcs) assert.ok(NPC_ASSETS.some((a) => a.key === n.id && a.status === 'used'), `${n.id} 登記為 used`);
@@ -203,10 +207,73 @@ test('碧濤港：5 種怪 + 1 小王、素材都在目錄且標為使用中、3
   assert.deepEqual(QUESTS.harbor_captain.requires, ['harbor_sailor']);
 });
 
-test('碧濤港接在森林獵場與古代廢墟之間，所有平台在地圖範圍內', () => {
-  assert.ok(MAPS.henesys.portals.some((p) => p.target === 'harbor'));
-  assert.ok(!MAPS.henesys.portals.some((p) => p.target === 'ruins'));
-  assert.ok(MAPS.harbor.portals.some((p) => p.target === 'henesys') && MAPS.harbor.portals.some((p) => p.target === 'ruins'));
-  assert.ok(MAPS.ruins.portals.some((p) => p.target === 'harbor'));
+test('碧濤港接在古代廢墟之後（森林 → 廢墟 → 碧濤港），所有平台在地圖範圍內', () => {
+  assert.ok(MAPS.henesys.portals.some((p) => p.target === 'ruins'));
+  assert.ok(!MAPS.henesys.portals.some((p) => p.target === 'harbor'));
+  assert.ok(MAPS.ruins.portals.some((p) => p.target === 'harbor') && MAPS.ruins.portals.some((p) => p.target === 'henesys'));
+  assert.ok(MAPS.harbor.portals.some((p) => p.target === 'ruins'));
   for (const p of MAPS.harbor.platforms) assert.ok(p.x >= 0 && p.x + p.width <= MAPS.harbor.width, `平台 x=${p.x}`);
+});
+
+// ── 世界骨架（docs/WORLD_DESIGN.md）────────────────────────────────────────────────
+
+test('地圖圖：樞紐與主線 / 支線的連接符合設計', () => {
+  const to = (k) => neighborsOf(k);
+  assert.ok(to('town').includes('sky') && to('town').includes('shrine') && to('town').includes('kerning'));
+  assert.deepEqual(to('sky').sort(), ['henesys', 'town']);
+  assert.deepEqual(to('henesys').sort(), ['ellinia', 'ruins', 'sky']);
+  assert.deepEqual(to('ruins').sort(), ['harbor', 'henesys']);
+  assert.ok(to('harbor').includes('ruins'));
+  assert.deepEqual(to('ellinia'), ['henesys']);              // 神秘之境：從森林獵場進入的支線
+  assert.deepEqual(to('kerning').sort(), ['taipei', 'town']); // 城市特區：晨曦鎮 → 暗巷城 ⇄ 台北都會
+  assert.deepEqual(to('taipei'), ['kerning']);
+});
+
+test('城市特區入口在晨曦鎮，Lv18 開放（portal.minLevel）；其他傳送門沒有等級門檻', () => {
+  const gate = MAPS.town.portals.find((p) => p.target === 'kerning');
+  assert.equal(gate.minLevel, 18);
+  for (const [key, map] of Object.entries(MAPS)) {
+    for (const p of map.portals) if (p.minLevel) assert.ok(p.minLevel >= 1 && p.minLevel <= 50 && MAPS[p.target], `${key} → ${p.target}`);
+  }
+});
+
+test('每張地圖有等級帶；一般怪等級落在帶內、小王不超過帶上限 + 2；樞紐是安全地圖', () => {
+  for (const [key, map] of Object.entries(MAPS)) {
+    if (map.hub) { assert.equal(map.monsters.length, 0, `${key} 是樞紐，不能有怪`); continue; }
+    if (key === 'boss') continue;
+    assert.ok(Array.isArray(map.levelBand) && map.levelBand[0] <= map.levelBand[1], `${key} levelBand`);
+    const [lo, hi] = map.levelBand;
+    for (const spawn of map.monsters) {
+      const def = MONSTERS.find((m) => m.id === spawn.id);
+      if (def.spawnRole === 'miniboss') assert.ok(def.level >= hi - 2 && def.level <= hi + 2, `${key} 小王 ${def.id} Lv${def.level}`);
+      else assert.ok(def.level >= lo - 1 && def.level <= hi, `${key} ${def.id} Lv${def.level} 不在 ${lo}-${hi}（容許低 1 級的入門怪）`);
+    }
+  }
+});
+
+test('星光碎片：5 隻守護者都是小王、各掉一塊、碎片圖示在素材目錄', () => {
+  assert.equal(SHARDS.length, 5);
+  assert.equal(new Set(SHARDS.map((s) => s.id)).size, 5);
+  assert.ok(QUEST_ITEM_ASSETS.some((a) => a.key === SHARD_TEXTURE && a.path.endsWith('item_star_shard.png')));
+  for (const shard of SHARDS) {
+    const def = MONSTERS.find((m) => m.id === shard.monsterId);
+    if (!def) continue;   // 階段 2 的四張新圖尚未加入時略過（階段 2 的測試會要求全部存在）
+    assert.equal(def.spawnRole, 'miniboss', shard.monsterId);
+    assert.equal(def.area, shard.map);
+  }
+});
+
+test('星光之塔：晨曦鎮有塔（role starTower），貼圖 key 是選配素材 prop_star_tower', () => {
+  const tower = MAPS.town.npcs.find((n) => n.role === 'starTower');
+  assert.ok(tower && tower.id === 'prop_star_tower' && tower.height >= 300);
+  assert.ok(optionalKeys.has('prop_star_tower'));
+});
+
+test('舊的「擊殺 60 隻」解鎖規則已移除（地圖 / 教學 / 對話都不再提）', async () => {
+  const { readFileSync } = await import('node:fs');
+  for (const f of ['src/config/maps.js', 'src/scenes/TutorialScene.js', 'src/entities/Player.js', 'src/scenes/BaseMapScene.js', 'src/engine/saveManager.js']) {
+    const text = readFileSync(f, 'utf8');
+    assert.ok(!/killCount\s*>=\s*60/.test(text), `${f} 還有 killCount >= 60`);
+    assert.ok(!/擊敗 60 隻|擊殺 60|60 隻怪物/.test(text), `${f} 還提到 60 隻`);
+  }
 });

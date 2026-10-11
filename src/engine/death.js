@@ -3,7 +3,7 @@
 // 死亡規則：
 //  - 保留等級、經驗、金幣、技能、藥水、任務與擊殺數。
 //  - 失去身上所有裝備，裝備提供的屬性一併移除（屬性由等級重新推算）。
-//  - 在死亡的地圖重生（副本 → 晨曦鎮、Boss 房 → 暗巷城）；HP / MP 回滿。
+//  - 在死亡的地圖重生（副本 → 晨曦鎮、Boss 房 → 主線最後一張地圖）；HP / MP 回滿。
 
 import { createInitialGameState } from '../config/constants.js';
 import { EQUIPMENT_SLOTS } from '../config/equipment.js';

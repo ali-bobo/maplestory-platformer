@@ -13,10 +13,13 @@
 
 import {
   createInitialGameState, POTIONS, expNeeded, JOBS, isJobId, DEFAULT_JOB, JOB_CHANGE_LEVEL, SKILL_SLOT_KEYS,
+  MAX_LEVEL, titleFor, BOSS_FALLBACK_MAP,
 } from '../config/constants.js';
+import { SHARD_IDS } from '../config/shards.js';
 import { MAPS } from '../config/maps.js';
 import { EQUIPMENT_SLOTS, EQUIPMENT_BASES, RARITIES } from '../config/equipment.js';
 import { getQuestDef } from '../config/quests.js';
+import { pathBetween } from './worldGraph.js';
 
 export const SAVE_FORMAT = 'thief-legend-save';
 export const SAVE_VERSION = 1;
@@ -24,7 +27,6 @@ export const SAVE_KEY = 'thief-legend-save-v1';   // 與舊版相同的 key，�
 // 匯入檔案大小上限（正常存檔 < 5 KB），避免讀入惡意大檔
 export const MAX_SAVE_BYTES = 64 * 1024;
 
-const MAX_LEVEL = 30;
 const MAX_SKILL_POINTS = 999;
 const MAX_SKILL_LEVEL = 10;
 const MAX_POTIONS = 999;
@@ -34,7 +36,7 @@ const MAX_PLAYTIME = 60 * 60 * 24 * 365;   // 秒
 const MAX_STAT = 99999;
 
 // 存檔時不可落腳的地圖（副本 / Boss）：讀檔改回最近的安全地圖
-const FALLBACK_MAP = { dungeon: 'town', boss: 'kerning' };
+const FALLBACK_MAP = { dungeon: 'town', boss: BOSS_FALLBACK_MAP };
 const DEFAULT_MAP = 'sky';
 
 function num(v, min, max, fallback) {
@@ -74,6 +76,26 @@ function sanitizeMap(key) {
     && !FALLBACK_MAP[mapped]
     ? mapped
     : DEFAULT_MAP;
+}
+
+// 星光碎片：只認 SHARD_IDS、去重，順序依 SHARD_IDS（和取得順序無關）
+function sanitizeShards(raw) {
+  if (!Array.isArray(raw)) return [];
+  return SHARD_IDS.filter((id) => raw.includes(id));
+}
+
+// 去過的地圖：只認有效、可落腳的地圖（副本 / Boss 房不算）。舊存檔沒有這個欄位時，
+// 用「從起點沿傳送門走到目前所在地圖的最短路徑」推算（玩家一定走過那條路），再補上目前地圖。
+function sanitizeVisited(raw, currentMap) {
+  const out = new Set();
+  const ok = (k) => typeof k === 'string' && Object.prototype.hasOwnProperty.call(MAPS, k) && !FALLBACK_MAP[k];
+  if (Array.isArray(raw)) {
+    for (const k of raw) if (ok(k)) out.add(k);
+  } else {
+    for (const k of pathBetween(DEFAULT_MAP, currentMap)) if (ok(k)) out.add(k);
+  }
+  out.add(currentMap);
+  return Object.keys(MAPS).filter((k) => out.has(k));   // 依地圖表順序，輸出穩定
 }
 
 function sanitizeQuests(raw) {
@@ -126,7 +148,11 @@ export function sanitizeState(raw) {
   gs.killCount = int(raw.killCount, 0, MAX_KILLS, 0);
   gs.playTime = int(raw.playTime, 0, MAX_PLAYTIME, 0);
   gs.skillPoints = int(raw.skillPoints, 0, MAX_SKILL_POINTS, 0);
-  gs.bossUnlocked = raw.bossUnlocked === true || gs.killCount >= 60;
+  // 星光碎片主線：碎片 5/5 並點亮星光之塔才解鎖最終 Boss。
+  // 舊存檔（以擊殺數解鎖的舊版）已解鎖的 bossUnlocked: true 照舊承認（grandfather）。
+  gs.shards = sanitizeShards(raw.shards);
+  gs.towerLit = raw.towerLit === true && gs.shards.length >= SHARD_IDS.length;
+  gs.bossUnlocked = raw.bossUnlocked === true || gs.towerLit;
 
   if (isPlainObject(raw.equipment)) {
     for (const slot of EQUIPMENT_SLOTS) {
@@ -143,7 +169,7 @@ export function sanitizeState(raw) {
   // 職業：未知值 → 盜賊；未達轉職等級也不承認轉職後的職業（避免改檔拿到專屬技能）
   gs.job = isJobId(raw.job) && gs.level >= JOB_CHANGE_LEVEL ? raw.job : DEFAULT_JOB;
   const job = JOBS[gs.job];
-  gs.title = job.title;   // 稱號由職業決定，不信任存檔內容
+  gs.title = titleFor(gs.job, gs.shards.length);   // 稱號由職業與碎片數決定，不信任存檔內容
   gs.jobChoice = gs.job === DEFAULT_JOB && (raw.jobChoice === 'assassin' || raw.jobChoice === 'bandit')
     ? raw.jobChoice : null;
 
@@ -170,6 +196,7 @@ export function sanitizeState(raw) {
 
   gs.currentMap = sanitizeMap(raw.currentMap);
   gs.spawnX = MAPS[gs.currentMap].spawnX ?? gs.spawnX;
+  gs.visitedMaps = sanitizeVisited(raw.visitedMaps, gs.currentMap);
   gs.quests = sanitizeQuests(raw.quests);
   return gs;
 }

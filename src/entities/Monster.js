@@ -7,6 +7,8 @@ import { ALIGNMENT_PROFILES, applyAlignmentProfile, getVisualCenterPoint, getVis
 import { VFX_TEX } from '../engine/vfxTextures.js';
 import { consumeMark, inSmoke, SMOKE_DAMAGE_FACTOR } from '../engine/statusEffects.js';
 import { effectiveCritMulti, jobPassive } from '../config/constants.js';
+import { SHARD_TEXTURE } from '../config/shards.js';
+import { shardToDrop } from '../engine/shards.js';
 
 // Phase 10.3 PoC：HP 條渲染模式開關（'shape' = Rectangle 走 batchFillPath；
 // 'image' = 白塊 texture 走 batchSprite）。預設 shape（維持 Phase 3 現狀）。
@@ -372,6 +374,10 @@ export class Monster extends Phaser.Physics.Arcade.Sprite {
       this._spawnPickup('item-meso', mesoCount, 'meso');
     }
 
+    // 區域守護者的星光碎片：100% 掉落、每個存檔只能拿一次（已取得就不再掉）；碎片不會消失，等玩家撿起
+    const shard = shardToDrop(gs, this.config.id);
+    if (shard) this._spawnPickup(SHARD_TEXTURE, shard.id, 'shard');
+
     // 掉裝備
     const equip = rollEquipmentDrop(level, this.config.dropRate);
     if (equip) {
@@ -390,7 +396,8 @@ export class Monster extends Phaser.Physics.Arcade.Sprite {
     pickup.setDepth(8);
     pickup.setVelocity((Math.random() - 0.5) * 120, -200);
     pickup.setBounce(0.3);
-    this.scene.time.delayedCall(30000, () => { if (pickup.active) pickup.destroy(); });
+    if (type !== 'shard') this.scene.time.delayedCall(30000, () => { if (pickup.active) pickup.destroy(); });
+    else pickup.setScale(1.6);
     // 加入場景的 pickups 群組
     if (this.scene.pickups) this.scene.pickups.add(pickup);
   }

@@ -48,6 +48,9 @@ export const JOB_SKILLS = {
 // 全部技能定義（盜賊技能 + 職業專屬）；各職業的解鎖等級以 JOBS[job].skills 為準
 export const ALL_SKILLS = { ...SKILLS, ...JOB_SKILLS };
 
+// 等級上限（世界重整後由 30 提高到 50；經驗曲線 expNeeded 不變，見 docs/WORLD_DESIGN.md）
+export const MAX_LEVEL = 50;
+
 export const JOB_IDS = ['thief', 'assassin', 'bandit'];
 export const DEFAULT_JOB = 'thief';
 export const JOB_CHANGE_LEVEL = 10;
@@ -177,6 +180,18 @@ export function expNeeded(level) {
   return Math.floor(100 * Math.pow(level, 1.45));
 }
 
+// 星光碎片集滿（5/5）後的稱號前綴，加在職業稱號前面
+export const STAR_TITLE = '星光守護者';
+
+// 玩家稱號 = 職業稱號；集滿星光碎片後前面加「星光守護者・」
+export function titleFor(jobId, shardCount) {
+  const base = JOBS[isJobId(jobId) ? jobId : DEFAULT_JOB].title;
+  return shardCount >= 5 ? `${STAR_TITLE}・${base}` : base;
+}
+
+// 最終 Boss 房死亡 / 讀檔時回到的地圖（主線最後一張一般地圖）
+export const BOSS_FALLBACK_MAP = 'harbor';
+
 export const MAP_SCENE_KEYS = {
   sky:     'MapleIslandScene',
   henesys: 'HenesysScene',
@@ -221,6 +236,11 @@ export function createInitialGameState() {
     skillPoints: 0,
     currentMap: 'sky',
     bossUnlocked: false,
+    // 星光碎片主線：已取得的碎片 id（見 config/shards.js）、星光之塔是否已點亮（點亮才解鎖最終 Boss）
+    shards: [],
+    towerLit: false,
+    // 去過的地圖（世界地圖傳送只能去這些）；進入地圖時由 BaseMapScene 加入
+    visitedMaps: ['sky'],
     spawnX: 150,
     // Phase 13：任務系統。active 元素：{ id, progress }；completed：已完成 id 陣列
     quests: { active: [], completed: [] },

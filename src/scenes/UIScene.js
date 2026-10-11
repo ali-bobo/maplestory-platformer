@@ -9,6 +9,8 @@ import { POTION_ICON_KEYS } from '../config/assetCatalog.js';
 import { ensureSkillIcons, skillIconKey } from '../assets/skillIcons.js';
 import { addParchmentPanel, addWoodButton } from '../engine/woodUi.js';
 import { saveGame } from '../engine/saveGame.js';
+import { SHARD_COUNT, SHARD_IDS, SHARD_TEXTURE } from '../config/shards.js';
+import { hasShard, shardCount } from '../engine/shards.js';
 import { audio } from '../engine/audio.js';
 import { addSoundButton } from '../engine/soundButton.js';
 
@@ -77,7 +79,14 @@ export class UIScene extends Phaser.Scene {
     const midX = barStartX + barW + 14;
     this._spText   = this.add.text(midX, barPanelY + 20, 'SP: 0', textStyle(13, '#9ff0c8')).setDepth(53).setScrollFactor(0);
     this._mesoText = this.add.text(midX, barPanelY + 44, '💰 0',  textStyle(13, '#ffe27a')).setDepth(53).setScrollFactor(0);
-    this._killText = this.add.text(midX, barPanelY + 68, '💀 0/60', textStyle(13, '#ffe27a')).setDepth(53).setScrollFactor(0);
+    // 星光碎片進度（主線）：5 顆小星，取得的亮起；下一行是 n/5（集滿並點亮塔後顯示「Boss 解鎖」）
+    this._shardIcons = [];
+    for (let i = 0; i < SHARD_COUNT; i++) {
+      const icon = this.add.image(midX + 9 + i * 18, barPanelY + 76, SHARD_TEXTURE).setDepth(53).setScrollFactor(0);
+      icon.setScale(16 / Math.max(1, icon.width));
+      this._shardIcons.push(icon);
+    }
+    this._shardText = this.add.text(midX, barPanelY + 88, '星光碎片 0/5', textStyle(12, '#ffe27a')).setDepth(53).setScrollFactor(0);
 
     // ── 小地圖區域 + 地圖名稱（右上角）─────────────────────────────────────
     this._setupMinimap(width);
@@ -103,7 +112,7 @@ export class UIScene extends Phaser.Scene {
     this.registry.events.on('changedata-level',     this._onLevelChange, this);
     this.registry.events.on('changedata-levelup',   this._onLevelUp,     this);
     this.registry.events.on('changedata-meso',      this._onMesoChange,  this);
-    this.registry.events.on('changedata-killcount', this._onKillChange,  this);
+    this.registry.events.on('changedata-shards',    this._onShardChange, this);
     this.registry.events.on('changedata-sp',        this._onSpChange,    this);
 
     // Phase 13：任務追蹤面板（右上小地圖下方）
@@ -554,7 +563,8 @@ export class UIScene extends Phaser.Scene {
       this._portrait.setTexture(job.portrait);
       this._portrait.setScale(Math.min(56 / this._portrait.width, 56 / this._portrait.height));
     }
-    this._classText.setText(jobId === 'thief' ? job.name : `${job.name} ・ ${job.title}`);
+    const title = gs.title || job.title;
+    this._classText.setText(jobId === 'thief' && title === job.title ? job.name : `${job.name} ・ ${title}`);
     for (const data of Object.values(this._cdOverlays)) data.skillId = null;   // 強制 _refreshCooldowns 重刷
   }
 
@@ -637,8 +647,7 @@ export class UIScene extends Phaser.Scene {
     const gs = this.registry.get('gameState');
     if (!gs) return;
     // 地圖名稱也加 dirty flag：值沒變就跳過 setText
-    const mapNames = { sky: '浮空島嶼', henesys: '森林獵場', ruins: '古代廢墟', ellinia: '神秘之境', taipei: '台北都會', kerning: '暗巷城', boss: '暗影領域', town: '晨曦鎮', shrine: '影之殿堂', harbor: '碧濤港' };
-    const mapName = mapNames[gs.currentMap] || '';
+    const mapName = MAPS[gs.currentMap]?.name || '';
     if (mapName !== this._lastMapName) {
       this._lastMapName = mapName;
       this._mapText.setText(mapName);
@@ -901,7 +910,7 @@ export class UIScene extends Phaser.Scene {
     this.registry.events.off('changedata-level',     this._onLevelChange, this);
     this.registry.events.off('changedata-levelup',   this._onLevelUp,     this);
     this.registry.events.off('changedata-meso',      this._onMesoChange,  this);
-    this.registry.events.off('changedata-killcount', this._onKillChange,  this);
+    this.registry.events.off('changedata-shards',    this._onShardChange, this);
     this.registry.events.off('changedata-sp',        this._onSpChange,    this);
     // Phase 14：副本事件解除
     this.registry.events.off('dungeon-start', this._onDungeonStart, this);
@@ -943,7 +952,7 @@ export class UIScene extends Phaser.Scene {
     this._levelText.setText(`Lv.${gs.level}`);
     this._spText.setText(`SP: ${gs.skillPoints || 0}`);
     this._mesoText.setText(`💰 ${gs.meso}`);
-    this._onKillChange(null, gs.killCount);
+    this._onShardChange();
   }
 
   _updateBar(barObj, current, max) {
@@ -1104,17 +1113,19 @@ export class UIScene extends Phaser.Scene {
     this._mesoText.setText(`💰 ${value}`);
   }
 
-  _onKillChange(parent, value) {
+  // 星光碎片進度 + 稱號（集滿 5 塊會換「星光守護者」稱號）；也在 Boss 解鎖後改色
+  _onShardChange() {
     const gs = this.registry.get('gameState');
-    if (gs && gs.bossUnlocked) {
-      this._killText.setText(`💀 Boss 解鎖！`);
-      this._killText.setColor('#ff77ff');
-    } else {
-      const needed = 60;
-      this._killText.setText(`💀 ${value}/${needed}`);
-      const pct = value / needed;
-      this._killText.setColor(pct >= 0.8 ? '#ffaa44' : '#ffe27a');
-    }
+    if (!gs) return;
+    const n = shardCount(gs);
+    this._shardIcons.forEach((icon, i) => {
+      const have = hasShard(gs, SHARD_IDS[i]);
+      icon.setAlpha(have ? 1 : 0.28);
+      if (have) icon.clearTint(); else icon.setTint(0x555566);
+    });
+    this._shardText.setText(gs.bossUnlocked ? '★ Boss 已解鎖' : `星光碎片 ${n}/${SHARD_COUNT}`);
+    this._shardText.setColor(gs.bossUnlocked ? '#ff77ff' : n >= SHARD_COUNT ? '#ffaa44' : '#ffe27a');
+    if (this._hudJob) this._applyJobHud(gs);
   }
 
   // ── 彈出選單系統 ──────────────────────────────────────────────────────────
@@ -1410,33 +1421,23 @@ export class UIScene extends Phaser.Scene {
   // ── 地圖資訊彈出 ────────────────────────────────────────────────────────
   _buildMapPopup(push, popX, contentY, popW) {
     const gs = this.registry.get('gameState');
-    const mapNames = { sky: '浮空島嶼', henesys: '森林獵場', ruins: '古代廢墟', ellinia: '神秘之境', taipei: '台北都會', kerning: '暗巷城', boss: '暗影領域', town: '晨曦鎮', shrine: '影之殿堂', harbor: '碧濤港' };
     const currentMap = gs ? gs.currentMap : '';
-    push(this.add.text(popX + 14, contentY, `目前地圖：${mapNames[currentMap] || '未知'}`, {
+    const map = MAPS[currentMap];
+    push(this.add.text(popX + 14, contentY, `目前地圖：${map ? map.name : '未知'}${map && map.levelBand ? `（Lv.${map.levelBand[0]}-${map.levelBand[1]}）` : ''}`, {
       fontSize: '13px', color: '#aaddff', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2,
     }).setDepth(152).setScrollFactor(0));
     push(this.add.text(popX + 14, contentY + 28, '傳送門：', {
       fontSize: '12px', color: '#ffee88', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2,
     }).setDepth(152).setScrollFactor(0));
-    const portalInfo = {
-      town:    ['→ 浮空島嶼（地圖右端）', '→ 影之殿堂（地圖右側）'],
-      shrine:  ['← 晨曦鎮（地圖左端）', '⚔ 影之試煉（地圖右端，需接任務）'],
-      sky:     ['← 晨曦鎮（地圖左端）', '→ 森林獵場（地圖右端）'],
-      henesys: ['← 浮空島嶼（地圖左端）', '→ 碧濤港（地圖右端）'],
-      harbor:  ['← 森林獵場（地圖左端）', '→ 古代廢墟（地圖右端）'],
-      ruins:   ['← 碧濤港（地圖左端）', '→ 神秘之境（地圖右端）'],
-      ellinia: ['← 古代廢墟（地圖左端）', '↑ 台北都會（地圖中央）', '→ 暗巷城（地圖右端）'],
-      taipei:  ['← 神秘之境（地圖左端）', '→ 暗巷城（地圖右端）'],
-      kerning: ['← 神秘之境（地圖左端）', '⚠ Boss 決戰（地圖右端，需擊殺60怪）'],
-      boss:    ['擊敗暗影魔君即可獲勝'],
-    };
-    const portals = portalInfo[currentMap] || ['暫無傳送門資訊'];
-    portals.forEach((p, i) => {
+    // 由地圖資料產生（不另外維護一份文字，避免和實際傳送門脫節）
+    const portals = map ? map.portals.map((p) => `${p.label}${p.requireBoss ? '（5/5 碎片後開啟）' : ''}`) : [];
+    if (currentMap === 'boss') portals.push('擊敗暗影魔君即可獲勝');
+    (portals.length ? portals : ['暫無傳送門資訊']).slice(0, 5).forEach((p, i) => {
       push(this.add.text(popX + 24, contentY + 50 + i * 22, p, {
         fontSize: '11px', color: '#88ccff', fontFamily: 'Arial',
       }).setDepth(152).setScrollFactor(0));
     });
-    push(this.add.text(popX + 14, contentY + 120, `擊殺數：${gs ? (gs.killCount || 0) : 0} / 60`, {
+    push(this.add.text(popX + 14, contentY + 168, `星光碎片：${gs ? shardCount(gs) : 0} / ${SHARD_COUNT}　擊殺數：${gs ? (gs.killCount || 0) : 0}`, {
       fontSize: '11px', color: '#ffee88', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2,
     }).setDepth(152).setScrollFactor(0));
   }
