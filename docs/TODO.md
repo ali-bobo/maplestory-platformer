@@ -26,8 +26,8 @@
 | 決定 | 一轉等級（Lv.10 / Lv.15）、職業命名、是否做戰士 / 法師 / 弓箭手 | 待你決定 | 見 ROADMAP 第六節 |
 | A | 職業資料模型、任務擴充（collect / dungeon / talk / 任務鏈）、對話選項 UI、轉職流程、刺客 / 俠盜專屬技能 | **已完成**（Phase 21） | 見 STATUS「轉職系統階段 A」；下面「階段 A 的暫代項目」是待換成正式美術的部分 |
 | 素材 P0 | 靴子圖示、主角動作補全、技能圖示與特效、Boss 狂暴版、故事插畫、任務標記 | 待產出 | 見 ASSET_REQUEST P0 |
-| B | 新地圖：碧濤港、黃沙遺跡（專屬技能已在階段 A 完成） | 等素材 | 先做碧濤港當樣品 |
-| C | 霜牙峰、熔岩巢穴、魔君王城、影之殿堂 + 二轉 + 特別任務（星光碎片、每日委託）+ 等級上限 50 | 等素材 | |
+| B | 新地圖：碧濤港、黃沙遺跡（專屬技能已在階段 A 完成） | 碧濤港**已完成**（Phase 22）；黃沙遺跡等素材 | 碧濤港的「水面平台較滑」「可上下的船桅」機制未做 |
+| C | 霜牙峰、熔岩巢穴、魔君王城 + 二轉 + 特別任務（星光碎片、每日委託）+ 等級上限 50 | 等素材 | |
 | D | 其他基礎職業、分數榜、手機真機調校 | 之後 | |
 | 優化 | 依地圖延後載入素材、WebP 轉換怪物 / 角色圖、service worker | 選配 | 背景已轉 WebP |
 
@@ -37,7 +37,10 @@
 |------|------|----------|
 | 技能圖示 | 6 個新技能 + 刺客 / 俠盜普攻圖示是程式繪製（`src/assets/skillIcons.js`）；盜賊既有 6 個也要重畫 | 放 `dist/assets/skill_icon_<id>.png`（38×38；id：`backstab poison mark whirl steal smoke ATK_assassin ATK_bandit`），把 id 加進 `assetCatalog.js` 的 `SKILL_ICON_PNG_IDS` |
 | 影之長老 NPC | 舊「城鎮居民」圖染紫（maps.js 的 `tint`） | 新 NPC 圖 + 改 `id`，移除 `tint` |
-| 影之殿堂地圖 | 沒有；長老放在晨曦鎮，試煉用 `bg_dungeon` 副本場景 | 新地圖進 `MAPS`，把長老 NPC 與試煉傳送門搬過去 |
+| 影之殿堂平台 | 地圖已完成（Phase 22），但跳台借用晨曦鎮的 `platform_town`（`BaseMapScene.js` 的 `PLATFORM_THEMES.shrine` 有 TODO） | 放 `dist/assets/platform_shrine.png`（白石 + 金邊），登記到 `assetCatalog.js` 的 `PLATFORM_ASSETS`，並把 `shrine` 的 `key` 改成 `platform_shrine` |
+| 影之試煉場景 | 副本仍用 `bg_dungeon` | 可改用 `bg_shrine` 或專屬背景（`dungeons.js` 的 `bgImage`） |
+| 技能導師 | 只有說明對話，沒有技能重置 | 若要做洗點，需決定費用 / 次數，並在 `BaseMapScene._openNpcDialog` 加選項（`npcDialog.js` 的 `skillMentor`） |
+| 水母 / 海鷗 | 引擎沒有飛行 / 漂浮行為，用 `patrol` / `chase` + 跳躍近似 | 若要真的飄浮：`Monster.js` 新增 `fly` 行為（關閉重力、正弦漂移、追擊時調整高度） |
 | 試煉守衛 | 街頭小王圖染紫（`monsters.js` 的 `shadow_guardian`） | 專屬怪物圖 |
 | 試煉之證圖示 | 程式繪製的紫色菱形（`ProceduralAssets.js` 的 `item-quest-token`） | 手繪圖示 |
 | `fx_smoke` 素材 | 第 2、3 格的煙圈跨越格線，放大後有方形接縫；目前只用第 1 / 4 格拼出煙霧 | 重畫對齊的 4 格 |
