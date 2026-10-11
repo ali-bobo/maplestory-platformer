@@ -1,7 +1,7 @@
 const { chromium } = require('/opt/node-tools/node_modules/playwright');
 const fs = require('fs');
 const SP = process.argv[2];
-const URL = 'http://127.0.0.1:8123/index.html';
+const URL = `http://127.0.0.1:${process.env.PORT || 8123}/index.html`;
 const KEY = 'thief-legend-save-v1';
 const log = (...a) => console.log(...a);
 let fails = 0;
@@ -21,7 +21,7 @@ const check = (name, cond, extra='') => { log((cond ? 'PASS' : 'FAIL') + ' - ' +
   page.on('console', (m) => { if (m.type() === 'error') errors.push('console: ' + m.text()); });
 
   const seed = async (value) => {
-    await page.goto('http://127.0.0.1:8123/__blank__');   // 同源 404 頁；離開遊戲頁時 pagehide 會先存檔
+    await page.goto(`http://127.0.0.1:${process.env.PORT || 8123}/__blank__`);   // 同源 404 頁；離開遊戲頁時 pagehide 會先存檔
     await page.evaluate(([k, v]) => { if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v); }, [KEY, value]);
     await page.goto(URL);
     await page.waitForTimeout(3500);

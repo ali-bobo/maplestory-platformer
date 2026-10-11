@@ -1,6 +1,6 @@
 const { chromium, devices } = require('/opt/node-tools/node_modules/playwright');
 const SP = process.argv[2];
-const BASE = 'http://127.0.0.1:8123/index.html?debug=1';
+const BASE = `http://127.0.0.1:${process.env.PORT || 8123}/index.html?debug=1`;
 let fails = 0;
 const check = (n, c, x = '') => { console.log((c ? 'PASS' : 'FAIL') + ' - ' + n + (x ? ' :: ' + x : '')); if (!c) fails++; };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));

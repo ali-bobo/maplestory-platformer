@@ -16,8 +16,10 @@
 
 ## 環境假設（換環境要改）
 
+- 連接埠用環境變數 `PORT`（預設 8123），多個工作同時跑時各用不同埠：`PORT=8401 node e2e/e2e-jobs.cjs`。
+
 - Playwright 路徑寫死為 `/opt/node-tools/node_modules/playwright`，Chromium 為 `/opt/pw-browsers/chromium-1194/chrome-linux/chrome`。
-- 遊戲網址寫死為 `http://127.0.0.1:8123/index.html?debug=1`（`e2e/world/*` 用環境變數 `PORT`，預設 8231）。
+- 遊戲網址為 `http://127.0.0.1:${PORT}/index.html?debug=1`（`e2e/world/*` 預設埠為 8231）。
 - 腳本靠 `?debug=1` 暴露的 `window.__game`、`window.__setJob(job, level)`、`window.__QUESTS` 來快速設定狀態。
 
 ## 腳本清單
