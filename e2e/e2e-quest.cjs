@@ -75,21 +75,21 @@ async function flow(browser, choice) {   // choice: 'assassin' | 'bandit'
 
   // 3. 收集：到浮空島嶼打怪（掉落率拉到 100%，走真實擊殺 → 掉落 → 撿取流程）
   await ev(() => { window.__QUESTS.job_proof.collect.dropRate = 1; });
-  await ev(() => { const g = window.__game; const sc = g.scene.getScene('TownScene'); const gs = g.registry.get('gameState'); sc.scene.stop('UIScene'); sc.scene.start('MapleIslandScene', { gameState: gs, spawnX: 300 }); });
+  await ev(() => { const g = window.__game; const sc = g.scene.getScene('TownScene'); const gs = g.registry.get('gameState'); g.scene.getScenes(true).forEach((x) => { if (x !== sc && x.sys.settings.key !== 'UIScene') g.scene.stop(x.sys.settings.key); }); sc.scene.stop('UIScene'); sc.scene.start('MapleIslandScene', { gameState: gs, spawnX: 300 }); });
   await page.waitForTimeout(2500);
   check(`[${label}] 到達浮空島嶼`, (await activeScene()) === 'MapleIslandScene');
-  for (let i = 0; i < 40; i++) {
+  // 一次處理一個：先擊倒一隻怪，再把玩家移到一個掉落物上並等物理判定（同一幀連續瞬移到多個掉落物只會撿到最後一個）
+  for (let i = 0; i < 30; i++) {
     const prog = await ev(() => { const a = window.__game.registry.get('gameState').quests.active.find((x) => x.id === 'job_proof'); return a ? a.progress : 99; });
     if (prog >= 5 || prog === 99) break;
     await ev(() => {
       const sc = window.__game.scene.getScene('MapleIslandScene'); const p = sc.player; p.isInvincible = true;
+      const pk = sc.pickups.getChildren().find((k) => k.pickupType === 'quest');
+      if (pk) p.setPosition(pk.x, pk.y - 5);
       const m = p.enemies.getChildren().find((e) => e.active && !e.isDead);
-      if (m) { m.takeDamage(999999, false); }
-      for (const pk of sc.pickups.getChildren()) if (pk.pickupType === 'quest') { p.setPosition(pk.x, pk.y); break; }
+      if (m) m.takeDamage(999999, false);
     });
-    await page.waitForTimeout(700);
-    await ev(() => { const sc = window.__game.scene.getScene('MapleIslandScene'); const p = sc.player; for (const pk of sc.pickups.getChildren()) if (pk.pickupType === 'quest') { p.setPosition(pk.x, pk.y - 5); } });
-    await page.waitForTimeout(300);
+    await page.waitForTimeout(1000);
   }
   q = await gsq();
   check(`[${label}] 收集 5 個試煉之證 → 試煉之證完成`, q.done.includes('job_proof'), JSON.stringify(q));

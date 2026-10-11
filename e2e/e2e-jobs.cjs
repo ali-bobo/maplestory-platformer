@@ -28,7 +28,7 @@ const BASE = `http://127.0.0.1:${PORT}/index.html?debug=1`;
     const m = ms[0];
     for (const o of ms.slice(1)) o.destroy();
     m.setPosition(p.x + dx, p.y); m.body.setVelocity(0, 0); m.hp = m.maxHp = 999999; m.hurtTimer = 0; m._mark = null; m._poison = null;
-    window.__m = m;
+    window.__m = m; m.update = () => {};   // 只測技能：停掉怪物 AI（衝撞 / 後退會讓它離開目標位置）
     gs.mp = gs.maxMp = 999; gs.hp = gs.maxHp = 9999; p.isInvincible = true;
     gs.skillCooldowns = { ATK: 0 };
     p.facingRight = true; p.setFlipX(false);
@@ -44,7 +44,7 @@ const BASE = `http://127.0.0.1:${PORT}/index.html?debug=1`;
     while (performance.now() - t0 < ms) { set.add(sc.player.texture.key); await new Promise((r) => setTimeout(r, 25)); }
     return [...set];
   }, ms);
-  const press = async (key, holdMs = 90) => { await page.keyboard.down(key); await page.waitForTimeout(holdMs); await page.keyboard.up(key); };
+  const press = async (key, holdMs = 160) => { await page.keyboard.down(key); await page.waitForTimeout(holdMs); await page.keyboard.up(key); };
   const equip = (slot, id) => ev(({ slot, id }) => { window.__game.scene.getScene('UIScene')._equipToSlot(slot, id); }, { slot, id });
   const setJob = (job, lv) => ev(({ job, lv }) => window.__setJob(job, lv), { job, lv });
   const shot = (name) => page.screenshot({ path: `${SPDIR}/${name}.png` });
