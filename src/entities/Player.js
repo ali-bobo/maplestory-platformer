@@ -1,9 +1,12 @@
 import Phaser from 'phaser';
-import { SKILLS, expNeeded, MAP_SCENE_KEYS, POTIONS, createInitialGameState, BASIC_ATTACK, skillForSlot } from '../config/constants.js';
+import { poseKey } from '../config/poses.js';
+import { jobOf, jobIdOf, skillDefOf, expNeeded, MAX_LEVEL, MAP_SCENE_KEYS, POTIONS, createInitialGameState, BASIC_ATTACK, skillForSlot } from '../config/constants.js';
 import { saveGame } from '../engine/saveGame.js';
-import { castShuriken, castDash, castAssassinate, castVortex, castClone } from './Skill.js';
+import { castSlash, castShuriken, castDash, castAssassinate, castVortex, castClone } from './Skill.js';
+import { castTwinBlade, castSabre, castBackstab, castPoison, castMark, castWhirl, castSteal, castSmoke } from './JobSkills.js';
 import { particles } from '../engine/particles.js';
 import { audio } from '../engine/audio.js';
+import { iceVelocity } from '../engine/mapModifierLogic.js';
 import { isEquipmentBetter } from '../config/equipment.js';
 import { ALIGNMENT_PROFILES, applyAlignmentProfile, getVisualCenterPoint, getVisualTopY } from '../config/alignment.js';
 
@@ -21,10 +24,14 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.isDead = false;
     this.dropThrough = false;
     this.isDashing = false;
+    this.speedMult = 1;      // 地圖機制：流沙等造成的移速倍率
+    this.iceFloor = false;   // 地圖機制：冰面（滑行）
     this._jumpKeyWasDown = false;
     // 動作圖切換：攻擊/受傷期間鎖定姿勢到 _poseLockUntil
     this._poseLockKey = null;
     this._poseLockUntil = 0;
+    this._poseKeys = {};     // 姿勢名 → 紋理鍵快取（依職業；換職業時清掉），每幀查表不配置字串
+    this._walkKeys = null;
     // HP/MP 自然回復的 UI 節流：只在顯示整數改變時才更新 registry/事件
     this._lastEmittedHp = -1;
     this._lastEmittedMp = -1;
@@ -43,7 +50,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     // 輸入按鍵
     const { LEFT, RIGHT, UP, DOWN, ALT } = Phaser.Input.Keyboard.KeyCodes;
     this.cursors = scene.input.keyboard.createCursorKeys();
-    // 普通攻擊：空白鍵（保留 Z 當作舊習慣的別名）；四個技能欄位：X C V B（放哪個技能由 gs.skillSlots 決定）
+    // 普通攻擊：空白鍵（近戰揮刀，不耗 MP）；四個技能欄位：Z X C V（放哪個技能由 gs.skillSlots 決定，Z 預設三連飛鏢）
     this.keySpace = scene.input.keyboard.addKey('SPACE');
     this.keyZ = scene.input.keyboard.addKey('Z');
     this.keyX = scene.input.keyboard.addKey('X');
@@ -63,6 +70,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     // gs.skillCooldowns 持久化在 registry，但 Player 物件在傳送門切場景時會 new 一個新的。
     // 必須掃描現有冷卻值，重建 _coolingDownKeys Set，否則 update() 不會遞減 → 永卡冷卻。
     this._coolingDownKeys = new Set();
+    this._setPose(this.pose('idle'));
     const cds = this.gameState.skillCooldowns || {};
     for (const key in cds) {
       if (cds[key] > 0) this._coolingDownKeys.add(key);
@@ -101,16 +109,17 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     }
 
     // ─── 移動 ───────────────────────────────────────────────────────────────
-    if (left) {
-      this.setVelocityX(-gs.speed);
-      this.facingRight = false;
-      this.setFlipX(true);
-    } else if (right) {
-      this.setVelocityX(gs.speed);
-      this.facingRight = true;
-      this.setFlipX(false);
+    // 地圖機制（engine/mapModifiers.js）每幀先設好：speedMult（流沙 0.6）、iceFloor（冰面：在地面上加速 / 煞車都有慣性）
+    const speed = gs.speed * this.speedMult;
+    const dir = left ? -1 : right ? 1 : 0;
+    if (dir !== 0) {
+      this.facingRight = dir > 0;
+      this.setFlipX(dir < 0);
+    }
+    if (this.iceFloor && onGround) {
+      this.setVelocityX(iceVelocity(this.body.velocity.x, dir * speed, dt));
     } else {
-      this.setVelocityX(0);
+      this.setVelocityX(dir * speed);
     }
 
     // ─── 跳躍 / 下落穿越 ────────────────────────────────────────────────────
@@ -134,11 +143,11 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     }
 
     // ─── 技能施放 ───────────────────────────────────────────────────────────
-    if (Phaser.Input.Keyboard.JustDown(this.keySpace) || Phaser.Input.Keyboard.JustDown(this.keyZ)) this.castSkill(BASIC_ATTACK);
+    if (Phaser.Input.Keyboard.JustDown(this.keySpace)) this.basicAttack();
+    if (Phaser.Input.Keyboard.JustDown(this.keyZ)) this.castSkill(skillForSlot(gs, 'Z'));
     if (Phaser.Input.Keyboard.JustDown(this.keyX)) this.castSkill(skillForSlot(gs, 'X'));
     if (Phaser.Input.Keyboard.JustDown(this.keyC)) this.castSkill(skillForSlot(gs, 'C'));
     if (Phaser.Input.Keyboard.JustDown(this.keyV)) this.castSkill(skillForSlot(gs, 'V'));
-    if (Phaser.Input.Keyboard.JustDown(this.keyB)) this.castSkill(skillForSlot(gs, 'B'));
 
     // ─── 藥水快捷鍵 ─────────────────────────────────────────────────────────
     if (Phaser.Input.Keyboard.JustDown(this.keyPotA)) this.usePotion('A');
@@ -153,14 +162,37 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this._updatePose(onGround);
   }
 
+  // 目前職業的姿勢紋理鍵（缺圖退回盜賊；都沒有回傳 null）
+  pose(name) {
+    const cache = this._poseKeys;
+    if (cache[name] === undefined) {
+      cache[name] = poseKey(jobIdOf(this.gameState), name, (k) => this.scene.textures.exists(k));
+    }
+    return cache[name];
+  }
+
+  walkPoseKey(now) {
+    if (!this._walkKeys) this._walkKeys = [this.pose('walk_1'), this.pose('walk_2'), this.pose('walk_3'), this.pose('walk_4')];
+    return this._walkKeys[Math.floor(now / 110) % 4];
+  }
+
+  // 轉職後切換外觀：清掉姿勢快取並立刻換成待機圖
+  refreshJobVisuals() {
+    this._poseKeys = {};
+    this._walkKeys = null;
+    this._poseLockUntil = 0;
+    this._setPose(this.pose('idle'));
+  }
+
   _lockPose(key, duration) {
+    if (!key) return;
     this._poseLockKey = key;
     this._poseLockUntil = this.scene.time.now + duration;
     this._setPose(key);
   }
 
   _setPose(key) {
-    if (this.texture.key !== key && this.scene.textures.exists(key)) this.setTexture(key);
+    if (key && this.texture.key !== key && this.scene.textures.exists(key)) this.setTexture(key);
   }
 
   _updatePose(onGround) {
@@ -170,11 +202,13 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       return;
     }
     if (!onGround) {
-      this._setPose('player_jump');
+      this._setPose(this.pose(this.body.velocity.y > 40 ? 'fall' : 'jump'));
     } else if (this.body.velocity.x !== 0) {
-      this._setPose(Math.floor(now / 150) % 2 === 0 ? 'player_walk_1' : 'player_walk_2');
+      this._setPose(this.walkPoseKey(now));
+    } else if (this.cursors.down.isDown) {
+      this._setPose(this.pose('down'));
     } else {
-      this._setPose('player_idle');
+      this._setPose(this.pose('idle'));
     }
   }
 
@@ -229,7 +263,11 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       return;
     }
 
-    this._lockPose('player_attack', Math.max(duration, 180));
+    const total = Math.max(duration, 180);
+    this._lockPose(this.pose('throw_1'), total * 0.4);
+    this.scene.time.delayedCall(total * 0.4, () => {
+      if (this.active && !this.isDead) this._lockPose(this.pose('throw_2'), total * 0.6);
+    });
   }
 
   usePotion(slot) {
@@ -265,9 +303,22 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this._showNotice(`使用 ${potion.name}  +${restoreMsg}`, 1200);
   }
 
+  // 普通攻擊：不耗 MP，冷卻短；冷卻與技能共用 gs.skillCooldowns（key = ATK）
+  basicAttack() {
+    const gs = this.gameState;
+    if (this.isDead || (gs.skillCooldowns[BASIC_ATTACK] || 0) > 0) return;
+    gs.skillCooldowns[BASIC_ATTACK] = jobOf(gs).basic.cooldown;
+    this._coolingDownKeys.add(BASIC_ATTACK);
+    const job = this.gameState.job;
+    if (job === 'assassin') castTwinBlade(this.scene, this, this.enemies);
+    else if (job === 'bandit') castSabre(this.scene, this, this.enemies);
+    else castSlash(this.scene, this, this.enemies);
+    audio.resumeContext();
+  }
+
   castSkill(key) {
     const gs = this.gameState;
-    const skillDef = SKILLS[key];
+    const skillDef = skillDefOf(gs.job, key);
     if (!skillDef) return;
 
     // 解鎖檢查
@@ -295,12 +346,26 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.scene.registry.events.emit('changedata-mp', null, gs.mp);
 
     const enemies = this.enemies;
+    let ok;
     switch (key) {
       case 'Z': castShuriken(this.scene, this, enemies);    break;
       case 'X': castDash(this.scene, this, enemies);        break;
       case 'C': castAssassinate(this.scene, this, enemies); break;
       case 'V': castVortex(this.scene, this, enemies);      break;
       case 'B': castClone(this.scene, this, enemies);       break;
+      case 'backstab': ok = castBackstab(this.scene, this, enemies); break;
+      case 'poison':   ok = castPoison(this.scene, this, enemies);   break;
+      case 'mark':     ok = castMark(this.scene, this, enemies);     break;
+      case 'whirl':    ok = castWhirl(this.scene, this, enemies);    break;
+      case 'steal':    ok = castSteal(this.scene, this, enemies);    break;
+      case 'smoke':    ok = castSmoke(this.scene, this, enemies);    break;
+    }
+    if (ok === false) {
+      // 沒有目標：沒有真的施放，退還 MP 與冷卻
+      gs.mp = Math.min(gs.maxMp, gs.mp + skillDef.mpCost);
+      gs.skillCooldowns[key] = 0;
+      this.scene.registry.events.emit('changedata-mp', null, gs.mp);
+      this._showNotice('範圍內沒有目標');
     }
     audio.resumeContext();
   }
@@ -327,7 +392,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.scene.registry.events.emit('changedata-hp', null, gs.hp);
 
     // 傷害閃紅 + 受傷動作
-    this._lockPose('player_hurt', 300);
+    this._lockPose(this.pose('hurt'), 300);
     this.setTint(0xff4444);
     this.scene.time.delayedCall(200, () => { if (this.active) this.clearTint(); });
 
@@ -351,14 +416,14 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     gs.exp += amount;
     let leveledUp = false;
 
-    while (gs.exp >= gs.expNeeded && gs.level < 30) {
+    while (gs.exp >= gs.expNeeded && gs.level < MAX_LEVEL) {
       gs.exp -= gs.expNeeded;
       gs.level++;
       gs.expNeeded = expNeeded(gs.level);
       this._onLevelUp(gs);
       leveledUp = true;
     }
-    if (gs.level >= 30) gs.exp = Math.min(gs.exp, gs.expNeeded - 1);
+    if (gs.level >= MAX_LEVEL) gs.exp = Math.min(gs.exp, gs.expNeeded - 1);
 
     this.scene.registry.set('gameState', gs);
     this.scene.registry.events.emit('changedata-exp', null, gs.exp);
@@ -386,18 +451,12 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.scene.registry.events.emit('changedata-sp', null, gs.skillPoints);
 
     // 技能解鎖（解鎖即獲得 1 級，之後可在技能欄花 SP 升級）
-    for (const [key, skill] of Object.entries(SKILLS)) {
+    for (const [key, skill] of Object.entries(jobOf(gs).skills)) {
       if (gs.level >= skill.unlockLevel && !gs.unlockedSkills.includes(key)) {
         gs.unlockedSkills.push(key);
         gs.skillLevels[key] = Math.max(1, gs.skillLevels[key] || 0);
         this._showNotice(`習得新技能：${skill.name}！`);
       }
-    }
-
-    // Boss 解鎖
-    if (gs.killCount >= 60 && !gs.bossUnlocked) {
-      gs.bossUnlocked = true;
-      this._showNotice('暗影魔君現身！前往盜賊地下城右側傳送門！', 3000);
     }
   }
 

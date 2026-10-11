@@ -1,5 +1,5 @@
 # 專案狀態盤點與下一步（原 ITERATION5_SPEC）
-# 最後更新：Phase 15 後
+# 最後更新：Phase 23（世界重整：星光碎片主線 + 四張新地圖）後
 
 ---
 
@@ -98,12 +98,42 @@
 - SFX（打擊 / 技能 / 升級音）沒有改動。
 
 ### 新手教學 / 技能欄位 / 聲音開關（Phase 19）
-- **普通攻擊**：原本的 Z（三連飛鏢）改為普通攻擊——電腦版空白鍵（Z 保留為別名）、手機最大的攻擊鈕；不耗 MP、冷卻 0.35s、不佔技能欄位。電腦版 ↑ 與 Alt 都能跳躍。
-- **技能欄位**：只放 4 個技能（X C V B 四個欄位 / 手機四顆鈕）。欄位內容存在 `gameState.skillSlots`（`constants.js` 的 `SKILL_SLOT_KEYS` / `skillForSlot` / `canReorderSkills`）；四個技能全部解鎖（Lv.20）後可在 HUD 技能欄拖曳交換位置（UIScene 的指標拖曳，滑鼠與觸控皆可）。存檔驗證 `skillSlots` 必須是 X/C/V/B 的排列，且未全部解鎖時一律回預設（`saveManager.js`）。
+- **普通攻擊與技能（Phase 20 調整後）**：空白鍵 = 近戰揮刀普通攻擊（`Skill.js` 的 `castSlash`，面前 90px 範圍內全部命中、傷害 ×0.9、不耗 MP、冷卻 0.4s、不吃技能等級，常數在 `BASIC_ATTACK_DEF`）；Z = 三連飛鏢技能（耗 MP 10、冷卻 0.5s）。電腦版 ↑ 與 Alt 都能跳躍。
+- **技能欄位**：盜賊技能池 5 個（Z X C V B；刺客 / 俠盜各 6 個，見下方 Phase 21），欄位 4 格（Z X C V 快捷鍵 / 手機四顆鈕），另有固定的普通攻擊欄（ATK，空白鍵）。欄位內容存在 `gameState.skillSlots`（`constants.js` 的 `SKILL_POOL` / `SKILL_SLOT_KEYS` / `skillForSlot` / `canReorderSkills` / `equipSkill`）；5 個技能全部解鎖（Lv.20）後可在 HUD 拖曳互換，或在技能視窗對沒裝備的技能按「換入」再選欄位。存檔驗證 `skillSlots` 必須是 4 個不重複、已解鎖的技能池成員，且未全部解鎖時一律回預設（`saveManager.js`）。
 - **新手教學**（`TutorialScene`）：9 頁——故事 4 頁（晨曦之星被暗影魔君擊碎，你是被託付奪回星光的盜賊「影子」）、操作按鍵（電腦 / 觸控兩種版本）、技能與欄位、任務系統、畫面 / 存檔 / 死亡、出發。Enter / → 下一頁，← 上一頁，Esc 跳過全部；手機點畫面繼續、點「跳過全部」。首次新遊戲自動出現，看過 / 跳過後記在 localStorage（`thief-legend-tutorial-seen`）；暫停選單「操作說明」可用浮層重看（浮層模式 Esc 只關說明）。修正：教學按 Esc 跳過時同一個按鍵事件會被剛啟動的遊戲 UI 再收到一次而彈出暫停選單（UIScene 啟動 0.6 秒內忽略 Esc）。
 - **聲音開關**（`engine/soundButton.js`）：主選單、教學、遊戲 HUD（小地圖左側）與暫停選單都有；全域靜音同時關閉音樂與音效，設定存 localStorage（`thief-legend-sound`）。
 - **手機沒聲音的修正**：音訊啟動改監聽 `pointerup / touchend / click / keydown`（觸控裝置上 `pointerdown` 不算有效手勢），確認 context 真的在跑才移除監聽；切回分頁重新啟動（iOS 會打斷）；iOS 16.4+ 設 `navigator.audioSession.type = 'playback'` 避免被靜音鍵擋住。尚未在真機驗證。
 - **手機版面**：跳躍與「↓」移到右手側、搖桿上方（和移動同一隻手）；左手側是普攻、四個技能鈕（字樣依技能欄位更新、鎖定的變暗）與互動；教學期間隱藏觸控層。
+
+### 系統優化與內容規劃（Phase 20）
+- **背景圖改 WebP**：9 張場景背景與標題背景由 PNG（12.7 MB）轉為 WebP（0.9 MB，q84），`dist/assets` 由約 15 MB 降到約 3 MB，行動網路首次載入明顯變快；畫面肉眼無差異。（`assetCatalog.js` 路徑已更新，原 PNG 不再放 repo，需要時可從 git 歷史取回。）
+- **內容完整性測試**（`test/content.test.js`）：怪物 id 唯一、spriteKey 有素材、地圖的怪物 / 背景 / 傳送門 / NPC / 任務引用存在、所有任務都有 NPC 發放、素材目錄的檔案都真的存在。之後新增地圖 / 怪物接錯會在 `npm test` 直接報錯。
+- 新文件：[`ROADMAP.md`](ROADMAP.md)（轉職系統 / 新地圖 / 特別任務設計與開發順序）、[`ASSET_REQUEST.md`](ASSET_REQUEST.md)（交給 AI / 畫師的素材需求書）。
+
+### 轉職系統階段 A（Phase 21）
+設計見 [`SKILLS_DESIGN.md`](SKILLS_DESIGN.md)、[`ROADMAP.md`](ROADMAP.md) 第二節；Lv.10 一轉成「刺客（暗夜之刃）」或「俠盜（赤焰劫客）」。
+
+- **職業資料模型**（`config/constants.js`）：`gameState.job`（`thief` / `assassin` / `bandit`，預設盜賊）、`title`、`jobChoice`（轉職任務中選定、覺醒前暫存）。`JOBS` 表含名稱 / 稱號 / 技能池與各職業解鎖等級 / 預設欄位 / 普攻參數（`basic`）/ 被動（`passives`）/ 頭像；`skillDefOf(job, id)`、`jobOf(gs)`、`effectiveCritMulti`、`jobPassive` 等查表函式。盜賊技能 id 仍是 Z X C V B，專屬技能 id：`backstab poison mark`（刺客）、`whirl steal smoke`（俠盜）。技能欄「可調整」的條件由「5 個全解鎖」泛化為「解鎖的技能多於 4 格」（盜賊結果相同）。
+- **存檔**（`saveManager.js`）：未知職業 → 盜賊；未達 Lv.10 不承認轉職職業；稱號由職業決定；技能 id / 欄位只認該職業池且需已解鎖；`jobChoice` 只在盜賊時保留。`engine/jobChange.js`：`applyJobChange`（保留繼承技能等級、池外技能退還 SP、專屬技能依等級解鎖、欄位改預設、+5 SP、悍匪體魄一次性 maxHp ×1.2）、`debugSetJob`。
+- **外觀**：`config/poses.js` 的 `poseKey(job, pose)`（盜賊 `player_<pose>`，轉職 `player_<job>_<pose>`，缺圖退回盜賊）；`Player.pose(name)` 以快取查表（無每幀字串配置）；影分身跟著玩家職業換圖。HUD 頭像 / 職業名（含稱號）/ 普通攻擊欄名稱與圖示 / 技能欄 / 技能視窗（六列 + 被動說明）跟著職業；手機技能鈕字樣已補新技能。刺客 23 個、俠盜 23 個動作圖與兩張頭像已進 `assetCatalog` 並全部預載。
+- **職業技能**（`entities/JobSkills.js`，狀態規則在 `engine/statusEffects.js`，皆有單元測試）：
+  - 刺客：雙刃連斬（兩段 0.55×、暴擊率 +10%）、瞬影連刺（瞬移背後連刺 3 下必暴擊）、蝕心毒鏢（0.7×，中毒 5 秒、每秒 0.25×、最多 3 層，毒不會引爆印記）、斷命印記（6 秒內下一擊必暴擊 +30%，`Monster.takeDamage` 統一處理所有傷害來源）、殺手本能（暴擊傷害 +30%）。
+  - 俠盜：彎刀橫斬（110px、1.1×、每連 3 下第 3 下擊飛）、赤月迴旋（半徑 120 全體 1.2× 並擊退）、妙手空空（1.0×，35% 多掉金幣、5% 偷到藥水）、迷煙彈（落點 5 秒煙霧：範圍內怪物傷害 -50%、非遠程怪不追擊）、悍匪體魄（HP +20%、金幣 +15%）。
+  - 沒有目標時（瞬影連刺 / 斷命印記 / 妙手空空）退還 MP 與冷卻。9 組 `fx_*` 特效全部啟用（`FX_ASSETS` 皆 `used`）；橘 / 綠 / 灰色特效改用一般混合，亮背景才看得見（`playFx` 的 `normal` 選項）。
+  - 技能圖示：新技能與刺客 / 俠盜普攻圖示是**程式繪製的暫代圖**（`assets/skillIcons.js`）；手繪 PNG（38×38，`skill_icon_<id>.png`，普攻欄 `ATK_assassin` / `ATK_bandit`）到位後把 id 加進 `assetCatalog.js` 的 `SKILL_ICON_PNG_IDS` 即會預載並取代。
+- **轉職任務鏈**（`config/quests.js` 的 `JOB_QUEST_CHAIN`）：影之召喚（`talk`，城鎮居民轉交神祕信，Lv.10 才能接）→ 選擇你的道路（`choice`，影之長老對話選職業）→ 試煉之證（`collect`，在浮空島嶼 / 森林獵場 / 古代廢墟擊殺怪物 40% 掉落任務物品，收集 5 個）→ 影之試煉（`dungeon`）→ 覺醒（`talk`，`rewards.advanceJob`）。任務新增 `minLevel` / `requires`（前置）欄位；`questManager` 新增 `questAvailable`、`onNpcTalked`、`onItemCollected`、`onDungeonCleared`、`chooseJobPath`、`questItemDrop`，覺醒時呼叫 `applyJobChange` 並發出 `job-changed`，由 `BaseMapScene._onJobChanged` 換外觀、播放 `fx_job_change` 光柱演出、顯示稱號並自動存檔。
+- **影之試煉的做法**：沿用既有副本機制，新增副本 `shadow_trial`（限時 120 秒、單波：試煉守衛 `shadow_guardian`（小王）+ 2 隻影子史萊姆，通關觸發任務完成，失敗可重試）；入口是影之殿堂右端傳送門（Phase 22 前在晨曦鎮），`requiresQuest: 'job_trial'`，沒接任務進不去；副本的 `returnMap: 'shrine'`，結算後回到影之殿堂。
+- **NPC 對話選項 UI**：`engine/npcDialog.js`（純邏輯）依任務進度產生對話內容與選項；`BaseMapScene._openNpcDialog` 支援選項按鈕（點擊或按 1 / 2，手機點擊）。影之長老已換成正式 NPC 圖 `npc_shadow_elder`。
+- **除錯**（`?debug=1`）：`window.__setJob('assassin' | 'bandit' | 'thief', level)` 直接設職業與等級（不播演出）；`window.__QUESTS` 可調整任務參數。
+- **驗證**：`npm test`（含 `jobs` / `statusEffects` / `jobQuests` 單元測試與 `content.test.js` 的任務 / NPC / 傳送門 / 素材交叉檢查）；Playwright e2e 涵蓋兩個職業各技能施放（MP / 冷卻 / 傷害 / 姿勢）、被動、存檔重讀、以及真實走完整條轉職任務鏈。
+
+### 新地圖：影之殿堂與碧濤港（Phase 22）
+- **地圖連接**：浮空島嶼 ⇄ 晨曦鎮 ⇄ **影之殿堂**（晨曦鎮最右邊的傳送門）；主線 浮空島嶼 → 森林獵場 → **碧濤港** → 古代廢墟 → 神秘之境 → 暗巷城（台北都會支線不變）。依 ROADMAP 第三節把碧濤港插在森林與廢墟之間（森林右端傳送門改指碧濤港、廢墟左端改回碧濤港）；`docs/WORLD_DESIGN.md` 的草圖把碧濤港放在廢墟之後，與 ROADMAP 不同，目前以 ROADMAP 為準。`test/content.test.js` 新增「從起始地圖沿傳送門能到每張地圖」「傳送門成對」「落點在目標地圖範圍內且每張地圖有曲目」。
+- **影之殿堂**（`shrine`，`ShrineScene`）：一個畫面寬（1280）、不捲動、無怪物；背景 `bg_shrine`（單圖 cover，不平鋪）。NPC：影之長老（轉職任務鏈，從晨曦鎮搬來，任務 id / `role: 'jobAdvisor'` 對話邏輯不變）、技能導師（`npc_skill_mentor`，`role: 'skillMentor'`：固定說明 + 依職業 / 剩餘 SP 的提醒；專案目前沒有技能重置功能，所以導師只提示）。右端是「影之試煉」副本傳送門（`requiresQuest: 'job_trial'`），左端回晨曦鎮。音樂：D 大調、80 BPM、無鼓的 `shrine` 曲目。
+- **碧濤港**（`harbor`，`HarborScene`，Lv12–18）：寬 2560、三層木棧橋（y=450 / 330 / 210）+ 地板；怪物 螃蟹 / 水母 / 海盜幽靈 / 章魚 / 海鷗 + 小王「海盜船長」（`pirate_captain`，Lv18、hp 3200、atk 105，約為同圖最強小怪的 4.6 倍血量）。數值接在古代廢墟同級怪之後（見 `monsters.js` 註解）。章魚用既有的 `ranged` 行為（保持距離噴射）。NPC：碼頭工人（`harbor_crabs` 擊殺螃蟹、`harbor_sailor` 對話型）、老水手（`harbor_captain` 擊殺海盜船長，需先完成 `harbor_sailor`）。音樂：D 混合利地亞（`theory.js` 新增 `mixolydian`）、126 BPM、搖擺 oom-pah 低音的水手號子 `harbor` 曲目。平台圖 `platform_harbor`（`surfaceTop: 3`）。
+- **引擎限制**：沒有飛行 / 漂浮行為，怪物一律受重力。水母用 `patrol` + 頻繁小跳（像浮沉）、海鷗用 `chase` + 高跳（像拍翅俯衝）近似。「水面平台較滑」「可上下的船桅」（ROADMAP 的特色機制）沒有做。
+- **素材登記**：`assetCatalog.js` 新增 `bg_shrine`（targetMaps shrine）、`bg_harbor`、`platform_harbor`、6 個怪物 / 小王圖、2 個 NPC 圖（皆 `used`）；`npc_skill_mentor` 由 `unused` 改 `used`。副本定義新增選用欄位 `returnMap`。
+- **驗證**：`npm test` 183 項；Playwright：兩張新地圖載入無頁面錯誤、截圖檢視、走傳送門往返、每種港灣怪生成並擊殺、小王生成、三個港灣任務接取到完成、完整轉職任務鏈（`e2e-quest.cjs` 改為走晨曦鎮 → 影之殿堂）、`e2e-jobs` / `e2e-skills2` / `e2e-mobile` 迴歸。
 
 ### BGM 音效品質（舊版，已被 Phase 18 取代）
 - audio.js masterGain 隔離：每次 playBgm 建立獨立 GainNode，消除地圖切換音頻殘留。
@@ -174,3 +204,22 @@
 - ✅ HP 自動回復（每秒 +5）
 - ✅ 掉落物 30 秒後消失
 - ✅ Boss killCount >= 60 解鎖機制（任何等級均有效）
+
+
+---
+
+## 世界重整（Phase 23，依 `docs/WORLD_DESIGN.md`）
+
+### 階段 1：世界骨架與星光碎片主線（已完成）
+- **地圖圖**：浮空島嶼 → 森林獵場 → 古代廢墟 → 碧濤港 → 黃沙遺跡 → 霜牙峰 → 熔岩巢穴 → 魔君王城 →（星光之塔點亮後）暗影領域。支線：森林獵場中央傳送門 → 神秘之境（死路）；晨曦鎮 →（Lv18，`portal.minLevel`）暗巷城 ⇄ 台北都會。傳送門連接由 `engine/worldGraph.js` 從 maps.js 推導（世界地圖用同一份）。
+- **等級上限 50**（`MAX_LEVEL`）；每級 HP+20 / MP+12 / 攻擊+5 / 速度+2（上限 320），Lv50 仍在存檔夾限內。
+- **星光碎片**：`config/shards.js`（5 個守護者 → 碎片 id）、`engine/shards.js`（取得 / 點亮塔 / 塔對話）。守護者 100% 掉落、每存檔一次、會被玩家吸過來；存檔欄位 `shards`、`towerLit`、`visitedMaps`（皆驗證）；`bossUnlocked` 只在 `towerLit` 或舊存檔已為 true 時成立（grandfather）。集滿 5 塊換稱號「星光守護者・職業稱號」；HUD 左下顯示 5 顆星與 n/5。
+- 晨曦鎮**星光之塔**（`prop_star_tower.png`）：F 鍵看進度，5/5 播 `fx_star_restore` + 光芒並解鎖 Boss；Boss 傳送門在魔君王城右端。Boss 房死亡 / 讀檔回魔君王城（`BOSS_FALLBACK_MAP`）。
+- 碧濤港數值改為 Lv14-20、小王 Lv22；森林蛇、神秘之境三種怪、暗巷城 / 台北的怪調整到所屬等級帶（content.test 檢查）。
+- `portal.minLevel` 擋下時顯示「需要 Lv.N 才能進入」。
+
+### 階段 2：四張新地圖（已完成）
+黃沙遺跡 Lv20-26（流沙：地面區域移速 -40%）、霜牙峰 Lv25-31（冰面滑行）、熔岩巢穴 Lv30-36（地面四區每 5.2 秒預警 1.4 秒後噴發 1 秒，最大 HP 5% 傷害，平台上安全）、魔君王城 Lv35-42（暗角視野 + 燭台）。各 5 小怪 + 1 守護者（hp 約同級小怪 8.5-9.4 倍、Lv = 帶上限 + 2）、2 NPC（1 任務發放、1 區域商店）、3 個任務、專屬 BGM。機制在 `engine/mapModifiers.js`（純邏輯 `mapModifierLogic.js`）。商店通用化：`config/shops.js`、`engine/shop.js`，商店畫面移到 BaseMapScene。數值公式與偏離：hp≈0.8×45·Lv(1+Lv/50)、atk≈5Lv+0.04Lv²（Lv30 起 ×0.92）、meso≈2.9·Lv（設計文件的 0.6·Lv 與既有曲線不符，採既有曲線）。
+- 驗證：Playwright 走完整條主線傳送門、四個守護者各掉一塊碎片、冰面滑行 / 流沙 ×0.6 / 岩漿扣血、每張新圖截圖無頁面錯誤；e2e-skills2 / mobile / jobs 通過；e2e-quest（已改成影之殿堂流程）通過。
+
+### 階段 3：世界地圖與傳送（**未完成**，見 TODO）

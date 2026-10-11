@@ -9,6 +9,12 @@ import { PerionScene } from './scenes/PerionScene.js';
 import { KerningScene } from './scenes/KerningScene.js';
 import { TaipeiScene } from './scenes/TaipeiScene.js';
 import { TownScene } from './scenes/TownScene.js';
+import { ShrineScene } from './scenes/ShrineScene.js';
+import { HarborScene } from './scenes/HarborScene.js';
+import { DesertScene } from './scenes/DesertScene.js';
+import { SnowScene } from './scenes/SnowScene.js';
+import { LavaScene } from './scenes/LavaScene.js';
+import { CastleScene } from './scenes/CastleScene.js';
 import { BossScene } from './scenes/BossScene.js';
 import { DungeonScene } from './scenes/DungeonScene.js';
 import { UIScene } from './scenes/UIScene.js';
@@ -21,6 +27,8 @@ import { mountTouchControls } from './engine/touchControls.js';
 import { audio } from './engine/audio.js';
 import { SKILL_SLOT_KEYS, skillForSlot } from './config/constants.js';
 import { TutorialScene } from './scenes/TutorialScene.js';
+import { debugSetJob } from './engine/jobChange.js';
+import { QUESTS } from './config/quests.js';
 
 const config = {
   type: Phaser.WEBGL,
@@ -74,6 +82,12 @@ const config = {
     KerningScene,
     TaipeiScene,
     TownScene,
+    ShrineScene,
+    HarborScene,
+    DesertScene,
+    SnowScene,
+    LavaScene,
+    CastleScene,
     BossScene,
     DungeonScene,
     UIScene,
@@ -92,6 +106,17 @@ if (typeof window !== 'undefined' && new URLSearchParams(window.location.search)
   window.__setFps = (target, useTimeout = true) => setGameFps(game, target, useTimeout);
   window.__hpBarMode = (mode) => setHpBarMode(mode);
   window.__game = game;   // 供自動化測試取得遊戲實例
+  window.__QUESTS = QUESTS;   // 測試可調整任務參數（例如把試煉之證掉落率拉到 100%）
+  // 直接設定職業與等級（跳過轉職任務）：__setJob('assassin', 24)；'thief' 可切回盜賊。回傳是否成功
+  window.__setJob = (job, level) => {
+    const gs = game.registry.get('gameState');
+    if (!gs || !debugSetJob(gs, job, level)) return false;
+    game.registry.set('gameState', gs);
+    for (const sc of game.scene.getScenes(true)) {
+      if (sc.player) sc.events.emit('job-changed', gs.job, { silent: true });
+    }
+    return true;
+  };
 }
 
 // 關閉分頁 / 切到背景時補存一次（只在實際遊玩的場景中；選單與結算畫面的狀態不覆蓋存檔）
@@ -127,7 +152,7 @@ document.addEventListener('visibilitychange', () => { if (document.visibilitySta
 if (isTouchDevice()) {
   const controls = mountTouchControls({ canvasProvider: () => game.canvas });
   const gameplayScenes = ['BootScene', 'MenuScene', 'GameOverScene', 'TutorialScene'];
-  const SHORT = { Z: '普攻', X: '步', C: '殺', V: '渦', B: '影' };
+  const SHORT = { Z: '鏢', X: '步', C: '殺', V: '渦', B: '影', backstab: '刺', poison: '毒', mark: '印', whirl: '旋', steal: '盜', smoke: '煙' };
   let lastSkillSig = '';
   setInterval(() => {
     const idle = gameplayScenes.some((key) => game.scene.isActive(key));

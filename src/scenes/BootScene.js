@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { generateTextures } from '../assets/ProceduralAssets.js';
 import { createInitialGameState } from '../config/constants.js';
-import { PRELOAD_IMAGE_ASSETS, BACKGROUND_ASSETS } from '../config/assetCatalog.js';
+import { PRELOAD_IMAGE_ASSETS, PRELOAD_SPRITESHEET_ASSETS, BACKGROUND_ASSETS } from '../config/assetCatalog.js';
 import { prewarmMonsterTextures } from '../entities/Monster.js';
 import { initVfxTextures } from '../engine/vfxTextures.js';
 import GlowFilterPostFxPipeline from 'phaser3-rex-plugins/plugins/shaders/glowfilter/GlowFilterPostFxPipeline.js';
@@ -43,6 +43,9 @@ export class BootScene extends Phaser.Scene {
   preload() {
     for (const asset of PRELOAD_IMAGE_ASSETS) {
       this.load.image(asset.key, asset.path);
+    }
+    for (const asset of PRELOAD_SPRITESHEET_ASSETS) {
+      this.load.spritesheet(asset.key, asset.path, { frameWidth: asset.frameWidth, frameHeight: asset.frameHeight });
     }
   }
 

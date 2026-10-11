@@ -1,5 +1,32 @@
 # TODO — 需要你決定 / 調整的項目
 
+## 下次開工：先實際遊玩，把整個流程確定好（最優先）
+
+目前功能很多（三職業、轉職、10 張以上地圖、星光碎片主線），但**還沒有人從頭到尾真的玩過一遍**。下次先做這件事，再繼續加內容。
+
+**怎麼玩**：`npm run build && npm run play`（網址 `http://127.0.0.1:3000`）。加 `?debug=1` 可用 `window.__setJob('assassin', 24)` 直接跳職業與等級（只用來快速抽查，正式驗證請走真實流程）。
+
+**要走一遍的路線與檢查點**
+
+| 步驟 | 檢查什麼 |
+|------|----------|
+| 1. 新遊戲 → 新手教學 | 劇情圖（目前只有 1、3 有圖，2、4 是 emoji）、操作說明與實際按鍵一致 |
+| 2. Lv1～10 | 浮空島嶼 → 森林；升級速度是否舒服（目標：Lv10 約 10～15 分鐘）；任務是否看得懂 |
+| 3. Lv10 轉職（兩個職業各走一次） | 影之召喚 → 影之殿堂找長老 → 二選一 → 收集 5 個試煉之證 → 影之試煉 → 覺醒；外觀、頭像、技能欄、稱號是否正確切換；中途存檔 / 重開能否接續 |
+| 4. 轉職後的技能 | 3 個專屬技能 + 普通攻擊的手感、冷卻與 MP 是否合理；技能欄換入 |
+| 5. 主線 | 古代廢墟 → 碧濤港 → 黃沙 → 霜牙 → 熔岩 → 王城；每張圖的怪物強度與等級帶是否銜接、金幣與藥水夠不夠用、補給在哪買 |
+| 6. 守護者與碎片 | 5 個守護者**實際要打多久**（目前只用數值換算，沒實測）；碎片只掉一次；HUD 顯示 |
+| 7. 星光之塔與最終 Boss | 集滿 5/5 → 點亮塔 → 暗影領域開啟；Boss 三階段能否打完、通關畫面與分數 |
+| 8. 存檔與手機 | 存檔 / 讀檔 / 匯出匯入；觸控版能否走完轉職與換技能 |
+
+**要記錄的數據**：Lv10 / 20 / 30 / 50 的所需時間、各守護者擊殺時間、死亡次數最多的地方、卡關或看不懂的地方。
+
+**已知問題**：離玩家超過 1600 像素的怪物，血條會跑到畫面左上角（早就存在）。
+
+**之後再接的素材與功能**（完整檔名見下方各表與 `STATUS.md`）：世界地圖與傳送（階段 3 未開始）、任務標記、靴子圖示、影之殿堂平台、飛鏢 / 漩渦 / Boss 氣場特效、三職業待機呼吸動畫；還缺的圖：Boss 狂暴姿勢與背景、劇情插畫 2 與 4、標題徽章。
+
+**測試腳本**：已收進 `e2e/`（說明見 `e2e/README.md`），遊玩驗證後如果流程有改，記得同步更新。
+
 整理完成後仍待處理的事項。「需決定」代表需要你先拍板才能動手。
 
 ## 需決定
@@ -15,12 +42,45 @@
 | 5 | Boss 第三階段狂暴視覺 | 想要的風格（規格書寫：紫光閃爍、紅眼、背景加深），是否採用 |
 | 6 | 自動化測試 | 是否要加（建議先對 `expNeeded`、`questManager`、`dungeonRecord` 這類純邏輯加單元測試），以及選用的測試工具 |
 
+## 內容擴充
+
+轉職系統、新地圖、特別任務的設計見 [`ROADMAP.md`](ROADMAP.md)；需要的素材見 [`ASSET_REQUEST.md`](ASSET_REQUEST.md)。
+
+### 內容擴充待辦（依建議順序）
+
+| 階段 | 項目 | 狀態 | 備註 |
+|------|------|------|------|
+| 決定 | 一轉等級（Lv.10 / Lv.15）、職業命名、是否做戰士 / 法師 / 弓箭手 | 待你決定 | 見 ROADMAP 第六節 |
+| A | 職業資料模型、任務擴充（collect / dungeon / talk / 任務鏈）、對話選項 UI、轉職流程、刺客 / 俠盜專屬技能 | **已完成**（Phase 21） | 見 STATUS「轉職系統階段 A」；下面「階段 A 的暫代項目」是待換成正式美術的部分 |
+| 素材 P0 | 靴子圖示、主角動作補全、技能圖示與特效、Boss 狂暴版、故事插畫、任務標記 | 待產出 | 見 ASSET_REQUEST P0 |
+| B | 新地圖：碧濤港、黃沙遺跡（專屬技能已在階段 A 完成） | 碧濤港**已完成**（Phase 22）；黃沙遺跡等素材 | 碧濤港的「水面平台較滑」「可上下的船桅」機制未做 |
+| C | 霜牙峰、熔岩巢穴、魔君王城 + 二轉 + 特別任務（星光碎片、每日委託）+ 等級上限 50 | 等素材 | |
+| D | 其他基礎職業、分數榜、手機真機調校 | 之後 | |
+| 優化 | 依地圖延後載入素材、WebP 轉換怪物 / 角色圖、service worker | 選配 | 背景已轉 WebP |
+
+### 階段 A 的暫代項目（美術到位後替換）
+
+| 項目 | 現況 | 替換方式 |
+|------|------|----------|
+| 技能圖示 | 6 個新技能 + 刺客 / 俠盜普攻圖示是程式繪製（`src/assets/skillIcons.js`）；盜賊既有 6 個也要重畫 | 放 `dist/assets/skill_icon_<id>.png`（38×38；id：`backstab poison mark whirl steal smoke ATK_assassin ATK_bandit`），把 id 加進 `assetCatalog.js` 的 `SKILL_ICON_PNG_IDS` |
+| 影之長老 NPC | 舊「城鎮居民」圖染紫（maps.js 的 `tint`） | 新 NPC 圖 + 改 `id`，移除 `tint` |
+| 影之殿堂平台 | 地圖已完成（Phase 22），但跳台借用晨曦鎮的 `platform_town`（`BaseMapScene.js` 的 `PLATFORM_THEMES.shrine` 有 TODO） | 放 `dist/assets/platform_shrine.png`（白石 + 金邊），登記到 `assetCatalog.js` 的 `PLATFORM_ASSETS`，並把 `shrine` 的 `key` 改成 `platform_shrine` |
+| 影之試煉場景 | 副本仍用 `bg_dungeon` | 可改用 `bg_shrine` 或專屬背景（`dungeons.js` 的 `bgImage`） |
+| 技能導師 | 只有說明對話，沒有技能重置 | 若要做洗點，需決定費用 / 次數，並在 `BaseMapScene._openNpcDialog` 加選項（`npcDialog.js` 的 `skillMentor`） |
+| 水母 / 海鷗 | 引擎沒有飛行 / 漂浮行為，用 `patrol` / `chase` + 跳躍近似 | 若要真的飄浮：`Monster.js` 新增 `fly` 行為（關閉重力、正弦漂移、追擊時調整高度） |
+| 試煉守衛 | 街頭小王圖染紫（`monsters.js` 的 `shadow_guardian`） | 專屬怪物圖 |
+| 試煉之證圖示 | 程式繪製的紫色菱形（`ProceduralAssets.js` 的 `item-quest-token`） | 手繪圖示 |
+| `fx_smoke` 素材 | 第 2、3 格的煙圈跨越格線，放大後有方形接縫；目前只用第 1 / 4 格拼出煙霧 | 重畫對齊的 4 格 |
+| 轉職演出 | 光柱 + `fx_job_change` + 文字（程式組合） | 可再加專屬音效 / 立繪 |
+| 悍匪體魄的 HP | 轉職時一次性 maxHp ×1.2，之後升級仍是固定 +20 | 若要隨等級成長，改成讀取時動態計算 |
+| 迷煙彈 | 只影響一般怪物；暗影魔君（Boss）的攻擊不受影響 | 需要時在 `Boss.js` 攻擊傷害處套用 `SMOKE_DAMAGE_FACTOR` |
+
 ## 手機相關待辦
 
 | 項目 | 說明 |
 |------|------|
 | 真機測試 | 目前只用 Chromium 模擬驗證。需要在 iPhone Safari / Android Chrome 實測：按鈕大小與位置、多指、音效、全螢幕、加入主畫面 |
-| 載入體積 | `dist/assets` 約 15 MB（PNG）。行動網路首次載入會慢；可考慮轉 WebP、依地圖延後載入 |
+| 載入體積 | 背景已改 WebP，`dist/assets` 約 3 MB（剩怪物 / 角色 PNG）。可再評估依地圖延後載入 |
 | 離線 / 快取 | 目前沒有 service worker。加了可離線與加速重複載入，但要處理更新時的快取失效 |
 | 小螢幕 HUD | 畫布縮小後 HUD 文字偏小，可評估針對手機放大 HUD 文字或精簡項目 |
 | 控制鈕客製 | 已有左右互換；可再加「按鈕大小 / 透明度」設定 |
@@ -36,3 +96,26 @@
 ## 文件維護
 
 - `docs/GAME_SPEC.md` 的 [VISUAL_STYLE]、[EQUIPMENT_SYSTEM]、[BOSS] 章節尚未逐條對照程式，之後調整這些系統時順手核對。
+
+
+## 世界重整後續（Phase 23 之後）
+
+### 未完成：階段 3 世界地圖與傳送
+- HUD「地圖」鈕目前只開「地圖資訊」小視窗（`UIScene._buildMapPopup`，傳送門清單由地圖資料產生）。要做：世界地圖遮罩、節點（鎖定 / 已解鎖 / 目前所在）、點已去過的地圖花金幣傳送（樞紐免費、費用隨等級、副本 / Boss 中禁用）。資料已備：`gs.visitedMaps`（已存檔、已驗證）、`engine/worldGraph.js`（`worldEdges()` 連線、`visitMap`）、`maps.js` 的 `levelBand` / `hub`。
+- 美術已到位並已登錄（`PROP_UI_ASSETS`）：`ui_world_map.webp`（960×558）、`ui_map_node_unlocked|current|locked.png`（40×40）；10 個節點座標在 `docs/asset_src/ui_world_map_nodes.json`（由左到右沿路線，建議：1 浮空島嶼 2 森林 3 廢墟 4 碧濤港 5 黃沙 6 霜牙 7 熔岩 8 魔君王城 9 暗影領域 10 保留；晨曦鎮 / 影之殿堂 / 神秘之境 / 城市特區用小節點或下方清單）。
+
+### 美術已在 dist/assets 但尚未接進程式
+| 檔案 | 用途 | 狀態 |
+|------|------|------|
+| `item_boots.png` | 靴子掉落圖示 | 已登錄（ICON_ASSETS），取代程式圖 |
+| `ui_quest_mark.png` `ui_quest_ing.png` `ui_quest_done.png` | NPC 頭上任務標記 | 已登錄預載，**尚未畫在 NPC 上** |
+| `platform_shrine.png`（246×30） | 影之殿堂跳台 | 已登錄，**BaseMapScene `PLATFORM_THEMES.shrine` 還是借用 platform_town**（改 key 並加 stretchH） |
+| `fx_shuriken.png`（4×32） | 飛鏢旋轉 | 已登錄預載，**未取代 `skill-shuriken`**（Skill.js `launchShuriken`） |
+| `fx_vortex.png`（6×192，ADD） | 暗影漩渦 | 已登錄預載，**未接** |
+| `fx_boss_aura.png`（4×192，ADD） | Boss 後期紫焰環 | 已登錄預載，**未接**（Boss.js） |
+| `player_idle_2.png`（及刺客 / 俠盜 `idle_2`） | 待機呼吸，每約 600ms 與 idle 交替 | **未接**（Player._updatePose；poseKey 取 `idle_2`，缺圖退回單格） |
+
+### 已知小問題
+- 遠離玩家（>1600px）的怪物血條停在畫面左上角 (0,0)（Monster 建構時定位，未更新），所有地圖皆有，需修。
+- 星光之塔 5/5 的 e2e 腳本在 scratchpad，未納入 repo。
+- 區域套裝、怪物圖鑑、每日委託、區域副本、`fx_star_restore` 以外的特效尚未做。

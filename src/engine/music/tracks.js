@@ -204,6 +204,137 @@ export const TRACKS = {
     mix: { reverb: 0.26, tone: 9000 },
   },
 
+  // ── 影之殿堂：D 大調，安靜神聖（顫音琴 + 合唱襯底 + 豎琴，沒有鼓，只有星光般的高音）────────
+  shrine: {
+    key: { tonic: 'D', mode: 'major' }, bpm: 80, swing: 0,
+    chords: ['D', 'Bm', 'G', 'A', 'D', 'F#m', 'G', 'A',
+             'Em7', 'A', 'D', 'Bm', 'G', 'A', 'D', 'A'],
+    lead: [
+      'F#5.4 A5.4 D6.4 A5.4', 'B5.4 D6.4 F#6.2 E6.2 D6.4', 'B5.4 G5.4 D6.4 B5.4', 'C#6.4 E6.4 A5.4 E6.4',
+      'D6.6 C#6.2 A5.4 F#5.4', 'C#6.4 A5.4 F#5.4 A5.4', 'G5.4 B5.4 D6.4 G6.4', 'E6.4 C#6.4 A5.8',
+      'G5.4 B5.4 E6.4 D6.4', 'E6.4 C#6.4 A5.4 C#6.4', 'D6.4 F#6.4 A6.4 F#6.4', 'D6.4 B5.4 F#5.8',
+      'B5.4 D6.4 G6.8', 'A5.4 C#6.4 E6.8', 'F#6.6 E6.2 D6.8', 'E6.4 C#6.4 A5.8',
+    ],
+    parts: {
+      lead: { inst: 'vibes', vel: 0.8, pan: 0.0 },
+      pad:  { inst: 'choir', vel: 0.5 },
+      comp: { style: 'arp4', inst: 'harp', vel: 0.5 },
+      sparkle: { inst: 'bell', vel: 0.26, positions: [2, 10] },
+      bass: { style: 'whole', inst: 'sub', vel: 0.26 },
+      perc: { style: 'none', vel: 0 },
+    },
+    mix: { reverb: 0.5, echo: 0.3, tone: 8500 },
+  },
+
+  // ── 碧濤港：D 混合利地亞，水手號子（長笛 + 撥弦 + 風琴襯底 + 搖擺的 oom-pah 低音）──────────
+  harbor: {
+    key: { tonic: 'D', mode: 'mixolydian' }, bpm: 126, swing: 0.35,
+    chords: ['D', 'D', 'G', 'D', 'D', 'C', 'G', 'D',
+             'Em', 'G', 'D', 'D', 'G', 'C', 'D', 'D'],
+    lead: [
+      'A5.4 F#5.4 D5.4 F#5.4', 'D6.6 C6.2 A5.4 F#5.4', 'G5.4 B5.4 D6.4 B5.4', 'A5.4 F#5.4 D5.8',
+      'F#5.4 A5.4 D6.4 E6.2 F#6.2', 'E6.4 C6.4 G5.4 E5.4', 'D6.4 B5.4 G5.4 B5.4', 'A5.4 F#5.4 D5.8',
+      'E5.4 G5.4 B5.4 G5.4', 'B5.4 D6.4 G6.4 D6.4', 'F#6.4 D6.4 A5.4 D6.4', 'D6.4 F#6.4 A6.8',
+      'G6.4 D6.4 B5.4 D6.4', 'E6.4 G6.4 C6.2 B5.2 A5.4', 'D6.4 F#6.4 A6.4 F#6.4', 'D6.6 C6.2 A5.8',
+    ],
+    parts: {
+      lead: { inst: 'flute', vel: 0.85, pan: 0.0 },
+      pad:  { inst: 'organ', vel: 0.32 },
+      comp: { style: 'chop', inst: 'pluck', vel: 0.55 },
+      bass: { style: 'bounce', inst: 'sub', vel: 0.35 },
+      perc: { style: 'folk', vel: 0.5 },
+    },
+    mix: { reverb: 0.18, tone: 8500 },
+  },
+
+  // ── 黃沙遺跡：E 弗里吉亞屬調（Hijaz，E F G# A B C D），商隊行進感（烏德琴主奏 + 弦樂 + 手鼓）────────────
+  // 和弦只用調內三和弦：E（E G# B）、F（F A C）、Am（A C E）、Dm（D F A）。
+  desert: {
+    key: { tonic: 'E', mode: 'hijaz' }, bpm: 112, swing: 0,
+    chords: ['E', 'E', 'F', 'E', 'Am', 'E', 'F', 'E',
+             'Dm', 'Am', 'F', 'E', 'Dm', 'F', 'E', 'E'],
+    lead: [
+      'E5.4 G#5.4 B5.4 G#5.2 F5.2', 'B5.6 A5.2 G#5.4 E5.4', 'F5.4 A5.4 C6.4 A5.4', 'B5.4 G#5.2 A5.2 B5.4 E6.4',
+      'A5.4 C6.4 E6.4 C6.4', 'E6.6 D6.2 B5.4 G#5.4', 'C6.4 A5.4 F5.4 A5.4', 'G#5.4 B5.4 E6.8',
+      'D6.4 F6.4 A5.4 F5.4', 'E6.4 C6.4 A5.4 C6.4', 'A5.4 C6.4 F6.4 C6.4', 'B5.4 G#5.4 E5.4 G#5.4',
+      'F6.4 A6.4 D6.4 A5.4', 'C6.4 F6.4 A5.2 G#5.2 F5.4', 'E6.4 G#5.4 B5.4 E6.2 F6.2', 'E6.6 B5.2 G#5.8',
+    ],
+    parts: {
+      lead: { inst: 'oud', vel: 0.95, pan: 0.0 },
+      pad:  { inst: 'strings', vel: 0.3 },
+      comp: { style: 'chop', inst: 'pluck', vel: 0.45 },
+      drone: { inst: 'drone', vel: 0.3 },
+      bass: { style: 'pulse', inst: 'sub', vel: 0.36 },
+      perc: { style: 'darbuka', vel: 0.8 },
+    },
+    mix: { reverb: 0.2, echo: 0.16, tone: 7800 },
+  },
+
+  // ── 霜牙峰：升 F 小調（F# G# A B C# D E），冰晶般的鈴聲主奏 + 合唱襯底 + 豎琴，慢速、沒有鼓 ─────────────────
+  snow: {
+    key: { tonic: 'F#', mode: 'minor' }, bpm: 80, swing: 0,
+    chords: ['F#m', 'D', 'A', 'E', 'F#m', 'D', 'Bm', 'C#m',
+             'D', 'A', 'E', 'F#m', 'D', 'Bm', 'C#m', 'C#m'],
+    lead: [
+      'C#6.4 A5.4 F#5.4 A5.4', 'D6.4 F#6.4 A6.4 F#6.4', 'E6.4 C#6.4 A5.4 C#6.4', 'B5.4 G#5.4 E5.4 G#5.2 B5.2',
+      'A5.4 C#6.4 F#6.4 C#6.4', 'A5.4 D6.4 F#6.8', 'D6.4 B5.4 F#5.4 B5.4', 'E6.6 D6.2 C#6.8',
+      'F#6.4 A6.4 D6.4 A5.4', 'C#6.4 E6.4 A6.4 E6.4', 'G#5.4 B5.4 E6.4 B5.4', 'F#6.6 E6.2 C#6.4 A5.4',
+      'A5.4 D6.4 F#6.4 D6.4', 'B5.4 D6.4 F#6.4 D6.4', 'G#5.4 E6.4 C#6.4 E6.4', 'C#6.8 E6.4 G#5.4',
+    ],
+    parts: {
+      lead: { inst: 'bell', vel: 0.75, pan: 0.0 },
+      pad:  { inst: 'choir', vel: 0.3 },
+      comp: { style: 'arp4', inst: 'harp', vel: 0.4 },
+      bass: { style: 'whole', inst: 'sub', vel: 0.24 },
+      perc: { style: 'none', vel: 0 },
+    },
+    mix: { reverb: 0.55, echo: 0.3, tone: 8500 },
+  },
+
+  // ── 熔岩巢穴：C 小調，沉重低音推進（鋸齒低音 + 合成主奏 + 重鼓，節奏緊迫）───────────────────────────
+  lava: {
+    key: { tonic: 'C', mode: 'minor' }, bpm: 128, swing: 0,
+    chords: ['Cm', 'Cm', 'Ab', 'Bb', 'Cm', 'Cm', 'Fm', 'Gm',
+             'Ab', 'Eb', 'Bb', 'Cm', 'Ab', 'Fm', 'Gm', 'Gm'],
+    lead: [
+      'C6.4 r.2 C6.2 Eb6.4 G6.4', 'G6.6 F6.2 Eb6.4 C6.4', 'Ab5.4 C6.4 Eb6.4 C6.4', 'D6.4 F6.4 Bb6.4 F6.4',
+      'Eb6.4 C6.4 G5.4 C6.4', 'C6.4 r.2 C6.2 G6.4 Eb6.4', 'F6.4 Ab6.4 C6.4 Ab6.4', 'G5.4 Bb5.4 D6.4 Bb5.4',
+      'Ab5.4 Eb6.4 C6.4 Eb6.4', 'Eb6.4 G6.4 Bb6.4 G6.4', 'D6.4 F6.4 Bb5.4 F6.4', 'C6.4 Eb6.4 G6.4 C6.4',
+      'C6.4 Ab5.4 Eb5.4 Ab5.4', 'C6.4 Ab5.4 F5.4 Ab5.4', 'D6.6 C6.2 Bb5.4 G5.4', 'G5.4 Bb5.4 D6.8',
+    ],
+    parts: {
+      lead: { inst: 'synth', vel: 0.8, pan: 0.0 },
+      pad:  { inst: 'darkpad', vel: 0.4 },
+      drone: { inst: 'drone', vel: 0.4 },
+      comp: { style: 'arp16', inst: 'pluck', vel: 0.4 },
+      bass: { style: 'drive8', inst: 'sawbass', vel: 0.4 },
+      perc: { style: 'dungeon', vel: 0.85, fill: 'dungeon' },
+    },
+    mix: { reverb: 0.25, tone: 7000 },
+  },
+
+  // ── 魔君王城：G 和聲小調（G A Bb C D Eb F#），哥德風琴主奏 + 暗色襯底 + 心跳低鼓 ─────────────────────────
+  castle: {
+    key: { tonic: 'G', mode: 'harmonic' }, bpm: 84, swing: 0,
+    chords: ['Gm', 'Gm', 'Eb', 'D', 'Cm', 'Gm', 'D', 'Gm',
+             'Eb', 'Bb', 'Cm', 'D', 'Gm', 'Cm', 'D', 'D'],
+    lead: [
+      'G5.4 Bb5.4 D6.4 Bb5.4', 'G6.6 F#6.2 D6.4 Bb5.4', 'Eb6.4 G6.4 Bb6.4 G6.4', 'D6.4 F#6.4 A6.4 F#6.4',
+      'C6.4 Eb6.4 G6.4 Eb6.4', 'D6.4 Bb5.4 G5.4 Bb5.4', 'A5.4 D6.4 F#6.4 A6.4', 'G6.8 D6.4 Bb5.4',
+      'Bb5.4 Eb6.4 G6.4 Eb6.4', 'Bb5.4 D6.4 F6.4 D6.4', 'G5.4 C6.4 Eb6.4 C6.4', 'F#6.4 D6.4 A5.4 D6.4',
+      'Bb5.4 G5.4 D5.4 G5.4', 'Eb6.4 C6.4 G5.4 C6.4', 'F#5.4 A5.4 D6.4 F#6.4', 'A6.6 G6.2 F#6.8',
+    ],
+    parts: {
+      lead: { inst: 'organ', vel: 0.8, pan: 0.0 },
+      pad:  { inst: 'darkpad', vel: 0.38 },
+      drone: { inst: 'drone', vel: 0.3 },
+      comp: { style: 'arp8', inst: 'pluck', vel: 0.42 },
+      bass: { style: 'half', inst: 'sub', vel: 0.4 },
+      perc: { style: 'heart', vel: 0.75 },
+    },
+    mix: { reverb: 0.5, echo: 0.2, tone: 6200 },
+  },
+
   // ── Boss 戰：E 小調（V 級用和聲小調的 B 大三和弦），緊迫有力 ───────────────────────
   boss: {
     key: { tonic: 'E', mode: 'minor' }, bpm: 150, swing: 0,

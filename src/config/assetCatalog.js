@@ -56,6 +56,102 @@ export const CHARACTER_ASSETS = [
     status: 'used',
   },
   {
+    assetId: 'CHR-PLY-008',
+    groupId: 'CHR-PLY',
+    kind: 'character',
+    key: 'player_slash_1',
+    path: 'dist/assets/player_slash_1.png',
+    status: 'used',
+  },
+  {
+    assetId: 'CHR-PLY-009',
+    groupId: 'CHR-PLY',
+    kind: 'character',
+    key: 'player_slash_2',
+    path: 'dist/assets/player_slash_2.png',
+    status: 'used',
+  },
+  {
+    assetId: 'CHR-PLY-010',
+    groupId: 'CHR-PLY',
+    kind: 'character',
+    key: 'player_slash_3',
+    path: 'dist/assets/player_slash_3.png',
+    status: 'used',
+  },
+  {
+    assetId: 'CHR-PLY-011',
+    groupId: 'CHR-PLY',
+    kind: 'character',
+    key: 'player_walk_3',
+    path: 'dist/assets/player_walk_3.png',
+    status: 'used',
+  },
+  {
+    assetId: 'CHR-PLY-012',
+    groupId: 'CHR-PLY',
+    kind: 'character',
+    key: 'player_walk_4',
+    path: 'dist/assets/player_walk_4.png',
+    status: 'used',
+  },
+  {
+    assetId: 'CHR-PLY-013',
+    groupId: 'CHR-PLY',
+    kind: 'character',
+    key: 'player_fall',
+    path: 'dist/assets/player_fall.png',
+    status: 'used',
+  },
+  {
+    assetId: 'CHR-PLY-014',
+    groupId: 'CHR-PLY',
+    kind: 'character',
+    key: 'player_throw_1',
+    path: 'dist/assets/player_throw_1.png',
+    status: 'used',
+  },
+  {
+    assetId: 'CHR-PLY-015',
+    groupId: 'CHR-PLY',
+    kind: 'character',
+    key: 'player_throw_2',
+    path: 'dist/assets/player_throw_2.png',
+    status: 'used',
+  },
+  {
+    assetId: 'CHR-PLY-016',
+    groupId: 'CHR-PLY',
+    kind: 'character',
+    key: 'player_die',
+    path: 'dist/assets/player_die.png',
+    status: 'unused',
+  },
+  {
+    assetId: 'CHR-PLY-017',
+    groupId: 'CHR-PLY',
+    kind: 'character',
+    key: 'player_down',
+    path: 'dist/assets/player_down.png',
+    status: 'used',
+  },
+  {
+    assetId: 'CHR-PLY-018',
+    groupId: 'CHR-PLY',
+    kind: 'character',
+    key: 'player_dash',
+    path: 'dist/assets/player_dash.png',
+    status: 'used',
+  },
+  {
+    assetId: 'CHR-PLY-019',
+    groupId: 'CHR-PLY',
+    kind: 'character',
+    key: 'player_cast',
+    path: 'dist/assets/player_cast.png',
+    status: 'used',
+  },
+  {
     assetId: 'CHR-TTL-001',
     groupId: 'CHR-TTL',
     kind: 'character',
@@ -71,7 +167,7 @@ export const BACKGROUND_ASSETS = [
     groupId: 'BG-SKY',
     kind: 'background',
     key: 'bg_sky',
-    path: 'dist/assets/bg_sky.png',
+    path: 'dist/assets/bg_sky.webp',
     status: 'used',
     targetMaps: ['sky'],
   },
@@ -80,7 +176,7 @@ export const BACKGROUND_ASSETS = [
     groupId: 'BG-RUI',
     kind: 'background',
     key: 'bg_ruins',
-    path: 'dist/assets/bg_ruins.png',
+    path: 'dist/assets/bg_ruins.webp',
     status: 'used',
     targetMaps: ['ruins'],
   },
@@ -89,7 +185,7 @@ export const BACKGROUND_ASSETS = [
     groupId: 'BG-CIT',
     kind: 'background',
     key: 'bg_city',
-    path: 'dist/assets/bg_city.png',
+    path: 'dist/assets/bg_city.webp',
     status: 'used',
     targetMaps: ['kerning'],
   },
@@ -98,7 +194,7 @@ export const BACKGROUND_ASSETS = [
     groupId: 'BG-FOR',
     kind: 'background',
     key: 'bg_forest',
-    path: 'dist/assets/bg_forest.png',
+    path: 'dist/assets/bg_forest.webp',
     status: 'used',
     targetMaps: ['henesys'],
   },
@@ -107,7 +203,7 @@ export const BACKGROUND_ASSETS = [
     groupId: 'BG-TOY',
     kind: 'background',
     key: 'bg_town',
-    path: 'dist/assets/bg_town.png',
+    path: 'dist/assets/bg_town.webp',
     status: 'used',
     targetMaps: ['town'],
   },
@@ -116,7 +212,7 @@ export const BACKGROUND_ASSETS = [
     groupId: 'BG-MYS',
     kind: 'background',
     key: 'bg_mystic',
-    path: 'dist/assets/bg_mystic.png',
+    path: 'dist/assets/bg_mystic.webp',
     status: 'used',
     targetMaps: ['ellinia'],
   },
@@ -125,7 +221,7 @@ export const BACKGROUND_ASSETS = [
     groupId: 'BG-TPE',
     kind: 'background',
     key: 'bg_taipei',
-    path: 'dist/assets/bg_taipei.png',
+    path: 'dist/assets/bg_taipei.webp',
     status: 'used',
     targetMaps: ['taipei'],
   },
@@ -134,16 +230,46 @@ export const BACKGROUND_ASSETS = [
     groupId: 'BG-BOSS',
     kind: 'background',
     key: 'bg_boss_room',
-    path: 'dist/assets/bg_boss_room.png',
+    path: 'dist/assets/bg_boss_room.webp',
     status: 'used',
     targetMaps: ['boss'],
+  },
+  {
+    assetId: 'BG-SHR-001',
+    groupId: 'BG-SHR',
+    kind: 'background',
+    key: 'bg_shrine',
+    path: 'dist/assets/bg_shrine.webp',
+    status: 'used',
+    targetMaps: ['shrine'],
+  },
+  {
+    assetId: 'BG-HBR-001',
+    groupId: 'BG-HBR',
+    kind: 'background',
+    key: 'bg_harbor',
+    path: 'dist/assets/bg_harbor.webp',
+    status: 'used',
+    targetMaps: ['harbor'],
+  },
+  {
+    assetId: 'BG-DST-001', groupId: 'BG-DST', kind: 'background', key: 'bg_desert', path: 'dist/assets/bg_desert.webp', status: 'used', targetMaps: ['desert'],
+  },
+  {
+    assetId: 'BG-SNW-001', groupId: 'BG-SNW', kind: 'background', key: 'bg_snow', path: 'dist/assets/bg_snow.webp', status: 'used', targetMaps: ['snow'],
+  },
+  {
+    assetId: 'BG-LAV-001', groupId: 'BG-LAV', kind: 'background', key: 'bg_lava', path: 'dist/assets/bg_lava.webp', status: 'used', targetMaps: ['lava'],
+  },
+  {
+    assetId: 'BG-CST-001', groupId: 'BG-CST', kind: 'background', key: 'bg_castle', path: 'dist/assets/bg_castle.webp', status: 'used', targetMaps: ['castle'],
   },
   {
     assetId: 'BG-DGN-001',
     groupId: 'BG-DGN',
     kind: 'background',
     key: 'bg_dungeon',
-    path: 'dist/assets/bg_dungeon.png',
+    path: 'dist/assets/bg_dungeon.webp',
     status: 'used',
     targetMaps: ['dungeon'],
   },
@@ -152,7 +278,7 @@ export const BACKGROUND_ASSETS = [
     groupId: 'BG-TTL',
     kind: 'background',
     key: 'title_bg',
-    path: 'dist/assets/title_bg.png',
+    path: 'dist/assets/title_bg.webp',
     status: 'used',
     targetMaps: ['menu'],
   },
@@ -207,6 +333,19 @@ export const PLATFORM_ASSETS = [
     path: 'dist/assets/platform_town.png',
     status: 'used',
   },
+  {
+    assetId: 'PLT-HBR-001',
+    groupId: 'PLT-HBR',
+    kind: 'platform',
+    key: 'platform_harbor',
+    path: 'dist/assets/platform_harbor.png',
+    status: 'used',
+  },
+  { assetId: 'PLT-DST-001', groupId: 'PLT-DST', kind: 'platform', key: 'platform_desert', path: 'dist/assets/platform_desert.png', status: 'used' },
+  { assetId: 'PLT-SNW-001', groupId: 'PLT-SNW', kind: 'platform', key: 'platform_snow', path: 'dist/assets/platform_snow.png', status: 'used' },
+  { assetId: 'PLT-LAV-001', groupId: 'PLT-LAV', kind: 'platform', key: 'platform_lava', path: 'dist/assets/platform_lava.png', status: 'used' },
+  { assetId: 'PLT-CST-001', groupId: 'PLT-CST', kind: 'platform', key: 'platform_castle', path: 'dist/assets/platform_castle.png', status: 'used' },
+  { assetId: 'PLT-SHR-001', groupId: 'PLT-SHR', kind: 'platform', key: 'platform_shrine', path: 'dist/assets/platform_shrine.png', status: 'used' },
   {
     assetId: 'PLT-BOS-001',
     groupId: 'PLT-BOS',
@@ -502,6 +641,42 @@ export const MONSTER_ASSETS = [
   { assetId: 'MON-CITY-002', groupId: 'MON-CITY', kind: 'monster', key: 'monster_punk_red', path: 'dist/assets/monster_punk_red.png', status: 'used', monsterIds: ['street_punk'], alignmentStatus: 'complete' },
   { assetId: 'MON-CITY-003', groupId: 'MON-CITY', kind: 'monster', key: 'monster_pickpocket', path: 'dist/assets/monster_pickpocket.png', status: 'used', monsterIds: ['city_elite'], alignmentStatus: 'complete' },
   { assetId: 'MON-CITY-004', groupId: 'MON-CITY', kind: 'miniboss', key: 'miniboss_street', path: 'dist/assets/miniboss_street.png', status: 'used', monsterIds: ['city_boss1'], alignmentStatus: 'complete' },
+  // 碧濤港
+  { assetId: 'MON-HBR-001', groupId: 'MON-HBR', kind: 'monster', key: 'monster_crab', path: 'dist/assets/monster_crab.png', status: 'used', monsterIds: ['crab'], alignmentStatus: 'complete' },
+  { assetId: 'MON-HBR-002', groupId: 'MON-HBR', kind: 'monster', key: 'monster_jellyfish', path: 'dist/assets/monster_jellyfish.png', status: 'used', monsterIds: ['jellyfish'], alignmentStatus: 'complete' },
+  { assetId: 'MON-HBR-003', groupId: 'MON-HBR', kind: 'monster', key: 'monster_pirate_ghost', path: 'dist/assets/monster_pirate_ghost.png', status: 'used', monsterIds: ['pirate_ghost'], alignmentStatus: 'complete' },
+  { assetId: 'MON-HBR-004', groupId: 'MON-HBR', kind: 'monster', key: 'monster_octopus', path: 'dist/assets/monster_octopus.png', status: 'used', monsterIds: ['octopus'], alignmentStatus: 'complete' },
+  { assetId: 'MON-HBR-005', groupId: 'MON-HBR', kind: 'monster', key: 'monster_seagull', path: 'dist/assets/monster_seagull.png', status: 'used', monsterIds: ['seagull'], alignmentStatus: 'complete' },
+  { assetId: 'MON-HBR-006', groupId: 'MON-HBR', kind: 'miniboss', key: 'miniboss_captain', path: 'dist/assets/miniboss_captain.png', status: 'used', monsterIds: ['pirate_captain'], alignmentStatus: 'complete' },
+  // 黃沙遺跡
+  { assetId: 'MON-DST-001', groupId: 'MON-DST', kind: 'monster', key: 'monster_scorpion', path: 'dist/assets/monster_scorpion.png', status: 'used', monsterIds: ['scorpion'], alignmentStatus: 'complete' },
+  { assetId: 'MON-DST-002', groupId: 'MON-DST', kind: 'monster', key: 'monster_cactus', path: 'dist/assets/monster_cactus.png', status: 'used', monsterIds: ['cactus'], alignmentStatus: 'complete' },
+  { assetId: 'MON-DST-003', groupId: 'MON-DST', kind: 'monster', key: 'monster_mummy', path: 'dist/assets/monster_mummy.png', status: 'used', monsterIds: ['mummy'], alignmentStatus: 'complete' },
+  { assetId: 'MON-DST-004', groupId: 'MON-DST', kind: 'monster', key: 'monster_bandit', path: 'dist/assets/monster_bandit.png', status: 'used', monsterIds: ['bandit'], alignmentStatus: 'complete' },
+  { assetId: 'MON-DST-005', groupId: 'MON-DST', kind: 'monster', key: 'monster_sandworm', path: 'dist/assets/monster_sandworm.png', status: 'used', monsterIds: ['sandworm'], alignmentStatus: 'complete' },
+  { assetId: 'MON-DST-006', groupId: 'MON-DST', kind: 'miniboss', key: 'miniboss_sandworm', path: 'dist/assets/miniboss_sandworm.png', status: 'used', monsterIds: ['sandworm_boss'], alignmentStatus: 'complete' },
+  // 霜牙峰
+  { assetId: 'MON-SNW-001', groupId: 'MON-SNW', kind: 'monster', key: 'monster_snowman', path: 'dist/assets/monster_snowman.png', status: 'used', monsterIds: ['snowman'], alignmentStatus: 'complete' },
+  { assetId: 'MON-SNW-002', groupId: 'MON-SNW', kind: 'monster', key: 'monster_penguin', path: 'dist/assets/monster_penguin.png', status: 'used', monsterIds: ['penguin'], alignmentStatus: 'complete' },
+  { assetId: 'MON-SNW-003', groupId: 'MON-SNW', kind: 'monster', key: 'monster_icewolf', path: 'dist/assets/monster_icewolf.png', status: 'used', monsterIds: ['icewolf'], alignmentStatus: 'complete' },
+  { assetId: 'MON-SNW-004', groupId: 'MON-SNW', kind: 'monster', key: 'monster_crystal', path: 'dist/assets/monster_crystal.png', status: 'used', monsterIds: ['crystal'], alignmentStatus: 'complete' },
+  { assetId: 'MON-SNW-005', groupId: 'MON-SNW', kind: 'monster', key: 'monster_yeti', path: 'dist/assets/monster_yeti.png', status: 'used', monsterIds: ['yeti'], alignmentStatus: 'complete' },
+  { assetId: 'MON-SNW-006', groupId: 'MON-SNW', kind: 'miniboss', key: 'miniboss_frostgiant', path: 'dist/assets/miniboss_frostgiant.png', status: 'used', monsterIds: ['frost_giant'], alignmentStatus: 'complete' },
+  // 熔岩巢穴
+  { assetId: 'MON-LAV-001', groupId: 'MON-LAV', kind: 'monster', key: 'monster_fireimp', path: 'dist/assets/monster_fireimp.png', status: 'used', monsterIds: ['fireimp'], alignmentStatus: 'complete' },
+  { assetId: 'MON-LAV-002', groupId: 'MON-LAV', kind: 'monster', key: 'monster_lavaslime', path: 'dist/assets/monster_lavaslime.png', status: 'used', monsterIds: ['lavaslime'], alignmentStatus: 'complete' },
+  { assetId: 'MON-LAV-003', groupId: 'MON-LAV', kind: 'monster', key: 'monster_firehound', path: 'dist/assets/monster_firehound.png', status: 'used', monsterIds: ['firehound'], alignmentStatus: 'complete' },
+  { assetId: 'MON-LAV-004', groupId: 'MON-LAV', kind: 'monster', key: 'monster_ember', path: 'dist/assets/monster_ember.png', status: 'used', monsterIds: ['ember'], alignmentStatus: 'complete' },
+  { assetId: 'MON-LAV-005', groupId: 'MON-LAV', kind: 'monster', key: 'monster_lavagolem', path: 'dist/assets/monster_lavagolem.png', status: 'used', monsterIds: ['lavagolem'], alignmentStatus: 'complete' },
+  { assetId: 'MON-LAV-006', groupId: 'MON-LAV', kind: 'miniboss', key: 'miniboss_lavadragon', path: 'dist/assets/miniboss_lavadragon.png', status: 'used', monsterIds: ['lava_dragon'], alignmentStatus: 'complete' },
+  // 魔君王城
+  { assetId: 'MON-CST-001', groupId: 'MON-CST', kind: 'monster', key: 'monster_imp', path: 'dist/assets/monster_imp.png', status: 'used', monsterIds: ['imp'], alignmentStatus: 'complete' },
+  { assetId: 'MON-CST-002', groupId: 'MON-CST', kind: 'monster', key: 'monster_bat', path: 'dist/assets/monster_bat.png', status: 'used', monsterIds: ['bat'], alignmentStatus: 'complete' },
+  { assetId: 'MON-CST-003', groupId: 'MON-CST', kind: 'monster', key: 'monster_darkknight', path: 'dist/assets/monster_darkknight.png', status: 'used', monsterIds: ['darkknight'], alignmentStatus: 'complete' },
+  { assetId: 'MON-CST-004', groupId: 'MON-CST', kind: 'monster', key: 'monster_vampire', path: 'dist/assets/monster_vampire.png', status: 'used', monsterIds: ['vampire'], alignmentStatus: 'complete' },
+  { assetId: 'MON-CST-005', groupId: 'MON-CST', kind: 'monster', key: 'monster_gargoyle', path: 'dist/assets/monster_gargoyle.png', status: 'used', monsterIds: ['gargoyle'], alignmentStatus: 'complete' },
+  { assetId: 'MON-CST-006', groupId: 'MON-CST', kind: 'miniboss', key: 'miniboss_fallen', path: 'dist/assets/miniboss_fallen.png', status: 'used', monsterIds: ['fallen_commander'], alignmentStatus: 'complete' },
+  { assetId: 'MON-JOB-001', groupId: 'MON-JOB', kind: 'miniboss', key: 'miniboss_trialguard', path: 'dist/assets/miniboss_trialguard.png', status: 'used', monsterIds: ['shadow_guardian'], alignmentStatus: 'complete' },
 ];
 
 export const NPC_ASSETS = [
@@ -569,6 +744,46 @@ export const NPC_ASSETS = [
     path: 'dist/assets/npc_townsfolk.png',
     status: 'used',
   },
+  {
+    assetId: 'NPC-HBR-001',
+    groupId: 'NPC-HBR',
+    kind: 'npc',
+    key: 'npc_dockworker',
+    path: 'dist/assets/npc_dockworker.png',
+    status: 'used',
+  },
+  {
+    assetId: 'NPC-HBR-002',
+    groupId: 'NPC-HBR',
+    kind: 'npc',
+    key: 'npc_sailor',
+    path: 'dist/assets/npc_sailor.png',
+    status: 'used',
+  },
+  { assetId: 'NPC-DST-001', groupId: 'NPC-DST', kind: 'npc', key: 'npc_archaeologist', path: 'dist/assets/npc_archaeologist.png', status: 'used' },
+  { assetId: 'NPC-DST-002', groupId: 'NPC-DST', kind: 'npc', key: 'npc_caravan', path: 'dist/assets/npc_caravan.png', status: 'used' },
+  { assetId: 'NPC-SNW-001', groupId: 'NPC-SNW', kind: 'npc', key: 'npc_ranger', path: 'dist/assets/npc_ranger.png', status: 'used' },
+  { assetId: 'NPC-SNW-002', groupId: 'NPC-SNW', kind: 'npc', key: 'npc_monk', path: 'dist/assets/npc_monk.png', status: 'used' },
+  { assetId: 'NPC-LAV-001', groupId: 'NPC-LAV', kind: 'npc', key: 'npc_blacksmith', path: 'dist/assets/npc_blacksmith.png', status: 'used' },
+  { assetId: 'NPC-LAV-002', groupId: 'NPC-LAV', kind: 'npc', key: 'npc_miner', path: 'dist/assets/npc_miner.png', status: 'used' },
+  { assetId: 'NPC-CST-001', groupId: 'NPC-CST', kind: 'npc', key: 'npc_prisoner', path: 'dist/assets/npc_prisoner.png', status: 'used' },
+  { assetId: 'NPC-CST-002', groupId: 'NPC-CST', kind: 'npc', key: 'npc_ghostmaid', path: 'dist/assets/npc_ghostmaid.png', status: 'used' },
+  {
+    assetId: 'NPC-JOB-001',
+    groupId: 'NPC-JOB',
+    kind: 'npc',
+    key: 'npc_shadow_elder',
+    path: 'dist/assets/npc_shadow_elder.png',
+    status: 'used',
+  },
+  {
+    assetId: 'NPC-JOB-002',
+    groupId: 'NPC-JOB',
+    kind: 'npc',
+    key: 'npc_skill_mentor',
+    path: 'dist/assets/npc_skill_mentor.png',
+    status: 'used',
+  },
 ];
 
 // 暗影魔君動作圖：每個動作一張，統一 460x220 畫布
@@ -626,7 +841,7 @@ export const BOSS_ASSETS = [
 ];
 
 // 裝備掉落圖示：沿用程序材質的 key，載入後 generateItems 會跳過已存在的 key
-export const ICON_ASSETS = ['weapon', 'armor', 'gloves', 'helmet'].map((slot) => ({
+export const ICON_ASSETS = ['weapon', 'armor', 'gloves', 'helmet', 'boots'].map((slot) => ({
   assetId: `ICO-${slot.toUpperCase()}-001`,
   groupId: 'ICO-EQP',
   kind: 'icon',
@@ -665,6 +880,198 @@ export const UI_ASSETS = [
   status: 'used',
 }));
 
+// 特效動畫條（橫排影格，純黑底轉亮度 alpha，建議用 ADD 混合）；9 組全部已在遊戲中使用（命中、刺客 / 俠盜技能、轉職）
+export const FX_ASSETS = [
+  {
+    assetId: 'FX-001',
+    groupId: 'FX',
+    kind: 'fx',
+    key: 'fx_slash_assassin',
+    path: 'dist/assets/fx_slash_assassin.png',
+    frameWidth: 160,
+    frameHeight: 104,
+    frames: 4,
+    status: 'used',
+  },
+  {
+    assetId: 'FX-002',
+    groupId: 'FX',
+    kind: 'fx',
+    key: 'fx_slash_bandit',
+    path: 'dist/assets/fx_slash_bandit.png',
+    frameWidth: 160,
+    frameHeight: 88,
+    frames: 4,
+    status: 'used',
+  },
+  {
+    assetId: 'FX-003',
+    groupId: 'FX',
+    kind: 'fx',
+    key: 'fx_backstab',
+    path: 'dist/assets/fx_backstab.png',
+    frameWidth: 127,
+    frameHeight: 128,
+    frames: 7,
+    status: 'used',
+  },
+  {
+    assetId: 'FX-004',
+    groupId: 'FX',
+    kind: 'fx',
+    key: 'fx_hit',
+    path: 'dist/assets/fx_hit.png',
+    frameWidth: 112,
+    frameHeight: 111,
+    frames: 6,
+    status: 'used',
+  },
+  {
+    assetId: 'FX-005',
+    groupId: 'FX',
+    kind: 'fx',
+    key: 'fx_poison',
+    path: 'dist/assets/fx_poison.png',
+    frameWidth: 128,
+    frameHeight: 105,
+    frames: 5,
+    status: 'used',
+  },
+  {
+    assetId: 'FX-006',
+    groupId: 'FX',
+    kind: 'fx',
+    key: 'fx_mark',
+    path: 'dist/assets/fx_mark.png',
+    frameWidth: 96,
+    frameHeight: 88,
+    frames: 4,
+    status: 'used',
+  },
+  {
+    assetId: 'FX-007',
+    groupId: 'FX',
+    kind: 'fx',
+    key: 'fx_whirl',
+    path: 'dist/assets/fx_whirl.png',
+    frameWidth: 176,
+    frameHeight: 122,
+    frames: 6,
+    status: 'used',
+  },
+  {
+    assetId: 'FX-008',
+    groupId: 'FX',
+    kind: 'fx',
+    key: 'fx_smoke',
+    path: 'dist/assets/fx_smoke.png',
+    frameWidth: 128,
+    frameHeight: 94,
+    frames: 4,
+    status: 'used',
+  },
+  {
+    assetId: 'FX-009',
+    groupId: 'FX',
+    kind: 'fx',
+    key: 'fx_job_change',
+    path: 'dist/assets/fx_job_change.png',
+    frameWidth: 171,
+    frameHeight: 144,
+    frames: 5,
+    status: 'used',
+  },
+  { assetId: 'FX-STR-001', groupId: 'FX', kind: 'fx', key: 'fx_star_restore', path: 'dist/assets/fx_star_restore.png', frameWidth: 192, frameHeight: 192, frames: 6, status: 'used' },
+  { assetId: 'FX-SHK-001', groupId: 'FX', kind: 'fx', key: 'fx_shuriken', path: 'dist/assets/fx_shuriken.png', frameWidth: 32, frameHeight: 32, frames: 4, status: 'used' },
+  { assetId: 'FX-VTX-001', groupId: 'FX', kind: 'fx', key: 'fx_vortex', path: 'dist/assets/fx_vortex.png', frameWidth: 192, frameHeight: 192, frames: 6, status: 'used' },
+  { assetId: 'FX-AUR-001', groupId: 'FX', kind: 'fx', key: 'fx_boss_aura', path: 'dist/assets/fx_boss_aura.png', frameWidth: 192, frameHeight: 192, frames: 4, status: 'used' },
+];
+
+
+// 轉職後的角色動作圖（刺客 player_assassin_*、俠盜 player_bandit_*）與 HUD 頭像。
+// 全部預載；Player 在缺圖時會退回盜賊的同名動作（見 src/config/poses.js）。
+const JOB_POSE_BASE = [
+  'idle', 'idle_2', 'walk_1', 'walk_2', 'walk_3', 'walk_4', 'jump', 'fall', 'hurt', 'down', 'die',
+  'slash_1', 'slash_2', 'slash_3', 'cast', 'dash', 'throw_1', 'throw_2',
+];
+export const JOB_POSES = {
+  assassin: [...JOB_POSE_BASE, 'backstab', 'lunge', 'guard', 'crouch_low', 'slash_alt_1', 'slash_alt_2'],
+  bandit: [...JOB_POSE_BASE, 'spin_1', 'spin_2', 'slash_alt', 'crouch_sabre', 'guard'],
+};
+// 目前程式實際用到的姿勢；其餘先預載備用（status: 'unused'）
+const JOB_POSES_USED = new Set([
+  'idle', 'walk_1', 'walk_2', 'walk_3', 'walk_4', 'jump', 'fall', 'hurt', 'down', 'slash_1', 'slash_2', 'slash_3',
+  'cast', 'dash', 'throw_1', 'throw_2', 'crouch_low', 'backstab', 'spin_1', 'spin_2',
+]);
+export const JOB_CHARACTER_ASSETS = [
+  ...Object.entries(JOB_POSES).flatMap(([job, poses]) => poses.map((pose, i) => ({
+    assetId: `CHR-${job.slice(0, 3).toUpperCase()}-${String(i + 1).padStart(3, '0')}`,
+    groupId: `CHR-${job.slice(0, 3).toUpperCase()}`,
+    kind: 'character',
+    key: `player_${job}_${pose}`,
+    path: `dist/assets/player_${job}_${pose}.png`,
+    status: JOB_POSES_USED.has(pose) ? 'used' : 'unused',
+  }))),
+  ...['assassin', 'bandit'].map((job) => ({
+    assetId: `CHR-PORTRAIT-${job.toUpperCase()}`,
+    groupId: 'CHR-PORTRAIT',
+    kind: 'character',
+    key: `portrait_${job}`,
+    path: `dist/assets/portrait_${job}.png`,
+    status: 'used',
+  })),
+];
+CHARACTER_ASSETS.push(...JOB_CHARACTER_ASSETS);
+
+// 技能圖示 PNG（手繪圖到位後把 id 加進來；沒列的由 src/assets/skillIcons.js 程式繪製）
+// 檔名規則：dist/assets/skill_icon_<id>.png，38x38；ATK 欄依職業用 ATK_assassin / ATK_bandit
+export const SKILL_ICON_PNG_IDS = [
+  'ATK', 'Z', 'X', 'C', 'V', 'B', 'backstab', 'poison', 'mark', 'whirl', 'steal', 'smoke',
+  'ATK_assassin', 'ATK_bandit',   // 暫用同一張普通攻擊圖，之後可換成雙刃 / 彎刀專屬圖
+];
+export const SKILL_ICON_ASSETS = SKILL_ICON_PNG_IDS.map((id) => ({
+  assetId: `ICO-SKILL-${id.toUpperCase()}`,
+  groupId: 'ICO-SKILL',
+  kind: 'icon',
+  key: `skill_icon_${id}`,
+  path: `dist/assets/skill_icon_${id}.png`,
+  status: 'used',
+}));
+
+// 任務物品圖示（key 與程式暫代圖相同時，以這裡載入的 PNG 為準）
+export const QUEST_ITEM_ASSETS = [
+  {
+    assetId: 'ITM-QST-001',
+    groupId: 'ITM-QST',
+    kind: 'icon',
+    key: 'item-quest-token',
+    path: 'dist/assets/item_trial_token.png',
+    status: 'used',
+  },
+];
+
+// 星光碎片圖示（key 是遊戲內貼圖名；檔案 dist/assets/item_star_shard.png）
+QUEST_ITEM_ASSETS.push({
+  assetId: 'ITM-SHD-001',
+  groupId: 'ITM-SHD',
+  kind: 'icon',
+  key: 'item-star-shard',
+  path: 'dist/assets/item_star_shard.png',
+  status: 'used',
+});
+
+// 場景擺設與世界地圖 UI（world map 的底圖 / 節點圖示；星光之塔）
+export const PROP_UI_ASSETS = [
+  { assetId: 'PRP-TWR-001', groupId: 'PRP-TWR', kind: 'prop', key: 'prop_star_tower', path: 'dist/assets/prop_star_tower.png', status: 'used' },
+  { assetId: 'UI-WMP-001', groupId: 'UI-WMP', kind: 'ui', key: 'ui_world_map', path: 'dist/assets/ui_world_map.webp', status: 'used' },
+  { assetId: 'UI-WMP-002', groupId: 'UI-WMP', kind: 'ui', key: 'ui_map_node_unlocked', path: 'dist/assets/ui_map_node_unlocked.png', status: 'used' },
+  { assetId: 'UI-WMP-003', groupId: 'UI-WMP', kind: 'ui', key: 'ui_map_node_current', path: 'dist/assets/ui_map_node_current.png', status: 'used' },
+  { assetId: 'UI-WMP-004', groupId: 'UI-WMP', kind: 'ui', key: 'ui_map_node_locked', path: 'dist/assets/ui_map_node_locked.png', status: 'used' },
+  { assetId: 'UI-QST-001', groupId: 'UI-QST', kind: 'ui', key: 'ui_quest_mark', path: 'dist/assets/ui_quest_mark.png', status: 'used' },
+  { assetId: 'UI-QST-002', groupId: 'UI-QST', kind: 'ui', key: 'ui_quest_ing', path: 'dist/assets/ui_quest_ing.png', status: 'used' },
+  { assetId: 'UI-QST-003', groupId: 'UI-QST', kind: 'ui', key: 'ui_quest_done', path: 'dist/assets/ui_quest_done.png', status: 'used' },
+];
+
 export const PRELOAD_IMAGE_ASSETS = [
   ...CHARACTER_ASSETS,
   ...BACKGROUND_ASSETS,
@@ -675,8 +1082,13 @@ export const PRELOAD_IMAGE_ASSETS = [
   ...ICON_ASSETS,
   ...POTION_ICON_ASSETS,
   ...UI_ASSETS,
+  ...SKILL_ICON_ASSETS,
+  ...QUEST_ITEM_ASSETS,
+  ...PROP_UI_ASSETS,
 ];
 
 export const PENDING_ALIGNMENT_ASSETS = MONSTER_ASSETS.filter(
   (asset) => asset.alignmentStatus === 'pending-alignment',
 );
+
+export const PRELOAD_SPRITESHEET_ASSETS = FX_ASSETS.filter((asset) => asset.status === 'used');

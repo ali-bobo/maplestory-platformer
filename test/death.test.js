@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {
   calcScore, baseStatsForLevel, applyDeathPenalty, countEquipment, LEVEL_GROWTH,
 } from '../src/engine/death.js';
-import { createInitialGameState, expNeeded } from '../src/config/constants.js';
+import { createInitialGameState, expNeeded, BOSS_FALLBACK_MAP } from '../src/config/constants.js';
 import { generateEquipment } from '../src/config/equipment.js';
 
 // 與 Player 的升級 / 換裝邏輯同步地推進狀態，用來驗證「由等級重算」與實際遊玩一致
@@ -41,7 +41,7 @@ test('分數對壞輸入穩健：NaN / 負數 / 缺欄位 / null', () => {
 test('baseStatsForLevel(1) 等於初始屬性，且與逐級升級的結果相同', () => {
   const fresh = createInitialGameState();
   assert.deepEqual(baseStatsForLevel(1), { maxHp: fresh.maxHp, maxMp: fresh.maxMp, atk: fresh.atk, speed: fresh.speed });
-  for (const lv of [2, 10, 30]) {
+  for (const lv of [2, 10, 30, 50]) {
     const gs = createInitialGameState();
     simulateLevelUps(gs, lv);
     assert.deepEqual(baseStatsForLevel(lv), { maxHp: gs.maxHp, maxMp: gs.maxMp, atk: gs.atk, speed: gs.speed }, `Lv${lv}`);
@@ -87,14 +87,14 @@ test('死亡懲罰不修改傳入的狀態', () => {
   assert.deepEqual(JSON.parse(JSON.stringify(gs)), snapshot);
 });
 
-test('副本死亡 → 楓葉城重生；Boss 房死亡 → Kerning City 重生；兩者都用預設出生點', () => {
+test('副本死亡 → 楓葉城重生；Boss 房死亡 → 主線最後一張地圖重生；兩者都用預設出生點', () => {
   const inDungeon = createInitialGameState(); inDungeon.currentMap = 'dungeon';
   const d = applyDeathPenalty(inDungeon, 999);
   assert.equal(d.currentMap, 'town');
   assert.notEqual(d.spawnX, 999);
   const inBoss = createInitialGameState(); inBoss.currentMap = 'boss';
   const b = applyDeathPenalty(inBoss, 999);
-  assert.equal(b.currentMap, 'kerning');
+  assert.equal(b.currentMap, BOSS_FALLBACK_MAP);
   assert.notEqual(b.spawnX, 999);
 });
 

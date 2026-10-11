@@ -8,22 +8,22 @@ import {
 import { VFX_TEX } from '../engine/vfxTextures.js';
 import { getQuality } from '../engine/quality.js';
 import { getVisualCenterPoint, ALIGNMENT_PROFILES, applyAlignmentProfile } from '../config/alignment.js';
-import { skillDamageScale } from '../config/constants.js';
+import { skillDamageScale, BASIC_ATTACK_DEF, effectiveCritMulti, effectiveCritRate, jobOf, jobPassive } from '../config/constants.js';
 
-function getEntityEffectPoint(entity) {
+export function getEntityEffectPoint(entity) {
   if (entity?.body?.center) {
     return { x: entity.body.center.x, y: entity.body.center.y };
   }
   return getVisualCenterPoint(entity);
 }
 
-function calcDamage(atk, critRate, critMulti, multiplier = 1) {
+export function calcDamage(atk, critRate, critMulti, multiplier = 1) {
   const base = atk * multiplier * (0.85 + Math.random() * 0.3);
   const isCrit = Math.random() < critRate;
   return { damage: Math.floor(isCrit ? base * critMulti : base), isCrit };
 }
 
-function spawnAfterimage(scene, sprite, options = {}) {
+export function spawnAfterimage(scene, sprite, options = {}) {
   if (!sprite?.active) return null;
   // Phase 9：殘影接品質系統——low 品質完全不生殘影（省高頻 image create/destroy）
   if (!getQuality(scene).afterimage) return null;
@@ -79,7 +79,7 @@ function spawnFanBurst(scene, x, y, facingRight) {
   }, 5, 320);
 }
 
-function spawnShockCircle(scene, x, y, options = {}) {
+export function spawnShockCircle(scene, x, y, options = {}) {
   const {
     startRadius = 24,
     endRadius = 80,
@@ -261,7 +261,7 @@ function createCloneLifeBar(scene, clone, duration = 5000) {
   };
 }
 
-function resolveAssassinateWarpPoint(scene, target, desiredX) {
+export function resolveAssassinateWarpPoint(scene, target, desiredX) {
   const platforms = scene?.mapData?.platforms;
   if (!Array.isArray(platforms) || platforms.length === 0) {
     return {
@@ -321,7 +321,7 @@ function cleanupProjectile(scene, projectile, overlap, emitter, timer) {
  * 命中停頓（hit-stop）：短暫放慢物理與補間，讓重擊有「卡一下」的手感。
  * 多次呼叫只會延長，不會疊加縮放。
  */
-function hitStop(scene, duration = 60) {
+export function hitStop(scene, duration = 60) {
   const world = scene.physics?.world;
   if (!world || scene._hitStopActive) return;
   scene._hitStopActive = true;
@@ -342,14 +342,38 @@ function hitStop(scene, duration = 60) {
   }
 }
 
-/** 命中星芒：白色柔光 + 十字閃光，比單純圓環更有「打中」的感覺 */
-function spawnImpactSpark(scene, x, y, color = 0xaaccff, size = 1) {
+/** 播放一次性特效動畫條（ADD 混合，播完自動銷毀）；素材未載入時回傳 null */
+export function playFx(scene, key, x, y, opts = {}) {
+  if (!scene.textures.exists(key)) return null;
+  const animKey = `${key}_play`;
+  if (!scene.anims.exists(animKey)) {
+    scene.anims.create({
+      key: animKey,
+      frames: scene.anims.generateFrameNumbers(key),
+      frameRate: opts.frameRate ?? 24,
+      repeat: 0,
+    });
+  }
+  // 預設 ADD（發光系）；橘 / 綠 / 灰這類要在亮背景上看得見的特效用 opts.normal 改成一般混合
+  const fx = scene.add.sprite(x, y, key).setDepth(opts.depth ?? 63)
+    .setBlendMode(opts.normal ? Phaser.BlendModes.NORMAL : Phaser.BlendModes.ADD).setScale(opts.scale ?? 1)
+    .setFlipX(!!opts.flipX).setRotation(opts.rotation ?? 0);
+  if (opts.tint != null) fx.setTint(opts.tint);
+  fx.once('animationcomplete', () => fx.destroy());
+  fx.play(animKey);
+  return fx;
+}
+
+/** 命中星芒：柔光 + 星爆動畫（素材缺失時退回兩道十字閃光） */
+export function spawnImpactSpark(scene, x, y, color = 0xaaccff, size = 1) {
   const glow = scene.add.image(x, y, VFX_TEX.SOFT_GLOW).setDepth(61)
     .setTint(color).setBlendMode(Phaser.BlendModes.ADD).setScale(0.6 * size);
   scene.tweens.add({
     targets: glow, scale: 1.5 * size, alpha: 0, duration: 220, ease: 'Quad.easeOut',
     onComplete: () => glow.destroy(),
   });
+  const tinted = color !== 0xaaccff && color !== 0xffdd66;
+  if (playFx(scene, 'fx_hit', x, y, { scale: 0.5 * size, frameRate: 32, tint: tinted ? color : undefined })) return;
   const rot = Math.random() * Math.PI;
   for (let i = 0; i < 2; i++) {
     const streak = scene.add.image(x, y, VFX_TEX.WHITE_PX).setDepth(62)
@@ -363,7 +387,7 @@ function spawnImpactSpark(scene, x, y, color = 0xaaccff, size = 1) {
   }
 }
 
-function findNearestEnemy(enemies, x, y, maxDist) {
+export function findNearestEnemy(enemies, x, y, maxDist) {
   let nearest = null;
   let minDist = maxDist;
   enemies?.getChildren?.().forEach((enemy) => {
@@ -377,9 +401,9 @@ function findNearestEnemy(enemies, x, y, maxDist) {
 
 /**
  * 發射一顆飛鏢。玩家的 Z 技能與影分身共用。
- * opts: x, y, vx, vy, multiplier, skillKey, tint, scale, pierce, alpha
+ * opts: x, y, vx, vy, multiplier, skillKey, tint, scale, pierce, alpha, onHit(enemy, center, isCrit)
  */
-function launchShuriken(scene, player, enemies, opts) {
+export function launchShuriken(scene, player, enemies, opts) {
   const gs = player.gameState;
   const dir = opts.vx >= 0 ? 1 : -1;
   const scale = opts.scale ?? 1;
@@ -423,7 +447,7 @@ function launchShuriken(scene, player, enemies, opts) {
       if (!proj.active || !enemy?.active || enemy.isDead || hitSet.has(enemy)) return;
       hitSet.add(enemy);
       const { damage, isCrit } = calcDamage(
-        gs.atk, gs.critRate, gs.critMulti,
+        gs.atk, gs.critRate, effectiveCritMulti(gs),
         opts.multiplier * skillDamageScale(gs.skillLevels[opts.skillKey] ?? 1),
       );
       enemy.takeDamage(damage, isCrit);
@@ -432,6 +456,7 @@ function launchShuriken(scene, player, enemies, opts) {
       spawnImpactSpark(scene, c.x, c.y, isCrit ? 0xffdd66 : 0xaaccff, isCrit ? 1.3 : 1);
       spawnFanBurst(scene, c.x, c.y, dir > 0);
       audio.playImpact(isCrit);
+      if (opts.onHit) opts.onHit(enemy, c, isCrit);
       if (isCrit) {
         hitStop(scene, 50);
         spawnLightRays(scene, c.x, c.y, { count: 10, length: 80, color: 0xffe08a, alpha: 0.45, duration: 280 });
@@ -447,6 +472,47 @@ function launchShuriken(scene, player, enemies, opts) {
     cleanupProjectile(scene, shuriken, overlap, trail, afterimageTimer);
   });
   return shuriken;
+}
+
+// 普通攻擊：面前一個短距離的揮刀判定（不耗 MP、不吃技能等級），可同時命中範圍內所有敵人。
+export function castSlash(scene, player, enemies) {
+  audio.playSkill('ATK');
+  const dir = player.facingRight ? 1 : -1;
+  if (typeof player._lockPose === 'function') {
+    player._lockPose(player.pose('slash_1'), 80);
+    scene.time.delayedCall(80, () => { if (player.active && !player.isDead) player._lockPose(player.pose('slash_2'), 90); });
+    scene.time.delayedCall(170, () => { if (player.active && !player.isDead) player._lockPose(player.pose('slash_3'), 130); });
+  }
+
+  scene.time.delayedCall(80, () => {
+    if (!scene.sys.isActive() || !player.active || player.isDead) return;
+    const gs = player.gameState;
+    const origin = getEntityEffectPoint(player);
+    const range = BASIC_ATTACK_DEF.range;
+    spawnSlashWave(scene, origin.x, origin.y - 4, player.facingRight, {
+      radius: range * 0.8, color: 0xe8f0ff, duration: 200, scale: 1.5,
+    });
+    let hits = 0;
+    let crit = false;
+    enemies?.getChildren?.().forEach((enemy) => {
+      if (!enemy?.active || enemy.isDead) return;
+      const c = getEntityEffectPoint(enemy);
+      const reach = range + (enemy.body ? enemy.body.halfWidth : 20);
+      const ahead = (c.x - origin.x) * dir;
+      if (ahead < -16 || ahead > reach || Math.abs(c.y - origin.y) > 62) return;
+      const { damage, isCrit } = calcDamage(gs.atk, gs.critRate, effectiveCritMulti(gs), BASIC_ATTACK_DEF.damageMult);
+      enemy.takeDamage(damage, isCrit);
+      enemy.applyKnockback?.(dir * (isCrit ? 240 : 130), isCrit ? 200 : 110);
+      spawnImpactSpark(scene, c.x, c.y, isCrit ? 0xffdd66 : 0xaaccff, isCrit ? 1.3 : 1);
+      audio.playImpact(isCrit);
+      hits++;
+      crit = crit || isCrit;
+    });
+    if (hits > 0) {
+      if (crit) hitStop(scene, 45);
+      scene.cameras.main.shake(crit ? 80 : 35, crit ? 0.009 : 0.003);
+    }
+  });
 }
 
 export function castShuriken(scene, player, enemies) {
@@ -493,6 +559,7 @@ export function castDash(scene, player, enemies) {
   player.isDashing = true;
   player.body.setAllowGravity(false);
   player.setVelocity(dir * 900, 0);
+  player._lockPose?.(player.pose('dash'), 320);
   // Phase 11.2A：移除玩家 flashGlow PostFX——玩家已有 alpha yoyo 閃爍視覺
   // （下方 tween），不需 GlowFilter framebuffer 切換造成卡頓
   screenFlash(scene, 80, 0.15);
@@ -552,7 +619,7 @@ export function castDash(scene, player, enemies) {
     overlap = scene.physics.add.overlap(player, enemies, (dashPlayer, enemy) => {
       if (!dashPlayer?.active || !enemy?.active || enemy.isDead || hitSet.has(enemy)) return;
       hitSet.add(enemy);
-      const { damage, isCrit } = calcDamage(gs.atk, gs.critRate, gs.critMulti, 0.6 * skillDamageScale(gs.skillLevels.X));
+      const { damage, isCrit } = calcDamage(gs.atk, gs.critRate, effectiveCritMulti(gs), 0.6 * skillDamageScale(gs.skillLevels.X));
       enemy.takeDamage(damage, isCrit);
       audio.playImpact(isCrit);
       const c = getEntityEffectPoint(enemy);
@@ -572,7 +639,7 @@ export function castDash(scene, player, enemies) {
         if (mark.active) mark.destroy();
         if (!enemy?.active || enemy.isDead) return;
         const c = getEntityEffectPoint(enemy);
-        const { damage, isCrit } = calcDamage(gs.atk, gs.critRate, gs.critMulti, 1.2 * skillDamageScale(gs.skillLevels.X));
+        const { damage, isCrit } = calcDamage(gs.atk, gs.critRate, effectiveCritMulti(gs), 1.2 * skillDamageScale(gs.skillLevels.X));
         enemy.takeDamage(damage, isCrit);
         enemy.applyKnockback?.(dir * 220, 200, -160);
         audio.playImpact(true);
@@ -664,7 +731,7 @@ export function castAssassinate(scene, player, enemies) {
     scene.time.delayedCall(delay, () => {
       if (!scene.sys.isActive() || !nearest.active || nearest.isDead) return;
       const c = getEntityEffectPoint(nearest);
-      const dmg = Math.floor(gs.atk * 0.8 * skillDamageScale(gs.skillLevels.C) * gs.critMulti * (0.9 + Math.random() * 0.2));
+      const dmg = Math.floor(gs.atk * 0.8 * skillDamageScale(gs.skillLevels.C) * effectiveCritMulti(gs) * (0.9 + Math.random() * 0.2));
       nearest.takeDamage(dmg, true);
       audio.playImpact(false);
       spawnSlashWave(scene, c.x, c.y, idx === 0 ? flurryDir : !flurryDir, {
@@ -689,7 +756,7 @@ export function castAssassinate(scene, player, enemies) {
       lineWidth: 3,
     });
 
-    const damage = Math.floor(gs.atk * 1.9 * skillDamageScale(gs.skillLevels.C) * gs.critMulti * (0.9 + Math.random() * 0.2));
+    const damage = Math.floor(gs.atk * 1.9 * skillDamageScale(gs.skillLevels.C) * effectiveCritMulti(gs) * (0.9 + Math.random() * 0.2));
     nearest.takeDamage(damage, true);
     audio.playImpact(true);
     hitStop(scene, 90);
@@ -803,6 +870,7 @@ export function castAssassinate(scene, player, enemies) {
 
 export function castVortex(scene, player, enemies) {
   audio.playSkill('V');
+  player._lockPose?.(player.pose('cast'), 450);
   const gs = player.gameState;
   const dir = player.facingRight ? 1 : -1;
   const origin = getEntityEffectPoint(player);
@@ -875,7 +943,7 @@ export function castVortex(scene, player, enemies) {
           if (Math.abs(dx) > 12) {
             enemy.applyKnockback?.(Math.sign(dx) * Math.min(300, Math.abs(dx) * 2.4 + 60), tickInterval);
           }
-          const { damage, isCrit } = calcDamage(gs.atk, gs.critRate, gs.critMulti, 0.35 * skillDamageScale(gs.skillLevels.V));
+          const { damage, isCrit } = calcDamage(gs.atk, gs.critRate, effectiveCritMulti(gs), 0.35 * skillDamageScale(gs.skillLevels.V));
           enemy.takeDamage(damage, isCrit);
           spawnImpactSpark(scene, c.x, c.y, 0xb98bff, 0.7);
         });
@@ -905,7 +973,7 @@ export function castVortex(scene, player, enemies) {
         if (!enemy?.active || enemy.isDead) return;
         const c = getEntityEffectPoint(enemy);
         if (Phaser.Math.Distance.Between(cx, cy, c.x, c.y) > radius + 20) return;
-        const { damage, isCrit } = calcDamage(gs.atk, gs.critRate, gs.critMulti, 0.9 * skillDamageScale(gs.skillLevels.V));
+        const { damage, isCrit } = calcDamage(gs.atk, gs.critRate, effectiveCritMulti(gs), 0.9 * skillDamageScale(gs.skillLevels.V));
         enemy.takeDamage(damage, isCrit);
         const away = c.x >= cx ? 1 : -1;
         enemy.applyKnockback?.(away * 340, 260, -220);
@@ -937,7 +1005,7 @@ function mirrorShurikenFromClone(scene, player, enemies) {
   const dir = clone.flipX ? -1 : 1;
   scene.time.delayedCall(90, () => {
     if (!clone.active) return;
-    clone.lockPose?.('player_attack', 180);
+    clone.lockPose?.(player.pose('throw_2'), 180);
     launchShuriken(scene, player, enemies, {
       x: clone.x + dir * 22, y: clone.y - clone.displayHeight * 0.45, vx: dir * 680, vy: 0,
       multiplier: 0.6, skillKey: 'B', tint: 0xc9a0ff, alpha: 0.9,
@@ -948,6 +1016,7 @@ function mirrorShurikenFromClone(scene, player, enemies) {
 
 export function castClone(scene, player, enemies) {
   audio.playSkill('B');
+  player._lockPose?.(player.pose('cast'), 400);
   const DURATION = 12000;
   const gs = player.gameState;
   const dir = player.facingRight ? 1 : -1;
@@ -979,7 +1048,7 @@ export function castClone(scene, player, enemies) {
   let poseLockUntil = 0;
   let poseLockKey = null;
   clone.lockPose = (key, ms) => {
-    if (!scene.textures.exists(key)) return;
+    if (!key || !scene.textures.exists(key)) return;
     poseLockKey = key;
     poseLockUntil = scene.time.now + ms;
   };
@@ -1020,8 +1089,8 @@ export function castClone(scene, player, enemies) {
     const c = getEntityEffectPoint(enemy);
     const face = c.x >= clone.x ? 1 : -1;
     clone.setFlipX(face < 0);
-    clone.lockPose('player_attack', 220);
-    const { damage, isCrit } = calcDamage(gs.atk, gs.critRate, gs.critMulti, 0.9 * skillDamageScale(gs.skillLevels.B));
+    clone.lockPose(player.pose('slash_2'), 220);
+    const { damage, isCrit } = calcDamage(gs.atk, gs.critRate, effectiveCritMulti(gs), 0.9 * skillDamageScale(gs.skillLevels.B));
     enemy.takeDamage(damage, isCrit);
     enemy.applyKnockback?.(face * 180, 160);
     audio.playImpact(isCrit);
@@ -1033,7 +1102,7 @@ export function castClone(scene, player, enemies) {
     const c = getEntityEffectPoint(enemy);
     const face = c.x >= clone.x ? 1 : -1;
     clone.setFlipX(face < 0);
-    clone.lockPose('player_attack', 200);
+    clone.lockPose(player.pose('throw_2'), 200);
     const oy = clone.y - clone.displayHeight * 0.45;
     const angle = Math.atan2(c.y - oy, c.x - clone.x);
     launchShuriken(scene, player, enemies, {
@@ -1100,10 +1169,10 @@ export function castClone(scene, player, enemies) {
     // 姿勢
     let key;
     if (time < poseLockUntil && poseLockKey) key = poseLockKey;
-    else if (!onGround) key = 'player_jump';
-    else if (Math.abs(clone.body.velocity.x) > 10) key = Math.floor(time / 140) % 2 ? 'player_walk_1' : 'player_walk_2';
-    else key = 'player_idle';
-    if (scene.textures.exists(key) && clone.texture.key !== key) {
+    else if (!onGround) key = player.pose(clone.body.velocity.y > 40 ? 'fall' : 'jump');
+    else if (Math.abs(clone.body.velocity.x) > 10) key = player.walkPoseKey(time);
+    else key = player.pose('idle');
+    if (key && clone.texture.key !== key) {
       clone.setTexture(key);
       aura.setTexture(key);
     }
@@ -1137,4 +1206,22 @@ export function castClone(scene, player, enemies) {
   });
 
   return clone;
+}
+
+/** 轉職覺醒演出：光柱 + fx_job_change 疊在玩家身上，施法動作 */
+export function playJobChangeEffect(scene, player) {
+  if (!player?.active) return;
+  const c = getEntityEffectPoint(player);
+  player._lockPose?.(player.pose('cast'), 1000);
+  audio.playLevelUp?.();
+  screenFlash(scene, 160, 0.45);
+  spawnLightRays(scene, c.x, c.y, { count: 18, length: 220, color: 0xfff0b0, alpha: 0.6, duration: 900, width: 3 });
+  spawnShockCircle(scene, c.x, c.y, {
+    startRadius: 16, endRadius: 150, duration: 600, color: 0xffe9a0, alpha: 0.8, lineWidth: 4,
+  });
+  cameraZoomPunch(scene, 0.05, 400);
+  const beam = scene.add.image(c.x, c.y + 40, VFX_TEX.WHITE_PX).setDepth(60).setTint(0xfff0b0)
+    .setBlendMode(Phaser.BlendModes.ADD).setOrigin(0.5, 1).setDisplaySize(40, 10).setAlpha(0.85);
+  scene.tweens.add({ targets: beam, displayHeight: 560, displayWidth: 90, alpha: 0, duration: 900, ease: 'Quad.easeOut', onComplete: () => beam.destroy() });
+  playFx(scene, 'fx_job_change', c.x, c.y - 10, { scale: 1.9, frameRate: 7, depth: 64 });
 }

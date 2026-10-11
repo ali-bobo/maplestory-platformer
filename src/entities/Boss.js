@@ -100,8 +100,8 @@ export class Boss extends Monster {
     this._bossFgBar.scaleX = ratio;
   }
 
-  takeDamage(amount, isCrit = false) {
-    super.takeDamage(amount, isCrit);
+  takeDamage(amount, isCrit = false, opts) {
+    super.takeDamage(amount, isCrit, opts);
     if (this.isDead) return;
     this._updateBossHpBar();
     this._checkPhaseTransition();

@@ -3,17 +3,29 @@ import { MAPS } from '../config/maps.js';
 import { MONSTERS } from '../config/monsters.js';
 import { MAP_SCENE_KEYS, WORLD_HEIGHT } from '../config/constants.js';
 import { Player } from '../entities/Player.js';
+import { playJobChangeEffect, playFx } from '../entities/Skill.js';
+import { spawnLightRays, screenFlash } from '../engine/vfx.js';
+import { jobOf } from '../config/constants.js';
 import { Monster } from '../entities/Monster.js';
 import { audio } from '../engine/audio.js';
 import { getVisualFootPadding } from '../config/alignment.js';
-import { addParchmentPanel } from '../engine/woodUi.js';
+import { addParchmentPanel, addWoodButton } from '../engine/woodUi.js';
+import { POTION_ICON_KEYS } from '../config/assetCatalog.js';
+import { shopOf } from '../config/shops.js';
+import { shopItemLabel, buyShopItem } from '../engine/shop.js';
 import { VFX_TEX } from '../engine/vfxTextures.js';
 import { saveGame, isSavableMap } from '../engine/saveGame.js';
-import { onMonsterKilled, onMapEntered, acceptQuest, isQuestActive, isQuestCompleted } from '../engine/questManager.js';
+import { onMonsterKilled, onMapEntered, acceptQuest, isQuestActive, isQuestCompleted, onNpcTalked, onItemCollected, questItemDrop, chooseJobPath } from '../engine/questManager.js';
+import { buildNpcDialog } from '../engine/npcDialog.js';
+import { getQuestDef, TRIAL_ITEM_NAME } from '../config/quests.js';
 import { canEnterDungeon, getRemainingEntries } from '../engine/dungeonRecord.js';
 import { getDungeonDef } from '../config/dungeons.js';
 import { keyHint } from '../engine/device.js';
 import { getQualityLevel } from '../engine/quality.js';
+import { SHARD_COUNT, SHARD_TEXTURE } from '../config/shards.js';
+import { grantShard, lightTower, shardCount } from '../engine/shards.js';
+import { visitMap } from '../engine/worldGraph.js';
+import { createMapModifier } from '../engine/mapModifiers.js';
 
 const PLATFORM_HEIGHT = 24;
 const GROUND_Y = WORLD_HEIGHT;
@@ -27,6 +39,14 @@ const PLATFORM_THEMES = {
   kerning: { key: 'platform_city',    surfaceTop: 11 },
   taipei:  { key: 'platform_city',    surfaceTop: 11 },
   town:    { key: 'platform_town',    surfaceTop: 1 },
+  // TODO(art): 影之殿堂專屬跳台 platform_shrine.png（白石 + 金邊）還沒有，先借用晨曦鎮的跳台
+  shrine:  { key: 'platform_town',    surfaceTop: 1 },
+  harbor:  { key: 'platform_harbor',  surfaceTop: 3 },
+  // 四張新圖的跳台圖是 246×21～22 的細長條：stretchH 把它縱向拉到和其他跳台差不多的厚度
+  desert:  { key: 'platform_desert',  surfaceTop: 2, stretchH: 36 },
+  snow:    { key: 'platform_snow',    surfaceTop: 3, stretchH: 38 },
+  lava:    { key: 'platform_lava',    surfaceTop: 2, stretchH: 38 },
+  castle:  { key: 'platform_castle',  surfaceTop: 2, stretchH: 36 },
   boss:    { key: 'platform_boss',    surfaceTop: 0 },
   dungeon: { key: 'platform_dungeon', surfaceTop: 0 },
 };
@@ -71,6 +91,7 @@ export class BaseMapScene extends Phaser.Scene {
 
     const gs = this.registry.get('gameState');
     gs.currentMap = this.mapKey;
+    visitMap(gs, this.mapKey);   // 世界地圖傳送只能去去過的地圖
     this.registry.set('gameState', gs);
 
     // Phase 13：推進「抵達型」任務（玩家進入此地圖就視為抵達）
@@ -100,6 +121,7 @@ export class BaseMapScene extends Phaser.Scene {
     this._createPortals();
     this._createNPCs();
     this._setupColliders();
+    this._modifier = createMapModifier(this, this.mapData.modifier);   // 冰面 / 流沙 / 岩漿 / 暗黑視野（沒有則 null）
 
     if (!this.scene.isActive('UIScene')) {
       this.scene.launch('UIScene');
@@ -110,6 +132,7 @@ export class BaseMapScene extends Phaser.Scene {
     audio.setMusicQuality(getQualityLevel(this));   // 音樂跟著遊戲的自適應品質
     audio.playBgm(this.mapKey);
     this.events.on('monster-died', this._onMonsterDied, this);
+    this.events.on('job-changed', this._onJobChanged, this);
     this._playTimeAccum = 0;
 
     // ESC 關閉 NPC 對話
@@ -127,13 +150,16 @@ export class BaseMapScene extends Phaser.Scene {
       }
       // Phase 15：每個 NPC 只能發放它自己的 questIds（綁定地圖任務）
       // 不再走全域 listAvailableQuestIds()——避免單一 NPC 把所有任務接完
+      // 順序：先推進「對話型」任務（例如影之召喚），再接新任務（前置完成的下一步），最後再推進一次
+      // （剛接的覺醒任務在同一次對話就完成）
+      onNpcTalked(this, npcData.npcId);
       const npcQuestIds = Array.isArray(npcData.questIds) ? npcData.questIds : [];
       for (const questId of npcQuestIds) {
         if (!isQuestActive(this, questId) && !isQuestCompleted(this, questId)) {
-          acceptQuest(this, questId);
-          break;  // 一次只接一個，玩家完成後可再對話接下一個
+          if (acceptQuest(this, questId)) break;   // 一次只接一個，玩家完成後可再對話接下一個；等級 / 前置不符的略過
         }
       }
+      onNpcTalked(this, npcData.npcId);
       this._openNpcDialog(npcData);
     };
     this.input.keyboard.on('keydown-F', this._onInteractKeyDown);
@@ -169,14 +195,16 @@ export class BaseMapScene extends Phaser.Scene {
     // 不使用 tileSprite：背景圖多為非 2 次方尺寸，平鋪時接縫處會出現裂痕／破圖，
     // 且每幀更新 tilePosition 也是額外負擔。改用固定單圖即可徹底消除接縫。
     if (bgImage && this.textures.exists(bgImage)) {
-      const src = this.textures.get(bgImage).getSourceImage();
-      const sc = Math.max(SCREEN_W / src.width, bgH / src.height);
-      const bg = this.add.image(SCREEN_W / 2, bgH, bgImage);
-      bg.setOrigin(0.5, 1);
-      bg.setScale(sc);
-      bg.setScrollFactor(0);
-      bg.setDepth(-9);
+      this._addCoverBackground(bgImage);
     }
+  }
+
+  _addCoverBackground(key) {
+    const SCREEN_W = 1280;
+    const src = this.textures.get(key).getSourceImage();
+    const sc = Math.max(SCREEN_W / src.width, WORLD_HEIGHT / src.height);
+    return this.add.image(SCREEN_W / 2, WORLD_HEIGHT, key)
+      .setOrigin(0.5, 1).setScale(sc).setScrollFactor(0).setDepth(-9);
   }
 
   // ── 平台建立 ───────────────────────────────────────────────────────────────
@@ -198,11 +226,12 @@ export class BaseMapScene extends Phaser.Scene {
   }
 
   // 把主題圖切成左端 / 中段 / 右端三張紋理（中段左右邊緣交叉淡化，重複鋪時看不出接縫）
-  _ensurePlatformSlices(themeKey) {
+  // outH：縱向拉伸後的高度（細長的跳台圖用；沒給就用原圖高度）
+  _ensurePlatformSlices(themeKey, outH) {
     const leftKey = `${themeKey}__L`;
     if (this.textures.exists(leftKey)) return;
     const src = this.textures.get(themeKey).getSourceImage();
-    const w = src.width, h = src.height;
+    const w = src.width, srcH = src.height, h = outH || srcH;
     const capW = Math.round(w * PLATFORM_CAP_RATIO);
     const tileW = Math.round(w * PLATFORM_TILE_RATIO);
     const blendW = Math.round(tileW * 0.25);
@@ -210,7 +239,7 @@ export class BaseMapScene extends Phaser.Scene {
 
     const slice = (key, sx, sw) => {
       const tex = this.textures.createCanvas(key, sw, h);
-      tex.getContext().drawImage(src, sx, 0, sw, h, 0, 0, sw, h);
+      tex.getContext().drawImage(src, sx, 0, sw, srcH, 0, 0, sw, h);
       tex.refresh();
     };
     slice(leftKey, 0, capW);
@@ -218,18 +247,18 @@ export class BaseMapScene extends Phaser.Scene {
 
     const mid = this.textures.createCanvas(`${themeKey}__M`, tileW, h);
     const ctx = mid.getContext();
-    ctx.drawImage(src, tileX, 0, tileW, h, 0, 0, tileW, h);
+    ctx.drawImage(src, tileX, 0, tileW, srcH, 0, 0, tileW, h);
     // 左緣用 tile 右側之後的像素淡入，讓 tile 首尾相接
     for (let i = 0; i < blendW; i++) {
       ctx.globalAlpha = 1 - i / blendW;
-      ctx.drawImage(src, tileX + tileW + i, 0, 1, h, i, 0, 1, h);
+      ctx.drawImage(src, tileX + tileW + i, 0, 1, srcH, i, 0, 1, h);
     }
     ctx.globalAlpha = 1;
     mid.refresh();
   }
 
   _drawThemedPlatform(p, theme) {
-    this._ensurePlatformSlices(theme.key);
+    this._ensurePlatformSlices(theme.key, theme.stretchH);
     const leftTex = this.textures.get(`${theme.key}__L`).getSourceImage();
     const h = leftTex.height;
     const fullCapW = leftTex.width;
@@ -321,10 +350,13 @@ export class BaseMapScene extends Phaser.Scene {
       portal.targetMap = pd.target;
       portal.spawnX   = pd.spawnX;  // 目標地圖的重生位置
       portal.dungeonId = pd.dungeonId;  // Phase 14：副本 ID（target='dungeon' 時用）
+      portal.requiresQuest = pd.requiresQuest;
+      portal.minLevel = pd.minLevel || 0;
       portal.refreshBody();
 
       // Phase 14：dungeon 類型 portal 在 label 後補「(今日剩 N 次)」，給玩家可見回饋
       let labelText = pd.label || '';
+      if (pd.minLevel && gs.level < pd.minLevel) labelText = `${labelText}（Lv.${pd.minLevel} 開放）`;
       if (pd.target === 'dungeon' && pd.dungeonId) {
         const def = getDungeonDef(pd.dungeonId);
         if (def?.dailyLimit) {
@@ -393,15 +425,17 @@ export class BaseMapScene extends Phaser.Scene {
       // NPC 圖片以腳底貼齊平台頂，和玩家/怪物站在同一平面。
       const npc = this.physics.add.staticImage(placement.x, footY, npcDef.id || 'npc_new_2');
       npc.setOrigin(0.5, 1);
-      // NPC 圖統一 80px 高，依原圖比例縮放避免變形
+      // NPC 圖統一 80px 高（擺設如星光之塔用 npcDef.height），依原圖比例縮放避免變形
       const npcSrc = npc.texture.getSourceImage();
-      npc.setScale(80 / Math.max(1, npcSrc.height || 80));
+      const npcH = npcDef.height || 80;
+      npc.setScale(npcH / Math.max(1, npcSrc.height || 80));
       npc.setDepth(8);
+      if (npcDef.tint) npc.setTint(npcDef.tint);
       npc.refreshBody();
       npc._npcData = npcDef;
 
       // 名稱標籤
-      const lbl = this.add.text(placement.x, footY - 86, npcDef.name || '', {
+      const lbl = this.add.text(placement.x, footY - npcH - 6, npcDef.name || '', {
         fontSize: '13px', color: '#ffee88', fontFamily: 'Arial',
         stroke: '#000', strokeThickness: 3,
       }).setDepth(9).setOrigin(0.5, 1);
@@ -409,15 +443,62 @@ export class BaseMapScene extends Phaser.Scene {
       // 互動提示（靠近時才顯示）
       const hintLabel = npcDef.shop
         ? keyHint('[按 F 開啟商店]', '[點「互動」開啟商店]')
-        : keyHint('[按 F 對話]', '[點「互動」對話]');
-      const hint = this.add.text(placement.x, footY - 106, hintLabel, {
+        : npcDef.role === 'starTower'
+          ? keyHint('[按 F 查看星光碎片]', '[點「互動」查看星光碎片]')
+          : keyHint('[按 F 對話]', '[點「互動」對話]');
+      // 高大的擺設（塔）把提示放在塔腳，免得飄在畫面外
+      const hint = this.add.text(placement.x, npcH > 120 ? footY - 70 : footY - 106, hintLabel, {
         fontSize: '11px', color: '#aaffaa', fontFamily: 'Arial',
         stroke: '#000', strokeThickness: 2,
       }).setDepth(9).setOrigin(0.5, 1).setAlpha(0);
 
       npc._hint = hint;
       this._npcEntries.push({ npc, hint, label: lbl, data: npcDef });
+      if (npcDef.role === 'starTower') this._createTowerGlow(npc, npcH);
     }
+  }
+
+  // ── 星光之塔 ────────────────────────────────────────────────────────────────
+  // 塔頂的星光：亮度依碎片數增加，點亮後全亮並緩慢脈動（單一 Image + 一個 tween，不需每幀更新）
+  _createTowerGlow(npc, towerH) {
+    const gs = this.registry.get('gameState');
+    const n = shardCount(gs);
+    const lit = !!gs.towerLit;
+    const glow = this.add.image(npc.x, npc.y - towerH + 34, VFX_TEX.SOFT_GLOW).setDepth(9)
+      .setTint(0xffe27a).setBlendMode(Phaser.BlendModes.ADD).setScale(lit ? 1.9 : 0.5 + 0.2 * n);
+    glow.setAlpha(lit ? 0.9 : 0.12 + 0.12 * n);
+    this._towerGlow = glow;
+    this._towerBaseY = npc.y;
+    this._towerH = towerH;
+    this._towerTween = this.tweens.add({
+      targets: glow, alpha: glow.alpha * 0.55, duration: 1500, yoyo: true, repeat: -1, ease: 'Sine.easeInOut',
+    });
+    this._portalTweens = this._portalTweens || [];
+    this._portalTweens.push(this._towerTween);   // 場景關閉時一併停止
+  }
+
+  // 互動星光之塔：顯示進度（對話框）；5/5 且尚未點亮 → 點亮並解鎖最終 Boss
+  _interactStarTower() {
+    const gs = this.registry.get('gameState');
+    if (!lightTower(gs)) return;
+    this.registry.set('gameState', gs);
+    this.registry.events.emit('changedata-shards', null, shardCount(gs));
+    const x = this._towerGlow ? this._towerGlow.x : this.player.x;
+    const topY = this._towerGlow ? this._towerGlow.y : this.player.y - 200;
+    audio.playLevelUp();
+    screenFlash(this, 200, 0.5);
+    this.cameras.main.shake(500, 0.006);
+    spawnLightRays(this, x, topY, { count: 24, length: 300, color: 0xfff0b0, alpha: 0.6, duration: 1400, width: 3 });
+    playFx(this, 'fx_star_restore', x, topY + 110, { scale: 3.4, frameRate: 7, depth: 64 });   // 碎片歸位的金色光爆
+    playFx(this, 'fx_job_change', x, topY + 20, { scale: 2.6, frameRate: 6, depth: 64 });
+    this.time.delayedCall(500, () => playFx(this, 'fx_job_change', x, topY + 70, { scale: 3.2, frameRate: 6, depth: 64 }));
+    if (this._towerGlow) {
+      this._towerTween?.stop();
+      this._towerGlow.setScale(1.9).setAlpha(0.95);
+      this.tweens.add({ targets: this._towerGlow, scale: 4.2, alpha: 0.4, duration: 900, yoyo: true, ease: 'Sine.easeInOut' });
+    }
+    this.time.delayedCall(1100, () => this._showTransientMessage(`星光之塔重新亮起！\n暗影領域的入口在「魔君王城」開啟`, 3600));
+    saveGame(gs);
   }
 
   _getClosestPlatformTopY(x, targetY = GROUND_Y) {
@@ -520,31 +601,33 @@ export class BaseMapScene extends Phaser.Scene {
 
   _openNpcDialog(npcDef) {
     if (this._npcDialog) return;
+    if (npcDef.shop) { this._openShop(npcDef); return; }
 
     const cam = this.cameras.main;
     const cx = cam.scrollX + cam.width / 2;
     const cy = cam.scrollY + cam.height * 0.65;
 
-    const dialogLines = npcDef.dialog || [
-      '歡迎光臨！勇士請多保重。',
-      '這裡的怪物最近鬧得很兇...',
-      '你可以在這裡購買補給品。',
-    ];
+    // 內容依任務進度而變（影之長老）；有 choices 時多一排選項按鈕
+    const { lines: dialogLines, choices } = buildNpcDialog(this.registry.get('gameState'), npcDef);
+    // 行數多（星光之塔的碎片清單）時面板加高、往上長，免得蓋到底下的 HUD
+    const extra = Math.max(0, dialogLines.length - 4) * 20;
+    const panelH = (choices ? 214 : 170) + extra;
+    const top = cy - 84 - extra;
 
-    const bg = addParchmentPanel(this, cx - 240, cy - 84, 480, 170, { depth: 100, world: true });
+    const bg = addParchmentPanel(this, cx - 240, top, 480, panelH, { depth: 100, world: true });
 
-    const title = this.add.text(cx, cy - 58, npcDef.name || 'NPC', {
+    const title = this.add.text(cx, top + 26, npcDef.name || 'NPC', {
       fontSize: '16px', color: '#ffe27a', fontFamily: 'Arial', fontStyle: 'bold',
       stroke: '#1a0e06', strokeThickness: 4,
     }).setOrigin(0.5, 0).setDepth(101);
 
-    const msgText = this.add.text(cx, cy - 24, dialogLines.join('\n'), {
+    const msgText = this.add.text(cx, top + 60, dialogLines.join('\n'), {
       fontSize: '14px', color: '#fff3dc', fontFamily: 'Arial',
       stroke: '#1a0e06', strokeThickness: 2,
       wordWrap: { width: 400 }, lineSpacing: 4,
     }).setOrigin(0.5, 0).setDepth(101);
 
-    const close = this.add.text(cx, cy + 60, keyHint('[ 按 F 或 ESC 關閉 ]', '[ 點此關閉 ]'), {
+    const close = this.add.text(cx, top + (choices ? 196 : 144) + extra, keyHint('[ 按 F 或 ESC 關閉 ]', '[ 點此關閉 ]'), {
       fontSize: '12px', color: '#e8d3a8', fontFamily: 'Arial', stroke: '#1a0e06', strokeThickness: 3,
     }).setOrigin(0.5, 0.5).setDepth(101)
       .setInteractive({ useHandCursor: true })
@@ -552,17 +635,126 @@ export class BaseMapScene extends Phaser.Scene {
       .on('pointerover', () => close.setColor('#ffe27a'))
       .on('pointerout',  () => close.setColor('#e8d3a8'));
 
-    this._npcDialog = { bg, title, msgText, close };
+    const extras = [];
+    const keyHandlers = [];
+    if (choices) {
+      const bw = 214, bh = 34, gap = 12;
+      const startX = cx - (choices.length * bw + (choices.length - 1) * gap) / 2;
+      choices.forEach((choice, i) => {
+        const bx = startX + i * (bw + gap);
+        const by = top + 144;
+        const btn = this.add.rectangle(bx + bw / 2, by + bh / 2, bw, bh, 0x6b3f1a, 0.95)
+          .setStrokeStyle(2, 0xe0b04a, 0.9).setDepth(101).setInteractive({ useHandCursor: true });
+        const label = this.add.text(bx + bw / 2, by + bh / 2, `${keyHint(`${i + 1}　`, '')}${choice.label}`, {
+          fontSize: '14px', color: '#fff3dc', fontFamily: 'Arial', fontStyle: 'bold', stroke: '#1a0e06', strokeThickness: 3,
+        }).setOrigin(0.5).setDepth(102);
+        btn.on('pointerover', () => btn.setFillStyle(0x9a5a22, 0.98));
+        btn.on('pointerout', () => btn.setFillStyle(0x6b3f1a, 0.95));
+        btn.on('pointerdown', () => this._onDialogChoice(npcDef, choice));
+        extras.push(btn, label);
+        const evt = i === 0 ? 'keydown-ONE' : 'keydown-TWO';
+        const handler = () => this._onDialogChoice(npcDef, choice);
+        this.input.keyboard.on(evt, handler);
+        keyHandlers.push([evt, handler]);
+      });
+    }
+
+    this._npcDialog = { bg, title, msgText, close, extras, keyHandlers };
+    if (npcDef.role === 'starTower') this._interactStarTower();   // 對話框用點亮前的內容；點亮的演出同時開始
+  }
+
+  // 對話選項被選中：目前只有轉職選職業。選完重開對話顯示新的進度
+  _onDialogChoice(npcDef, choice) {
+    if (!this._npcDialog) return;
+    if (!chooseJobPath(this, choice.id)) return;
+    this._closeNpcDialog();
+    this._showTransientMessage(`你選擇了「${choice.label}」`, 2200);
+    this._openNpcDialog(npcDef);
   }
 
   _closeNpcDialog() {
     if (!this._npcDialog) return;
-    const { bg, title, msgText, close } = this._npcDialog;
+    // 商店面板也存進 _npcDialog（_shop 標記），沿用 F / ESC 的開關與場景關閉清理
+    if (this._npcDialog._shop) {
+      for (const obj of this._npcDialog.objects) {
+        if (obj && obj.destroy) obj.destroy();
+      }
+      this._npcDialog = null;
+      return;
+    }
+    const { bg, title, msgText, close, extras, keyHandlers } = this._npcDialog;
     if (bg?.active) bg.destroy();
     if (title?.active) title.destroy();
     if (msgText?.active) msgText.destroy();
     if (close?.active) close.destroy();
+    for (const o of extras || []) if (o?.active) o.destroy();
+    for (const [evt, handler] of keyHandlers || []) this.input.keyboard.off(evt, handler);
     this._npcDialog = null;
+  }
+
+  // ── 商店（地圖資料 npc.shop；商品表見 config/shops.js）────────────────────────────
+  _openShop(npcDef) {
+    if (this._npcDialog) return;
+    const shop = shopOf(npcDef);
+
+    const { width } = this.cameras.main;
+    const panelW = 480, panelH = 142 + shop.items.length * 50 + 20;
+    const panelX = (width - panelW) / 2;
+    const panelY = 70;
+    const objs = [];
+    const push = (obj) => { objs.push(obj); return obj; };
+
+    push(addParchmentPanel(this, panelX, panelY, panelW, panelH, { depth: 150 }));
+
+    push(this.add.text(panelX + panelW / 2, panelY + 34, `🏪 ${npcDef.name || '商人'}的${shop.title}`, {
+      fontSize: '19px', color: '#ffe27a', fontFamily: 'Arial', fontStyle: 'bold', stroke: '#1a0e06', strokeThickness: 4,
+    }).setOrigin(0.5, 0.5).setScrollFactor(0).setDepth(151));
+
+    if (npcDef.dialog && npcDef.dialog[0]) {
+      push(this.add.text(panelX + panelW / 2, panelY + 56, npcDef.dialog[0], {
+        fontSize: '12px', color: '#e8d3a8', fontFamily: 'Arial', stroke: '#1a0e06', strokeThickness: 2,
+      }).setOrigin(0.5, 0.5).setScrollFactor(0).setDepth(151));
+    }
+    const gs = this.registry.get('gameState');
+    const mesoText = push(this.add.text(panelX + panelW / 2, panelY + 76, `持有金幣：${gs.meso}`, {
+      fontSize: '14px', color: '#fff3c8', fontFamily: 'Arial', stroke: '#1a0e06', strokeThickness: 3,
+    }).setOrigin(0.5, 0.5).setScrollFactor(0).setDepth(151));
+
+    // 商品：購買後補進藥水庫存（gs.potions），HUD 藥水欄會自動刷新
+    const items = shop.items.map((it) => ({ ...it, name: shopItemLabel(it), cost: it.cost }));
+
+    items.forEach((item, i) => {
+      const rowY = panelY + 106 + i * 50;
+      const iconKey = POTION_ICON_KEYS[item.key];
+      if (iconKey && this.textures.exists(iconKey)) {
+        const icon = push(this.add.image(panelX + 70, rowY, iconKey).setScrollFactor(0).setDepth(152));
+        icon.setScale(32 / icon.height);
+      }
+      const label = `${item.name}  —  ${item.cost} 金幣`;
+      const btn = addWoodButton(this, panelX + panelW / 2 + 20, rowY, 300, 38, label, () => {
+        const state = this.registry.get('gameState');
+        if (buyShopItem(state, item) === 'ok') {
+          this.registry.set('gameState', state);
+          this.registry.events.emit('changedata-meso', null, state.meso);
+          mesoText.setText(`持有金幣：${state.meso}`);
+          audio.playPickup();
+          btn.label.setText(`${item.name}  — 購買成功！`);
+        } else {
+          btn.label.setText(`${item.name}  — 金幣不足`);
+        }
+        this.time.delayedCall(900, () => { if (btn.label.active) btn.label.setText(label); });
+      }, { depth: 151, fontSize: 15 });
+      btn.objects.forEach(push);
+    });
+
+    // 觸控裝置沒有鍵盤：關閉字樣本身可點擊
+    push(this.add.text(panelX + panelW / 2, panelY + panelH - 30, keyHint('[ 按 F 或 ESC 關閉 ]', '[ 點此關閉 ]'), {
+      fontSize: '12px', color: '#e8d3a8', fontFamily: 'Arial', stroke: '#1a0e06', strokeThickness: 3,
+    }).setOrigin(0.5, 0.5).setScrollFactor(0).setDepth(151)
+      .setInteractive({ useHandCursor: true })
+      .on('pointerdown', () => this._closeNpcDialog()));
+
+    this._npcDialog = { _shop: true, objects: objs };
   }
 
   // ── 碰撞設定 ───────────────────────────────────────────────────────────────
@@ -588,6 +780,23 @@ export class BaseMapScene extends Phaser.Scene {
   // ── 傳送 ───────────────────────────────────────────────────────────────────
   _onPortalEnter(player, portal) {
     if (!portal.targetMap || this._transitioning) return;
+    // 任務專屬傳送門（影之試煉）：沒接任務不能進，提示限速避免站在門上洗版
+    if (portal.requiresQuest && !isQuestActive(this, portal.requiresQuest)) {
+      if (this.time.now - (this._lastGateMsgAt || -9999) > 2600) {
+        this._lastGateMsgAt = this.time.now;
+        this._showTransientMessage(`需要先接受任務「${getQuestDef(portal.requiresQuest)?.name || ''}」`, 2200);
+      }
+      return;
+    }
+    // 等級門檻（城市特區 Lv18）：不足時擋下並提示，提示限速避免站在門上洗版
+    const gsNow = this.registry.get('gameState');
+    if (portal.minLevel && gsNow.level < portal.minLevel) {
+      if (this.time.now - (this._lastGateMsgAt || -9999) > 2600) {
+        this._lastGateMsgAt = this.time.now;
+        this._showTransientMessage(`需要 Lv.${portal.minLevel} 才能進入（目前 Lv.${gsNow.level}）`, 2200);
+      }
+      return;
+    }
     this._transitioning = true;
     this.cameras.main.fadeOut(400);
     this.time.delayedCall(400, () => {
@@ -653,9 +862,33 @@ export class BaseMapScene extends Phaser.Scene {
       this.registry.events.emit('changedata-meso', null, gs.meso);
     } else if (type === 'equipment') {
       this.player.pickupEquipment(data);
+    } else if (type === 'quest') {
+      onItemCollected(this, data);
+      this._showTransientMessage(`獲得 ${TRIAL_ITEM_NAME}`, 1200);
+    } else if (type === 'shard') {
+      this._collectShard(data);
     }
     audio.playPickup();
     pickup.destroy();
+  }
+
+  // 撿到星光碎片：記進存檔、更新 HUD、提示下一步（5/5 時引導回星光之塔）
+  _collectShard(shardId) {
+    const gs = this.registry.get('gameState');
+    const shard = grantShard(gs, shardId);
+    if (!shard) return;
+    this.registry.set('gameState', gs);
+    this.registry.events.emit('changedata-shards', null, shardCount(gs));
+    const n = shardCount(gs);
+    const c = { x: this.player.x, y: this.player.y - 40 };
+    spawnLightRays(this, c.x, c.y, { count: 12, length: 120, color: 0xfff0b0, alpha: 0.6, duration: 700, width: 3 });
+    playFx(this, 'fx_job_change', c.x, c.y, { scale: 1.2, frameRate: 8, depth: 64 });
+    this._showTransientMessage(
+      n >= SHARD_COUNT
+        ? `獲得星光碎片！（${n}/${SHARD_COUNT}）\n五塊集齊了，回晨曦鎮的星光之塔吧！\n稱號：${gs.title}`
+        : `獲得星光碎片：${shard.name}（${n}/${SHARD_COUNT}）`,
+      n >= SHARD_COUNT ? 4200 : 2600);
+    saveGame(gs);
   }
 
   _onMonsterDied(monster) {
@@ -670,15 +903,14 @@ export class BaseMapScene extends Phaser.Scene {
     if (monster?.config?.id) {
       onMonsterKilled(this, monster.config.id);
     }
-
-    if (gs.killCount >= 60 && !gs.bossUnlocked) {
-      gs.bossUnlocked = true;
-      this.registry.set('gameState', gs);
-    }
+    // 任務物品掉落（試煉之證）：有進行中的收集任務、在指定地圖才會掉
+    const itemId = questItemDrop(gs, this.mapKey, Math.random());
+    if (itemId && typeof monster._spawnPickup === 'function') monster._spawnPickup('item-quest-token', itemId, 'quest');
   }
 
   update(time, delta) {
     if (!this.player || this.player.isDead) return;
+    if (this._modifier) this._modifier.update(time, delta, this.player);   // 先設好 speedMult / iceFloor 再讓玩家移動
     this.player.update(delta);
     this.player.recoverMp(delta);
     this.player.recoverHp(delta);
@@ -703,6 +935,16 @@ export class BaseMapScene extends Phaser.Scene {
       monster.update(this.player, delta);
     }
 
+    // 星光碎片會被玩家吸過來（掉在平台邊緣也不會撿不到）；只在有碎片時才遍歷
+    if (this.pickups && this.pickups.getLength() > 0) {
+      for (const pk of this.pickups.getChildren()) {
+        if (pk.active && pk.pickupType === 'shard' && time - (pk._bornAt ?? (pk._bornAt = time)) > 1200) {
+          pk.body.setAllowGravity(false);
+          this.physics.moveToObject(pk, this.player, 280);
+        }
+      }
+    }
+
     this._playTimeAccum = (this._playTimeAccum || 0) + delta;
     if (this._playTimeAccum > 1000) {
       const gs = this.registry.get('gameState');
@@ -712,8 +954,27 @@ export class BaseMapScene extends Phaser.Scene {
     }
   }
 
+  // 轉職完成（任務覺醒或除錯指令）：換外觀、HUD 事件、演出、存檔。opts.silent = 不播演出（除錯切換用）
+  _onJobChanged(jobId, opts = {}) {
+    const gs = this.registry.get('gameState');
+    if (!this.player?.active || !gs) return;
+    this.player.refreshJobVisuals();
+    this.registry.set('gameState', gs);
+    this.registry.events.emit('changedata-hp', null, gs.hp);
+    this.registry.events.emit('changedata-mp', null, gs.mp);
+    this.registry.events.emit('changedata-sp', null, gs.skillPoints);
+    this.registry.events.emit('changedata-level', null, gs.level);
+    if (!opts.silent) {
+      playJobChangeEffect(this, this.player);
+      this._showTransientMessage(`轉職成功！　${jobOf(gs).name}　稱號「${gs.title}」`, 3200);
+    }
+    saveGame(gs);
+  }
+
   _onSceneShutdown() {
+    if (this._modifier) { this._modifier.destroy(); this._modifier = null; }
     this.events.off('monster-died', this._onMonsterDied, this);
+    this.events.off('job-changed', this._onJobChanged, this);
 
     // Phase 6.5：停止 portal 無限循環 tween，避免跳地圖累積殘留
     for (const tw of this._portalTweens || []) {

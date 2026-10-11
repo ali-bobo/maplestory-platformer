@@ -8,6 +8,7 @@ export function generateTextures(scene) {
   generateParticles(scene);
   generateItems(scene);
   generateUI(scene);
+  generateModifierTextures(scene);
 }
 
 const g_ = (scene) => scene.add.graphics();
@@ -259,6 +260,15 @@ function generateItems(scene){
   g.fillStyle(0xffee88); g.fillCircle(6,6,3);
   g.generateTexture('item-meso',16,16); g.destroy();
 
+  // 任務物品「試煉之證」（程式繪製暫代：紫色菱形徽章 + 金邊；手繪圖示到位後可換成 dist/assets 的圖）
+  if (!scene.textures.exists('item-quest-token')) {
+  g=g_(scene);
+  g.fillStyle(0xffd24a); g.fillTriangle(10,0,20,10,10,20); g.fillTriangle(10,0,0,10,10,20);
+  g.fillStyle(0x4a2a80); g.fillTriangle(10,3,17,10,10,17); g.fillTriangle(10,3,3,10,10,17);
+  g.fillStyle(0xc9a0ff); g.fillTriangle(10,5,14,10,10,15); g.fillStyle(0xffffff, 0.8); g.fillCircle(8,8,1.5);
+  g.generateTexture('item-quest-token',20,20); g.destroy();
+  }
+
   const eqs=[
     {key:'item-weapon', fn:g=>{ R(g,5,0,5,14,0x444455); R(g,5,0,5,12,0xcccccc); R(g,2,9,12,4,0x999999); R(g,6,0,3,6,0xffcc33); R(g,6,1,1,4,0xffffff,0.5); }},
     {key:'item-armor',  fn:g=>{ R(g,3,2,10,12,0x113388); R(g,1,2,3,9,0x2244aa); R(g,12,2,3,9,0x2244aa); R(g,5,3,6,5,0x4488cc); R(g,6,4,4,3,0x99ccff,0.5); }},
@@ -282,4 +292,47 @@ function generateUI(scene){
   g.fillStyle(0xffffff,0.55); g.fillEllipse(22,5,28,12);
   g.fillStyle(0xeeddff,0.4); g.fillEllipse(22,5,20,8);
   g.generateTexture('portal',44,78); g.destroy();
+}
+
+
+// ── 地圖機制用的貼圖（程式畫，沒有對應的美術檔）──────────────────────────────────
+function generateModifierTextures(scene) {
+  // 暗黑視野遮罩（魔君王城）：1024×1024，中心 0.14 半徑內全透明，到 0.22 半徑漸變成近黑色，之外整片黑
+  if (!scene.textures.exists('dark-vignette')) {
+    const tex = scene.textures.createCanvas('dark-vignette', 1024, 1024);
+    const ctx = tex.getContext();
+    const grad = ctx.createRadialGradient(512, 512, 0, 512, 512, 512);
+    grad.addColorStop(0, 'rgba(8,4,16,0)');
+    grad.addColorStop(0.14, 'rgba(8,4,16,0)');
+    grad.addColorStop(0.17, 'rgba(8,4,16,0.35)');
+    grad.addColorStop(0.2, 'rgba(8,4,16,0.8)');
+    grad.addColorStop(0.22, 'rgba(8,4,16,1)');
+    grad.addColorStop(1, 'rgba(8,4,16,1)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, 1024, 1024);
+    tex.refresh();
+  }
+  // 岩漿噴發的火柱：由下往上，底部亮橘黃、頂端透明
+  if (!scene.textures.exists('lava-flame')) {
+    const tex = scene.textures.createCanvas('lava-flame', 32, 96);
+    const ctx = tex.getContext();
+    const grad = ctx.createLinearGradient(0, 96, 0, 0);
+    grad.addColorStop(0, 'rgba(255,240,170,1)');
+    grad.addColorStop(0.35, 'rgba(255,150,40,0.9)');
+    grad.addColorStop(0.75, 'rgba(255,70,10,0.45)');
+    grad.addColorStop(1, 'rgba(200,30,0,0)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, 32, 96);
+    tex.refresh();
+  }
+  // 燭台（魔君王城）：16×56，鐵座 + 燭杯 + 小火苗
+  if (!scene.textures.exists('prop-torch')) {
+    const g = g_(scene);
+    R(g, 7, 20, 3, 34, 0x3a3340); R(g, 3, 52, 11, 4, 0x2a252f);
+    g.fillStyle(0x4a4252); g.fillTriangle(1, 14, 16, 14, 8, 24);
+    R(g, 2, 12, 13, 4, 0x5a5264);
+    g.fillStyle(0xff9a2a); g.fillTriangle(8, 0, 12, 12, 4, 12);
+    g.fillStyle(0xffe27a); g.fillTriangle(8, 4, 10.5, 12, 5.5, 12);
+    g.generateTexture('prop-torch', 16, 56); g.destroy();
+  }
 }
