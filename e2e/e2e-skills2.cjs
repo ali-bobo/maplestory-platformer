@@ -1,4 +1,5 @@
 const { chromium } = require('/opt/node-tools/node_modules/playwright');
+const PORT = process.env.PORT || 8123;
 const SPDIR = process.argv[2] || '.';
 let fails = 0;
 const check = (n, c, x = '') => { console.log((c ? 'PASS' : 'FAIL') + ' - ' + n + (x ? ' :: ' + x : '')); if (!c) fails++; };
@@ -9,8 +10,8 @@ const check = (n, c, x = '') => { console.log((c ? 'PASS' : 'FAIL') + ' - ' + n 
   const errors = []; page.on('pageerror', (e) => errors.push(e.message));
   page.on('console', (m) => { if (m.type() === 'error' && !m.text().includes('Failed to load')) errors.push(m.text()); });
   await page.addInitScript(() => { try { localStorage.setItem('thief-legend-tutorial-seen', '1'); } catch (_) {} });
-  await page.goto('http://127.0.0.1:8123/index.html?debug=1'); await page.waitForTimeout(4000);
-  await page.keyboard.press('Enter'); await page.waitForTimeout(4000);
+  await page.goto(`http://127.0.0.1:${PORT}/index.html?debug=1`); await page.waitForTimeout(7000);
+  await page.keyboard.press('Enter'); await page.waitForFunction(() => window.__game && window.__game.scene.getScenes(true).some((x) => x.player), null, { timeout: 40000 }); await page.waitForTimeout(1500);
   const gsInfo = () => page.evaluate(() => { const g = window.__game; const gs = g.registry.get('gameState'); const sc = g.scene.getScene('MapleIslandScene'); const p = sc.player;
     return { cd: { ...gs.skillCooldowns }, mp: gs.mp, maxMp: gs.maxMp, slots: gs.skillSlots, vy: p.body.velocity.y, onGround: p.body.blocked.down, level: gs.level }; });
 

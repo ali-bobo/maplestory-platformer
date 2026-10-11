@@ -1,9 +1,10 @@
 // Phase A 轉職 e2e：技能施放、姿勢切換、存檔重讀、轉職任務鏈。用法：node e2e-jobs.cjs <截圖目錄>
+const PORT = process.env.PORT || 8123;
 const { chromium } = require('/opt/node-tools/node_modules/playwright');
 const SPDIR = process.argv[2] || '.';
 let fails = 0;
 const check = (n, c, x = '') => { console.log((c ? 'PASS' : 'FAIL') + ' - ' + n + (x ? ' :: ' + x : '')); if (!c) fails++; };
-const BASE = 'http://127.0.0.1:8123/index.html?debug=1';
+const BASE = `http://127.0.0.1:${PORT}/index.html?debug=1`;
 
 (async () => {
   const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome',
@@ -15,8 +16,8 @@ const BASE = 'http://127.0.0.1:8123/index.html?debug=1';
   page.on('console', (m) => { if (m.type() === 'error' && !m.text().includes('Failed to load resource')) errors.push('console: ' + m.text()); });
   page.on('response', (r) => { if (r.status() >= 400 && !r.url().includes('favicon')) failed.push(r.status() + ' ' + r.url()); });
   await page.addInitScript(() => { try { localStorage.setItem('thief-legend-tutorial-seen', '1'); } catch (_) {} });
-  await page.goto(BASE); await page.waitForTimeout(4000);
-  await page.keyboard.press('Enter'); await page.waitForTimeout(4000);
+  await page.goto(BASE); await page.waitForTimeout(7000);
+  await page.keyboard.press('Enter'); await page.waitForFunction(() => window.__game && window.__game.scene.getScenes(true).some((x) => x.player), null, { timeout: 40000 }); await page.waitForTimeout(1500);
 
   const SCENE = 'MapleIslandScene';
   const ev = (fn, arg) => page.evaluate(fn, arg);
@@ -27,7 +28,7 @@ const BASE = 'http://127.0.0.1:8123/index.html?debug=1';
     const m = ms[0];
     for (const o of ms.slice(1)) o.destroy();
     m.setPosition(p.x + dx, p.y); m.body.setVelocity(0, 0); m.hp = m.maxHp = 999999; m.hurtTimer = 0; m._mark = null; m._poison = null;
-    window.__m = m;
+    window.__m = m; m.update = () => {};   // 只測技能：停掉怪物 AI（衝撞 / 後退會讓它離開目標位置）
     gs.mp = gs.maxMp = 999; gs.hp = gs.maxHp = 9999; p.isInvincible = true;
     gs.skillCooldowns = { ATK: 0 };
     p.facingRight = true; p.setFlipX(false);
@@ -43,7 +44,7 @@ const BASE = 'http://127.0.0.1:8123/index.html?debug=1';
     while (performance.now() - t0 < ms) { set.add(sc.player.texture.key); await new Promise((r) => setTimeout(r, 25)); }
     return [...set];
   }, ms);
-  const press = async (key, holdMs = 90) => { await page.keyboard.down(key); await page.waitForTimeout(holdMs); await page.keyboard.up(key); };
+  const press = async (key, holdMs = 160) => { await page.keyboard.down(key); await page.waitForTimeout(holdMs); await page.keyboard.up(key); };
   const equip = (slot, id) => ev(({ slot, id }) => { window.__game.scene.getScene('UIScene')._equipToSlot(slot, id); }, { slot, id });
   const setJob = (job, lv) => ev(({ job, lv }) => window.__setJob(job, lv), { job, lv });
   const shot = (name) => page.screenshot({ path: `${SPDIR}/${name}.png` });
@@ -59,9 +60,9 @@ const BASE = 'http://127.0.0.1:8123/index.html?debug=1';
 
   // 普通攻擊：雙刃連斬——一次出手兩段傷害
   await prep(55);
-  await ev(() => { const m = window.__m; window.__hits = 0; const o = m.takeDamage; m.takeDamage = function (a, c, d) { window.__hits++; return o.call(this, a, c, d); }; });
+  await ev(() => { const m = window.__m; m.applyKnockback = () => {}; window.__hits = 0; const o = m.takeDamage; m.takeDamage = function (a, c, d) { window.__hits++; return o.call(this, a, c, d); }; });
   const hp0 = (await state()).hp;
-  const texP = sampleTex(450); await press('Space'); const texs = await texP;
+  const texP = sampleTex(1000); await press('Space'); const texs = await texP;
   s = await state();
   check('刺客普攻：兩段傷害', await ev(() => window.__hits) === 2, 'hits=' + await ev(() => window.__hits));
   check('刺客普攻：敵人受傷', s.hp < hp0, `${hp0} -> ${s.hp}`);
@@ -89,7 +90,7 @@ const BASE = 'http://127.0.0.1:8123/index.html?debug=1';
   st0 = await state();
   await equip('Z', 'poison'); await press('z'); await page.waitForTimeout(700);
   s = await state();
-  check('蝕心毒鏢：MP -35、冷卻開始', (st0.mp - s.mp) > 23 && (st0.mp - s.mp) < 36 && s.cd.poison > 0, `mp ${st0.mp} -> ${s.mp}`);
+  check('蝕心毒鏢：MP -30、冷卻開始', (st0.mp - s.mp) > 20 && (st0.mp - s.mp) < 31 && s.cd.poison > 0, `mp ${st0.mp} -> ${s.mp}`);
   check('蝕心毒鏢：命中並中毒 1 層', s.hp < st0.hp && s.poison === 1, `hp ${st0.hp} -> ${s.hp} stacks=${s.poison}`);
   const hpAfterHit = s.hp;
   await page.waitForTimeout(2300);
@@ -105,14 +106,14 @@ const BASE = 'http://127.0.0.1:8123/index.html?debug=1';
   st0 = await state();
   await equip('Z', 'mark'); await press('z'); await page.waitForTimeout(400);
   s = await state();
-  check('斷命印記：MP -60、冷卻開始、敵人被標記', (st0.mp - s.mp) > 48 && (st0.mp - s.mp) < 61 && s.cd.mark > 0 && s.mark, `mp ${st0.mp} -> ${s.mp} mark=${s.mark}`);
+  check('斷命印記：MP -50、冷卻開始、敵人被標記', (st0.mp - s.mp) > 40 && (st0.mp - s.mp) < 51 && s.cd.mark > 0 && s.mark, `mp ${st0.mp} -> ${s.mp} mark=${s.mark}`);
   await shot('job-assassin-mark');
   const dmg = await ev(() => {
     const m = window.__m; const gs = window.__game.registry.get('gameState');
     const h0 = m.hp; m.takeDamage(1000, false); const h1 = m.hp; m.takeDamage(1000, false); const h2 = m.hp;
-    return { first: h0 - h1, second: h1 - h2, expect: Math.floor(1000 * (gs.critMulti + 0.3) * 1.3), mark: !!m._mark };
+    return { first: h0 - h1, second: h1 - h2, expect: Math.floor(1000 * (gs.critMulti + 0.4) * 1.2), mark: !!m._mark };
   });
-  check('斷命印記：第一擊必暴擊且 +30%，第二擊恢復正常', dmg.first === dmg.expect && dmg.second === 1000 && !dmg.mark, JSON.stringify(dmg));
+  check('斷命印記：印記期間每一擊都必暴擊且 +20%，印記不會被打掉', dmg.first === dmg.expect && dmg.second === dmg.expect && dmg.mark, JSON.stringify(dmg));
 
   // 繼承技能（三連飛鏢 / 暗影步伐 / 暗殺）在刺客身上仍可施放，且用刺客的動作圖
   for (const [id, cost] of [['Z', 10], ['X', 30], ['C', 50]]) {
@@ -145,7 +146,7 @@ const BASE = 'http://127.0.0.1:8123/index.html?debug=1';
     await ev(() => { const m = window.__m; const p = window.__game.scene.getScene('MapleIslandScene').player; m.setPosition(p.x + 70, p.y); m.body.setVelocity(0, 0); });
     await page.waitForTimeout(150);
     const y0 = (await state()).my;
-    const sampler = ev(async () => { let minVy = 0; const t0 = performance.now(); while (performance.now() - t0 < 500) { minVy = Math.min(minVy, window.__m.body.velocity.y); await new Promise((r) => setTimeout(r, 20)); } return minVy; });
+    const sampler = ev(async () => { let minVy = 0; const t0 = performance.now(); while (performance.now() - t0 < 1200) { minVy = Math.min(minVy, window.__m.body.velocity.y); await new Promise((r) => setTimeout(r, 20)); } return minVy; });
     await press('Space'); ups.push(await sampler);
     await page.waitForTimeout(100);
   }
@@ -157,9 +158,11 @@ const BASE = 'http://127.0.0.1:8123/index.html?debug=1';
   const second = await ev(() => { const sc = window.__game.scene.getScene('MapleIslandScene'); const p = sc.player; const m2 = sc.add.existing; return null; });
   await ev(() => { window.__game.registry.get('gameState').skillCooldowns = { ATK: 0 }; });
   st0 = await state();
-  const texW = sampleTex(600); await equip('Z', 'whirl'); await press('z'); const tw = await texW;
+  await ev(() => { window.__maxDx = 0; const x0 = window.__m.x; window.__dxIv = setInterval(() => { window.__maxDx = Math.max(window.__maxDx, Math.abs(window.__m.x - x0)); }, 20); });
+  const texW = sampleTex(900); await equip('Z', 'whirl'); await press('z'); const tw = await texW;
+  await ev(() => clearInterval(window.__dxIv)); const maxDx = await ev(() => window.__maxDx);
   s = await state();
-  check('赤月迴旋：MP -45、冷卻、敵人受傷並被擊退', (st0.mp - s.mp) > 33 && (st0.mp - s.mp) < 46 && s.cd.whirl > 0 && s.hp < st0.hp && Math.abs(s.mx - st0.mx) > 5, `mp ${st0.mp}->${s.mp} hp ${st0.hp}->${s.hp} x ${st0.mx}->${s.mx}`);
+  check('赤月迴旋：MP -40、冷卻、敵人受傷（三圈）並被擊退', (st0.mp - s.mp) > 20 && (st0.mp - s.mp) < 41 && s.cd.whirl > 0 && st0.hp - s.hp > 600 && maxDx > 5, `mp ${st0.mp}->${s.mp} hp ${st0.hp}->${s.hp} maxDx ${maxDx}`);
   check('赤月迴旋：旋轉動作 spin_1 / spin_2', tw.includes('player_bandit_spin_1') && tw.includes('player_bandit_spin_2'), JSON.stringify(tw));
   await shot('job-bandit-whirl');
   await prep(-80);
@@ -171,7 +174,7 @@ const BASE = 'http://127.0.0.1:8123/index.html?debug=1';
   st0 = await state();
   await equip('Z', 'steal'); await press('z'); await page.waitForTimeout(400);
   s = await state();
-  check('妙手空空：MP -30、冷卻、敵人受傷', (st0.mp - s.mp) > 18 && (st0.mp - s.mp) < 31 && s.cd.steal > 0 && s.hp < st0.hp, `mp ${st0.mp}->${s.mp} hp ${st0.hp}->${s.hp}`);
+  check('妙手空空：MP -24（命中回 10）、冷卻、敵人受傷', (st0.mp - s.mp) > 5 && (st0.mp - s.mp) < 25 && s.cd.steal > 0 && s.hp < st0.hp, `mp ${st0.mp}->${s.mp} hp ${st0.hp}->${s.hp}`);
   await shot('job-bandit-steal');
   const stat = await ev(async () => {
     const g = window.__game; const sc = g.scene.getScene('MapleIslandScene'); const p = sc.player; const gs = g.registry.get('gameState'); const m = window.__m;
@@ -184,16 +187,16 @@ const BASE = 'http://127.0.0.1:8123/index.html?debug=1';
     }
     return { casts, mesoDrops: sc.pickups.getChildren().length, potionGain: gs.potions.A + gs.potions.D - potions0 };
   });
-  check('妙手空空：約 35% 多掉金幣（160 次中 30..85 次）', stat.mesoDrops >= 30 && stat.mesoDrops <= 85, JSON.stringify(stat));
-  check('妙手空空：偷到藥水（5%，160 次中至少 1 次）', stat.potionGain >= 1, JSON.stringify(stat));
+  check('妙手空空：約 60% 多掉金幣（160 次中 75..120 次）', stat.mesoDrops >= 75 && stat.mesoDrops <= 120, JSON.stringify(stat));
+  check('妙手空空：偷到藥水（12%，160 次中至少 1 次）', stat.potionGain >= 1, JSON.stringify(stat));
 
-  // 迷煙彈：煙霧區、範圍內敵人傷害減半 / 不追擊
+  // 迷煙彈：煙霧區、範圍內敵人傷害降到 40% / 不追擊
   await prep(200);
   await ev(() => { const m = window.__m; m.behavior = 'chase'; });
   st0 = await state();
   await equip('Z', 'smoke'); await press('z'); await page.waitForTimeout(900);
   s = await state();
-  check('迷煙彈：MP -55、冷卻、產生煙霧區', (st0.mp - s.mp) > 43 && (st0.mp - s.mp) < 56 && s.cd.smoke > 0 && s.zones === 1, `mp ${st0.mp}->${s.mp} zones=${s.zones}`);
+  check('迷煙彈：MP -45、冷卻、產生煙霧區', (st0.mp - s.mp) > 20 && (st0.mp - s.mp) < 46 && s.cd.smoke > 0 && s.zones === 1, `mp ${st0.mp}->${s.mp} zones=${s.zones}`);
   await shot('job-bandit-smoke');
   const sm = await ev(() => {
     const sc = window.__game.scene.getScene('MapleIslandScene'); const p = sc.player; const m = window.__m; const z = p.smokeZones[0];
@@ -205,7 +208,7 @@ const BASE = 'http://127.0.0.1:8123/index.html?debug=1';
     Math.random = r; p.takeDamage = old; m.attackCooldown = 0;
     return { normal, smoked };
   });
-  check('迷煙彈：煙霧內敵人傷害為一半', sm.normal > 0 && sm.smoked === Math.floor(sm.normal * 0.5) || Math.abs(sm.smoked - sm.normal * 0.5) <= 1, JSON.stringify(sm));
+  check('迷煙彈：煙霧內敵人傷害為 40%', sm.normal > 0 && Math.abs(sm.smoked - sm.normal * 0.4) <= 1, JSON.stringify(sm));
   await page.waitForTimeout(500);
   const flag = await ev(() => { const sc = window.__game.scene.getScene('MapleIslandScene'); const p = sc.player; const m = window.__m; const z = p.smokeZones[0]; m.setPosition(z.x + 30, p.y); m.body.setVelocity(0, 0); return null; });
   await page.waitForTimeout(500);

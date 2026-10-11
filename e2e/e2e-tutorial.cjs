@@ -1,4 +1,5 @@
 const { chromium } = require('/opt/node-tools/node_modules/playwright');
+const PORT = process.env.PORT || 8123;
 const SPDIR = process.argv[2] || '.';
 let fails = 0;
 const check = (n, c, x = '') => { console.log((c ? 'PASS' : 'FAIL') + ' - ' + n + (x ? ' :: ' + x : '')); if (!c) fails++; };
@@ -11,7 +12,7 @@ const tap = async (page, key) => { await page.keyboard.down(key); await page.wai
   const page = await (await b.newContext({ viewport: { width: 1280, height: 720 } })).newPage();
   const errors = []; page.on('pageerror', (e) => errors.push(e.message));
   page.on('console', (m) => { if (m.type() === 'error' && !m.text().includes('Failed to load')) errors.push(m.text()); });
-  await page.goto('http://127.0.0.1:8123/index.html?debug=1'); await page.waitForTimeout(4500);
+  await page.goto(`http://127.0.0.1:${PORT}/index.html?debug=1`); await page.waitForTimeout(4500);
   const info = () => page.evaluate(() => { const g = window.__game; const t = g.scene.getScene('TutorialScene');
     return { active: g.scene.getScenes(true).map((s) => s.sys.settings.key), idx: t && t._index, total: t && t._pages && t._pages.length, title: t && t._pages && t._pages[t._index].title, seen: localStorage.getItem('thief-legend-tutorial-seen') }; });
   check('全新玩家：首次進入前尚未看過教學', (await info()).seen === null);
@@ -51,17 +52,17 @@ const tap = async (page, key) => { await page.keyboard.down(key); await page.wai
   await tap(page, 'Escape'); await page.waitForTimeout(600);
 
   // 重新整理後不再自動出現教學
-  await page.goto('http://127.0.0.1:8123/__blank__');
+  await page.goto(`http://127.0.0.1:${PORT}/__blank__`);
   await page.evaluate(() => localStorage.removeItem('thief-legend-save-v1'));
-  await page.goto('http://127.0.0.1:8123/index.html?debug=1'); await page.waitForTimeout(4500);
+  await page.goto(`http://127.0.0.1:${PORT}/index.html?debug=1`); await page.waitForTimeout(4500);
   await tap(page, 'Enter'); await page.waitForTimeout(3500);
   i = await info();
   check('已看過教學 → 新遊戲直接進入遊戲', i.active.includes('MapleIslandScene') && !i.active.includes('TutorialScene'), JSON.stringify(i.active));
 
   // Esc 跳過全部（用新的 profile 測）
-  await page.goto('http://127.0.0.1:8123/__blank__');   // 先離開遊戲頁（離開時的自動存檔會寫回存檔），再清除
+  await page.goto(`http://127.0.0.1:${PORT}/__blank__`);   // 先離開遊戲頁（離開時的自動存檔會寫回存檔），再清除
   await page.evaluate(() => { localStorage.removeItem('thief-legend-tutorial-seen'); localStorage.removeItem('thief-legend-save-v1'); });
-  await page.goto('http://127.0.0.1:8123/index.html?debug=1'); await page.waitForTimeout(4500);
+  await page.goto(`http://127.0.0.1:${PORT}/index.html?debug=1`); await page.waitForTimeout(4500);
   await tap(page, 'Enter'); await page.waitForTimeout(1200);
   await tap(page, 'Enter');
   await tap(page, 'Escape'); await page.waitForTimeout(3500);
@@ -76,7 +77,7 @@ const tap = async (page, key) => { await page.keyboard.down(key); await page.wai
   const m = await ctx.newPage();
   const merrors = []; m.on('pageerror', (e) => merrors.push(e.message));
   m.on('console', (x) => { if (x.type() === 'error' && !x.text().includes('Failed to load')) merrors.push(x.text()); });
-  await m.goto('http://127.0.0.1:8123/index.html?debug=1'); await m.waitForTimeout(4500);
+  await m.goto(`http://127.0.0.1:${PORT}/index.html?debug=1`); await m.waitForTimeout(4500);
   const r = await m.evaluate(() => { const c = document.querySelector('canvas').getBoundingClientRect(); return { l: c.left, t: c.top, w: c.width, h: c.height }; });
   const toPage = (x, y) => ({ x: r.l + x * r.w / 1280, y: r.t + y * r.h / 720 });
   let p = toPage(640, 530); await m.touchscreen.tap(p.x, p.y); await m.waitForTimeout(1500);

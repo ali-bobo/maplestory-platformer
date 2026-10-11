@@ -297,21 +297,7 @@ function generateUI(scene){
 
 // ── 地圖機制用的貼圖（程式畫，沒有對應的美術檔）──────────────────────────────────
 function generateModifierTextures(scene) {
-  // 暗黑視野遮罩（魔君王城）：1024×1024，中心 0.14 半徑內全透明，到 0.22 半徑漸變成近黑色，之外整片黑
-  if (!scene.textures.exists('dark-vignette')) {
-    const tex = scene.textures.createCanvas('dark-vignette', 1024, 1024);
-    const ctx = tex.getContext();
-    const grad = ctx.createRadialGradient(512, 512, 0, 512, 512, 512);
-    grad.addColorStop(0, 'rgba(8,4,16,0)');
-    grad.addColorStop(0.14, 'rgba(8,4,16,0)');
-    grad.addColorStop(0.17, 'rgba(8,4,16,0.35)');
-    grad.addColorStop(0.2, 'rgba(8,4,16,0.8)');
-    grad.addColorStop(0.22, 'rgba(8,4,16,1)');
-    grad.addColorStop(1, 'rgba(8,4,16,1)');
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, 1024, 1024);
-    tex.refresh();
-  }
+  // 暗黑視野遮罩（1024×1024，4 MB）只有魔君王城用到：改由 ensureDarkVignette 在進入該地圖時才建立
   // 岩漿噴發的火柱：由下往上，底部亮橘黃、頂端透明
   if (!scene.textures.exists('lava-flame')) {
     const tex = scene.textures.createCanvas('lava-flame', 32, 96);
@@ -335,4 +321,21 @@ function generateModifierTextures(scene) {
     g.fillStyle(0xffe27a); g.fillTriangle(8, 4, 10.5, 12, 5.5, 12);
     g.generateTexture('prop-torch', 16, 56); g.destroy();
   }
+}
+
+// 暗黑視野遮罩（魔君王城）：1024×1024，中心 0.14 半徑內全透明，到 0.22 半徑漸變成近黑色，之外整片黑
+export function ensureDarkVignette(scene) {
+  if (scene.textures.exists('dark-vignette')) return;
+  const tex = scene.textures.createCanvas('dark-vignette', 1024, 1024);
+  const ctx = tex.getContext();
+  const grad = ctx.createRadialGradient(512, 512, 0, 512, 512, 512);
+  grad.addColorStop(0, 'rgba(8,4,16,0)');
+  grad.addColorStop(0.14, 'rgba(8,4,16,0)');
+  grad.addColorStop(0.17, 'rgba(8,4,16,0.35)');
+  grad.addColorStop(0.2, 'rgba(8,4,16,0.8)');
+  grad.addColorStop(0.22, 'rgba(8,4,16,1)');
+  grad.addColorStop(1, 'rgba(8,4,16,1)');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, 1024, 1024);
+  tex.refresh();
 }

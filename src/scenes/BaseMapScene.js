@@ -5,12 +5,14 @@ import { MAP_SCENE_KEYS, WORLD_HEIGHT } from '../config/constants.js';
 import { Player } from '../entities/Player.js';
 import { playJobChangeEffect, playFx } from '../entities/Skill.js';
 import { spawnLightRays, screenFlash } from '../engine/vfx.js';
-import { jobOf } from '../config/constants.js';
-import { Monster } from '../entities/Monster.js';
+import { jobOf, jobIdOf } from '../config/constants.js';
+import { residentKeys, mapAssetKeys, neighborMapKeys, jobAssets, toAssets } from '../engine/assetPlan.js';
+import { preloadAssets, loadAssets, releaseExcept } from '../engine/assetLoader.js';
+import { Monster, prewarmMonsterTextures } from '../entities/Monster.js';
 import { audio } from '../engine/audio.js';
 import { getVisualFootPadding } from '../config/alignment.js';
 import { addParchmentPanel, addWoodButton } from '../engine/woodUi.js';
-import { POTION_ICON_KEYS } from '../config/assetCatalog.js';
+import { POTION_ICON_KEYS, PLATFORM_THEMES } from '../config/assetCatalog.js';
 import { shopOf } from '../config/shops.js';
 import { shopItemLabel, buyShopItem } from '../engine/shop.js';
 import { VFX_TEX } from '../engine/vfxTextures.js';
@@ -29,27 +31,6 @@ import { createMapModifier } from '../engine/mapModifiers.js';
 
 const PLATFORM_HEIGHT = 24;
 const GROUND_Y = WORLD_HEIGHT;
-// 每張地圖專屬的跳台圖：左端、中段（可重複鋪）、右端由同一張圖切出
-// surfaceTop：圖片頂端到可站立表面的距離（px）
-const PLATFORM_THEMES = {
-  sky:     { key: 'platform_sky',     surfaceTop: 7 },
-  henesys: { key: 'platform_forest',  surfaceTop: 12 },
-  ruins:   { key: 'platform_ruins',   surfaceTop: 0 },
-  ellinia: { key: 'platform_mystic',  surfaceTop: 10 },
-  kerning: { key: 'platform_city',    surfaceTop: 11 },
-  taipei:  { key: 'platform_city',    surfaceTop: 11 },
-  town:    { key: 'platform_town',    surfaceTop: 1 },
-  // TODO(art): 影之殿堂專屬跳台 platform_shrine.png（白石 + 金邊）還沒有，先借用晨曦鎮的跳台
-  shrine:  { key: 'platform_town',    surfaceTop: 1 },
-  harbor:  { key: 'platform_harbor',  surfaceTop: 3 },
-  // 四張新圖的跳台圖是 246×21～22 的細長條：stretchH 把它縱向拉到和其他跳台差不多的厚度
-  desert:  { key: 'platform_desert',  surfaceTop: 2, stretchH: 36 },
-  snow:    { key: 'platform_snow',    surfaceTop: 3, stretchH: 38 },
-  lava:    { key: 'platform_lava',    surfaceTop: 2, stretchH: 38 },
-  castle:  { key: 'platform_castle',  surfaceTop: 2, stretchH: 36 },
-  boss:    { key: 'platform_boss',    surfaceTop: 0 },
-  dungeon: { key: 'platform_dungeon', surfaceTop: 0 },
-};
 const PLATFORM_CAP_RATIO = 0.2;
 const PLATFORM_TILE_RATIO = 0.3;
 
@@ -68,6 +49,7 @@ export class BaseMapScene extends Phaser.Scene {
     this.monsters = null;
     this.pickups = null;
     this.portals = null;
+    this._branchHints = [];
     this._npcDialog = null;
     this._npcEntries = [];
     this._onEscKeyDown = null;
@@ -80,6 +62,25 @@ export class BaseMapScene extends Phaser.Scene {
     }
     this._spawnX = (data && data.spawnX !== undefined) ? data.spawnX : null;
     this._respawnProtect = !!(data && data.respawn);   // 死亡重生：短暫無敵
+  }
+
+  // 素材依需要載入：本地圖 + 目前職業 + 共用特效；Phaser 會等 preload 載完才呼叫 create（載入超過 150 ms 才顯示載入條）
+  preload() {
+    const gs = this.registry.get('gameState');
+    preloadAssets(this, toAssets(residentKeys(this.mapKey, jobIdOf(gs), { dungeonId: this.dungeonId })));
+  }
+
+  // 進圖後：釋放不再需要的地圖 / 舊職業素材（相鄰地圖保留），稍後在背景預先載入相鄰地圖
+  _releaseAssets() {
+    releaseExcept(this, residentKeys(this.mapKey, jobIdOf(this.registry.get('gameState')), { dungeonId: this.dungeonId, withNeighbors: true }));
+  }
+
+  _manageAssets() {
+    this._releaseAssets();
+    this.time.delayedCall(1500, () => {
+      const assets = toAssets(neighborMapKeys(this.mapKey).flatMap((m) => [...mapAssetKeys(m)]));
+      loadAssets(this, assets, () => prewarmMonsterTextures(this));
+    });
   }
 
   create() {
@@ -139,6 +140,7 @@ export class BaseMapScene extends Phaser.Scene {
     this._onEscKeyDown = () => { this._closeNpcDialog(); };
     this.input.keyboard.on('keydown-ESC', this._onEscKeyDown);
     this._onInteractKeyDown = () => {
+      this._interactPressedAt = this.time.now;   // 支線傳送門（portal.interact）要按互動鍵才進入
       const npcData = this._getNearbyNpcData();
       if (!npcData) {
         if (this._npcDialog) this._closeNpcDialog();
@@ -166,6 +168,7 @@ export class BaseMapScene extends Phaser.Scene {
     // 只註冊 shutdown：場景被 destroy 前 Phaser 必先觸發 shutdown，且本遊戲場景
     // 從不被 scene.remove()，重複註冊 destroy 監聽只會在 relaunch 時累積死監聽。
     this.events.once('shutdown', this._onSceneShutdown, this);
+    this._manageAssets();
 
     // 自動存檔：進入一般地圖時存一次，之後每 30 秒存一次
     if (isSavableMap(this.mapKey)) {
@@ -342,6 +345,7 @@ export class BaseMapScene extends Phaser.Scene {
   // ── 傳送門 ─────────────────────────────────────────────────────────────────
   _createPortals() {
     const gs = this.registry.get('gameState');
+    this._branchHints = [];
     for (const pd of this.mapData.portals) {
       if (pd.requireBoss && !gs.bossUnlocked) continue;
 
@@ -352,6 +356,7 @@ export class BaseMapScene extends Phaser.Scene {
       portal.dungeonId = pd.dungeonId;  // Phase 14：副本 ID（target='dungeon' 時用）
       portal.requiresQuest = pd.requiresQuest;
       portal.minLevel = pd.minLevel || 0;
+      portal.interact = !!pd.interact;
       portal.refreshBody();
 
       // Phase 14：dungeon 類型 portal 在 label 後補「(今日剩 N 次)」，給玩家可見回饋
@@ -371,7 +376,8 @@ export class BaseMapScene extends Phaser.Scene {
   // 光門：橢圓光環 + 旋轉漩渦 + 地面符文 + 上升光點 + 木牌標籤
   // 顏色依目的地區分：一般地圖青藍、副本翠綠、Boss 暗紅紫
   _createPortalVisual(pd, labelText) {
-    const color = pd.target === 'dungeon' ? 0x5cf08a : pd.target === 'boss' ? 0xff4f8a : 0x6fd8ff;
+    // 支線入口（interact）用金色，和主線的青藍色傳送門區分
+    const color = pd.interact ? 0xffc850 : pd.target === 'dungeon' ? 0x5cf08a : pd.target === 'boss' ? 0xff4f8a : 0x6fd8ff;
     const x = pd.x;
     const cy = pd.y - 6;
     const feetY = pd.y + 39;
@@ -411,7 +417,13 @@ export class BaseMapScene extends Phaser.Scene {
         fontSize: '13px', color: '#3a2410', fontFamily: 'Arial', fontStyle: 'bold',
       }).setOrigin(0.5, 0.5).setDepth(9);
       this.add.nineslice(x, cy - 62, 'hud_panel_sm', undefined, Math.max(64, label.width + 24), 26, 9, 9, 9, 9)
-        .setOrigin(0.5, 0.5).setDepth(8).setTint(0xe6d6bc);
+        .setOrigin(0.5, 0.5).setDepth(8).setTint(pd.interact ? 0xffe39a : 0xe6d6bc);
+    }
+    if (pd.interact) {
+      const hint = this.add.text(x, cy - 90, keyHint('按 F 進入', '點「互動」進入'), {
+        fontSize: '12px', color: '#ffe9a0', fontFamily: 'Arial', stroke: '#000', strokeThickness: 3,
+      }).setOrigin(0.5, 0.5).setDepth(9).setAlpha(0);
+      this._branchHints.push({ x, hint, until: 0 });
     }
   }
 
@@ -768,7 +780,12 @@ export class BaseMapScene extends Phaser.Scene {
     }, this);
 
     this.physics.add.collider(this.monsters, this.platforms);
-    this.physics.add.collider(this.monsters, this.thinPlatforms);
+    // 怪物對薄平台也是單向（只從上方落下時才碰撞）：寬大的身體不會卡在低矮平台的側面 / 底面，
+    // 也才能從下方跳上平台。用上一幀的腳底判斷，高速下落不會穿透。
+    this.physics.add.collider(this.monsters, this.thinPlatforms, null, (mon, plat) => {
+      const b = mon.body;
+      return b.velocity.y >= 0 && b.prev.y + b.height <= plat.body.top + 4;
+    }, this);
 
     this.physics.add.overlap(this.player, this.portals,  this._onPortalEnter, null, this);
     this.physics.add.overlap(this.player, this.pickups,  this._onPickup,      null, this);
@@ -780,6 +797,14 @@ export class BaseMapScene extends Phaser.Scene {
   // ── 傳送 ───────────────────────────────────────────────────────────────────
   _onPortalEnter(player, portal) {
     if (!portal.targetMap || this._transitioning) return;
+    // 支線入口：站在門上並按互動鍵（F / 觸控「互動」）才進入，走過、落在門上都不會誤入
+    if (portal.interact) {
+      const now = this.time.now;
+      const bh = this._branchHints;
+      for (let i = 0; i < bh.length; i++) if (Math.abs(bh[i].x - portal.x) < 2) { bh[i].until = now + 160; bh[i].hint.setAlpha(1); }
+      if (now - (this._interactPressedAt ?? -9999) > 450) return;
+      this._interactPressedAt = -9999;
+    }
     // 任務專屬傳送門（影之試煉）：沒接任務不能進，提示限速避免站在門上洗版
     if (portal.requiresQuest && !isQuestActive(this, portal.requiresQuest)) {
       if (this.time.now - (this._lastGateMsgAt || -9999) > 2600) {
@@ -921,6 +946,9 @@ export class BaseMapScene extends Phaser.Scene {
       this._getNearbyNpcData();
     }
 
+    const bh = this._branchHints;
+    for (let i = 0; i < bh.length; i++) if (bh[i].until && time > bh[i].until) { bh[i].until = 0; bh[i].hint.setAlpha(0); }
+
     // Phase 8.3：畫面外怪物跳過 AI update（約 1.25 螢幕外）。
     // 跳過的只是 AI 決策；arcade physics（重力/碰撞）仍由 physics.world 獨立 step，
     // 怪物不會凍在半空。玩家靠近進入範圍後 AI 自動恢復。
@@ -958,7 +986,13 @@ export class BaseMapScene extends Phaser.Scene {
   _onJobChanged(jobId, opts = {}) {
     const gs = this.registry.get('gameState');
     if (!this.player?.active || !gs) return;
-    this.player.refreshJobVisuals();
+    this.player.refreshJobVisuals();   // 新職業的圖還沒載好時先用盜賊動作圖頂著
+    loadAssets(this, jobAssets(jobIdOf(gs)), () => {
+      if (!this.player?.active) return;
+      this.player.refreshJobVisuals();
+      // 舊職業的圖稍後釋放（殘影等短命物件可能還在用）
+      this.time.delayedCall(2000, () => this.sys.isActive() && this._releaseAssets());
+    });
     this.registry.set('gameState', gs);
     this.registry.events.emit('changedata-hp', null, gs.hp);
     this.registry.events.emit('changedata-mp', null, gs.mp);

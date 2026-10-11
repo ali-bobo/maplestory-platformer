@@ -21,11 +21,12 @@ const OUT = __dirname + '/shots';
   await A.press('f'); await page.waitForTimeout(300);
 
   // 2. 等級門檻：Lv<18 擋下城市特區
-  await A.tp(1200); await page.waitForTimeout(1200);
-  check('Lv1 走進城市特區傳送門被擋下', (await A.scene()) === 'TownScene');
+  // 城市特區入口在右上角高台（x=1360, y=200），要站上去按 F；Lv1 被擋下
+  await A.tp(1360, 130); await page.waitForTimeout(900); await A.press('f'); await page.waitForTimeout(900);
+  check('Lv1 在城市特區傳送門按 F 被擋下', (await A.scene()) === 'TownScene');
   await shot('gate-msg');
   await A.ev(() => window.__setJob('thief', 20)); await page.waitForTimeout(300);
-  await A.tp(1000); await page.waitForTimeout(300); await A.tp(1200); await page.waitForTimeout(2600);
+  await A.tp(1000); await page.waitForTimeout(300); await A.tp(1360, 130); await page.waitForTimeout(900); await A.press('f'); await page.waitForTimeout(2600);
   check('Lv20 可進入城市特區（暗巷城）', (await A.scene()) === 'KerningScene');
   // 暗巷城 → 台北 → 回暗巷 → 回晨曦鎮
   await A.tp(2560 - 50); await page.waitForTimeout(2600);
@@ -39,7 +40,9 @@ const OUT = __dirname + '/shots';
   await A.go('MapleIslandScene', 300);
   const hop = async (x, expect) => { await A.tp(x); await page.waitForTimeout(2800); const sc = await A.scene(); check(`傳送門 → ${expect}`, sc === expect, sc); };
   await hop(2560 - 50, 'HenesysScene');
-  await hop(2560 / 2, 'ElliniaScene');
+  // 神秘之境入口在右上角岔路跳台（x=2290, y=180），要站上去按 F
+  await A.tp(2290, 100); await page.waitForTimeout(900); await A.press('f'); await page.waitForTimeout(2800);
+  check('傳送門 → ElliniaScene', (await A.scene()) === 'ElliniaScene', await A.scene());
   await hop(30, 'HenesysScene');
   await hop(2560 - 50, 'PerionScene');
   await hop(2560 - 50, 'HarborScene');
@@ -65,7 +68,7 @@ const OUT = __dirname + '/shots';
   let shards = await A.ev(() => { const sc = window.__game.scene.getScene('HarborScene'); return sc.pickups.getChildren().filter((p) => p.pickupType === 'shard').map((p) => p.pickupData); });
   check('擊殺後掉出 1 塊星光碎片（harbor）', shards.length === 1 && shards[0] === 'harbor', JSON.stringify(shards));
   await shot('shard-drop');
-  await A.ev(() => { const sc = window.__game.scene.getScene('HarborScene'); const pk = sc.pickups.getChildren().find((p) => p.pickupType === 'shard'); sc.player.setPosition(pk.x, pk.y - 4); });
+  await A.ev(() => { const sc = window.__game.scene.getScene('HarborScene'); const pk = sc.pickups.getChildren().find((p) => p.pickupType === 'shard'); if (pk) sc.player.setPosition(pk.x, pk.y - 4); });   // 碎片過 1.2 秒會自動被吸過來，可能已被撿走
   await page.waitForTimeout(1500);
   gs = await A.gs();
   check('撿起後 gs.shards = [harbor]、稱號未變', gs.shards.join() === 'harbor' && gs.title === '星光學徒', JSON.stringify(gs.shards));

@@ -279,7 +279,7 @@ export const QUESTS = {
 };
 
 // ── 一轉任務鏈（Lv.10）：影之召喚 → 選擇你的道路 → 試煉之證 → 影之試煉 → 覺醒 ────
-// 影之長老與影之試煉入口都在「影之殿堂」（晨曦鎮右端、浮空島嶼傳送門左邊的那一道）。
+// 影之長老與影之試煉入口都在「影之殿堂」（晨曦鎮右上角高台的左邊那道金色傳送門，沿階梯跳上去、按 F 進入）。
 export const JOB_QUEST_CHAIN = ['job_call', 'job_choose', 'job_proof', 'job_trial', 'job_awaken'];
 export const JOB_NPC_ID = 'shadow_elder';
 export const TRIAL_ITEM = 'trial_token';
@@ -289,7 +289,7 @@ Object.assign(QUESTS, {
   job_call: {
     id: 'job_call',
     name: '影之召喚',
-    desc: '一封神祕的信要你去影之殿堂（晨曦鎮右端、浮空島嶼傳送門左邊的那一道）找影之長老。',
+    desc: '一封神祕的信要你去影之殿堂（晨曦鎮右上角高台的左邊那道金色傳送門，沿階梯跳上去、按 F 進入）找影之長老。',
     type: 'talk', target: JOB_NPC_ID, count: 1,
     minLevel: 10,
     rewards: { exp: 100, meso: 300 },

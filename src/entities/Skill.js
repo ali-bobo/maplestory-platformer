@@ -8,6 +8,7 @@ import {
 import { VFX_TEX } from '../engine/vfxTextures.js';
 import { getQuality } from '../engine/quality.js';
 import { getVisualCenterPoint, ALIGNMENT_PROFILES, applyAlignmentProfile } from '../config/alignment.js';
+import { M } from '../config/skillModel.js';
 import { skillDamageScale, BASIC_ATTACK_DEF, effectiveCritMulti, effectiveCritRate, jobOf, jobPassive } from '../config/constants.js';
 
 export function getEntityEffectPoint(entity) {
@@ -447,7 +448,7 @@ export function launchShuriken(scene, player, enemies, opts) {
       if (!proj.active || !enemy?.active || enemy.isDead || hitSet.has(enemy)) return;
       hitSet.add(enemy);
       const { damage, isCrit } = calcDamage(
-        gs.atk, gs.critRate, effectiveCritMulti(gs),
+        gs.atk, effectiveCritRate(gs), effectiveCritMulti(gs),
         opts.multiplier * skillDamageScale(gs.skillLevels[opts.skillKey] ?? 1),
       );
       enemy.takeDamage(damage, isCrit);
@@ -500,7 +501,7 @@ export function castSlash(scene, player, enemies) {
       const reach = range + (enemy.body ? enemy.body.halfWidth : 20);
       const ahead = (c.x - origin.x) * dir;
       if (ahead < -16 || ahead > reach || Math.abs(c.y - origin.y) > 62) return;
-      const { damage, isCrit } = calcDamage(gs.atk, gs.critRate, effectiveCritMulti(gs), BASIC_ATTACK_DEF.damageMult);
+      const { damage, isCrit } = calcDamage(gs.atk, effectiveCritRate(gs), effectiveCritMulti(gs), BASIC_ATTACK_DEF.damageMult);
       enemy.takeDamage(damage, isCrit);
       enemy.applyKnockback?.(dir * (isCrit ? 240 : 130), isCrit ? 200 : 110);
       spawnImpactSpark(scene, c.x, c.y, isCrit ? 0xffdd66 : 0xaaccff, isCrit ? 1.3 : 1);
@@ -538,7 +539,7 @@ export function castShuriken(scene, player, enemies) {
         x, y,
         vx: dir * 720,
         vy: spread[i],
-        multiplier: 1.2,
+        multiplier: M.Z,
         skillKey: 'Z',
         pierce: i === 2 ? 2 : 1,
       });
@@ -619,7 +620,7 @@ export function castDash(scene, player, enemies) {
     overlap = scene.physics.add.overlap(player, enemies, (dashPlayer, enemy) => {
       if (!dashPlayer?.active || !enemy?.active || enemy.isDead || hitSet.has(enemy)) return;
       hitSet.add(enemy);
-      const { damage, isCrit } = calcDamage(gs.atk, gs.critRate, effectiveCritMulti(gs), 0.6 * skillDamageScale(gs.skillLevels.X));
+      const { damage, isCrit } = calcDamage(gs.atk, effectiveCritRate(gs), effectiveCritMulti(gs), M.X_PASS * skillDamageScale(gs.skillLevels.X));
       enemy.takeDamage(damage, isCrit);
       audio.playImpact(isCrit);
       const c = getEntityEffectPoint(enemy);
@@ -639,7 +640,7 @@ export function castDash(scene, player, enemies) {
         if (mark.active) mark.destroy();
         if (!enemy?.active || enemy.isDead) return;
         const c = getEntityEffectPoint(enemy);
-        const { damage, isCrit } = calcDamage(gs.atk, gs.critRate, effectiveCritMulti(gs), 1.2 * skillDamageScale(gs.skillLevels.X));
+        const { damage, isCrit } = calcDamage(gs.atk, effectiveCritRate(gs), effectiveCritMulti(gs), M.X_BLAST * skillDamageScale(gs.skillLevels.X));
         enemy.takeDamage(damage, isCrit);
         enemy.applyKnockback?.(dir * 220, 200, -160);
         audio.playImpact(true);
@@ -731,7 +732,7 @@ export function castAssassinate(scene, player, enemies) {
     scene.time.delayedCall(delay, () => {
       if (!scene.sys.isActive() || !nearest.active || nearest.isDead) return;
       const c = getEntityEffectPoint(nearest);
-      const dmg = Math.floor(gs.atk * 0.8 * skillDamageScale(gs.skillLevels.C) * effectiveCritMulti(gs) * (0.9 + Math.random() * 0.2));
+      const dmg = Math.floor(gs.atk * M.C_SLASH * skillDamageScale(gs.skillLevels.C) * effectiveCritMulti(gs) * (0.9 + Math.random() * 0.2));
       nearest.takeDamage(dmg, true);
       audio.playImpact(false);
       spawnSlashWave(scene, c.x, c.y, idx === 0 ? flurryDir : !flurryDir, {
@@ -756,7 +757,7 @@ export function castAssassinate(scene, player, enemies) {
       lineWidth: 3,
     });
 
-    const damage = Math.floor(gs.atk * 1.9 * skillDamageScale(gs.skillLevels.C) * effectiveCritMulti(gs) * (0.9 + Math.random() * 0.2));
+    const damage = Math.floor(gs.atk * M.C_FINISH * skillDamageScale(gs.skillLevels.C) * effectiveCritMulti(gs) * (0.9 + Math.random() * 0.2));
     nearest.takeDamage(damage, true);
     audio.playImpact(true);
     hitStop(scene, 90);
@@ -943,7 +944,7 @@ export function castVortex(scene, player, enemies) {
           if (Math.abs(dx) > 12) {
             enemy.applyKnockback?.(Math.sign(dx) * Math.min(300, Math.abs(dx) * 2.4 + 60), tickInterval);
           }
-          const { damage, isCrit } = calcDamage(gs.atk, gs.critRate, effectiveCritMulti(gs), 0.35 * skillDamageScale(gs.skillLevels.V));
+          const { damage, isCrit } = calcDamage(gs.atk, effectiveCritRate(gs), effectiveCritMulti(gs), M.V_TICK * skillDamageScale(gs.skillLevels.V));
           enemy.takeDamage(damage, isCrit);
           spawnImpactSpark(scene, c.x, c.y, 0xb98bff, 0.7);
         });
@@ -973,7 +974,7 @@ export function castVortex(scene, player, enemies) {
         if (!enemy?.active || enemy.isDead) return;
         const c = getEntityEffectPoint(enemy);
         if (Phaser.Math.Distance.Between(cx, cy, c.x, c.y) > radius + 20) return;
-        const { damage, isCrit } = calcDamage(gs.atk, gs.critRate, effectiveCritMulti(gs), 0.9 * skillDamageScale(gs.skillLevels.V));
+        const { damage, isCrit } = calcDamage(gs.atk, effectiveCritRate(gs), effectiveCritMulti(gs), M.V_BLAST * skillDamageScale(gs.skillLevels.V));
         enemy.takeDamage(damage, isCrit);
         const away = c.x >= cx ? 1 : -1;
         enemy.applyKnockback?.(away * 340, 260, -220);
@@ -1090,7 +1091,7 @@ export function castClone(scene, player, enemies) {
     const face = c.x >= clone.x ? 1 : -1;
     clone.setFlipX(face < 0);
     clone.lockPose(player.pose('slash_2'), 220);
-    const { damage, isCrit } = calcDamage(gs.atk, gs.critRate, effectiveCritMulti(gs), 0.9 * skillDamageScale(gs.skillLevels.B));
+    const { damage, isCrit } = calcDamage(gs.atk, effectiveCritRate(gs), effectiveCritMulti(gs), M.B_SLASH * skillDamageScale(gs.skillLevels.B));
     enemy.takeDamage(damage, isCrit);
     enemy.applyKnockback?.(face * 180, 160);
     audio.playImpact(isCrit);
@@ -1108,7 +1109,7 @@ export function castClone(scene, player, enemies) {
     launchShuriken(scene, player, enemies, {
       x: clone.x + face * 20, y: oy,
       vx: Math.cos(angle) * 720, vy: Math.sin(angle) * 720,
-      multiplier: 0.7, skillKey: 'B', tint: 0xc9a0ff, alpha: 0.9,
+      multiplier: M.B_THROW, skillKey: 'B', tint: 0xc9a0ff, alpha: 0.9,
       trailTint: [0xc9a0ff, 0x8a4dff, 0x4a1d99],
     });
   };

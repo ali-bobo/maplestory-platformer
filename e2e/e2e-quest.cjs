@@ -3,7 +3,7 @@ const { chromium } = require('/opt/node-tools/node_modules/playwright');
 const SPDIR = process.argv[2] || '.';
 let fails = 0;
 const check = (n, c, x = '') => { console.log((c ? 'PASS' : 'FAIL') + ' - ' + n + (x ? ' :: ' + x : '')); if (!c) fails++; };
-const BASE = 'http://127.0.0.1:8231/index.html?debug=1';
+const BASE = `http://127.0.0.1:${process.env.PORT || 8231}/index.html?debug=1`;
 
 async function flow(browser, choice) {   // choice: 'assassin' | 'bandit'
   const label = choice;
@@ -13,8 +13,8 @@ async function flow(browser, choice) {   // choice: 'assassin' | 'bandit'
   page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
   page.on('console', (m) => { if (m.type() === 'error' && !m.text().includes('Failed to load resource')) errors.push('console: ' + m.text()); });
   await page.addInitScript(() => { try { localStorage.setItem('thief-legend-tutorial-seen', '1'); } catch (_) {} });
-  await page.goto(BASE); await page.waitForTimeout(4000);
-  await page.keyboard.press('Enter'); await page.waitForTimeout(4000);
+  await page.goto(BASE); await page.waitForTimeout(7000);
+  await page.keyboard.press('Enter'); await page.waitForFunction(() => window.__game && window.__game.scene.getScenes(true).some((x) => x.player), null, { timeout: 40000 }); await page.waitForTimeout(1500);
   const ev = (fn, arg) => page.evaluate(fn, arg);
   const shot = (n) => page.screenshot({ path: `${SPDIR}/quest-${label}-${n}.png` });
   const gsq = () => ev(() => { const gs = window.__game.registry.get('gameState'); return { job: gs.job, level: gs.level, choice: gs.jobChoice, active: gs.quests.active.map((q) => q.id + ':' + q.progress), done: gs.quests.completed, sp: gs.skillPoints, title: gs.title }; });
@@ -28,8 +28,9 @@ async function flow(browser, choice) {   // choice: 'assassin' | 'bandit'
   await page.waitForTimeout(2500);
   check(`[${label}] 進入晨曦鎮`, (await activeScene()) === 'TownScene');
 
-  // 影之殿堂在晨曦鎮右端的傳送門（x=1400）；殿堂裡的試煉傳送門在沒接任務時進不去
-  await tp(1400); await page.waitForTimeout(2800);
+  // 影之殿堂在晨曦鎮右上角高台的金色傳送門（x=1170, y=200），要站上去按 F；殿堂裡的試煉傳送門在沒接任務時進不去
+  await ev(() => { const s = window.__game.scene.getScenes(true).find((o) => o.player); s.player.setPosition(1170, 130); s.player.body.setVelocity(0, 0); s.player.isInvincible = true; });
+  await page.waitForTimeout(900); await press('f'); await page.waitForTimeout(2800);
   check(`[${label}] 晨曦鎮傳送門 → 影之殿堂`, (await activeScene()) === 'ShrineScene');
   await tp(1150); await page.waitForTimeout(1200);
   check(`[${label}] 沒接任務時影之試煉傳送門被擋下`, (await activeScene()) === 'ShrineScene');
@@ -74,21 +75,21 @@ async function flow(browser, choice) {   // choice: 'assassin' | 'bandit'
 
   // 3. 收集：到浮空島嶼打怪（掉落率拉到 100%，走真實擊殺 → 掉落 → 撿取流程）
   await ev(() => { window.__QUESTS.job_proof.collect.dropRate = 1; });
-  await ev(() => { const g = window.__game; const sc = g.scene.getScene('TownScene'); const gs = g.registry.get('gameState'); sc.scene.stop('UIScene'); sc.scene.start('MapleIslandScene', { gameState: gs, spawnX: 300 }); });
+  await ev(() => { const g = window.__game; const sc = g.scene.getScene('TownScene'); const gs = g.registry.get('gameState'); g.scene.getScenes(true).forEach((x) => { if (x !== sc && x.sys.settings.key !== 'UIScene') g.scene.stop(x.sys.settings.key); }); sc.scene.stop('UIScene'); sc.scene.start('MapleIslandScene', { gameState: gs, spawnX: 300 }); });
   await page.waitForTimeout(2500);
   check(`[${label}] 到達浮空島嶼`, (await activeScene()) === 'MapleIslandScene');
-  for (let i = 0; i < 40; i++) {
+  // 一次處理一個：先擊倒一隻怪，再把玩家移到一個掉落物上並等物理判定（同一幀連續瞬移到多個掉落物只會撿到最後一個）
+  for (let i = 0; i < 30; i++) {
     const prog = await ev(() => { const a = window.__game.registry.get('gameState').quests.active.find((x) => x.id === 'job_proof'); return a ? a.progress : 99; });
     if (prog >= 5 || prog === 99) break;
     await ev(() => {
       const sc = window.__game.scene.getScene('MapleIslandScene'); const p = sc.player; p.isInvincible = true;
+      const pk = sc.pickups.getChildren().find((k) => k.pickupType === 'quest');
+      if (pk) p.setPosition(pk.x, pk.y - 5);
       const m = p.enemies.getChildren().find((e) => e.active && !e.isDead);
-      if (m) { m.takeDamage(999999, false); }
-      for (const pk of sc.pickups.getChildren()) if (pk.pickupType === 'quest') { p.setPosition(pk.x, pk.y); break; }
+      if (m) m.takeDamage(999999, false);
     });
-    await page.waitForTimeout(700);
-    await ev(() => { const sc = window.__game.scene.getScene('MapleIslandScene'); const p = sc.player; for (const pk of sc.pickups.getChildren()) if (pk.pickupType === 'quest') { p.setPosition(pk.x, pk.y - 5); } });
-    await page.waitForTimeout(300);
+    await page.waitForTimeout(1000);
   }
   q = await gsq();
   check(`[${label}] 收集 5 個試煉之證 → 試煉之證完成`, q.done.includes('job_proof'), JSON.stringify(q));

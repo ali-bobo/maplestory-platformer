@@ -13,6 +13,7 @@ import { SHARD_COUNT, SHARD_IDS, SHARD_TEXTURE } from '../config/shards.js';
 import { hasShard, shardCount } from '../engine/shards.js';
 import { audio } from '../engine/audio.js';
 import { addSoundButton } from '../engine/soundButton.js';
+import { WorldMapOverlay } from '../ui/WorldMapOverlay.js';
 
 // HUD 場景（平行運行）— 橫向捲軸風格底部狀態列
 // 盜賊技能在技能欄的簡稱（格子寬度有限）；其他技能直接用全名
@@ -157,6 +158,13 @@ export class UIScene extends Phaser.Scene {
 
     // 聲音開關（右上、小地圖左側）：手機與電腦都能點
     this._soundBtn = addSoundButton(this, width - 196, 28, { depth: 120, size: 40 });
+
+    // 世界地圖：右上角「地圖」鈕（聲音鈕左邊，不蓋到小地圖與任務面板），按 M 也能開關
+    this._worldMap = new WorldMapOverlay(this);
+    this._worldMapBtn = addWoodButton(this, width - 262, 28, 66, 42, '地圖', () => this._worldMap.toggle(),
+      { depth: 120, fontSize: 15 });
+    this._onUiMapKey = () => { if (!this._isPaused && !this.registry.get('helpOpen')) this._worldMap.toggle(); };
+    this.input.keyboard.on('keydown-M', this._onUiMapKey);
 
     // Phase 15：ESC 暫停選單
     this._isPaused = false;
@@ -310,6 +318,7 @@ export class UIScene extends Phaser.Scene {
       const bx = startX + col * (btnW + gap) + (row === 1 ? (btnW + gap) / 2 : 0);
       const by = barPanelY + 18 + row * (btnH + 8);
       addWoodButton(this, bx + btnW / 2, by + btnH / 2, btnW, btnH, btn.label, () => {
+        if (btn.type === 'map') { this._closePopup(); this._worldMap.toggle(); return; }   // 「地圖」開世界地圖浮層
         if (this._popup && this._popup.type === btn.type) {
           this._closePopup();
         } else {
@@ -904,6 +913,8 @@ export class UIScene extends Phaser.Scene {
 
   _onShutdown() {
     this._closePopup();
+    if (this._worldMap) this._worldMap.destroy();
+    if (this._onUiMapKey) { this.input.keyboard.off('keydown-M', this._onUiMapKey); this._onUiMapKey = null; }
     this.registry.events.off('changedata-hp',        this._onHpChange,    this);
     this.registry.events.off('changedata-mp',        this._onMpChange,    this);
     this.registry.events.off('changedata-exp',       this._onExpChange,   this);
@@ -1030,6 +1041,7 @@ export class UIScene extends Phaser.Scene {
   _onEscKeyDown() {
     if (this.registry.get('helpOpen')) return;   // 操作說明浮層開著：Esc 只用來關閉說明
     if (this.time.now - this._bornAt < 600) return;
+    if (this._worldMap && this._worldMap.isOpen) { this._worldMap.close(); return; }   // Esc 先關世界地圖
     // 暫停中：被暫停的地圖場景不再是 active，必須先處理關閉，否則 ESC 只能開不能關
     if (this._isPaused) {
       this._closePauseMenu();

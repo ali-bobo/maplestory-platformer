@@ -17,8 +17,11 @@ async function launch(opts = {}) {
   return { browser, page, errors };
 }
 async function start(page, waitMs = 4000) {
-  await page.goto(BASE); await page.waitForTimeout(waitMs);
-  await page.keyboard.press('Enter'); await page.waitForTimeout(3500);
+  await page.goto(BASE); await page.waitForTimeout(waitMs + 3000);
+  await page.keyboard.press('Enter');
+  // 機器忙時載入會慢：等到真的進了有玩家的地圖場景
+  await page.waitForFunction(() => window.__game && window.__game.scene.getScenes(true).some((x) => x.player), null, { timeout: 40000 });
+  await page.waitForTimeout(1500);
 }
 const api = (page) => ({
   ev: (fn, arg) => page.evaluate(fn, arg),
@@ -28,6 +31,7 @@ const api = (page) => ({
   go: async (sceneKey, spawnX) => {
     await page.evaluate(([k, x]) => { const g = window.__game; const sc = g.scene.getScenes(true).find((o) => o.player) || g.scene.getScenes(true)[0]; const gs = g.registry.get('gameState'); g.scene.getScenes(true).forEach((s) => { if (s.sys.settings.key === 'UIScene') s.scene.stop(); }); sc.scene.start(k, { gameState: gs, spawnX: x }); }, [sceneKey, spawnX]);
     await page.waitForTimeout(2600);
+    await page.waitForFunction((k) => { const sc = window.__game.scene.getScenes(true).find((o) => o.sys.settings.key === k); return !!(sc && sc.player && sc.player.enemies && sc.monsters); }, sceneKey, { timeout: 30000, polling: 100 }).catch(() => {});
   },
   tp: (x, y) => page.evaluate(([x, y]) => { const s = window.__game.scene.getScenes(true).find((o) => o.player); const p = s.player; p.setPosition(x, y ?? p.y); p.body.setVelocity(0, 0); p.isInvincible = true; }, [x, y ?? null]),
   press: async (key, ms = 80) => { await page.keyboard.down(key); await page.waitForTimeout(ms); await page.keyboard.up(key); },

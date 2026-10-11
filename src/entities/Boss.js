@@ -1,9 +1,17 @@
 import Phaser from 'phaser';
 import { Monster } from './Monster.js';
 import { particles } from '../engine/particles.js';
-import { ALIGNMENT_PROFILES, applyAlignmentProfile } from '../config/alignment.js';
+import { ALIGNMENT_PROFILES, applyAlignmentProfile, getVisualCenterY } from '../config/alignment.js';
+import { getTable, jumpClassFor } from '../engine/platformGraph.js';
+import { playFx } from './Skill.js';
 
-// 暗影魔君 — 3 階段 Boss
+// 數值：Lv45 玩家只用普攻也 12 秒就能打倒舊的 10000 HP，遠低於 Lv44 的墮落騎士團長（25300 HP），
+// 最終 Boss 至少要比區域守衛更耐打才有「決戰」的份量
+const BOSS_HP = 28000;
+const BOSS_ATK = 160;
+const BOSS_JUMP_VEL = 640;   // 能跳上相距約 200px 的平台（Boss 房每層落差 140–156）
+
+// 暗影魔君 — 3 階段 Boss（招式與階段門檻見 config/monsterAttacks.js 的 boss 條目）
 // 使用多張動作圖（待機 / 移動 / 攻擊 / 死亡），以狀態驅動姿勢動畫
 export class Boss extends Monster {
   constructor(scene, x, y) {
@@ -11,8 +19,8 @@ export class Boss extends Monster {
       id: 'boss',
       name: '暗影魔君',
       level: 30,
-      hp: 10000,
-      atk: 160,
+      hp: BOSS_HP,
+      atk: BOSS_ATK,
       exp: 5000,
       speed: 120,
       meso: 500,
@@ -22,15 +30,21 @@ export class Boss extends Monster {
       area: 'boss',
     });
 
-    this.phase = 1;
-    this.maxHp = 10000;
-    this.hp = 10000;
+    this.maxHp = BOSS_HP;
+    this.hp = BOSS_HP;
     applyAlignmentProfile(this, ALIGNMENT_PROFILES.boss);
-    this._phaseTransitioning = false;
-    this._summonCooldown = 0;
-    this._slamCooldown = 0;
-    this._berserking = false;
     this.knockbackResist = 0.9;
+
+    // 永遠追著玩家；身體很寬，近戰距離與到位死區都要放大
+    this.detectionRange = Infinity;
+    this._detectionRangeSq = Infinity;
+    this._chaseExtendedSq = Infinity;
+    this.attackRange = 110;
+    this._attackRangeSq = 110 * 110;
+    this._arriveDist = 70;
+    // 玩家在別的平台時，Boss 會跳上去 / 走下來
+    this.steerJumpVel = BOSS_JUMP_VEL;
+    this._table = this.graph ? getTable(this.graph, jumpClassFor(BOSS_JUMP_VEL)) : null;
 
     // 姿勢動畫狀態
     this._currentPose = 'boss_idle';
@@ -59,10 +73,10 @@ export class Boss extends Monster {
     // 動態前景血條：origin (0,0) 左對齊，scaleX 控制 HP 比例
     this._bossFgBar = scene.add.rectangle(bx, by, bw, bh, 0xff0066)
       .setOrigin(0, 0).setScrollFactor(0).setDepth(100);
-    // 相位分隔線（60% 與 30% 位置）
-    this._bossPhaseLine1 = scene.add.rectangle(bx + bw * 0.4, by + bh / 2, 2, bh, 0xffffff, 0.6)
+    // 相位分隔線：血條由右往左縮短，60% 與 30% 血量在左起 0.6 / 0.3 處
+    this._bossPhaseLine1 = scene.add.rectangle(bx + bw * 0.6, by + bh / 2, 2, bh, 0xffffff, 0.6)
       .setScrollFactor(0).setDepth(101);
-    this._bossPhaseLine2 = scene.add.rectangle(bx + bw * 0.7, by + bh / 2, 2, bh, 0xffffff, 0.6)
+    this._bossPhaseLine2 = scene.add.rectangle(bx + bw * 0.3, by + bh / 2, 2, bh, 0xffffff, 0.6)
       .setScrollFactor(0).setDepth(101);
 
     this._updateBossHpBar();
@@ -104,91 +118,44 @@ export class Boss extends Monster {
     super.takeDamage(amount, isCrit, opts);
     if (this.isDead) return;
     this._updateBossHpBar();
-    this._checkPhaseTransition();
-    // 受擊閃白會清掉狂暴紅色 tint，閃爍結束後補回
-    if (this._berserking) {
-      this.scene.time.delayedCall(190, () => {
-        if (this.active && this._berserking && !this.isDead) this.setTint(0xff0000);
-      });
-    }
   }
 
-  _checkPhaseTransition() {
-    if (this._phaseTransitioning) return;
-    const ratio = this.hp / this.maxHp;
-    if (this.phase === 1 && ratio <= 0.6) {
-      this._transitionToPhase(2);
-    } else if (this.phase === 2 && ratio <= 0.3) {
-      this._transitionToPhase(3);
-    }
-  }
-
-  _transitionToPhase(newPhase) {
-    this._phaseTransitioning = true;
-    this.phase = newPhase;
-
-    // 相位過渡特效
-    const flash = this.scene.add.graphics();
-    flash.fillStyle(0xffffff, 0.8);
-    flash.fillRect(0, 0, this.scene.cameras.main.width, this.scene.cameras.main.height);
-    flash.setScrollFactor(0).setDepth(200);
-    this.scene.tweens.add({
-      targets: flash, alpha: 0, duration: 600,
-      onComplete: () => flash.destroy(),
-    });
-
-    particles.spawnDeath(this.scene, this.x, this.y, 0xff00ff);
-
-    // 相位文字
-    const phaseText = this.scene.add.text(
-      this.scene.cameras.main.width / 2,
-      this.scene.cameras.main.height / 2,
-      `第${newPhase}階段！`,
-      { fontSize: '48px', color: '#ff00ff', fontFamily: 'Arial', stroke: '#000000', strokeThickness: 6 }
-    ).setScrollFactor(0).setDepth(201).setOrigin(0.5, 0.5);
-
-    this.scene.tweens.add({
-      targets: phaseText, y: phaseText.y - 80, alpha: 0, duration: 2000,
-      onComplete: () => phaseText.destroy(),
-    });
-
-    // 第2階段：召喚援軍
-    if (newPhase === 2) {
-      // 過場援軍登場後，週期召喚延後 8 秒再啟動，避免一次冒出兩批
-      this._summonCooldown = 8000;
-      this.scene.time.delayedCall(500, () => this._summonMinions());
-    }
-    // 第3階段：狂暴模式
-    if (newPhase === 3) {
-      this._berserking = true;
-      this.speed *= 1.5;
-      this.atk = Math.floor(this.atk * 1.5);
-      this.setTint(0xff0000);
-    }
-
-    this.scene.time.delayedCall(1000, () => { this._phaseTransitioning = false; });
-  }
-
-  _summonMinions() {
-    // 區域捕捉 scene：召喚有 0~800ms 延遲，期間 Boss 可能先死亡使 this.scene 變 null
+  // 階段切換：全螢幕閃光 + 光環 + 震動 + 大字，並清掉場上彈幕（咆哮期間不會被偷襲）
+  _onPhaseChange(newPhase, ph) {
     const scene = this.scene;
-    if (!scene || !scene.sys.isActive()) return;
-    for (let i = 0; i < 3; i++) {
-      scene.time.delayedCall(i * 400, () => {
-        if (!this.active || this.isDead || !scene.sys.isActive()) return;
-        scene.events.emit('boss-summon-minion', {
-          x: this.x + (i - 1) * 120,
-          y: this.y,
-        });
-      });
-    }
+    const cam = scene.cameras.main;
+    scene._aiPool?.clear();
+
+    const flash = scene.add.graphics();
+    flash.fillStyle(newPhase >= 3 ? 0xff3333 : 0xffffff, 0.8);
+    flash.fillRect(0, 0, cam.width, cam.height);
+    flash.setScrollFactor(0).setDepth(200);
+    scene.tweens.add({ targets: flash, alpha: 0, duration: 600, onComplete: () => flash.destroy() });
+
+    cam.shake(700, 0.02);
+    const cy = getVisualCenterY(this);
+    playFx(scene, 'fx_boss_aura', this.x, cy, { scale: 2.4, frameRate: 8, tint: newPhase >= 3 ? 0xff2222 : 0xcc44ff, depth: 14 });
+    particles.spawnDeath(scene, this.x, cy, newPhase >= 3 ? 0xff2222 : 0xff00ff);
+
+    const phaseText = scene.add.text(cam.width / 2, cam.height / 2,
+      `第${newPhase}階段！${ph.label && newPhase >= 3 ? '  ' + ph.label : ''}`,
+      { fontSize: '48px', color: newPhase >= 3 ? '#ff4444' : '#ff00ff', fontFamily: 'Arial', stroke: '#000000', strokeThickness: 6 }
+    ).setScrollFactor(0).setDepth(201).setOrigin(0.5, 0.5);
+    scene.tweens.add({ targets: phaseText, y: phaseText.y - 80, alpha: 0, duration: 2000, onComplete: () => phaseText.destroy() });
+
+    this._restoreTint();
   }
 
-  // 覆寫近戰攻擊：實際出手時切換攻擊姿勢
+  // 近戰攻擊：實際出手時切換攻擊姿勢
   _doAttack(player) {
     const ready = this.attackCooldown <= 0;
     super._doAttack(player);
     if (ready) this._triggerAttackPose();
+  }
+
+  // 大招出手時的姿勢（brain 在前搖結束時呼叫）
+  onAttackStart() {
+    this._triggerAttackPose();
   }
 
   update(player, delta) {
@@ -196,38 +163,6 @@ export class Boss extends Monster {
     super.update(player, delta);
     this._updateBossHpBar();
     this._updatePose();
-
-    this._summonCooldown = Math.max(0, this._summonCooldown - delta);
-    this._slamCooldown = Math.max(0, this._slamCooldown - delta);
-
-    if (!player || !player.active) return;
-    const dist = Phaser.Math.Distance.Between(this.x, this.y, player.x, player.y);
-
-    // 第1階段：地面重擊
-    if (this.phase >= 1 && this._slamCooldown <= 0 && dist < 200) {
-      this._groundSlam(player);
-    }
-
-    // 第2/3階段：召喚冷卻
-    if (this.phase >= 2 && this._summonCooldown <= 0) {
-      this._summonCooldown = 8000;
-      this._summonMinions();
-    }
-  }
-
-  _groundSlam(player) {
-    this._slamCooldown = this._berserking ? 1500 : 3000;
-    this._triggerAttackPose();
-    // 震動效果
-    this.scene.cameras.main.shake(300, 0.015);
-    particles.spawnDeath(this.scene, this.x, this.y + 20, 0x884400);
-
-    // AoE 傷害
-    const dmg = Math.floor(this.atk * (this._berserking ? 1.8 : 1.2));
-    if (player && !player.isInvincible) {
-      const d = Phaser.Math.Distance.Between(this.x, this.y, player.x, player.y);
-      if (d < 150) player.takeDamage(dmg);
-    }
   }
 
   die() {
@@ -250,6 +185,7 @@ export class Boss extends Monster {
     this._bossPhaseLine1 = null;
     if (this._bossPhaseLine2?.active) this._bossPhaseLine2.destroy();
     this._bossPhaseLine2 = null;
+    this.scene._aiPool?.clear();
     this.scene.events.emit('boss-defeated');
   }
 

@@ -1,26 +1,28 @@
 // 職業技能用的狀態效果（純邏輯、不依賴 Phaser；效果掛在敵人物件的底線欄位上）：
-//  - 斷命印記（刺客）：被標記者下次受到攻擊必暴擊並額外 +30% 傷害，之後印記消失
+//  - 斷命印記（刺客）：印記期間（7 秒）被標記者受到的每次攻擊（持續傷害除外）都必暴擊並額外 +20% 傷害
 //  - 蝕心毒鏢（刺客）：持續傷害，可疊加到 3 層，重複命中會刷新持續時間
-//  - 迷煙彈（俠盜）：煙霧範圍內的敵人傷害降低 50%、不會追擊
+//  - 迷煙彈（俠盜）：煙霧範圍內的敵人傷害降低 60%、不會追擊，並每秒受到持續傷害
 //  - 妙手空空 / 彎刀橫斬的機率與連擊判定
 // 視覺（特效、傷害數字）由 src/entities/JobSkills.js 負責。
 
-export const MARK_DURATION_MS = 6000;
-export const MARK_DAMAGE_BONUS = 1.3;
+export const MARK_DURATION_MS = 7000;
+export const MARK_DAMAGE_BONUS = 1.2;
 export const POISON_MAX_STACKS = 3;
-export const POISON_TICKS = 5;           // 5 秒、每秒一跳
-export const POISON_TICK_MULT = 0.25;    // 每層每跳 0.25 倍攻擊力
-export const SMOKE_DAMAGE_FACTOR = 0.5;
-export const SMOKE_DURATION_MS = 5000;
-export const SMOKE_RADIUS = 110;
-export const STEAL_MESO_CHANCE = 0.35;
-export const STEAL_POTION_CHANCE = 0.05;
+export const POISON_TICKS = 6;           // 6 秒、每秒一跳
+export const POISON_TICK_MULT = 0.65;    // 每層每跳 0.65 倍攻擊力
+export const SMOKE_DAMAGE_FACTOR = 0.4;  // 煙霧內的敵人只造成 40% 傷害
+export const SMOKE_DURATION_MS = 7000;
+export const SMOKE_RADIUS = 150;
+export const SMOKE_TICK_MULT = 0.65;     // 煙霧內每名敵人每秒受到的傷害（倍攻擊力）
+export const STEAL_MESO_CHANCE = 0.6;
+export const STEAL_POTION_CHANCE = 0.12;
+export const STEAL_MP_REFUND = 10;       // 妙手空空命中回復的 MP
 export const COMBO_WINDOW_MS = 900;
 
 // ── 斷命印記 ────────────────────────────────────────────────────────────────
 export function setMark(enemy, now, durationMs = MARK_DURATION_MS) {
   clearMark(enemy, 'replaced');
-  enemy._mark = { until: now + durationMs, onClear: null };
+  enemy._mark = { until: now + durationMs, onClear: null, onHit: null, hits: 0 };
   return enemy._mark;
 }
 
@@ -36,14 +38,16 @@ export function clearMark(enemy, reason) {
   if (m.onClear) m.onClear(reason);
 }
 
-// 受到攻擊時呼叫：有效印記 → 回傳 { amount, isCrit }（必暴擊、再 ×1.3）並移除印記；沒有則回傳 null。
+// 受到攻擊時呼叫：有效印記 → 回傳 { amount, isCrit }（必暴擊、再 ×1.2）；沒有則回傳 null。
+// 印記在持續時間內一直有效（不會被打一下就消失），逾時才移除。
 // 已經是暴擊的傷害不重複乘暴擊倍率；非暴擊則先換算成暴擊傷害。
 export function consumeMark(enemy, now, amount, isCrit, critMulti) {
   const m = enemy._mark;
   if (!m) return null;
   if (m.until <= now) { clearMark(enemy, 'expired'); return null; }
   const base = isCrit ? amount : amount * critMulti;
-  clearMark(enemy, 'hit');
+  m.hits = (m.hits || 0) + 1;
+  if (m.onHit) m.onHit(m.hits);
   return { amount: Math.max(1, Math.floor(base * MARK_DAMAGE_BONUS)), isCrit: true };
 }
 
