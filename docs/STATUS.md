@@ -122,7 +122,7 @@
   - 沒有目標時（瞬影連刺 / 斷命印記 / 妙手空空）退還 MP 與冷卻。9 組 `fx_*` 特效全部啟用（`FX_ASSETS` 皆 `used`）；橘 / 綠 / 灰色特效改用一般混合，亮背景才看得見（`playFx` 的 `normal` 選項）。
   - 技能圖示：新技能與刺客 / 俠盜普攻圖示是**程式繪製的暫代圖**（`assets/skillIcons.js`）；手繪 PNG（38×38，`skill_icon_<id>.png`，普攻欄 `ATK_assassin` / `ATK_bandit`）到位後把 id 加進 `assetCatalog.js` 的 `SKILL_ICON_PNG_IDS` 即會預載並取代。
 - **轉職任務鏈**（`config/quests.js` 的 `JOB_QUEST_CHAIN`）：影之召喚（`talk`，城鎮居民轉交神祕信，Lv.10 才能接）→ 選擇你的道路（`choice`，影之長老對話選職業）→ 試煉之證（`collect`，在浮空島嶼 / 森林獵場 / 古代廢墟擊殺怪物 40% 掉落任務物品，收集 5 個）→ 影之試煉（`dungeon`）→ 覺醒（`talk`，`rewards.advanceJob`）。任務新增 `minLevel` / `requires`（前置）欄位；`questManager` 新增 `questAvailable`、`onNpcTalked`、`onItemCollected`、`onDungeonCleared`、`chooseJobPath`、`questItemDrop`，覺醒時呼叫 `applyJobChange` 並發出 `job-changed`，由 `BaseMapScene._onJobChanged` 換外觀、播放 `fx_job_change` 光柱演出、顯示稱號並自動存檔。
-- **影之試煉的做法**：沿用既有副本機制，新增副本 `shadow_trial`（限時 120 秒、單波：試煉守衛 `shadow_guardian`（小王）+ 2 隻影子史萊姆，通關觸發任務完成，失敗可重試）；入口是影之殿堂右端傳送門（Phase 22 前在晨曦鎮），`requiresQuest: 'job_trial'`，沒接任務進不去；副本的 `returnMap: 'shrine'`，結算後回到影之殿堂。
+- **影之試煉的做法**：沿用既有副本機制，新增副本 `shadow_trial`（限時 150 秒（Phase 24 起）、單波：試煉守衛 `shadow_guardian`（小王）+ 2 隻影子史萊姆，通關觸發任務完成，失敗可重試）；入口是影之殿堂右端傳送門（Phase 22 前在晨曦鎮），`requiresQuest: 'job_trial'`，沒接任務進不去；副本的 `returnMap: 'shrine'`，結算後回到影之殿堂。
 - **NPC 對話選項 UI**：`engine/npcDialog.js`（純邏輯）依任務進度產生對話內容與選項；`BaseMapScene._openNpcDialog` 支援選項按鈕（點擊或按 1 / 2，手機點擊）。影之長老已換成正式 NPC 圖 `npc_shadow_elder`。
 - **除錯**（`?debug=1`）：`window.__setJob('assassin' | 'bandit' | 'thief', level)` 直接設職業與等級（不播演出）；`window.__QUESTS` 可調整任務參數。
 - **驗證**：`npm test`（含 `jobs` / `statusEffects` / `jobQuests` 單元測試與 `content.test.js` 的任務 / NPC / 傳送門 / 素材交叉檢查）；Playwright e2e 涵蓋兩個職業各技能施放（MP / 冷卻 / 傷害 / 姿勢）、被動、存檔重讀、以及真實走完整條轉職任務鏈。
@@ -222,4 +222,17 @@
 黃沙遺跡 Lv20-26（流沙：地面區域移速 -40%）、霜牙峰 Lv25-31（冰面滑行）、熔岩巢穴 Lv30-36（地面四區每 5.2 秒預警 1.4 秒後噴發 1 秒，最大 HP 5% 傷害，平台上安全）、魔君王城 Lv35-42（暗角視野 + 燭台）。各 5 小怪 + 1 守護者（hp 約同級小怪 8.5-9.4 倍、Lv = 帶上限 + 2）、2 NPC（1 任務發放、1 區域商店）、3 個任務、專屬 BGM。機制在 `engine/mapModifiers.js`（純邏輯 `mapModifierLogic.js`）。商店通用化：`config/shops.js`、`engine/shop.js`，商店畫面移到 BaseMapScene。數值公式與偏離：hp≈0.8×45·Lv(1+Lv/50)、atk≈5Lv+0.04Lv²（Lv30 起 ×0.92）、meso≈2.9·Lv（設計文件的 0.6·Lv 與既有曲線不符，採既有曲線）。
 - 驗證：Playwright 走完整條主線傳送門、四個守護者各掉一塊碎片、冰面滑行 / 流沙 ×0.6 / 岩漿扣血、每張新圖截圖無頁面錯誤；e2e-skills2 / mobile / jobs 通過；e2e-quest（已改成影之殿堂流程）通過。
 
-### 階段 3：世界地圖與傳送（**未完成**，見 TODO）
+### 階段 3：世界地圖與傳送（見下方 Phase 24 已完成）
+
+### 階段 3：世界地圖與傳送（已完成，Phase 24）
+- **支線岔路**：神秘之境（森林獵場）、影之殿堂與城市特區（晨曦鎮）的入口從地面中間搬到**右上角跳台**（金色傳送門 + 路牌 + 「按 F 進入」提示）；`portal.interact`：站上去還要按互動鍵（F / 觸控「互動」）才進入，走地面、跳躍落在門上都不會誤入。晨曦鎮的史萊姆洞窟也改成要按 F。主線傳送門維持在地圖兩端、走過去就進。細節與每張圖的位置見 [`WORLD_DESIGN.md`](WORLD_DESIGN.md) 第八節。
+- **世界地圖浮層**（`src/ui/WorldMapOverlay.js` + 純邏輯 `engine/worldTravel.js`）：HUD 右上「地圖」鈕（聲音鈕左邊）、底部「地圖」鈕、按 M 開啟；10 個主線節點照底圖路線、4 張支線在側欄；目前所在 / 已解鎖 / 鎖定三種狀態；選取後顯示名稱、等級帶、傳送費，再點一次或按「傳送」出發。傳送費晨曦鎮與影之殿堂免費，其餘 30 + 20 × 等級；副本 / Boss 房 / 附近有怪 / 錢不夠 / 沒去過 / 等級不夠 / 目的地是暗影領域都會被拒絕。素材（`ui_world_map`、三個節點圖示）早已登錄在 `PROP_UI_ASSETS`，沒有特殊載入。
+- **驗證**：`test/worldTravel.test.js`（節點對應、費用、狀態、傳送檢查、支線入口位置與可達性）；`e2e/world/s4.cjs`（用真實按鍵從地面跳上每個岔路、確認走地面不會誤入、按 F 進入、開浮層、點節點傳送、扣費、副本中拒絕）。
+
+### 職業技能調校與試煉守衛（Phase 24）
+- **技能平衡**：數字見 [`SKILLS_DESIGN.md`](SKILLS_DESIGN.md) 第八節。倍率集中在 `config/skillModel.js`，執行期（`Skill.js` / `JobSkills.js`）與平衡模型（`engine/damageModel.js`，純函式）共用；`test/damageModel.test.js` 鎖定設計意圖（專屬技能每 MP / 每冷卻秒 ≥ 繼承技能、轉職普攻 ≥ 盜賊 ×1.3、MP 撐得過 10 秒但不是無限），`e2e/balance.cjs` 在遊戲內實測。斷命印記改為 7 秒內每擊必暴擊 ×1.2（不被打掉）；毒鏢 6 跳 × 0.65；迷煙彈 7 秒、半徑 150、傷害 ×0.4 並每秒受傷；赤月迴旋三圈 + 回血；妙手空空兩連擊 + 回 MP；殺手本能 +8% 暴擊率 / +40% 暴擊傷害；悍匪體魄 HP +30%（升級也成長）、減傷 10%、金幣 +25%。
+- **試煉守衛**：Lv10 盜賊原本 2 秒（穩健打法）～ 9 秒（只用普攻）就能打倒 1400 血的守衛，整場副本 6～15 秒。調整為 hp 46000 / atk 40、限時 150 秒、獎勵 700 exp + 1000 楓幣、每日 10 次。`e2e/trial.cjs` 實測（機器人不會閃躲，Lv10 盜賊 hp 580 / atk 115，各打法 4 場）：
+  - 穩健（普攻 + 三連飛鏢 + 藥水）：守衛倒下 45～51 秒（平均 47.5），整場通關 48～55 秒，4/4 通關，過程最低血量平均 250/580；
+  - 只用普攻 + 藥水：4/4 失敗（撐不過）；莽撞（不喝藥）：2/4 通關，最低血量 9～293。
+  - 為什麼血量這麼大：三連飛鏢每 10 MP 約 480 傷害，Lv10 的 MP 池 358 + 每秒回 10，持續輸出從約 1000 DPS 降到約 500 DPS；原本 1400 血守衛（穩健打法 2 秒、只用普攻 9 秒就倒、整場 6～15 秒）對這套打法完全沒有挑戰。守衛的血量 / 攻擊不吃玩家等級或副本縮放（直接用 `monsters.js` 的數字）。
+  - 小王血條（Monster.js）比例正確（scaleX = hp / maxHp），但寬度上限 64px、高 5px 太小，修法見 TODO。
