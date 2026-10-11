@@ -32,7 +32,7 @@ const check = (n, c, x = '') => { console.log((c ? 'PASS' : 'FAIL') + ' - ' + n 
       return r;
     };
   });
-  await page.goto('http://127.0.0.1:8123/index.html?debug=1');
+  await page.goto(`http://127.0.0.1:${process.env.PORT || 8123}/index.html?debug=1`);
   await page.waitForTimeout(4000);
   await page.keyboard.press('Enter');       // 開始遊戲（第一次按鍵解鎖音訊）
   const rms = () => page.evaluate(async () => {

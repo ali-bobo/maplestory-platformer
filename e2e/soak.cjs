@@ -2,7 +2,7 @@
 // 最後斷言「第二圈之後不再成長」。用來抓瀏覽器崩潰（記憶體洩漏、紋理累積、WebGL context lost）。
 //
 // 用法：PORT=8401 SOAK_MIN=6 node e2e/soak.cjs [輸出資料夾]
-//   SOAK_MIN   總分鐘數（預設 6；每分鐘走完一圈 13 張地圖）
+//   SOAK_MIN   總分鐘數（預設 6；每分鐘走完一圈：13 張地圖 + Boss 戰 + 副本）
 //   SOAK_JSON  若設定，把每分鐘取樣寫成 JSON 檔（比較前後數據用）
 const { chromium } = require('/opt/node-tools/node_modules/playwright');
 const fs = require('fs');
@@ -14,7 +14,8 @@ let fails = 0;
 const check = (n, c, x = '') => { console.log((c ? 'PASS' : 'FAIL') + ' - ' + n + (x ? ' :: ' + x : '')); if (!c) fails++; };
 
 const MAPS = ['MapleIslandScene', 'HenesysScene', 'HarborScene', 'PerionScene', 'DesertScene', 'SnowScene', 'LavaScene',
-  'CastleScene', 'TownScene', 'ShrineScene', 'KerningScene', 'TaipeiScene', 'ElliniaScene'];
+  'CastleScene', 'TownScene', 'ShrineScene', 'KerningScene', 'TaipeiScene', 'ElliniaScene',
+  'BossScene', 'DungeonScene:slime_cave'];   // 後兩個：Boss 戰與副本（不是一般地圖，素材清單來源不同）
 const JOB_CYCLE = [['thief', 12], ['assassin', 24], ['bandit', 24], ['thief', 30]];
 
 // 在頁面載入前注入：包裝 AudioContext 工廠函式，統計「存活」節點（來源節點以 onended 計），並記錄 context lost 事件
@@ -43,6 +44,7 @@ const INIT = () => {
   window.setInterval = function (...a) { const id = si.apply(this, a); live.add(id); st.intervals = live.size; return id; };
   window.clearInterval = function (id) { live.delete(id); st.intervals = live.size; return ci.call(this, id); };
   window.addEventListener('error', () => { st.errors++; });
+  window.__runningMap = () => window.__game && window.__game.scene.getScenes(true).find((o) => o.mapKey !== undefined && o.sys.isActive() && o.player && o.player.active);
   const hook = setInterval(() => {
     const c = document.querySelector('canvas');
     if (!c) return;
@@ -110,14 +112,27 @@ const SAMPLE = () => {
   const gc = () => page.evaluate(() => { if (window.gc) window.gc(); });
 
   const samples = [];
-  const hopTo = async (key) => {
-    await page.evaluate((k) => {
-      const g = window.__game; const sc = g.scene.getScenes(true).find((o) => o.player) || g.scene.getScenes(true)[0];
+  // 目前正在執行的地圖場景（有 mapKey 的 BaseMapScene；排除載入中 / 已停止的）。函式在 INIT 注入頁面
+  // （頁面的 CSP 禁止 eval，所以不能用字串形式的 waitForFunction / eval）
+  const hopTo = async (spec) => {
+    const [key, dungeonId] = spec.split(':');
+    await page.waitForFunction(() => !!window.__runningMap(), null, { timeout: 60000 });
+    await page.evaluate(([k, dungeonId]) => {
+      const g = window.__game; const sc = window.__runningMap();
       const gs = g.registry.get('gameState');
       g.scene.getScenes(true).forEach((s) => { if (s.sys.settings.key === 'UIScene') s.scene.stop(); });
-      sc.scene.start(k, { gameState: gs, spawnX: 300 });
-    }, key);
-    await page.waitForFunction(() => window.__game.scene.getScenes(true).some((s) => s.player && s.sys.isActive()), null, { timeout: 60000 });
+      sc.scene.start(k, { gameState: gs, spawnX: 300, dungeonId });
+    }, [key, dungeonId]);
+    // 等「目標場景」跑起來（舊場景結束、新場景載入完 + create 完成），而不是只看有沒有任何場景在跑
+    try {
+      await page.waitForFunction((k) => { const sc = window.__game.scene.getScene(k); return sc && sc.sys.isActive() && sc.player && sc.player.active && window.__game.scene.isActive('UIScene'); }, key, { timeout: 60000 });
+    } catch (e) {
+      const st = await page.evaluate(() => window.__game.scene.getScenes(false).map((s) => `${s.sys.settings.key}:${s.sys.settings.status}`).join(' ')).catch(() => '?');
+      console.log(`STUCK 轉場卡住：${spec}  場景狀態 ${st}`);
+      await page.screenshot({ path: OUT + '/soak-stuck.png' }).catch(() => {});
+      throw e;
+    }
+    await page.waitForFunction(() => window.__game.scene.getScenes(true).filter((o) => o.mapKey !== undefined).length === 1, null, { timeout: 5000 }).catch(() => {});
   };
   const fightFor = async (ms) => {
     // 把玩家傳到最近的怪旁邊，連打普攻 + 輪流施放所有技能
@@ -176,6 +191,7 @@ const SAMPLE = () => {
   // ── 斷言：暖機（前 2 圈）之後不可再成長 ──────────────────────────────────────
   if (samples.length >= 4) {
     const a = samples[1], z = samples[samples.length - 1];
+    check('同一時間只有一個地圖場景在跑', /^[A-Za-z]+Scene,UIScene$/.test(z.active) || /^UIScene,[A-Za-z]+Scene$/.test(z.active) || z.active.split(',').filter((x) => x !== 'UIScene').length === 1, z.active);
     check('JS 堆積在暖機後成長 < 12 MB', z.heapMB - a.heapMB < 12, `${a.heapMB} -> ${z.heapMB} MB`);
     check('紋理數量在暖機後成長 <= 4', z.textures - a.textures <= 4, `${a.textures} -> ${z.textures}`);
     check('紋理像素量在暖機後成長 < 8 MB', z.texMB - a.texMB < 8, `${a.texMB} -> ${z.texMB} MB`);
