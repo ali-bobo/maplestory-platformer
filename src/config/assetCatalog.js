@@ -598,6 +598,7 @@ export const MONSTER_ASSETS = [
   { assetId: 'MON-CITY-002', groupId: 'MON-CITY', kind: 'monster', key: 'monster_punk_red', path: 'dist/assets/monster_punk_red.png', status: 'used', monsterIds: ['street_punk'], alignmentStatus: 'complete' },
   { assetId: 'MON-CITY-003', groupId: 'MON-CITY', kind: 'monster', key: 'monster_pickpocket', path: 'dist/assets/monster_pickpocket.png', status: 'used', monsterIds: ['city_elite'], alignmentStatus: 'complete' },
   { assetId: 'MON-CITY-004', groupId: 'MON-CITY', kind: 'miniboss', key: 'miniboss_street', path: 'dist/assets/miniboss_street.png', status: 'used', monsterIds: ['city_boss1'], alignmentStatus: 'complete' },
+  { assetId: 'MON-JOB-001', groupId: 'MON-JOB', kind: 'miniboss', key: 'miniboss_trialguard', path: 'dist/assets/miniboss_trialguard.png', status: 'used', monsterIds: ['shadow_guardian'], alignmentStatus: 'complete' },
 ];
 
 export const NPC_ASSETS = [
@@ -664,6 +665,22 @@ export const NPC_ASSETS = [
     key: 'npc_townsfolk',
     path: 'dist/assets/npc_townsfolk.png',
     status: 'used',
+  },
+  {
+    assetId: 'NPC-JOB-001',
+    groupId: 'NPC-JOB',
+    kind: 'npc',
+    key: 'npc_shadow_elder',
+    path: 'dist/assets/npc_shadow_elder.png',
+    status: 'used',
+  },
+  {
+    assetId: 'NPC-JOB-002',
+    groupId: 'NPC-JOB',
+    kind: 'npc',
+    key: 'npc_skill_mentor',
+    path: 'dist/assets/npc_skill_mentor.png',
+    status: 'unused',
   },
 ];
 
@@ -902,7 +919,10 @@ CHARACTER_ASSETS.push(...JOB_CHARACTER_ASSETS);
 
 // 技能圖示 PNG（手繪圖到位後把 id 加進來；沒列的由 src/assets/skillIcons.js 程式繪製）
 // 檔名規則：dist/assets/skill_icon_<id>.png，38x38；ATK 欄依職業用 ATK_assassin / ATK_bandit
-export const SKILL_ICON_PNG_IDS = [];
+export const SKILL_ICON_PNG_IDS = [
+  'ATK', 'Z', 'X', 'C', 'V', 'B', 'backstab', 'poison', 'mark', 'whirl', 'steal', 'smoke',
+  'ATK_assassin', 'ATK_bandit',   // 暫用同一張普通攻擊圖，之後可換成雙刃 / 彎刀專屬圖
+];
 export const SKILL_ICON_ASSETS = SKILL_ICON_PNG_IDS.map((id) => ({
   assetId: `ICO-SKILL-${id.toUpperCase()}`,
   groupId: 'ICO-SKILL',
@@ -911,6 +931,18 @@ export const SKILL_ICON_ASSETS = SKILL_ICON_PNG_IDS.map((id) => ({
   path: `dist/assets/skill_icon_${id}.png`,
   status: 'used',
 }));
+
+// 任務物品圖示（key 與程式暫代圖相同時，以這裡載入的 PNG 為準）
+export const QUEST_ITEM_ASSETS = [
+  {
+    assetId: 'ITM-QST-001',
+    groupId: 'ITM-QST',
+    kind: 'icon',
+    key: 'item-quest-token',
+    path: 'dist/assets/item_trial_token.png',
+    status: 'used',
+  },
+];
 
 export const PRELOAD_IMAGE_ASSETS = [
   ...CHARACTER_ASSETS,
@@ -923,6 +955,7 @@ export const PRELOAD_IMAGE_ASSETS = [
   ...POTION_ICON_ASSETS,
   ...UI_ASSETS,
   ...SKILL_ICON_ASSETS,
+  ...QUEST_ITEM_ASSETS,
 ];
 
 export const PENDING_ALIGNMENT_ASSETS = MONSTER_ASSETS.filter(

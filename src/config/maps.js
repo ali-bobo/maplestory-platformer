@@ -316,8 +316,7 @@ export const MAPS = {
       { x: 1000, y: GROUND_Y - 60, id: 'npc_townsfolk', name: '城鎮居民',
         questIds: ['reach_town', 'job_call'], jobLetter: true,
         dialog: ['晨曦鎮是安全的休息站，這裡不會有怪物。', '需要補給就找商人老陳。', '右邊的傳送門可以回到浮空島嶼。'] },
-      // 轉職官（NPC 圖為暫代：舊居民圖染紫；影之殿堂與專屬立繪等美術到位後替換）
-      { x: 1230, y: GROUND_Y - 60, id: 'npc_townsfolk', tint: 0xa88ae0, npcId: 'shadow_elder', role: 'jobAdvisor', name: '影之長老',
+      { x: 1230, y: GROUND_Y - 60, id: 'npc_shadow_elder', npcId: 'shadow_elder', role: 'jobAdvisor', name: '影之長老',
         questIds: ['job_choose', 'job_proof', 'job_trial', 'job_awaken'],
         dialog: ['影子裡藏著力量，也藏著試煉。', '等你準備好了，再來找我。'] },
     ],

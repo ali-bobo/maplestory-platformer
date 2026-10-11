@@ -8,7 +8,7 @@ import { DUNGEONS } from '../src/config/dungeons.js';
 import { MAP_SCENE_KEYS, JOBS, JOB_IDS } from '../src/config/constants.js';
 import {
   CHARACTER_ASSETS, BACKGROUND_ASSETS, PLATFORM_ASSETS, MONSTER_ASSETS, NPC_ASSETS, BOSS_ASSETS,
-  ICON_ASSETS, UI_ASSETS, POTION_ICON_ASSETS, FX_ASSETS, JOB_POSES, SKILL_ICON_ASSETS,
+  ICON_ASSETS, UI_ASSETS, POTION_ICON_ASSETS, FX_ASSETS, JOB_POSES, SKILL_ICON_ASSETS, QUEST_ITEM_ASSETS,
 } from '../src/config/assetCatalog.js';
 
 const monsterIds = new Set(MONSTERS.map((m) => m.id));
@@ -82,7 +82,7 @@ test('素材目錄裡的每個檔案都真的存在', async () => {
   const { resolve } = await import('node:path');
   const root = process.cwd();   // npm test 從專案根目錄執行
   const missing = [];
-  for (const group of [CHARACTER_ASSETS, BACKGROUND_ASSETS, PLATFORM_ASSETS, MONSTER_ASSETS, NPC_ASSETS, BOSS_ASSETS, ICON_ASSETS, UI_ASSETS, POTION_ICON_ASSETS, FX_ASSETS, SKILL_ICON_ASSETS]) {
+  for (const group of [CHARACTER_ASSETS, BACKGROUND_ASSETS, PLATFORM_ASSETS, MONSTER_ASSETS, NPC_ASSETS, BOSS_ASSETS, ICON_ASSETS, UI_ASSETS, POTION_ICON_ASSETS, FX_ASSETS, SKILL_ICON_ASSETS, QUEST_ITEM_ASSETS]) {
     for (const a of group) if (!existsSync(resolve(root, a.path))) missing.push(a.path);
   }
   assert.deepEqual(missing, []);

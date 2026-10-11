@@ -86,7 +86,7 @@ export const MONSTERS = [
 
   // ── Boss 援軍 (boss) ─────────────────────────────────────────────────────
   // 一轉「影之試煉」守衛（小王；圖暫用街頭小王染紫，專屬美術待補）
-  { id: 'shadow_guardian', name: '試煉守衛', level: 12, hp: 1400, atk: 60, exp: 0, speed: 85, meso: 0, dropRate: 0.0, behavior: 'chase', spriteKey: 'miniboss_street', area: 'dungeon', spawnRole: 'miniboss', tint: 0x9070d0 },
+  { id: 'shadow_guardian', name: '試煉守衛', level: 12, hp: 1400, atk: 60, exp: 0, speed: 85, meso: 0, dropRate: 0.0, behavior: 'chase', spriteKey: 'miniboss_trialguard', area: 'dungeon', spawnRole: 'miniboss' },
   { id: 'shadow-slime', name: '影子史萊姆', level: 28, hp: 400,  atk: 80,  exp: 0,   speed: 80,  meso: 0,  dropRate: 0.0,  behavior: 'chase',   spriteKey: 'monster_slime',    area: 'boss', tint: 0x9B30FF },
 ];
 
