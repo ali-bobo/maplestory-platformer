@@ -1,5 +1,5 @@
 # 專案狀態盤點與下一步（原 ITERATION5_SPEC）
-# 最後更新：Phase 15 後
+# 最後更新：Phase 21（轉職系統階段 A）後
 
 ---
 
@@ -99,7 +99,7 @@
 
 ### 新手教學 / 技能欄位 / 聲音開關（Phase 19）
 - **普通攻擊與技能（Phase 20 調整後）**：空白鍵 = 近戰揮刀普通攻擊（`Skill.js` 的 `castSlash`，面前 90px 範圍內全部命中、傷害 ×0.9、不耗 MP、冷卻 0.4s、不吃技能等級，常數在 `BASIC_ATTACK_DEF`）；Z = 三連飛鏢技能（耗 MP 10、冷卻 0.5s）。電腦版 ↑ 與 Alt 都能跳躍。
-- **技能欄位**：技能池 5 個（Z X C V B），欄位 4 格（Z X C V 快捷鍵 / 手機四顆鈕），另有固定的普通攻擊欄（ATK，空白鍵）。欄位內容存在 `gameState.skillSlots`（`constants.js` 的 `SKILL_POOL` / `SKILL_SLOT_KEYS` / `skillForSlot` / `canReorderSkills` / `equipSkill`）；5 個技能全部解鎖（Lv.20）後可在 HUD 拖曳互換，或在技能視窗對沒裝備的技能按「換入」再選欄位。存檔驗證 `skillSlots` 必須是 4 個不重複、已解鎖的技能池成員，且未全部解鎖時一律回預設（`saveManager.js`）。
+- **技能欄位**：盜賊技能池 5 個（Z X C V B；刺客 / 俠盜各 6 個，見下方 Phase 21），欄位 4 格（Z X C V 快捷鍵 / 手機四顆鈕），另有固定的普通攻擊欄（ATK，空白鍵）。欄位內容存在 `gameState.skillSlots`（`constants.js` 的 `SKILL_POOL` / `SKILL_SLOT_KEYS` / `skillForSlot` / `canReorderSkills` / `equipSkill`）；5 個技能全部解鎖（Lv.20）後可在 HUD 拖曳互換，或在技能視窗對沒裝備的技能按「換入」再選欄位。存檔驗證 `skillSlots` 必須是 4 個不重複、已解鎖的技能池成員，且未全部解鎖時一律回預設（`saveManager.js`）。
 - **新手教學**（`TutorialScene`）：9 頁——故事 4 頁（晨曦之星被暗影魔君擊碎，你是被託付奪回星光的盜賊「影子」）、操作按鍵（電腦 / 觸控兩種版本）、技能與欄位、任務系統、畫面 / 存檔 / 死亡、出發。Enter / → 下一頁，← 上一頁，Esc 跳過全部；手機點畫面繼續、點「跳過全部」。首次新遊戲自動出現，看過 / 跳過後記在 localStorage（`thief-legend-tutorial-seen`）；暫停選單「操作說明」可用浮層重看（浮層模式 Esc 只關說明）。修正：教學按 Esc 跳過時同一個按鍵事件會被剛啟動的遊戲 UI 再收到一次而彈出暫停選單（UIScene 啟動 0.6 秒內忽略 Esc）。
 - **聲音開關**（`engine/soundButton.js`）：主選單、教學、遊戲 HUD（小地圖左側）與暫停選單都有；全域靜音同時關閉音樂與音效，設定存 localStorage（`thief-legend-sound`）。
 - **手機沒聲音的修正**：音訊啟動改監聽 `pointerup / touchend / click / keydown`（觸控裝置上 `pointerdown` 不算有效手勢），確認 context 真的在跑才移除監聽；切回分頁重新啟動（iOS 會打斷）；iOS 16.4+ 設 `navigator.audioSession.type = 'playback'` 避免被靜音鍵擋住。尚未在真機驗證。
@@ -109,6 +109,23 @@
 - **背景圖改 WebP**：9 張場景背景與標題背景由 PNG（12.7 MB）轉為 WebP（0.9 MB，q84），`dist/assets` 由約 15 MB 降到約 3 MB，行動網路首次載入明顯變快；畫面肉眼無差異。（`assetCatalog.js` 路徑已更新，原 PNG 不再放 repo，需要時可從 git 歷史取回。）
 - **內容完整性測試**（`test/content.test.js`）：怪物 id 唯一、spriteKey 有素材、地圖的怪物 / 背景 / 傳送門 / NPC / 任務引用存在、所有任務都有 NPC 發放、素材目錄的檔案都真的存在。之後新增地圖 / 怪物接錯會在 `npm test` 直接報錯。
 - 新文件：[`ROADMAP.md`](ROADMAP.md)（轉職系統 / 新地圖 / 特別任務設計與開發順序）、[`ASSET_REQUEST.md`](ASSET_REQUEST.md)（交給 AI / 畫師的素材需求書）。
+
+### 轉職系統階段 A（Phase 21）
+設計見 [`SKILLS_DESIGN.md`](SKILLS_DESIGN.md)、[`ROADMAP.md`](ROADMAP.md) 第二節；Lv.10 一轉成「刺客（暗夜之刃）」或「俠盜（赤焰劫客）」。
+
+- **職業資料模型**（`config/constants.js`）：`gameState.job`（`thief` / `assassin` / `bandit`，預設盜賊）、`title`、`jobChoice`（轉職任務中選定、覺醒前暫存）。`JOBS` 表含名稱 / 稱號 / 技能池與各職業解鎖等級 / 預設欄位 / 普攻參數（`basic`）/ 被動（`passives`）/ 頭像；`skillDefOf(job, id)`、`jobOf(gs)`、`effectiveCritMulti`、`jobPassive` 等查表函式。盜賊技能 id 仍是 Z X C V B，專屬技能 id：`backstab poison mark`（刺客）、`whirl steal smoke`（俠盜）。技能欄「可調整」的條件由「5 個全解鎖」泛化為「解鎖的技能多於 4 格」（盜賊結果相同）。
+- **存檔**（`saveManager.js`）：未知職業 → 盜賊；未達 Lv.10 不承認轉職職業；稱號由職業決定；技能 id / 欄位只認該職業池且需已解鎖；`jobChoice` 只在盜賊時保留。`engine/jobChange.js`：`applyJobChange`（保留繼承技能等級、池外技能退還 SP、專屬技能依等級解鎖、欄位改預設、+5 SP、悍匪體魄一次性 maxHp ×1.2）、`debugSetJob`。
+- **外觀**：`config/poses.js` 的 `poseKey(job, pose)`（盜賊 `player_<pose>`，轉職 `player_<job>_<pose>`，缺圖退回盜賊）；`Player.pose(name)` 以快取查表（無每幀字串配置）；影分身跟著玩家職業換圖。HUD 頭像 / 職業名（含稱號）/ 普通攻擊欄名稱與圖示 / 技能欄 / 技能視窗（六列 + 被動說明）跟著職業；手機技能鈕字樣已補新技能。刺客 23 個、俠盜 23 個動作圖與兩張頭像已進 `assetCatalog` 並全部預載。
+- **職業技能**（`entities/JobSkills.js`，狀態規則在 `engine/statusEffects.js`，皆有單元測試）：
+  - 刺客：雙刃連斬（兩段 0.55×、暴擊率 +10%）、瞬影連刺（瞬移背後連刺 3 下必暴擊）、蝕心毒鏢（0.7×，中毒 5 秒、每秒 0.25×、最多 3 層，毒不會引爆印記）、斷命印記（6 秒內下一擊必暴擊 +30%，`Monster.takeDamage` 統一處理所有傷害來源）、殺手本能（暴擊傷害 +30%）。
+  - 俠盜：彎刀橫斬（110px、1.1×、每連 3 下第 3 下擊飛）、赤月迴旋（半徑 120 全體 1.2× 並擊退）、妙手空空（1.0×，35% 多掉金幣、5% 偷到藥水）、迷煙彈（落點 5 秒煙霧：範圍內怪物傷害 -50%、非遠程怪不追擊）、悍匪體魄（HP +20%、金幣 +15%）。
+  - 沒有目標時（瞬影連刺 / 斷命印記 / 妙手空空）退還 MP 與冷卻。9 組 `fx_*` 特效全部啟用（`FX_ASSETS` 皆 `used`）；橘 / 綠 / 灰色特效改用一般混合，亮背景才看得見（`playFx` 的 `normal` 選項）。
+  - 技能圖示：新技能與刺客 / 俠盜普攻圖示是**程式繪製的暫代圖**（`assets/skillIcons.js`）；手繪 PNG（38×38，`skill_icon_<id>.png`，普攻欄 `ATK_assassin` / `ATK_bandit`）到位後把 id 加進 `assetCatalog.js` 的 `SKILL_ICON_PNG_IDS` 即會預載並取代。
+- **轉職任務鏈**（`config/quests.js` 的 `JOB_QUEST_CHAIN`）：影之召喚（`talk`，城鎮居民轉交神祕信，Lv.10 才能接）→ 選擇你的道路（`choice`，影之長老對話選職業）→ 試煉之證（`collect`，在浮空島嶼 / 森林獵場 / 古代廢墟擊殺怪物 40% 掉落任務物品，收集 5 個）→ 影之試煉（`dungeon`）→ 覺醒（`talk`，`rewards.advanceJob`）。任務新增 `minLevel` / `requires`（前置）欄位；`questManager` 新增 `questAvailable`、`onNpcTalked`、`onItemCollected`、`onDungeonCleared`、`chooseJobPath`、`questItemDrop`，覺醒時呼叫 `applyJobChange` 並發出 `job-changed`，由 `BaseMapScene._onJobChanged` 換外觀、播放 `fx_job_change` 光柱演出、顯示稱號並自動存檔。
+- **影之試煉的做法**：沿用既有副本機制，新增副本 `shadow_trial`（限時 120 秒、單波：試煉守衛 `shadow_guardian`（小王）+ 2 隻影子史萊姆，通關觸發任務完成，失敗可重試）；入口是晨曦鎮右側傳送門，`requiresQuest: 'job_trial'`，沒接任務進不去。影之殿堂地圖美術還沒有，所以影之長老放在晨曦鎮。
+- **NPC 對話選項 UI**：`engine/npcDialog.js`（純邏輯）依任務進度產生對話內容與選項；`BaseMapScene._openNpcDialog` 支援選項按鈕（點擊或按 1 / 2，手機點擊）。影之長老 NPC 為暫代：舊「城鎮居民」圖染紫（`tint`）。
+- **除錯**（`?debug=1`）：`window.__setJob('assassin' | 'bandit' | 'thief', level)` 直接設職業與等級（不播演出）；`window.__QUESTS` 可調整任務參數。
+- **驗證**：`npm test`（含 `jobs` / `statusEffects` / `jobQuests` 單元測試與 `content.test.js` 的任務 / NPC / 傳送門 / 素材交叉檢查）；Playwright e2e 涵蓋兩個職業各技能施放（MP / 冷卻 / 傷害 / 姿勢）、被動、存檔重讀、以及真實走完整條轉職任務鏈。
 
 ### BGM 音效品質（舊版，已被 Phase 18 取代）
 - audio.js masterGain 隔離：每次 playBgm 建立獨立 GainNode，消除地圖切換音頻殘留。
