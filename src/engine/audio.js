@@ -12,6 +12,10 @@ export class AudioSynth {
     }
     // BGM 播放器（懶建立：第一次 playBgm 才需要）
     this._music = null;
+    this._lastMap = null;
+    // 音樂開關（偏好存在 localStorage，與存檔分開）
+    this._bgmEnabled = true;
+    try { this._bgmEnabled = localStorage.getItem('thief-legend-bgm') !== 'off'; } catch (_) { /* 靜默 */ }
   }
 
   // ─── 內部：即時播放單音（SFX 用）────────────────────────────
@@ -86,7 +90,8 @@ export class AudioSynth {
   // 每張地圖一首 16 小節的曲子（和弦 + 旋律 + 低音 + 伴奏 + 打擊樂），整首循環。
   // 切換地圖時舊曲淡出、新曲淡入，不會疊音。
   playBgm(mapKey) {
-    if (!this.ctx) return;
+    this._lastMap = mapKey;
+    if (!this.ctx || !this._bgmEnabled) return;
     if (typeof location !== 'undefined' && /[?&]bgm=0(&|$)/.test(location.search)) return;   // 效能 A/B 測試用
     if (!this._music) this._music = new MusicPlayer(this.ctx);
     this.resumeContext();
@@ -96,6 +101,16 @@ export class AudioSynth {
 
   stopBgm() {
     if (this._music) this._music.stop();
+  }
+
+  isBgmEnabled() { return this._bgmEnabled; }
+
+  // 音樂開關：關閉時立刻淡出，重新開啟時從目前地圖的曲子開始
+  setBgmEnabled(on) {
+    this._bgmEnabled = !!on;
+    try { localStorage.setItem('thief-legend-bgm', on ? 'on' : 'off'); } catch (_) { /* 靜默 */ }
+    if (!on) this.stopBgm();
+    else if (this._lastMap) this.playBgm(this._lastMap);
   }
 
   // 配合遊戲的自適應品質（high / medium / low）：弱裝置自動減少音樂聲部與殘響

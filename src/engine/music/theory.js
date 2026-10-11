@@ -49,8 +49,9 @@ export function parseChord(sym) {
   const intervals = CHORD_QUALITIES[m[3] || ''];
   const pcs = intervals.map((i) => (rootPc + i) % 12);
   const bassPc = m[4] ? pitchClass(m[4], m[5]) : rootPc;
+  const third = intervals.includes(3) ? 3 : intervals.includes(4) ? 4 : intervals.includes(2) ? 2 : intervals.includes(5) ? 5 : 7;
   return {
-    name: sym, rootPc, bassPc, pcs,
+    name: sym, rootPc, bassPc, pcs, thirdPc: (rootPc + third) % 12,
     fifthPc: (rootPc + (intervals.includes(6) ? 6 : intervals.includes(8) ? 8 : 7)) % 12,
   };
 }
@@ -113,6 +114,9 @@ export const SCALES = {
   dorian:     [0, 2, 3, 5, 7, 9, 10],
   // 和聲小調：用於 V 級和弦（升高的第 7 音）
   harmonic:   [0, 2, 3, 5, 7, 8, 11],
+  // Hijaz（弗里吉亞屬調式）：沙漠 / 阿拉伯風，第 2 與第 3 音之間是增二度（例如 A 調的 Bb→C#）
+  hijaz:      [0, 1, 4, 5, 7, 8, 10],
+  phrygian:   [0, 1, 3, 5, 7, 8, 10],
 };
 
 export function scalePcs(tonic, mode) {

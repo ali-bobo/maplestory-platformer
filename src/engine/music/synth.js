@@ -367,6 +367,25 @@ export function createMusicBus(ctx, destination, mix = {}) {
     sends.push([send, amount]);
   }
 
+  // 迴音：附點八分音符延遲 + 回授 + 低通（一個 DelayNode，很便宜）；用在天空 / 精靈 / 洞穴等需要空間感的曲子
+  const echo = { sends: [], amount: mix.echo || 0 };
+  if (echo.amount > 0) {
+    const delay = ctx.createDelay(1.5);
+    delay.delayTime.value = mix.echoTime || 0.375;
+    const fb = ctx.createGain(); fb.gain.value = 0.36;
+    const elp = lowpass(ctx, 3000, 0.4);
+    const eout = ctx.createGain(); eout.gain.value = 0.8;
+    delay.connect(elp); elp.connect(fb); fb.connect(delay);
+    elp.connect(eout); eout.connect(sum);
+    const ECHO_SENDS = { lead: 0.7, comp: 0.6, sparkle: 1.0 };
+    for (const [name, k] of Object.entries(ECHO_SENDS)) {
+      const es = ctx.createGain();
+      es.gain.value = echo.amount * k;
+      groups[name].connect(es); es.connect(delay);
+      echo.sends.push([es, echo.amount * k]);
+    }
+  }
+
   // 共用的「音色匯流排」：同一音色 + 同一平移位置的所有音符共用一個低通與一個平移節點
   const dests = new Map();
   const dest = (group, toneHz, pan) => {
@@ -394,6 +413,7 @@ export function createMusicBus(ctx, destination, mix = {}) {
       this.quality = level;
       const t = ctx.currentTime;
       for (const [send, amount] of sends) send.gain.setTargetAtTime(level === 'low' ? 0 : amount, t, 0.05);
+      for (const [send, amount] of echo.sends) send.gain.setTargetAtTime(level === 'low' ? 0 : amount, t, 0.05);
     },
     fadeIn(t, seconds = 0.5) {
       out.gain.cancelScheduledValues(t);

@@ -931,7 +931,7 @@ export class UIScene extends Phaser.Scene {
     push(this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.6)
       .setDepth(190).setScrollFactor(0));
 
-    push(addParchmentPanel(this, width / 2 - 150, height / 2 - 120, 300, 250, { depth: 192 }));
+    push(addParchmentPanel(this, width / 2 - 150, height / 2 - 120, 300, 305, { depth: 192 }));
 
     // 標題
     push(this.add.text(width / 2, height / 2 - 72, '遊戲暫停', {
@@ -942,7 +942,15 @@ export class UIScene extends Phaser.Scene {
     addWoodButton(this, width / 2, height / 2 + 4, 190, 42, '繼續遊戲', () => this._closePauseMenu(),
       { depth: 195, fontSize: 18 }).objects.forEach(push);
 
-    addWoodButton(this, width / 2, height / 2 + 60, 190, 42, '存檔並回主選單', () => {
+    // 音樂開關：弱裝置覺得卡頓時可以直接關閉
+    const musicBtn = addWoodButton(this, width / 2, height / 2 + 60, 190, 42,
+      audio.isBgmEnabled() ? '音樂：開' : '音樂：關', () => {
+        audio.setBgmEnabled(!audio.isBgmEnabled());
+        musicBtn.label.setText(audio.isBgmEnabled() ? '音樂：開' : '音樂：關');
+      }, { depth: 195, fontSize: 18 });
+    musicBtn.objects.forEach(push);
+
+    addWoodButton(this, width / 2, height / 2 + 116, 190, 42, '存檔並回主選單', () => {
       saveGame(this.registry.get('gameState'));
       this._isPaused = false;
       for (const obj of this._pauseOverlayObjs) { if (obj?.active) obj.destroy(); }

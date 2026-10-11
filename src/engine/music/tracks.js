@@ -18,6 +18,10 @@ const BASS_STYLES = {
   groove: [[0, 'R', 3], [6, 'R', 2], [8, '5', 3], [11, 'R', 2], [14, '8', 2]],
   drive8: [[0, 'R', 2], [2, 'R', 2], [4, 'R', 2], [6, '8', 2], [8, 'R', 2], [10, 'R', 2], [12, 'R', 2], [14, '5', 2]],
   walk:   [[0, 'R', 4], [4, '5', 4], [8, 'R', 4], [12, '5', 4]],
+  // 爵士行走低音：根音 → 三度 → 五度 → 三度（四分音符，夜色黑色電影感）
+  walk4:  [[0, 'R', 4], [4, '3', 4], [8, '5', 4], [12, '3', 4]],
+  // 沙漠脈衝低音：配合手鼓 Dum 的位置
+  pulse:  [[0, 'R', 3], [6, 'R', 2], [8, 'R', 3]],
 };
 
 // ── 打擊樂型態：[位置, 種類, 力度]。K 大鼓 S 小鼓 H 閉鈸 R 木魚/邊擊 T 筒鼓 X 沙鈴 ───────
@@ -31,6 +35,10 @@ const PERC_STYLES = {
     [0, 'H', 0.5], [2, 'H', 0.35], [4, 'H', 0.5], [6, 'H', 0.35], [8, 'H', 0.5], [10, 'H', 0.35], [12, 'H', 0.5], [14, 'H', 0.45]],
   noir: [[0, 'K', 0.8], [6, 'K', 0.45], [8, 'S', 0.65], [14, 'K', 0.4],
     [2, 'H', 0.3], [6, 'H', 0.3], [10, 'H', 0.3], [14, 'H', 0.3]],
+  // 手鼓經典節奏 Maqsum：Dum Tek _ Tek Dum _ Tek _（B = Dum，k = Tek）
+  darbuka: [[0, 'B', 1.0], [2, 'k', 0.6], [6, 'k', 0.6], [8, 'B', 0.9], [10, 'k', 0.3], [12, 'k', 0.7], [14, 'k', 0.35]],
+  // 心跳般的低鼓（洞窟）
+  heart: [[0, 'T', 0.8], [3, 'T', 0.45], [8, 'R', 0.3]],
   boss: [[0, 'K', 1.0], [6, 'K', 0.7], [8, 'K', 0.9], [14, 'K', 0.6], [4, 'S', 0.9], [12, 'S', 0.9],
     [0, 'H', 0.5], [2, 'H', 0.4], [4, 'H', 0.5], [6, 'H', 0.4], [8, 'H', 0.5], [10, 'H', 0.4], [12, 'H', 0.5], [14, 'H', 0.4]],
   dungeon: [[0, 'K', 0.9], [8, 'K', 0.8], [10, 'K', 0.5], [4, 'S', 0.8], [12, 'S', 0.8],
@@ -45,7 +53,7 @@ const FILLS = {
 export const TRACKS = {
   // ── 浮空島：C 大調，明亮輕盈（音樂盒 + 豎琴 + 柔和弦樂）──────────────────────────
   sky: {
-    key: { tonic: 'C', mode: 'major' }, bpm: 108, swing: 0,
+    key: { tonic: 'C', mode: 'major' }, bpm: 100, swing: 0,
     chords: ['C', 'G/B', 'Am', 'Em', 'F', 'C/E', 'Dm7', 'G',
              'F', 'G', 'Em7', 'Am', 'Dm7', 'G', 'Cadd9', 'G'],
     lead: [
@@ -62,7 +70,7 @@ export const TRACKS = {
       bass: { style: 'half', inst: 'sub', vel: 0.3 },
       perc: { style: 'shaker', vel: 0.9 },
     },
-    mix: { reverb: 0.34, tone: 9500 },
+    mix: { reverb: 0.36, echo: 0.3, tone: 9500 },
   },
 
   // ── 森林獵場：G 大調，輕快民謠（長笛 + 撥弦 + 手鼓）────────────────────────────
@@ -87,30 +95,33 @@ export const TRACKS = {
   },
 
   // ── 古代廢墟：A 小調，緩慢神祕（慢起音弦樂 + 豎琴 + 低鼓）─────────────────────────
+  // ── 古代廢墟 = 沙漠遺跡：A Hijaz（弗里吉亞屬）調式 ─────────────────────────────────────
+  // 辨識特徵：Bb→C# 的增二度、奈伊笛 + 烏德琴 + 手鼓經典節奏 Maqsum、空五度持續音、乾燥的空間感。
+  // 和弦只用調內三和弦：A（A C# E）、Bb（Bb D F）、Gm（G Bb D）、Dm（D F A）。
   ruins: {
-    key: { tonic: 'A', mode: 'minor' }, bpm: 84, swing: 0,
-    chords: ['Am', 'F', 'C', 'G', 'Am', 'F', 'Dm', 'E',
-             'Am', 'Em', 'F', 'C', 'Dm', 'Am', 'F', 'E'],
+    key: { tonic: 'A', mode: 'hijaz' }, bpm: 92, swing: 0,
+    chords: ['A', 'Bb', 'A', 'Bb', 'Gm', 'A', 'Bb', 'A',
+             'Dm', 'A', 'Gm', 'A', 'Bb', 'Gm', 'A', 'A'],
     lead: [
-      'E5.8 C5.4 B4.2 A4.2', 'A4.8 C5.4 F5.4', 'E5.8 G5.4 E5.4', 'D5.8 B4.4 G4.4',
-      'C5.4 E5.4 A5.8', 'A5.6 G5.2 F5.4 C5.4', 'D5.4 F5.4 A5.4 F5.4', 'G#5.8 B4.4 E5.4',
-      'A5.8 E5.4 C5.4', 'B5.8 G5.4 E5.4', 'C6.6 A5.2 F5.8', 'G5.8 E5.4 C5.4',
-      'F5.4 A5.4 D6.8', 'C6.4 B5.2 A5.2 E5.8', 'A5.4 C6.4 F6.4 C6.4', 'B5.4 G#5.4 E5.8',
+      'E5.4 C#5.2 D5.2 E5.8', 'F5.4 D5.4 Bb4.4 D5.4', 'A5.4 G5.2 F5.2 E5.4 C#5.4', 'D5.6 C#5.2 Bb4.8',
+      'G5.4 Bb5.4 D6.4 Bb5.4', 'E5.4 F5.2 E5.2 C#5.4 A4.4', 'F5.4 A5.2 Bb5.2 D6.4 Bb5.4', 'C#6.4 E6.4 A5.8',
+      'A5.4 F5.4 D5.4 F5.4', 'E5.2 F5.2 E5.4 C#5.4 E5.4', 'D6.4 Bb5.2 A5.2 G5.8', 'A5.4 C#6.4 E6.4 C#6.4',
+      'D6.4 F6.4 Bb6.4 F6.4', 'Bb5.4 G5.4 D5.4 G5.4', 'C#6.4 Bb5.2 A5.2 E5.8', 'E5.4 A5.4 E5.8',
     ],
     parts: {
-      lead: { inst: 'flute', vel: 0.75, pan: 0.0 },
-      pad:  { inst: 'strings', vel: 0.5 },
-      comp: { style: 'arp4', inst: 'harp', vel: 0.48 },
-      drone: { inst: 'drone', vel: 0.34 },
-      bass: { style: 'whole', inst: 'sub', vel: 0.33 },
-      perc: { style: 'sparse', vel: 0.5 },
+      lead: { inst: 'ney', vel: 0.95, pan: 0.0 },
+      pad:  { inst: 'strings', vel: 0.3 },
+      comp: { style: 'oud8', inst: 'oud', vel: 0.62 },
+      drone: { inst: 'drone', vel: 0.36 },
+      bass: { style: 'pulse', inst: 'sub', vel: 0.34 },
+      perc: { style: 'darbuka', vel: 0.75 },
     },
-    mix: { reverb: 0.38, tone: 7500 },
+    mix: { reverb: 0.22, echo: 0.14, tone: 7500 },
   },
 
   // ── 神秘之境：D 多利安，魔法感（音樂盒 + 豎琴 + 合唱般的襯底）──────────────────────
   ellinia: {
-    key: { tonic: 'D', mode: 'dorian' }, bpm: 96, swing: 0,
+    key: { tonic: 'D', mode: 'dorian' }, bpm: 88, swing: 0,
     chords: ['Dm7', 'G', 'Cadd9', 'Am7', 'Dm7', 'G', 'Cadd9', 'Am7',
              'Fadd9', 'Cadd9', 'Dm7', 'Am7', 'Fadd9', 'G', 'Em7', 'A'],
     lead: [
@@ -120,19 +131,19 @@ export const TRACKS = {
       'F6.6 E6.2 C6.8', 'D6.4 B5.4 G5.4 D6.4', 'G5.4 B5.4 E6.4 D6.4', 'C#6.6 A5.2 E5.8',
     ],
     parts: {
-      lead: { inst: 'bell', vel: 0.83, pan: 0.0 },
+      lead: { inst: 'aah', vel: 0.83, pan: 0.0 },
       pad:  { inst: 'choir', vel: 0.5 },
       comp: { style: 'arp8', inst: 'harp', vel: 0.59 },
       sparkle: { inst: 'bell', vel: 0.34, positions: [2, 6, 10, 14] },
       bass: { style: 'half', inst: 'sub', vel: 0.28 },
       perc: { style: 'shaker', vel: 0.7 },
     },
-    mix: { reverb: 0.4, tone: 8500 },
+    mix: { reverb: 0.42, echo: 0.26, tone: 8500 },
   },
 
   // ── 台北都會：G 大調，現代流行（柔和合成主奏 + 電鋼琴切分 + 搖擺鼓組）──────────────
   taipei: {
-    key: { tonic: 'G', mode: 'major' }, bpm: 118, swing: 0.55,
+    key: { tonic: 'G', mode: 'major' }, bpm: 112, swing: 0.55,
     chords: ['G', 'Em7', 'Cadd9', 'D', 'G', 'Em7', 'Am7', 'D7',
              'Cadd9', 'D', 'Bm7', 'Em7', 'Cadd9', 'D', 'G', 'D'],
     lead: [
@@ -148,12 +159,12 @@ export const TRACKS = {
       bass: { style: 'groove', inst: 'pbass', vel: 0.34 },
       perc: { style: 'pop', vel: 0.5 },
     },
-    mix: { reverb: 0.18, tone: 10000 },
+    mix: { reverb: 0.16, echo: 0.12, tone: 10000 },
   },
 
   // ── 暗巷城：A 小調，夜色爵士感（深色弦樂 + 撥弦 + 慢搖擺）─────────────────────────
   kerning: {
-    key: { tonic: 'A', mode: 'minor' }, bpm: 100, swing: 0.5,
+    key: { tonic: 'A', mode: 'minor' }, bpm: 84, swing: 0.55,
     chords: ['Am', 'Am', 'F', 'E7', 'Am', 'Dm', 'F', 'E7',
              'Dm', 'Am', 'F', 'E7', 'Dm', 'G', 'C', 'E7'],
     lead: [
@@ -163,18 +174,18 @@ export const TRACKS = {
       'D6.4 F6.4 A6.4 F6.4', 'G5.4 B5.4 D6.4 B5.4', 'E6.4 C6.4 G5.4 E5.4', 'G#5.4 B5.4 E6.8',
     ],
     parts: {
-      lead: { inst: 'synth', vel: 0.69, pan: 0.0 },
+      lead: { inst: 'muted', vel: 0.69, pan: 0.0 },
       pad:  { inst: 'strings', vel: 0.38 },
-      comp: { style: 'chop', inst: 'pluck', vel: 0.53 },
-      bass: { style: 'groove', inst: 'pbass', vel: 0.34 },
+      comp: { style: 'chop', inst: 'vibes', vel: 0.53 },
+      bass: { style: 'walk4', inst: 'pbass', vel: 0.34 },
       perc: { style: 'noir', vel: 0.5 },
     },
-    mix: { reverb: 0.26, tone: 8000 },
+    mix: { reverb: 0.3, echo: 0.1, tone: 7000 },
   },
 
   // ── 晨曦鎮：F 大調，溫暖安心（長笛 + 吉他撥弦 + 柔和襯底）──────────────────────────
   town: {
-    key: { tonic: 'F', mode: 'major' }, bpm: 100, swing: 0,
+    key: { tonic: 'F', mode: 'major' }, bpm: 96, swing: 0,
     chords: ['F', 'Dm', 'Bb', 'C', 'F', 'Am', 'Bb', 'C',
              'Gm7', 'C', 'F', 'Dm', 'Bb', 'C', 'F', 'C'],
     lead: [
@@ -184,7 +195,7 @@ export const TRACKS = {
       'D6.4 F6.4 Bb6.4 F6.4', 'E6.4 C6.4 G5.4 C6.4', 'A5.4 C6.4 F6.8', 'G5.6 E5.2 C5.4 E5.4',
     ],
     parts: {
-      lead: { inst: 'flute', vel: 0.83, pan: 0.0 },
+      lead: { inst: 'vibes', vel: 0.83, pan: 0.0 },
       pad:  { inst: 'pad', vel: 0.38 },
       comp: { style: 'arp8', inst: 'pluck', vel: 0.5 },
       bass: { style: 'half', inst: 'sub', vel: 0.3 },
@@ -207,16 +218,17 @@ export const TRACKS = {
     parts: {
       lead: { inst: 'brass', vel: 0.83, pan: 0.0 },
       pad:  { inst: 'strings', vel: 0.4 },
+      drone: { inst: 'drone', vel: 0.45 },
       comp: { style: 'arp16', inst: 'pluck', vel: 0.48 },
       bass: { style: 'drive8', inst: 'sawbass', vel: 0.33 },
       perc: { style: 'boss', vel: 0.8, fill: 'boss' },
     },
-    mix: { reverb: 0.16, tone: 9000 },
+    mix: { reverb: 0.22, tone: 8500 },
   },
 
   // ── 副本：D 小調（V 級 A 大三和弦），緊張但不壓迫 ──────────────────────────────────
   dungeon: {
-    key: { tonic: 'D', mode: 'minor' }, bpm: 138, swing: 0,
+    key: { tonic: 'D', mode: 'minor' }, bpm: 116, swing: 0,
     chords: ['Dm', 'Dm', 'Bb', 'C', 'Dm', 'Dm', 'Bb', 'A',
              'Gm', 'Dm', 'Bb', 'A', 'Gm', 'F', 'A', 'A'],
     lead: [
@@ -226,13 +238,14 @@ export const TRACKS = {
       'D6.4 Bb5.4 G5.4 Bb5.4', 'C6.4 A5.4 F5.4 A5.4', 'A5.4 C#6.4 E6.4 A6.4', 'A6.4 E6.4 C#6.4 A5.4',
     ],
     parts: {
-      lead: { inst: 'synth', vel: 0.75, pan: 0.0 },
-      pad:  { inst: 'strings', vel: 0.36 },
-      comp: { style: 'arp16', inst: 'pluck', vel: 0.42 },
-      bass: { style: 'drive8', inst: 'sawbass', vel: 0.28 },
-      perc: { style: 'dungeon', vel: 0.7, fill: 'dungeon' },
+      lead: { inst: 'muted', vel: 0.9, pan: 0.0 },
+      pad:  { inst: 'darkpad', vel: 0.42 },
+      drone: { inst: 'drone', vel: 0.34 },
+      comp: { style: 'arp8', inst: 'vibes', vel: 0.55 },
+      bass: { style: 'half', inst: 'sub', vel: 0.45 },
+      perc: { style: 'heart', vel: 0.7 },
     },
-    mix: { reverb: 0.2, tone: 9000 },
+    mix: { reverb: 0.4, echo: 0.3, tone: 6500 },
   },
 };
 
@@ -284,6 +297,10 @@ export function compileTrack(track) {
       const pool = inRange(60, 80);
       const idx = [0, 1, 2, 3, 4, 3, 2, 1];
       idx.forEach((i, k) => add(pool[Math.min(i, pool.length - 1)], k * 2, 3, k === 0 ? 1.0 : k % 2 === 0 ? 0.8 : 0.65));
+    } else if (comp.style === 'oud8') {
+      // 烏德琴式的低音域反覆音型：根音 / 五度 / 三度交替，帶節奏重音
+      const pool = inRange(48, 68);
+      [0, 2, 1, 2, 0, 2, 1, 2].forEach((i, k) => add(pool[Math.min(i, pool.length - 1)], k * 2, 2, k === 0 ? 1.0 : k === 4 ? 0.9 : k % 2 ? 0.55 : 0.75));
     } else if (comp.style === 'arp4') {
       const pool = inRange(48, 72);
       [0, 2, 4, 2].forEach((i, k) => add(pool[Math.min(i, pool.length - 1)], k * 4, 7, k === 0 ? 1.0 : 0.75));
@@ -332,7 +349,11 @@ export function compileTrack(track) {
     const root = bassNote(chord.bassPc, 36);
     const fifth = bassNote(chord.fifthPc, 36);
     for (const [pos, degree, dur] of style) {
-      const midi = degree === 'R' ? root : degree === '5' ? (fifth > root + 9 ? fifth - 12 : fifth) : root + 12;
+      const third = bassNote(chord.thirdPc, 36);
+      const midi = degree === 'R' ? root
+        : degree === '5' ? (fifth > root + 9 ? fifth - 12 : fifth)
+        : degree === '3' ? (third > root + 5 ? third - 12 : third)
+        : root + 12;
       bars[b].push({ voice: 'bass', inst: parts.bass.inst, midi, pos, dur, vel: parts.bass.vel * (pos === 0 ? 1.0 : 0.85) });
     }
   });
@@ -353,6 +374,6 @@ export function compileTrack(track) {
 
   return {
     bpm: track.bpm, swing: track.swing || 0, bars: nBars, events: bars,
-    mix: track.mix || {}, chords,
+    mix: { ...(track.mix || {}), echoTime: (60 / track.bpm) * 0.75 }, chords,
   };
 }
