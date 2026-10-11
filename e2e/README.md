@@ -19,7 +19,7 @@
 - 連接埠用環境變數 `PORT`（預設 8123），多個工作同時跑時各用不同埠：`PORT=8401 node e2e/e2e-jobs.cjs`。
 
 - Playwright 路徑寫死為 `/opt/node-tools/node_modules/playwright`，Chromium 為 `/opt/pw-browsers/chromium-1194/chrome-linux/chrome`。
-- 遊戲網址為 `http://127.0.0.1:${PORT}/index.html?debug=1`（`e2e/world/*` 預設埠為 8231）。
+- 遊戲網址為 `http://127.0.0.1:${PORT}/index.html?debug=1`（`e2e/world/*` 與 `e2e-quest` 預設埠為 8231）。
 - 腳本靠 `?debug=1` 暴露的 `window.__game`、`window.__setJob(job, level)`、`window.__QUESTS` 來快速設定狀態。
 
 ## 腳本清單
@@ -34,6 +34,7 @@
 | `e2e-music.cjs` | 每張地圖的音樂 |
 | `e2e-jobs.cjs` | 兩個職業的技能、姿勢、被動、存檔讀檔 |
 | `e2e-quest.cjs` | 轉職任務鏈（影之長老在影之殿堂；兩職業各走一次，含二選一對話、試煉副本、覺醒） |
+| `soak.cjs` | 浸泡測試（效能 / 記憶體）：連續遊玩數分鐘（連打技能、受傷死亡、走遍所有地圖與 Boss / 副本、換職業、開技能視窗、音樂開著），每分鐘印出堆積 / 紋理 / 物件 / 計時器 / 音訊節點，最後斷言暖機後不成長，並演練 WebGL context 遺失。`PORT=8401 SOAK_MIN=8 node e2e/soak.cjs /tmp/shots`（`SOAK_JSON=檔案` 可存數據） |
 | `world/` | 世界骨架：主線傳送門、星光碎片、四張新地圖的機制（`lib.cjs` 是共用工具） |
 
 > 這些腳本不在 `npm test` 裡（單元測試是 `npm test`，約 246 項）。要不要把它們串進 CI 之後再決定。

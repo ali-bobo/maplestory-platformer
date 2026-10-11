@@ -3,8 +3,11 @@
 // BGM 的作曲資料與合成引擎在 ./music/（柔和音色、和弦進行、殘響）；本檔保留音效（SFX）與對外介面。
 import { MusicPlayer } from './music/synth.js';
 
+const MAX_LIVE_TONES = 28;
+
 export class AudioSynth {
   constructor() {
+    this._liveTones = 0;
     try {
       this.ctx = new (window.AudioContext || window.webkitAudioContext)();
     } catch (e) {
@@ -21,6 +24,8 @@ export class AudioSynth {
   // ─── 內部：即時播放單音（SFX 用）────────────────────────────
   _tone(freq, duration, type = 'square', volume = 0.15) {
     if (!this.ctx || this._muted) return;
+    // 同時發聲的音數設上限：連發技能時音效不會無限堆疊（手機音訊執行緒會爆音 / 卡頓）
+    if (this._liveTones >= MAX_LIVE_TONES) return;
     try {
       const osc  = this.ctx.createOscillator();
       const gain = this.ctx.createGain();
@@ -32,6 +37,8 @@ export class AudioSynth {
       gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
       osc.start(this.ctx.currentTime);
       osc.stop(this.ctx.currentTime + duration);
+      this._liveTones++;
+      osc.onended = () => { this._liveTones--; osc.disconnect(); gain.disconnect(); };
     } catch (e) { /* 靜默失敗 */ }
   }
 
@@ -124,6 +131,11 @@ export class AudioSynth {
   setMusicQuality(level) {
     this._musicQuality = level;
     if (this._music) this._music.setQuality(level);
+  }
+
+  // 分頁進背景：暫停整個音訊圖（音樂排程器跟著 currentTime 停住，不會堆積音符）
+  suspendContext() {
+    if (this.ctx && this.ctx.state === 'running') this.ctx.suspend().catch(() => {});
   }
 
   resumeContext() {

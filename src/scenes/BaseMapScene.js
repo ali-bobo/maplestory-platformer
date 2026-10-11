@@ -5,12 +5,14 @@ import { MAP_SCENE_KEYS, WORLD_HEIGHT } from '../config/constants.js';
 import { Player } from '../entities/Player.js';
 import { playJobChangeEffect, playFx } from '../entities/Skill.js';
 import { spawnLightRays, screenFlash } from '../engine/vfx.js';
-import { jobOf } from '../config/constants.js';
-import { Monster } from '../entities/Monster.js';
+import { jobOf, jobIdOf } from '../config/constants.js';
+import { residentKeys, mapAssetKeys, neighborMapKeys, jobAssets, toAssets } from '../engine/assetPlan.js';
+import { preloadAssets, loadAssets, releaseExcept } from '../engine/assetLoader.js';
+import { Monster, prewarmMonsterTextures } from '../entities/Monster.js';
 import { audio } from '../engine/audio.js';
 import { getVisualFootPadding } from '../config/alignment.js';
 import { addParchmentPanel, addWoodButton } from '../engine/woodUi.js';
-import { POTION_ICON_KEYS } from '../config/assetCatalog.js';
+import { POTION_ICON_KEYS, PLATFORM_THEMES } from '../config/assetCatalog.js';
 import { shopOf } from '../config/shops.js';
 import { shopItemLabel, buyShopItem } from '../engine/shop.js';
 import { VFX_TEX } from '../engine/vfxTextures.js';
@@ -29,27 +31,6 @@ import { createMapModifier } from '../engine/mapModifiers.js';
 
 const PLATFORM_HEIGHT = 24;
 const GROUND_Y = WORLD_HEIGHT;
-// 每張地圖專屬的跳台圖：左端、中段（可重複鋪）、右端由同一張圖切出
-// surfaceTop：圖片頂端到可站立表面的距離（px）
-const PLATFORM_THEMES = {
-  sky:     { key: 'platform_sky',     surfaceTop: 7 },
-  henesys: { key: 'platform_forest',  surfaceTop: 12 },
-  ruins:   { key: 'platform_ruins',   surfaceTop: 0 },
-  ellinia: { key: 'platform_mystic',  surfaceTop: 10 },
-  kerning: { key: 'platform_city',    surfaceTop: 11 },
-  taipei:  { key: 'platform_city',    surfaceTop: 11 },
-  town:    { key: 'platform_town',    surfaceTop: 1 },
-  // TODO(art): 影之殿堂專屬跳台 platform_shrine.png（白石 + 金邊）還沒有，先借用晨曦鎮的跳台
-  shrine:  { key: 'platform_town',    surfaceTop: 1 },
-  harbor:  { key: 'platform_harbor',  surfaceTop: 3 },
-  // 四張新圖的跳台圖是 246×21～22 的細長條：stretchH 把它縱向拉到和其他跳台差不多的厚度
-  desert:  { key: 'platform_desert',  surfaceTop: 2, stretchH: 36 },
-  snow:    { key: 'platform_snow',    surfaceTop: 3, stretchH: 38 },
-  lava:    { key: 'platform_lava',    surfaceTop: 2, stretchH: 38 },
-  castle:  { key: 'platform_castle',  surfaceTop: 2, stretchH: 36 },
-  boss:    { key: 'platform_boss',    surfaceTop: 0 },
-  dungeon: { key: 'platform_dungeon', surfaceTop: 0 },
-};
 const PLATFORM_CAP_RATIO = 0.2;
 const PLATFORM_TILE_RATIO = 0.3;
 
@@ -80,6 +61,25 @@ export class BaseMapScene extends Phaser.Scene {
     }
     this._spawnX = (data && data.spawnX !== undefined) ? data.spawnX : null;
     this._respawnProtect = !!(data && data.respawn);   // 死亡重生：短暫無敵
+  }
+
+  // 素材依需要載入：本地圖 + 目前職業 + 共用特效；Phaser 會等 preload 載完才呼叫 create（載入超過 150 ms 才顯示載入條）
+  preload() {
+    const gs = this.registry.get('gameState');
+    preloadAssets(this, toAssets(residentKeys(this.mapKey, jobIdOf(gs), { dungeonId: this.dungeonId })));
+  }
+
+  // 進圖後：釋放不再需要的地圖 / 舊職業素材（相鄰地圖保留），稍後在背景預先載入相鄰地圖
+  _releaseAssets() {
+    releaseExcept(this, residentKeys(this.mapKey, jobIdOf(this.registry.get('gameState')), { dungeonId: this.dungeonId, withNeighbors: true }));
+  }
+
+  _manageAssets() {
+    this._releaseAssets();
+    this.time.delayedCall(1500, () => {
+      const assets = toAssets(neighborMapKeys(this.mapKey).flatMap((m) => [...mapAssetKeys(m)]));
+      loadAssets(this, assets, () => prewarmMonsterTextures(this));
+    });
   }
 
   create() {
@@ -166,6 +166,7 @@ export class BaseMapScene extends Phaser.Scene {
     // 只註冊 shutdown：場景被 destroy 前 Phaser 必先觸發 shutdown，且本遊戲場景
     // 從不被 scene.remove()，重複註冊 destroy 監聽只會在 relaunch 時累積死監聽。
     this.events.once('shutdown', this._onSceneShutdown, this);
+    this._manageAssets();
 
     // 自動存檔：進入一般地圖時存一次，之後每 30 秒存一次
     if (isSavableMap(this.mapKey)) {
@@ -958,7 +959,13 @@ export class BaseMapScene extends Phaser.Scene {
   _onJobChanged(jobId, opts = {}) {
     const gs = this.registry.get('gameState');
     if (!this.player?.active || !gs) return;
-    this.player.refreshJobVisuals();
+    this.player.refreshJobVisuals();   // 新職業的圖還沒載好時先用盜賊動作圖頂著
+    loadAssets(this, jobAssets(jobIdOf(gs)), () => {
+      if (!this.player?.active) return;
+      this.player.refreshJobVisuals();
+      // 舊職業的圖稍後釋放（殘影等短命物件可能還在用）
+      this.time.delayedCall(2000, () => this.sys.isActive() && this._releaseAssets());
+    });
     this.registry.set('gameState', gs);
     this.registry.events.emit('changedata-hp', null, gs.hp);
     this.registry.events.emit('changedata-mp', null, gs.mp);

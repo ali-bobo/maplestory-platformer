@@ -25,6 +25,7 @@ import { saveOnExit } from './engine/saveGame.js';
 import { isTouchDevice } from './engine/device.js';
 import { mountTouchControls } from './engine/touchControls.js';
 import { audio } from './engine/audio.js';
+import { installContextGuard } from './engine/contextGuard.js';
 import { SKILL_SLOT_KEYS, skillForSlot } from './config/constants.js';
 import { TutorialScene } from './scenes/TutorialScene.js';
 import { debugSetJob } from './engine/jobChange.js';
@@ -130,6 +131,9 @@ document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'hidden') saveIfPlaying();
 });
 
+// WebGL context 被瀏覽器回收（手機 / iframe 記憶體吃緊）時：存檔、顯示提示，恢復後自動收起，沒恢復給重新載入鈕
+installContextGuard(game, { saveNow: saveIfPlaying });
+
 // ── 手機支援 ────────────────────────────────────────────────────────────────
 // 瀏覽器要求「使用者手勢」後才能啟動音效。觸控裝置上，手指按下（pointerdown / touchstart）不算有效手勢，
 // 要在放開（pointerup / touchend）或 click 時才行 —— 這是手機版原本沒聲音的原因。所以這幾種事件都監聽。
@@ -146,7 +150,11 @@ function unlockAudio() {
 }
 for (const ev of UNLOCK_EVENTS) window.addEventListener(ev, unlockAudio, true);
 // 切回分頁時（iOS 切到背景會把 context 打斷）重新啟動
-document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') audio.resumeContext(); });
+// 分頁隱藏時暫停音訊（Phaser 的主迴圈本來就會停；音樂排程與振盪器不該在背景分頁繼續吃 CPU），切回來再恢復
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') audio.resumeContext();
+  else audio.suspendContext();
+});
 
 // 觸控裝置：掛上操作層，只在實際遊玩（HUD 場景存在）時顯示
 if (isTouchDevice()) {
