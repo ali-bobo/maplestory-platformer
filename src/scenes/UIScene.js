@@ -500,7 +500,20 @@ export class UIScene extends Phaser.Scene {
       }).setOrigin(1, 1).setDepth(54).setScrollFactor(0);
 
       this._potionSlots[key] = { bg: slotBg, dot: icon, qtyText };
+
+      // 點擊藥水槽直接使用（手機沒有藥水按鍵；桌機也可用滑鼠點）。點擊範圍比圖示大一圈，方便手指
+      this.add.rectangle(px + pot / 2, py + pot / 2, pot + 8, pot + 8, 0xffffff, 0)
+        .setDepth(55).setScrollFactor(0)
+        .setInteractive({ useHandCursor: true })
+        .on('pointerdown', () => this._usePotionFromHud(key));
     });
+  }
+
+  _usePotionFromHud(key) {
+    const mapKey = this._getCurrentMapSceneKey();   // 暫停中為 null：不能用藥
+    if (!mapKey) return;
+    const player = this.scene.manager.getScene(mapKey)?.player;
+    if (player && !player.isDead) player.usePotion(key);
   }
 
   // ── 定期刷新藥水數量顯示 ──────────────────────────────────────────────────

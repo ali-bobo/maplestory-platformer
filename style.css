@@ -44,9 +44,12 @@ body {
   text-align: center;
 }
 
-/* ── 手機觸控操作層（由 src/engine/touchControls.js 建立）──────────────────── */
+/* ── 手機觸控操作層（由 src/engine/touchControls.js 建立）────────────────────
+   三個群組：moves（搖桿 + ↓）、actions（跳 / Z / 技能 / 互動）、top（暫停 / 全螢幕 / 左右互換）。
+   預設移動區在右手側、動作區在左手側；加上 .tc-moves-left 則對調。
+   群組內部用 inline-start 方向定位，群組 direction 切換 ltr / rtl 即可整組鏡射。 */
 #touch-controls {
-  --tc-unit: 56px;
+  --tc-unit: 48px;
   --tc-bottom: 80px;
   --tc-left: 8px;
   --tc-right: 8px;
@@ -58,9 +61,44 @@ body {
 }
 #touch-controls.tc-hidden { display: none; }
 
+#touch-controls .tc-group {
+  position: absolute;
+  bottom: var(--tc-bottom);
+  direction: ltr;
+}
+#touch-controls .tc-group-moves {
+  right: max(var(--tc-right), env(safe-area-inset-right));
+  width: calc(var(--tc-unit) * 2.5);
+  height: calc(var(--tc-unit) * 2.4);
+  direction: rtl;
+}
+#touch-controls .tc-group-actions {
+  left: max(var(--tc-left), env(safe-area-inset-left));
+  width: calc(var(--tc-unit) * 4.0);
+  height: calc(var(--tc-unit) * 4.0);
+}
+#touch-controls.tc-moves-left .tc-group-moves {
+  right: auto;
+  left: max(var(--tc-left), env(safe-area-inset-left));
+  direction: ltr;
+}
+#touch-controls.tc-moves-left .tc-group-actions {
+  left: auto;
+  right: max(var(--tc-right), env(safe-area-inset-right));
+  direction: rtl;
+}
+#touch-controls .tc-group-top {
+  top: var(--tc-top);
+  bottom: auto;
+  left: max(var(--tc-left), env(safe-area-inset-left));
+  width: calc(var(--tc-unit) * 4.4);
+  height: calc(var(--tc-unit) * 0.7);
+}
+
 #touch-controls .tc-btn,
 #touch-controls .tc-stick {
   position: absolute;
+  direction: ltr;
   pointer-events: auto;
   touch-action: none;
   display: flex;
@@ -76,16 +114,16 @@ body {
   -webkit-user-select: none;
   user-select: none;
 }
-#touch-controls .tc-btn { border-radius: 50%; }
+#touch-controls .tc-btn { border-radius: 50%; bottom: 0; }
 #touch-controls .tc-btn.tc-active {
   background: rgba(255, 196, 70, 0.6);
   transform: scale(0.93);
 }
 
-/* 位置：以右下 / 左下角為基準，單位 u = --tc-unit */
+/* 移動區 */
 #touch-controls .tc-stick {
-  left: max(var(--tc-left), env(safe-area-inset-left));
-  bottom: var(--tc-bottom);
+  inset-inline-start: 0;
+  bottom: 0;
   width: calc(var(--tc-unit) * 2.5);
   height: calc(var(--tc-unit) * 1.2);
   border-radius: 999px;
@@ -99,58 +137,39 @@ body {
   pointer-events: none;
 }
 #touch-controls .tc-down {
-  left: max(calc(var(--tc-left) + var(--tc-unit) * 1.0), calc(env(safe-area-inset-left) + var(--tc-unit) * 1.0));
-  bottom: calc(var(--tc-bottom) + var(--tc-unit) * 1.45);
+  inset-inline-start: calc(var(--tc-unit) * 0.8);
+  bottom: calc(var(--tc-unit) * 1.45);
   width: calc(var(--tc-unit) * 0.9);
   height: calc(var(--tc-unit) * 0.9);
 }
 
-#touch-controls .tc-attack, #touch-controls .tc-jump, #touch-controls .tc-skill {
-  right: max(var(--tc-right), env(safe-area-inset-right));
-  bottom: var(--tc-bottom);
-}
-#touch-controls .tc-attack { width: calc(var(--tc-unit) * 1.4); height: calc(var(--tc-unit) * 1.4); font-size: calc(var(--tc-unit) * 0.55); }
-#touch-controls .tc-jump {
-  width: calc(var(--tc-unit) * 1.25); height: calc(var(--tc-unit) * 1.25);
-  margin-right: calc(var(--tc-unit) * 1.55);
-}
+/* 動作區：Z 在最外側角落，跳在其內側，技能排成弧形在上方 */
+#touch-controls .tc-attack { inset-inline-start: 0; bottom: 0; width: calc(var(--tc-unit) * 1.4); height: calc(var(--tc-unit) * 1.4); font-size: calc(var(--tc-unit) * 0.55); }
+#touch-controls .tc-jump { inset-inline-start: calc(var(--tc-unit) * 1.55); bottom: 0; width: calc(var(--tc-unit) * 1.25); height: calc(var(--tc-unit) * 1.25); }
 #touch-controls .tc-skill { width: calc(var(--tc-unit) * 0.95); height: calc(var(--tc-unit) * 0.95); }
-#touch-controls .tc-x { margin-right: calc(var(--tc-unit) * 0.2);  margin-bottom: calc(var(--tc-unit) * 1.55); }
-#touch-controls .tc-c { margin-right: calc(var(--tc-unit) * 1.25); margin-bottom: calc(var(--tc-unit) * 1.65); }
-#touch-controls .tc-v { margin-right: calc(var(--tc-unit) * 2.3);  margin-bottom: calc(var(--tc-unit) * 1.55); }
-#touch-controls .tc-b { margin-right: calc(var(--tc-unit) * 3.0);  margin-bottom: calc(var(--tc-unit) * 0.2); }
-
-/* 藥水：左側搖桿上方一排小按鈕 */
-#touch-controls .tc-pot {
-  bottom: calc(var(--tc-bottom) + var(--tc-unit) * 2.6);
-  width: calc(var(--tc-unit) * 0.68);
-  height: calc(var(--tc-unit) * 0.68);
-  font-size: calc(var(--tc-unit) * 0.26);
-  border-color: rgba(255, 150, 150, 0.8);
-}
-#touch-controls .tc-pa { left: max(var(--tc-left), env(safe-area-inset-left)); }
-#touch-controls .tc-ps { left: calc(max(var(--tc-left), env(safe-area-inset-left)) + var(--tc-unit) * 0.78); }
-#touch-controls .tc-pd { left: calc(max(var(--tc-left), env(safe-area-inset-left)) + var(--tc-unit) * 1.56); border-color: rgba(150, 180, 255, 0.85); }
-#touch-controls .tc-pr { left: calc(max(var(--tc-left), env(safe-area-inset-left)) + var(--tc-unit) * 2.34); border-color: rgba(190, 150, 255, 0.85); }
-#touch-controls .tc-pg { left: calc(max(var(--tc-left), env(safe-area-inset-left)) + var(--tc-unit) * 3.12); border-color: rgba(150, 255, 170, 0.85); }
-
-/* 互動 / 暫停 / 全螢幕 */
-#touch-controls .tc-util { font-size: calc(var(--tc-unit) * 0.26); }
+#touch-controls .tc-x { inset-inline-start: calc(var(--tc-unit) * 0.2);  bottom: calc(var(--tc-unit) * 1.55); }
+#touch-controls .tc-c { inset-inline-start: calc(var(--tc-unit) * 1.25); bottom: calc(var(--tc-unit) * 1.65); }
+#touch-controls .tc-v { inset-inline-start: calc(var(--tc-unit) * 2.3);  bottom: calc(var(--tc-unit) * 1.55); }
+#touch-controls .tc-b { inset-inline-start: calc(var(--tc-unit) * 3.0);  bottom: calc(var(--tc-unit) * 0.2); }
 #touch-controls .tc-interact {
-  right: max(var(--tc-right), env(safe-area-inset-right));
-  bottom: calc(var(--tc-bottom) + var(--tc-unit) * 3.0);
+  inset-inline-start: calc(var(--tc-unit) * 0.2);
+  bottom: calc(var(--tc-unit) * 3.0);
   width: calc(var(--tc-unit) * 1.0);
   height: calc(var(--tc-unit) * 1.0);
   border-color: rgba(255, 255, 255, 0.85);
 }
-#touch-controls .tc-pause, #touch-controls .tc-fullscreen {
-  top: var(--tc-top);
-  width: calc(var(--tc-unit) * 1.0);
+
+/* 頂部列：暫停 / 全螢幕 / 左右互換 */
+#touch-controls .tc-util { font-size: calc(var(--tc-unit) * 0.26); }
+#touch-controls .tc-pause, #touch-controls .tc-fullscreen, #touch-controls .tc-swap {
+  top: 0;
+  bottom: auto;
   height: calc(var(--tc-unit) * 0.7);
   border-radius: 999px;
 }
-#touch-controls .tc-pause { left: max(var(--tc-left), env(safe-area-inset-left)); }
-#touch-controls .tc-fullscreen { left: calc(max(var(--tc-left), env(safe-area-inset-left)) + var(--tc-unit) * 1.15); }
+#touch-controls .tc-pause { left: 0; width: calc(var(--tc-unit) * 1.0); }
+#touch-controls .tc-fullscreen { left: calc(var(--tc-unit) * 1.15); width: calc(var(--tc-unit) * 1.2); }
+#touch-controls .tc-swap { left: calc(var(--tc-unit) * 2.5); width: calc(var(--tc-unit) * 1.5); }
 
 /* 直向時提示轉橫，並隱藏操作層（遊戲畫面是 16:9 橫向） */
 #rotate-hint {

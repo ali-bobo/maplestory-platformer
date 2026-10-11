@@ -3,9 +3,10 @@
 // 以 DOM 疊在畫布上，把觸控轉成合成的 KeyboardEvent 送給 window，Phaser 的鍵盤系統
 // 照原樣處理，因此玩家、NPC、暫停選單等既有的鍵盤邏輯完全不用改。
 //
-// - 左側搖桿：左右移動；「↓」鈕：下穿薄平台
-// - 右側：跳躍、普攻 Z、技能 X / C / V / B
-// - 藥水 A / S / D / R / G、互動 F、暫停 ESC、全螢幕
+// - 移動區（預設在右手側）：搖桿左右移動、「↓」鈕下穿薄平台
+// - 動作區（預設在左手側）：跳躍、普攻 Z、技能 X / C / V / B、互動 F
+// - 暫停 ESC、全螢幕、左右手對調（記在 localStorage）
+// - 藥水不放按鈕：直接點畫面下方的藥水槽（UIScene）
 // - 每個按鈕以 pointer events + setPointerCapture 追蹤，可同時多指操作
 // - 失焦 / 切背景 / 指標取消時一律放開所有按鍵，避免角色卡住一直跑
 
@@ -70,22 +71,20 @@ function fireKeyboardEvent(type, def) {
 }
 
 const BUTTONS = [
-  // [css class, 顯示文字, 鍵名, 說明]
-  ['tc-jump',   '跳',  'up',  '跳躍'],
-  ['tc-attack', 'Z',   'Z',   '三連飛鏢'],
-  ['tc-skill tc-x', 'X', 'X', '暗影步伐'],
-  ['tc-skill tc-c', 'C', 'C', '暗殺'],
-  ['tc-skill tc-v', 'V', 'V', '暗影漩渦'],
-  ['tc-skill tc-b', 'B', 'B', '影分身'],
-  ['tc-down',   '↓',   'down', '下穿平台'],
-  ['tc-pot tc-pa', 'A', 'A', 'HP藥水'],
-  ['tc-pot tc-ps', 'S', 'S', '強效HP藥水'],
-  ['tc-pot tc-pd', 'D', 'D', 'MP藥水'],
-  ['tc-pot tc-pr', 'R', 'R', '強效MP藥水'],
-  ['tc-pot tc-pg', 'G', 'G', '萬靈藥'],
-  ['tc-util tc-interact', '互動', 'F', '互動 / 對話'],
-  ['tc-util tc-pause', '暫停', 'ESC', '暫停選單 / 關閉'],
+  // [css class, 顯示文字, 鍵名, 說明, 所在群組]
+  ['tc-jump',   '跳',  'up',  '跳躍', 'actions'],
+  ['tc-attack', 'Z',   'Z',   '三連飛鏢', 'actions'],
+  ['tc-skill tc-x', 'X', 'X', '暗影步伐', 'actions'],
+  ['tc-skill tc-c', 'C', 'C', '暗殺', 'actions'],
+  ['tc-skill tc-v', 'V', 'V', '暗影漩渦', 'actions'],
+  ['tc-skill tc-b', 'B', 'B', '影分身', 'actions'],
+  ['tc-util tc-interact', '互動', 'F', '互動 / 對話', 'actions'],
+  ['tc-down',   '↓',   'down', '下穿平台', 'moves'],
+  ['tc-util tc-pause', '暫停', 'ESC', '暫停選單 / 關閉', 'top'],
 ];
+
+const HAND_KEY = 'thief-legend-touch-hand';   // 'left' = 移動在左手（傳統配置），其餘 = 移動在右手（預設）
+
 
 // 建立並掛載觸控層。回傳 { setVisible, destroy }。
 export function mountTouchControls({ canvasProvider, hudBottomRatio = 120 / 720 } = {}) {
@@ -96,8 +95,19 @@ export function mountTouchControls({ canvasProvider, hudBottomRatio = 120 / 720 
 
   const keys = createKeyState(fireKeyboardEvent);
 
+  // 三個群組：移動區、動作區、頂部列。左右手對調只切換 root 的 class，內部排列自動鏡射
+  const groups = {};
+  for (const name of ['moves', 'actions', 'top']) {
+    const g = document.createElement('div');
+    g.className = `tc-group tc-group-${name}`;
+    groups[name] = g;
+    root.appendChild(g);
+  }
+  const readHand = () => { try { return localStorage.getItem(HAND_KEY); } catch (_) { return null; } };
+  root.classList.toggle('tc-moves-left', readHand() === 'left');
+
   // ── 一般按鈕 ───────────────────────────────────────────────────────────────
-  for (const [cls, label, keyName, title] of BUTTONS) {
+  for (const [cls, label, keyName, title, group] of BUTTONS) {
     const btn = document.createElement('div');
     btn.className = `tc-btn ${cls}`;
     btn.textContent = label;
@@ -118,7 +128,7 @@ export function mountTouchControls({ canvasProvider, hudBottomRatio = 120 / 720 
     btn.addEventListener('pointerup', release);
     btn.addEventListener('pointercancel', release);
     btn.addEventListener('lostpointercapture', release);
-    root.appendChild(btn);
+    groups[group].appendChild(btn);
   }
 
   // ── 搖桿（左右）────────────────────────────────────────────────────────────
@@ -156,7 +166,7 @@ export function mountTouchControls({ canvasProvider, hudBottomRatio = 120 / 720 
   stick.addEventListener('pointerup', endStick);
   stick.addEventListener('pointercancel', endStick);
   stick.addEventListener('lostpointercapture', endStick);
-  root.appendChild(stick);
+  groups.moves.appendChild(stick);
 
   // ── 全螢幕 ─────────────────────────────────────────────────────────────────
   const docEl = document.documentElement;
@@ -177,8 +187,22 @@ export function mountTouchControls({ canvasProvider, hudBottomRatio = 120 / 720 
         if (screen.orientation && screen.orientation.lock) screen.orientation.lock('landscape').catch(() => {});
       }).catch(() => {});
     });
-    root.appendChild(fs);
+    groups.top.appendChild(fs);
   }
+
+  // ── 左右手對調 ─────────────────────────────────────────────────────────────
+  const swap = document.createElement('div');
+  swap.className = 'tc-btn tc-util tc-swap';
+  swap.textContent = '左右互換';
+  swap.title = '把移動區與動作區左右對調';
+  swap.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    keys.releaseAll(); endStick();
+    const toLeft = !root.classList.contains('tc-moves-left');
+    root.classList.toggle('tc-moves-left', toLeft);
+    try { localStorage.setItem(HAND_KEY, toLeft ? 'left' : 'right'); } catch (_) { /* 靜默 */ }
+  });
+  groups.top.appendChild(swap);
 
   // ── 位置：貼齊畫布，避開底部 HUD 列 ────────────────────────────────────────
   // 左右兩側有黑邊（畫布比螢幕窄）且夠寬時，控制放進黑邊；否則疊在畫布內、HUD 列上方。
