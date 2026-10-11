@@ -133,7 +133,7 @@ export const CHARACTER_ASSETS = [
     kind: 'character',
     key: 'player_down',
     path: 'dist/assets/player_down.png',
-    status: 'unused',
+    status: 'used',
   },
   {
     assetId: 'CHR-PLY-018',
@@ -141,7 +141,7 @@ export const CHARACTER_ASSETS = [
     kind: 'character',
     key: 'player_dash',
     path: 'dist/assets/player_dash.png',
-    status: 'unused',
+    status: 'used',
   },
   {
     assetId: 'CHR-PLY-019',

@@ -534,6 +534,7 @@ export function castDash(scene, player, enemies) {
   player.isDashing = true;
   player.body.setAllowGravity(false);
   player.setVelocity(dir * 900, 0);
+  player._lockPose?.('player_dash', 320);
   // Phase 11.2A：移除玩家 flashGlow PostFX——玩家已有 alpha yoyo 閃爍視覺
   // （下方 tween），不需 GlowFilter framebuffer 切換造成卡頓
   screenFlash(scene, 80, 0.15);
@@ -978,7 +979,7 @@ function mirrorShurikenFromClone(scene, player, enemies) {
   const dir = clone.flipX ? -1 : 1;
   scene.time.delayedCall(90, () => {
     if (!clone.active) return;
-    clone.lockPose?.('player_attack', 180);
+    clone.lockPose?.('player_throw_2', 180);
     launchShuriken(scene, player, enemies, {
       x: clone.x + dir * 22, y: clone.y - clone.displayHeight * 0.45, vx: dir * 680, vy: 0,
       multiplier: 0.6, skillKey: 'B', tint: 0xc9a0ff, alpha: 0.9,
@@ -1061,7 +1062,7 @@ export function castClone(scene, player, enemies) {
     const c = getEntityEffectPoint(enemy);
     const face = c.x >= clone.x ? 1 : -1;
     clone.setFlipX(face < 0);
-    clone.lockPose('player_attack', 220);
+    clone.lockPose('player_slash_2', 220);
     const { damage, isCrit } = calcDamage(gs.atk, gs.critRate, gs.critMulti, 0.9 * skillDamageScale(gs.skillLevels.B));
     enemy.takeDamage(damage, isCrit);
     enemy.applyKnockback?.(face * 180, 160);
@@ -1074,7 +1075,7 @@ export function castClone(scene, player, enemies) {
     const c = getEntityEffectPoint(enemy);
     const face = c.x >= clone.x ? 1 : -1;
     clone.setFlipX(face < 0);
-    clone.lockPose('player_attack', 200);
+    clone.lockPose('player_throw_2', 200);
     const oy = clone.y - clone.displayHeight * 0.45;
     const angle = Math.atan2(c.y - oy, c.x - clone.x);
     launchShuriken(scene, player, enemies, {

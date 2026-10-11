@@ -173,6 +173,8 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       this._setPose(this.body.velocity.y > 40 ? 'player_fall' : 'player_jump');
     } else if (this.body.velocity.x !== 0) {
       this._setPose(`player_walk_${Math.floor(now / 110) % 4 + 1}`);
+    } else if (this.cursors.down.isDown) {
+      this._setPose('player_down');
     } else {
       this._setPose('player_idle');
     }
