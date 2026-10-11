@@ -28,7 +28,7 @@ export function buildNpcDialog(gs, npcDef) {
   // 城鎮居民：Lv.10 後轉交神祕信（影之召喚進行中時多一段話）
   if (npcDef.jobLetter && activeEntry('job_call')) {
     return {
-      lines: ['有你的信！「影之長老在影之殿堂等你」，', '從鎮上右端、浮空島嶼傳送門左邊那道傳送門進去，快去找她吧。', ...lines],
+      lines: ['有你的信！「影之長老在影之殿堂等你」，', '從鎮上右上角高台（沿階梯跳上去）左邊那道金色傳送門進去，按 F 進入，快去找她吧。', ...lines],
       choices: null,
     };
   }

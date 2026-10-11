@@ -17,8 +17,11 @@ async function launch(opts = {}) {
   return { browser, page, errors };
 }
 async function start(page, waitMs = 4000) {
-  await page.goto(BASE); await page.waitForTimeout(waitMs);
-  await page.keyboard.press('Enter'); await page.waitForTimeout(3500);
+  await page.goto(BASE); await page.waitForTimeout(waitMs + 3000);
+  await page.keyboard.press('Enter');
+  // 機器忙時載入會慢：等到真的進了有玩家的地圖場景
+  await page.waitForFunction(() => window.__game && window.__game.scene.getScenes(true).some((x) => x.player), null, { timeout: 40000 });
+  await page.waitForTimeout(1500);
 }
 const api = (page) => ({
   ev: (fn, arg) => page.evaluate(fn, arg),

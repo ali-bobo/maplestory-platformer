@@ -3,7 +3,7 @@ const { chromium } = require('/opt/node-tools/node_modules/playwright');
 const SPDIR = process.argv[2] || '.';
 let fails = 0;
 const check = (n, c, x = '') => { console.log((c ? 'PASS' : 'FAIL') + ' - ' + n + (x ? ' :: ' + x : '')); if (!c) fails++; };
-const BASE = 'http://127.0.0.1:8231/index.html?debug=1';
+const BASE = `http://127.0.0.1:${process.env.PORT || 8231}/index.html?debug=1`;
 
 async function flow(browser, choice) {   // choice: 'assassin' | 'bandit'
   const label = choice;
@@ -13,8 +13,8 @@ async function flow(browser, choice) {   // choice: 'assassin' | 'bandit'
   page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
   page.on('console', (m) => { if (m.type() === 'error' && !m.text().includes('Failed to load resource')) errors.push('console: ' + m.text()); });
   await page.addInitScript(() => { try { localStorage.setItem('thief-legend-tutorial-seen', '1'); } catch (_) {} });
-  await page.goto(BASE); await page.waitForTimeout(4000);
-  await page.keyboard.press('Enter'); await page.waitForTimeout(4000);
+  await page.goto(BASE); await page.waitForTimeout(7000);
+  await page.keyboard.press('Enter'); await page.waitForFunction(() => window.__game && window.__game.scene.getScenes(true).some((x) => x.player), null, { timeout: 40000 }); await page.waitForTimeout(1500);
   const ev = (fn, arg) => page.evaluate(fn, arg);
   const shot = (n) => page.screenshot({ path: `${SPDIR}/quest-${label}-${n}.png` });
   const gsq = () => ev(() => { const gs = window.__game.registry.get('gameState'); return { job: gs.job, level: gs.level, choice: gs.jobChoice, active: gs.quests.active.map((q) => q.id + ':' + q.progress), done: gs.quests.completed, sp: gs.skillPoints, title: gs.title }; });
@@ -28,8 +28,9 @@ async function flow(browser, choice) {   // choice: 'assassin' | 'bandit'
   await page.waitForTimeout(2500);
   check(`[${label}] 進入晨曦鎮`, (await activeScene()) === 'TownScene');
 
-  // 影之殿堂在晨曦鎮右端的傳送門（x=1400）；殿堂裡的試煉傳送門在沒接任務時進不去
-  await tp(1400); await page.waitForTimeout(2800);
+  // 影之殿堂在晨曦鎮右上角高台的金色傳送門（x=1170, y=200），要站上去按 F；殿堂裡的試煉傳送門在沒接任務時進不去
+  await ev(() => { const s = window.__game.scene.getScenes(true).find((o) => o.player); s.player.setPosition(1170, 130); s.player.body.setVelocity(0, 0); s.player.isInvincible = true; });
+  await page.waitForTimeout(900); await press('f'); await page.waitForTimeout(2800);
   check(`[${label}] 晨曦鎮傳送門 → 影之殿堂`, (await activeScene()) === 'ShrineScene');
   await tp(1150); await page.waitForTimeout(1200);
   check(`[${label}] 沒接任務時影之試煉傳送門被擋下`, (await activeScene()) === 'ShrineScene');

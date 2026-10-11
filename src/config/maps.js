@@ -46,6 +46,10 @@ const HENESYS_PLATFORMS = [
   plat(380,  240, 580, 'wood'),
   plat(1220, 240, 580, 'grass'),
   plat(2060, 240, 580, 'wood'),
+
+  // 支線岔路：右上角的金色傳送門（神秘之境）站在這塊小跳台上，要從 y=400、240 的平台一路跳上來，
+  // 走地面永遠碰不到（入口 portal.interact：站上去還要按互動鍵）
+  plat(2170, 180, 240, 'wood'),
 ];
 
 // ─────────── 碧濤港（Lv12-18，海港 / 海盜）───────────
@@ -188,6 +192,11 @@ const TOWN_PLATFORMS = [
   plat(300,  430, 320, 'wood'),
   plat(980,  430, 320, 'wood'),
   plat(620,  286, 360, 'stone'),
+
+  // 右上角的支線岔路：階梯（y=430 → 320 → 200）通到高台，影之殿堂與城市特區的入口都在高台上，
+  // 走地面不會誤入；高台入口要站上去再按互動鍵
+  plat(1260, 320, 170, 'wood'),
+  plat(1090, 200, 400, 'stone'),
 ];
 
 // ─────────── 影之殿堂（安全地圖，轉職樞紐；一個畫面寬，不捲動）───────────
@@ -252,13 +261,13 @@ export const MAPS = {
     portals: [
       { x: MAP_WIDTH - 50, y: GROUND_Y - 48, width: 40, height: 72, target: 'ruins',   label: '→古代廢墟', spawnX: 200 },
       { x: 30,             y: GROUND_Y - 48, width: 40, height: 72, target: 'sky',     label: '←浮空島嶼', spawnX: MAP_WIDTH - 200 },
-      // 支線：神秘之境（Lv14-20）
-      { x: MAP_WIDTH / 2,  y: GROUND_Y - 48, width: 40, height: 72, target: 'ellinia', label: '↑神秘之境（Lv14-20）', spawnX: 200 },
+      // 支線岔路：神秘之境（Lv14-20），在右上角跳台上（見 HENESYS_PLATFORMS），按互動鍵進入
+      { x: 2290, y: 180 - 48, width: 40, height: 72, target: 'ellinia', label: '→ 神秘之境 Lv.14', spawnX: 200, interact: true },
     ],
     npcs: [
       { x: 300, y: GROUND_Y - 60, id: 'npc_new_0', name: '獵人協會員',
         questIds: ['mushroom_hunt', 'stump_clear'],
-        dialog: ['歡迎來到森林獵場！', '這裡是中級練功地點。', '小心那些野豬，衝刺速度非常快！', '地圖中央的傳送門通往神秘之境，往右是古代廢墟。'] },
+        dialog: ['歡迎來到森林獵場！', '這裡是中級練功地點。', '小心那些野豬，衝刺速度非常快！', '右上角的跳台上有金色傳送門通往神秘之境（按 F 進入），地面往右是古代廢墟。'] },
     ],
     spawnX: 150,
   },
@@ -336,7 +345,7 @@ export const MAPS = {
       { id: 'mimic',    count: 3 },
     ],
     portals: [
-      { x: 30,             y: GROUND_Y - 48, width: 40, height: 72, target: 'henesys', label: '←森林獵場', spawnX: MAP_WIDTH / 2 + 130 },
+      { x: 30,             y: GROUND_Y - 48, width: 40, height: 72, target: 'henesys', label: '←森林獵場', spawnX: 2000 },
     ],
     npcs: [
       { x: 300, y: GROUND_Y - 60, id: 'npc_new_1', name: '神秘嚮導',
@@ -555,11 +564,11 @@ export const MAPS = {
     portals: [
       { x: TOWN_WIDTH - 50, y: GROUND_Y - 48, width: 40, height: 72, target: 'sky', label: '→浮空島嶼', spawnX: 200 },
       // Phase 14：副本入口（target='dungeon' 觸發 DungeonScene，dungeonId 指定哪個副本）
-      { x: 800, y: GROUND_Y - 48, width: 40, height: 72, target: 'dungeon', dungeonId: 'slime_cave', label: '⚔ 史萊姆洞窟' },
+      { x: 800, y: GROUND_Y - 48, width: 40, height: 72, target: 'dungeon', dungeonId: 'slime_cave', label: '⚔ 史萊姆洞窟', interact: true },
       // 影之殿堂：轉職長老、技能導師與「影之試煉」入口都在那裡
-      { x: 1400, y: GROUND_Y - 48, width: 40, height: 72, target: 'shrine', label: '→影之殿堂', spawnX: 120 },
+      { x: 1170, y: 200 - 48, width: 40, height: 72, target: 'shrine', label: '→ 影之殿堂', spawnX: 120, interact: true },
       // 城市特區（暗巷城 ⇄ 台北都會）：Lv18 開放
-      { x: 1200, y: GROUND_Y - 48, width: 40, height: 72, target: 'kerning', label: '→城市特區', spawnX: 200, minLevel: 18 },
+      { x: 1360, y: 200 - 48, width: 40, height: 72, target: 'kerning', label: '→ 城市特區 Lv.18', spawnX: 200, minLevel: 18, interact: true },
     ],
     npcs: [
       // 星光之塔（role: 'starTower'）：互動顯示碎片進度，集滿 5 塊時點亮並解鎖最終 Boss。
@@ -569,7 +578,7 @@ export const MAPS = {
         dialog: ['歡迎光臨雜貨店！'] },
       { x: 1000, y: GROUND_Y - 60, id: 'npc_townsfolk', name: '城鎮居民',
         questIds: ['reach_town', 'job_call'], jobLetter: true,
-        dialog: ['晨曦鎮是安全的休息站，這裡不會有怪物。', '需要補給就找商人老陳。', '右邊盡頭有兩道傳送門：靠左的通往影之殿堂，', '最右邊的是回浮空島嶼的路。', '中間偏右的是城市特區入口，Lv18 以後才開放。'] },
+        dialog: ['晨曦鎮是安全的休息站，這裡不會有怪物。', '需要補給就找商人老陳。', '右邊盡頭的傳送門是回浮空島嶼的路。', '右上角的高台（沿階梯跳上去）有兩道金色傳送門：', '左邊通往影之殿堂，右邊是城市特區（Lv18 以後才開放），按 F 進入。'] },
     ],
     spawnX: 200,
   },
