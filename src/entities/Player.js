@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { SKILLS, expNeeded, MAP_SCENE_KEYS, POTIONS, createInitialGameState, BASIC_ATTACK, BASIC_ATTACK_DEF, skillForSlot } from '../config/constants.js';
+import { jobOf, skillDefOf, expNeeded, MAP_SCENE_KEYS, POTIONS, createInitialGameState, BASIC_ATTACK, skillForSlot } from '../config/constants.js';
 import { saveGame } from '../engine/saveGame.js';
 import { castSlash, castShuriken, castDash, castAssassinate, castVortex, castClone } from './Skill.js';
 import { particles } from '../engine/particles.js';
@@ -275,7 +275,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   basicAttack() {
     const gs = this.gameState;
     if (this.isDead || (gs.skillCooldowns[BASIC_ATTACK] || 0) > 0) return;
-    gs.skillCooldowns[BASIC_ATTACK] = BASIC_ATTACK_DEF.cooldown;
+    gs.skillCooldowns[BASIC_ATTACK] = jobOf(gs).basic.cooldown;
     this._coolingDownKeys.add(BASIC_ATTACK);
     castSlash(this.scene, this, this.enemies);
     audio.resumeContext();
@@ -283,7 +283,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
 
   castSkill(key) {
     const gs = this.gameState;
-    const skillDef = SKILLS[key];
+    const skillDef = skillDefOf(gs.job, key);
     if (!skillDef) return;
 
     // 解鎖檢查
@@ -402,7 +402,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.scene.registry.events.emit('changedata-sp', null, gs.skillPoints);
 
     // 技能解鎖（解鎖即獲得 1 級，之後可在技能欄花 SP 升級）
-    for (const [key, skill] of Object.entries(SKILLS)) {
+    for (const [key, skill] of Object.entries(jobOf(gs).skills)) {
       if (gs.level >= skill.unlockLevel && !gs.unlockedSkills.includes(key)) {
         gs.unlockedSkills.push(key);
         gs.skillLevels[key] = Math.max(1, gs.skillLevels[key] || 0);

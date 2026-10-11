@@ -12,7 +12,7 @@
 // 存檔不含：技能冷卻（讀檔時歸零）、裝置相關設定（qualityLevel）、副本每日次數（另有獨立 key）。
 
 import {
-  createInitialGameState, SKILLS, POTIONS, expNeeded, DEFAULT_SKILL_SLOTS, SKILL_POOL,
+  createInitialGameState, POTIONS, expNeeded, JOBS, isJobId, DEFAULT_JOB, JOB_CHANGE_LEVEL, SKILL_SLOT_KEYS,
 } from '../config/constants.js';
 import { MAPS } from '../config/maps.js';
 import { EQUIPMENT_SLOTS, EQUIPMENT_BASES, RARITIES } from '../config/equipment.js';
@@ -140,24 +140,33 @@ export function sanitizeState(raw) {
     }
   }
 
-  // 技能：等級 0..10；已解鎖清單由等級門檻與存檔共同決定，Z 一律解鎖
+  // 職業：未知值 → 盜賊；未達轉職等級也不承認轉職後的職業（避免改檔拿到專屬技能）
+  gs.job = isJobId(raw.job) && gs.level >= JOB_CHANGE_LEVEL ? raw.job : DEFAULT_JOB;
+  const job = JOBS[gs.job];
+  gs.title = job.title;   // 稱號由職業決定，不信任存檔內容
+  gs.jobChoice = gs.job === DEFAULT_JOB && (raw.jobChoice === 'assassin' || raw.jobChoice === 'bandit')
+    ? raw.jobChoice : null;
+
+  // 技能：只認該職業技能池內的 id。等級 0..10；已解鎖清單由等級門檻與存檔共同決定，池中第一個技能一律解鎖
   const skillLevels = isPlainObject(raw.skillLevels) ? raw.skillLevels : {};
   const unlockedRaw = Array.isArray(raw.unlockedSkills) ? raw.unlockedSkills : [];
-  const unlocked = new Set(['Z']);
-  for (const [key, def] of Object.entries(SKILLS)) {
-    const lv = int(skillLevels[key], 0, MAX_SKILL_LEVEL, key === 'Z' ? 1 : 0);
+  const unlocked = new Set();
+  gs.skillLevels = {};
+  job.pool.forEach((key, i) => {
+    const def = job.skills[key];
+    const lv = int(skillLevels[key], 0, MAX_SKILL_LEVEL, i === 0 ? 1 : 0);
     const levelOk = gs.level >= def.unlockLevel;
-    if (levelOk && (unlockedRaw.includes(key) || lv > 0)) unlocked.add(key);
+    if (i === 0 || (levelOk && (unlockedRaw.includes(key) || lv > 0))) unlocked.add(key);
     gs.skillLevels[key] = unlocked.has(key) ? Math.max(1, lv) : 0;
-  }
-  gs.unlockedSkills = Object.keys(SKILLS).filter((k) => unlocked.has(k));
+  });
+  gs.unlockedSkills = job.pool.filter((k) => unlocked.has(k));
 
-  // 技能欄位：4 格、各放技能池中不同的一個技能，且都必須已解鎖，否則回預設（防壞檔 / 重複 / 夾帶普通攻擊）
+  // 技能欄位：4 格、各放該職業技能池中不同的一個技能，且都必須已解鎖，否則回預設（防壞檔 / 重複 / 夾帶普通攻擊）
   const slots = Array.isArray(raw.skillSlots) ? raw.skillSlots : null;
-  const validSlots = slots && slots.length === DEFAULT_SKILL_SLOTS.length
-    && new Set(slots).size === slots.length && slots.every((id) => SKILL_POOL.includes(id) && unlocked.has(id));
-  // 尚未全部解鎖時不允許自訂（避免拿舊檔 / 改檔提前調整）
-  gs.skillSlots = validSlots && SKILL_POOL.every((id) => unlocked.has(id)) ? [...slots] : [...DEFAULT_SKILL_SLOTS];
+  const validSlots = slots && slots.length === SKILL_SLOT_KEYS.length
+    && new Set(slots).size === slots.length && slots.every((id) => job.pool.includes(id) && unlocked.has(id));
+  // 解鎖的技能還沒多過欄位數時不允許自訂（避免拿舊檔 / 改檔提前調整）
+  gs.skillSlots = validSlots && unlocked.size > SKILL_SLOT_KEYS.length ? [...slots] : [...job.defaultSlots];
 
   gs.currentMap = sanitizeMap(raw.currentMap);
   gs.spawnX = MAPS[gs.currentMap].spawnX ?? gs.spawnX;
