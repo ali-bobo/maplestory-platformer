@@ -768,7 +768,12 @@ export class BaseMapScene extends Phaser.Scene {
     }, this);
 
     this.physics.add.collider(this.monsters, this.platforms);
-    this.physics.add.collider(this.monsters, this.thinPlatforms);
+    // 怪物對薄平台也是單向（只從上方落下時才碰撞）：寬大的身體不會卡在低矮平台的側面 / 底面，
+    // 也才能從下方跳上平台。用上一幀的腳底判斷，高速下落不會穿透。
+    this.physics.add.collider(this.monsters, this.thinPlatforms, null, (mon, plat) => {
+      const b = mon.body;
+      return b.velocity.y >= 0 && b.prev.y + b.height <= plat.body.top + 4;
+    }, this);
 
     this.physics.add.overlap(this.player, this.portals,  this._onPortalEnter, null, this);
     this.physics.add.overlap(this.player, this.pickups,  this._onPickup,      null, this);

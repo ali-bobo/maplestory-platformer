@@ -9,6 +9,11 @@ import { consumeMark, inSmoke, SMOKE_DAMAGE_FACTOR } from '../engine/statusEffec
 import { effectiveCritMulti, jobPassive } from '../config/constants.js';
 import { SHARD_TEXTURE } from '../config/shards.js';
 import { shardToDrop } from '../engine/shards.js';
+import { MONSTERS } from '../config/monsters.js';
+import { MonsterBrain, ST_IDLE, ST_WINDUP } from './monsterAI.js';
+import { playFx } from './Skill.js';
+import { getPlatformGraph, getTable, platformAt, jumpClassFor } from '../engine/platformGraph.js';
+import { SteerState, makeSteerInput, makeSteerOut, steer } from '../engine/aiLogic.js';
 
 // Phase 10.3 PoC：HP 條渲染模式開關（'shape' = Rectangle 走 batchFillPath；
 // 'image' = 白塊 texture 走 batchSprite）。預設 shape（維持 Phase 3 現狀）。
@@ -21,6 +26,19 @@ export function setHpBarMode(mode) {
 // 怪物 AI 狀態
 const STATE = { PATROL: 'patrol', CHASE: 'chase', ATTACK: 'attack', HURT: 'hurt', DEAD: 'dead', RANGED: 'ranged' };
 const LEGACY_MONSTER_SOURCE_SIZE = 80;
+const STEER_JUMP_COOLDOWN_MS = 900;
+const RETREAT_NEAR_SQ = 10000;   // 遠程怪：比 100px 近就後退
+const RETREAT_FAR_SQ = 16900;    // 退到 130px 才停（遲滯，避免在邊界來回抖動）
+const WARN_FLASH_MS = 100;
+
+let MON_BY_ID = null;
+function monsterDef(id) {
+  if (!MON_BY_ID) {
+    MON_BY_ID = new Map();
+    for (const d of MONSTERS) MON_BY_ID.set(d.id, d);
+  }
+  return MON_BY_ID.get(id);
+}
 const MAX_MONSTER_DISPLAY_HEIGHT = 160;
 const MAX_MINIBOSS_DISPLAY_HEIGHT = 220;
 const MONSTER_ALPHA_NORMALIZATION_PREFIXES = [
@@ -177,6 +195,24 @@ export class Monster extends Phaser.Physics.Arcade.Sprite {
     this.jumpProfile = config.jumpProfile || null;
     this.jumpCooldown = this._rollJumpCooldown();
 
+    // 平台感知追擊：平台圖每張地圖建一次，下一步表依自己的起跳能力取
+    this._baseTint = config.tint ?? null;
+    this.phase = 1;
+    this._underground = false;
+    this.graph = getPlatformGraph(scene.mapData?.platforms);
+    this.plat = -1;
+    this._tgtPlat = -1;
+    this.steerJumpVel = this.jumpProfile ? (this.jumpProfile.velocity ?? 320) : 0;
+    this._table = this.graph ? getTable(this.graph, jumpClassFor(this.steerJumpVel)) : null;
+    this._steer = new SteerState();
+    this._sinp = makeSteerInput();
+    this._sout = makeSteerOut();
+    this._steerJumpCd = 0;
+    this._aiDt = 0;
+    this._retreating = false;
+    this._arriveDist = this.attackRange * 0.6;
+    this.brain = new MonsterBrain(this);
+
     // 怪物站位由共享腳底基準 metadata 決定，避免不同圖片來源造成推算漂移。
     this.setCollideWorldBounds(true);
     this.body.setGravityY(0);
@@ -198,7 +234,10 @@ export class Monster extends Phaser.Physics.Arcade.Sprite {
     // Phase 3.1：HP 條改用 Rectangle 而非 Graphics
     // Rectangle 走 SpriteWebGLRenderer 批次渲染，多隻怪物可共享 1 個 draw call；
     // Graphics 即使內容沒變，每幀也會被 GraphicsWebGLRenderer 掃過渲染。
-    this._hpBarW = Phaser.Math.Clamp(Math.round(this.displayWidth * 0.62), 32, 64);
+    // 小王 / 守衛的血條比一般怪寬，遠看也看得出打到哪個階段
+    this._hpBarW = this.config.spawnRole === 'miniboss'
+      ? Phaser.Math.Clamp(Math.round(this.displayWidth * 0.8), 72, 110)
+      : Phaser.Math.Clamp(Math.round(this.displayWidth * 0.62), 32, 64);
     this._hpBarH = this.config.spawnRole === 'miniboss' ? 5 : 4;
     // Phase 10.3 PoC：依模式選 Rectangle(Shape) 或 Image(白塊 texture)
     this._isImageBar = (HP_BAR_MODE === 'image');
@@ -256,7 +295,7 @@ export class Monster extends Phaser.Physics.Arcade.Sprite {
 
   // opts.dot = 持續傷害（毒）：不會引爆斷命印記，傷害數字改綠色
   takeDamage(amount, isCrit = false, opts = null) {
-    if (this.isDead) return;
+    if (this.isDead || this._underground) return;
     const dot = !!(opts && opts.dot);
     if (this._mark && !dot) {
       const m = consumeMark(this, this.scene.time.now, amount, isCrit, effectiveCritMulti(this.gameState));
@@ -275,16 +314,87 @@ export class Monster extends Phaser.Physics.Arcade.Sprite {
       if (!this.active || this.isDead) return;
       this.setTint(0xff8888);
       this._flashTimer = this.scene.time.delayedCall(110, () => {
-        if (this.active && !this.isDead) this.clearTint();
+        if (this.active && !this.isDead) this._restoreTint();
       });
     });
 
     if (this.hp <= 0) {
       this.die();
     } else {
-      this.state = STATE.HURT;
-      this.hurtTimer = 300;
+      this._checkPhase();
+      const brain = this.brain;
+      if (brain.stage === ST_WINDUP && !brain.superArmor) brain.interrupt();   // 前搖被打斷
+      // 出招中（衝刺 / 跳躍 / 潛地 / 咆哮）與小王不會被打到僵直
+      if (!brain.uninterruptible && !brain.superArmor) {
+        this.state = STATE.HURT;
+        this.hurtTimer = 300;
+      }
     }
+  }
+
+  _checkPhase() {
+    if (this.brain.profile.phases.length > 0) this.brain.checkPhase(this.hp / this.maxHp);
+  }
+
+  // 階段切換演出（守衛）：光環 + 震動 + 階段名稱浮字；Boss 會覆寫成更大的演出
+  _onPhaseChange(n, ph) {
+    const scene = this.scene;
+    const c = getVisualCenterPoint(this);
+    playFx(scene, 'fx_boss_aura', c.x, c.y, { scale: 1.3, frameRate: 10, tint: ph.tint ?? 0xff8844, depth: 14 });
+    scene.cameras.main.shake(260, 0.008);
+    if (ph.label) {
+      const txt = scene.add.text(this.x, getVisualTopY(this) - 44, ph.label, {
+        fontSize: '22px', color: '#ffcc66', fontFamily: 'Arial', stroke: '#000000', strokeThickness: 4,
+      }).setOrigin(0.5).setDepth(90);
+      scene.tweens.add({ targets: txt, y: txt.y - 40, alpha: 0, duration: 1500, onComplete: () => txt.destroy() });
+    }
+    this._restoreTint();
+  }
+
+  _restoreTint() {
+    if (this._baseTint != null) this.setTint(this._baseTint); else this.clearTint();
+  }
+
+  // 潛地時隱藏本體與血條、關閉碰撞，浮出時把物理 body 對齊回來
+  setUnderground(on) {
+    if (on === this._underground) return;
+    this._underground = on;
+    this.setVisible(!on);
+    if (this._hpBg) this._hpBg.setVisible(!on);
+    if (this._hpBar) this._hpBar.setVisible(!on);
+    if (!this.body) return;
+    if (on) { this.body.setVelocity(0, 0); this.body.enable = false; }
+    else { this.body.enable = true; this.body.reset(this.x, this.y); }
+  }
+
+  // 平台邊緣偵測（有平台資訊時才有效）
+  edgeAhead(dir, margin) {
+    const g = this.graph, p = this.plat;
+    if (!g || p < 0) return false;
+    return dir > 0 ? this.x + margin > g.right[p] - 6 : this.x - margin < g.left[p] + 6;
+  }
+
+  clampToPlatform(x) {
+    const g = this.graph, p = this.plat;
+    if (!g || p < 0) return x;
+    return Math.max(g.left[p] + 12, Math.min(g.right[p] - 12, x));
+  }
+
+  // 召喚小怪：不給經驗 / 掉落、不重生、不算任務擊殺（id 加 #minion 後綴）
+  spawnMinion(id, x) {
+    const def = monsterDef(id);
+    const scene = this.scene;
+    if (!def || !scene?.monsters) return null;
+    const cfg = Object.assign({}, def, { attackId: def.id, id: `${def.id}#minion`, dropRate: 0, exp: 0, meso: 0, spawnRole: undefined });
+    const mi = new Monster(scene, x, 0, cfg);
+    if (scene._alignDynamicEntityToPlatformTop) scene._alignDynamicEntityToPlatformTop(mi, this.body.bottom);
+    else mi.setY(this.body.bottom);
+    mi._isMinion = true;
+    mi.player = scene.player;
+    mi.patrolOriginX = x;
+    mi.patrolRange = 100;
+    scene.monsters.add(mi);
+    return mi;
   }
 
   /**
@@ -292,7 +402,7 @@ export class Monster extends Phaser.Physics.Arcade.Sprite {
    * Boss 與小王有 knockbackResist，只吃一小部分。
    */
   applyKnockback(vx, duration = 180, vy = 0) {
-    if (this.isDead || !this.body) return;
+    if (this.isDead || !this.body || this.brain.uninterruptible) return;
     const resist = this.knockbackResist ?? (this.config?.spawnRole === 'miniboss' ? 0.6 : 0);
     const scaled = vx * (1 - resist);
     if (Math.abs(scaled) < 1) return;
@@ -334,6 +444,9 @@ export class Monster extends Phaser.Physics.Arcade.Sprite {
     this.isDead = true;
     this.state = STATE.DEAD;
     this._destroyHpBar();
+    this.brain.cleanup();
+    this.brain.killMinions();
+    if (this.body) this.body.setAllowGravity(true);
 
     audio.playDeath();
     const center = getVisualCenterPoint(this);
@@ -409,8 +522,10 @@ export class Monster extends Phaser.Physics.Arcade.Sprite {
     const dt = delta / 1000;
     this.hurtTimer = Math.max(0, this.hurtTimer - delta);
     this.attackCooldown = Math.max(0, this.attackCooldown - delta);
-    this.rangedCooldown = Math.max(0, this.rangedCooldown - delta);
     this.jumpCooldown = Math.max(0, this.jumpCooldown - delta);
+    this._steerJumpCd = Math.max(0, this._steerJumpCd - delta);
+    const brain = this.brain;
+    brain.tickCd(delta);
 
     if (this._kbTimer > 0) {
       // 擊退 / 牽引：速度隨剩餘時間線性衰減
@@ -424,20 +539,32 @@ export class Monster extends Phaser.Physics.Arcade.Sprite {
       return;
     }
 
-    if (!player || !player.active) {
+    if (!player || !player.active || player.isDead) {
+      if (brain.stage !== ST_IDLE) brain.interrupt();
       this._doPatrol(dt);
+      return;
+    }
+
+    // 出招中：由大腦接手（每幀推進，預警 / 判定不受 AI 節流影響）
+    if (brain.stage !== ST_IDLE) {
+      brain.tick(delta, player);
       return;
     }
 
     // Phase 3.4：AI 節流——每 3 幀做一次決策，跳過幀讓物理引擎用上次的 velocity 持續移動
     // 50 ms 決策延遲對玩家肉眼無感，但 CPU 開銷降到 1/3
+    this._aiDt += delta;
     this._aiTick = (this._aiTick + 1) % 3;
     if (this._aiTick !== 0) return;
+    const adt = this._aiDt;
+    this._aiDt = 0;
 
-    // distSq 平方比較取代 sqrt（規則 B）
+    // distSq 平方比較取代 sqrt（規則 B）；aggroSq 把垂直距離打 6 折，上下樓層的玩家也算在警戒範圍內
     const distX = player.x - this.x;
     const distY = player.body.center.y - this.body.center.y;
     const distSq = distX * distX + distY * distY;
+    const aggroSq = distX * distX + 0.36 * distY * distY;
+    this._refreshPlat(player);
 
     // 迷煙彈：範圍內的敵人傷害減半；非遠程怪不再追擊（只在貼身時還手，其餘巡邏）
     const zones = player.smokeZones;
@@ -448,40 +575,74 @@ export class Monster extends Phaser.Physics.Arcade.Sprite {
     }
 
     switch (this.behavior) {
-      case 'patrol':  this._behaviorPatrol(distSq, distX, player); break;
-      case 'chase':   this._behaviorChase(distSq, distX, player);  break;
-      case 'ranged':  this._behaviorRanged(distSq, distX, player); break;
-      default:        this._behaviorPatrol(distSq, distX, player); break;
+      case 'chase':   this._behaviorChase(distSq, aggroSq, player, adt);  break;
+      case 'ranged':  this._behaviorRanged(distSq, aggroSq, distX, player); break;
+      default:        this._behaviorPatrol(distSq, aggroSq, player, adt); break;
     }
   }
 
-  _behaviorPatrol(distSq, distX, player) {
+  // 更新自己與玩家所在的平台（只在落地時更新，空中沿用上一個）
+  _refreshPlat(player) {
+    const g = this.graph;
+    if (!g) return;
+    if (this._isGrounded()) this.plat = platformAt(g, this.x, this.body.bottom);
+    const f = this.scene.game.getFrame();
+    if (player._aiFrame !== f) {
+      player._aiFrame = f;
+      const pb = player.body;
+      if (pb.blocked.down || pb.touching.down) player._aiPlat = platformAt(g, player.x, pb.bottom);
+    }
+    this._tgtPlat = player._aiPlat ?? -1;
+  }
+
+  // 特殊攻擊：成功開始出招回傳 true（vertical = 只考慮能打到不同樓層的招式）
+  _trySpecial(player, distSq, vertical) {
+    const dyAbs = Math.abs(player.body.bottom - this.body.bottom);
+    return this.brain.tryStart(player, Math.sqrt(distSq), dyAbs, this._isGrounded(), vertical);
+  }
+
+  _behaviorPatrol(distSq, aggroSq, player, adt) {
+    if (aggroSq < this._detectionRangeSq && this._trySpecial(player, distSq, false)) return;
     if (distSq < this._attackRangeSq) {
       this._doAttack(player);
-    } else if (distSq < this._detectionRangeSq) {
-      this._doChase(distX);
+    } else if (aggroSq < this._detectionRangeSq) {
+      this._doChase(player, distSq, adt);
     } else {
       this._doPatrol();
     }
   }
 
-  _behaviorChase(distSq, distX, player) {
+  _behaviorChase(distSq, aggroSq, player, adt) {
+    if (aggroSq < this._chaseExtendedSq && this._trySpecial(player, distSq, false)) return;
     if (distSq < this._attackRangeSq) {
       this._doAttack(player);
-    } else if (distSq < this._chaseExtendedSq) {
-      this._doChase(distX);
+    } else if (aggroSq < this._chaseExtendedSq) {
+      this._doChase(player, distSq, adt);
     } else {
       this._doPatrol();
     }
   }
 
-  _behaviorRanged(distSq, distX, player) {
-    if (distSq < 10000) { // 100² = 10000，遠離玩家
-      this.setVelocityX(distX < 0 ? this.speed : -this.speed);
-    } else if (distSq < this._detectionRangeSq) {
-      // 保持距離，發射投射物
+  _behaviorRanged(distSq, aggroSq, distX, player) {
+    if (distSq < RETREAT_NEAR_SQ) this._retreating = true;
+    else if (distSq > RETREAT_FAR_SQ) this._retreating = false;
+    const dir = distX < 0 ? 1 : -1;   // 遠離玩家的方向
+    if (this._retreating && aggroSq < this._detectionRangeSq) {
+      // 貼牆 / 到平台邊緣就不再後退：改成貼身還手，免得掉下去或卡住
+      if (this.edgeAhead(dir, 14) || (dir > 0 ? this.body.blocked.right : this.body.blocked.left)) {
+        this.setVelocityX(0);
+        if (distSq < this._attackRangeSq) this._doAttack(player);
+        else this._trySpecial(player, distSq, true);
+      } else {
+        this.setVelocityX(dir * this.speed);
+        this.setFlipX(dir > 0 ? false : true);
+        this._tryJump();
+      }
+    } else if (aggroSq < this._detectionRangeSq) {
+      // 保持距離，瞄準玩家發射（投射物會算上高低差，玩家在別層也打得到）
       this.setVelocityX(0);
-      this._doRangedAttack(player);
+      this.setFlipX(distX < 0);
+      this._trySpecial(player, distSq, true);
     } else {
       this._doPatrol();
     }
@@ -492,24 +653,43 @@ export class Monster extends Phaser.Physics.Arcade.Sprite {
     const rightEdge = this.patrolOriginX + this.patrolRange;
     if (this.x <= leftEdge) this.patrolDir = 1;
     if (this.x >= rightEdge) this.patrolDir = -1;
-    this.setVelocityX(this.patrolDir * this.speed * 0.6);
+    // 站在平台上時不走出邊緣（地面平台很長，不受影響）
+    if (this._isGrounded() && this.edgeAhead(this.patrolDir, 10)) this.patrolDir = -this.patrolDir;
+    this.setVelocityX(this.patrolDir * this.speed * 0.6 * this.brain.speedMult);
     this.setFlipX(this.patrolDir < 0);
     this._tryJump();
   }
 
-  _doChase(distX) {
-    // Phase 11.1：X 軸死區（12px）——太近時不繼續追擊，避免 distX 在 ±幾 px
-    // 跳動造成 dir 反覆翻轉、原地左右震盪。常見於玩家跳到怪物正上/下方平台、
-    // X 已對齊但 attackRange 不夠的情境。仍保留 _tryJump，怪物可嘗試跳上平台接近。
-    if (Math.abs(distX) < 12) {
-      this.setVelocityX(0);
-      this._tryJump();
+  // 平台感知追擊：同層直接追；玩家在別層就依平台圖找上跳 / 走下去的路；
+  // 連續 UNREACH_MS 都到不了 → 改用能打到別層的招式（遠程 / 俯衝 / 撲擊），沒招就先巡邏，不會呆站
+  _doChase(player, distSq, adt) {
+    const inp = this._sinp, out = this._sout;
+    const grounded = this._isGrounded();
+    const speed = this.speed * this.brain.speedMult;
+    inp.x = this.x;
+    inp.dx = player.x - this.x;
+    inp.dy = player.body.bottom - this.body.bottom;
+    inp.selfPlat = this.plat;
+    inp.tgtPlat = this._tgtPlat;
+    inp.grounded = grounded;
+    inp.speed = speed;
+    inp.arrive = this._arriveDist;
+    inp.jumpVel = this.steerJumpVel;
+    inp.graph = this.graph;
+    inp.table = this._table;
+    steer(this._steer, inp, adt, out);
+    if (out.unreach) {
+      if (!this._trySpecial(player, distSq, true)) this._doPatrol();
       return;
     }
-    const dir = distX > 0 ? 1 : -1;
-    this.setVelocityX(dir * this.speed);
-    this.setFlipX(dir < 0);
-    this._tryJump();
+    this.setVelocityX(out.dir * speed);
+    if (out.dir !== 0) this.setFlipX(out.dir < 0);
+    if (out.jump && grounded && this._steerJumpCd <= 0) {
+      this.setVelocityY(-out.jumpVel);
+      this._steerJumpCd = STEER_JUMP_COOLDOWN_MS;
+    } else {
+      this._tryJump();
+    }
   }
 
   _rollJumpCooldown() {
@@ -538,51 +718,18 @@ export class Monster extends Phaser.Physics.Arcade.Sprite {
     this.setVelocityX(0);
     if (this.attackCooldown > 0) return;
     this.attackCooldown = 1500;
-    const dmg = Math.floor(this.atk * (0.8 + Math.random() * 0.4) * (this._smoked ? SMOKE_DAMAGE_FACTOR : 1));
+    const dmg = Math.floor(this.atk * this.brain.dmgMult * (0.8 + Math.random() * 0.4) * (this._smoked ? SMOKE_DAMAGE_FACTOR : 1));
     if (player && !player.isInvincible) {
       player.takeDamage(dmg);
     }
     // 攻擊閃爍
     this.setTint(0xffffff);
-    this.scene.time.delayedCall(100, () => { if (this.active && !this.isDead) this.clearTint(); });
-  }
-
-  _doRangedAttack(player) {
-    if (this.rangedCooldown > 0) return;
-    this.rangedCooldown = 2000;
-    // 用區域變數捕捉 scene 與傷害值：投射物存活 2 秒，期間怪物可能先死亡，
-    // 屆時 this.scene 會被 Phaser 清為 null，沿用區域 scene 才不會在 cleanup 中崩潰。
-    const scene = this.scene;
-    const projDmg = Math.floor(this.atk * 0.7 * (this._smoked ? SMOKE_DAMAGE_FACTOR : 1));
-    const dir = player.x > this.x ? 1 : -1;
-    const center = getVisualCenterPoint(this);
-    const proj = scene.physics.add.sprite(this.x, center.y - 10, 'skill-orb');
-    proj.setTint(this.config.projTint ?? 0xff4444);
-    proj.setDepth(20);
-    proj.body.setAllowGravity(false);
-    proj.setVelocity(dir * 250, -50);
-
-    // 投射物銷毀時一併移除 overlap collider，避免長時間遊玩累積死碰撞器
-    let overlap = null;
-    const cleanup = () => {
-      if (overlap && scene.physics?.world) {
-        scene.physics.world.removeCollider(overlap);
-        overlap = null;
-      }
-      if (proj.active) proj.destroy();
-    };
-    overlap = scene.physics.add.overlap(proj, player, (p, pl) => {
-      if (!pl?.active || pl.isDead) { cleanup(); return; }
-      if (!pl.isInvincible) {
-        pl.takeDamage(projDmg);
-        cleanup();
-      }
-    });
-    scene.time.delayedCall(2000, cleanup);
+    this.scene.time.delayedCall(WARN_FLASH_MS, () => { if (this.active && !this.isDead) this._restoreTint(); });
   }
 
   destroy(fromScene) {
     this._destroyHpBar();
+    if (this.brain) this.brain.cleanup();
     if (this._flashTimer) this._flashTimer.remove();
     super.destroy(fromScene);
   }
