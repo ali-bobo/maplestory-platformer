@@ -453,7 +453,11 @@ function launchShuriken(scene, player, enemies, opts) {
 export function castSlash(scene, player, enemies) {
   audio.playSkill('ATK');
   const dir = player.facingRight ? 1 : -1;
-  if (typeof player._lockPose === 'function') player._lockPose('player_attack', 220);
+  if (typeof player._lockPose === 'function') {
+    player._lockPose('player_slash_1', 80);
+    scene.time.delayedCall(80, () => { if (player.active && !player.isDead) player._lockPose('player_slash_2', 90); });
+    scene.time.delayedCall(170, () => { if (player.active && !player.isDead) player._lockPose('player_slash_3', 130); });
+  }
 
   scene.time.delayedCall(80, () => {
     if (!scene.sys.isActive() || !player.active || player.isDead) return;
