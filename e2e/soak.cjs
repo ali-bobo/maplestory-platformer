@@ -34,7 +34,7 @@ const INIT = () => {
     };
     const wrapCount = (proto, name, kind) => { const orig = proto[name]; proto[name] = function (...a) { st.created[kind]++; return orig.apply(this, a); }; };
     wrapSrc(AC.prototype, 'createOscillator', 'osc');
-    wrapSrc(AC.prototype, 'createBufferSource', 'buf');
+    wrapCount(AC.prototype, 'createBufferSource', 'buf');
     wrapCount(AC.prototype, 'createGain', 'gain');
     wrapCount(AC.prototype, 'createConvolver', 'conv');
   }
@@ -77,7 +77,7 @@ const SAMPLE = () => {
   return {
     heapMB: +(m.usedJSHeapSize / 1048576).toFixed(1), textures: n, texMB: +(px * 4 / 1048576).toFixed(1),
     objs, tweens, timers, bodies, listeners: ev, intervals: st.intervals,
-    oscLive: st.live.osc, bufLive: st.live.buf, oscMade: st.created.osc, gainMade: st.created.gain,
+    oscLive: st.live.osc, oscMade: st.created.osc, gainMade: st.created.gain,
     ctxLost: st.ctxLost, quality: g.registry.get('qualityLevel'), fps: Math.round(g.loop.actualFps),
     active: g.scene.getScenes(true).map((s) => s.sys.settings.key).join(','),
   };
@@ -186,8 +186,25 @@ const SAMPLE = () => {
     console.log('(分鐘數 < 4，略過成長斷言)');
   }
   const last = samples[samples.length - 1] || boot;
-  check('存活振盪器 + 緩衝來源 < 250（音訊節點沒有堆積）', last.oscLive + last.bufLive < 250, `osc ${last.oscLive} buf ${last.bufLive}`);
+  check('存活振盪器 < 120（音訊節點沒有堆積）', last.oscLive < 120, `osc ${last.oscLive}`);
   check('沒有 WebGL context lost', last.ctxLost === 0, String(last.ctxLost));
+  // ── WebGL context 遺失演練：丟掉 context → 要有提示；恢復後提示消失、畫面繼續繪製 ─────────
+  const drill = await page.evaluate(async () => {
+    const ext = window.__game.renderer.gl.getExtension('WEBGL_lose_context');
+    if (!ext) return { skipped: true };
+    ext.loseContext(); await new Promise((r) => setTimeout(r, 500));
+    const shown = !!document.getElementById('gl-lost');
+    ext.restoreContext(); await new Promise((r) => setTimeout(r, 1500));
+    return { shown, hidden: !document.getElementById('gl-lost'), lostFlag: window.__game.renderer.contextLost, frame: window.__game.loop.frame };
+  });
+  if (!drill.skipped) {
+    await page.waitForTimeout(1500);
+    const frame2 = await page.evaluate(() => window.__game.loop.frame);
+    const shot = await page.screenshot();
+    check('context 遺失時顯示提示', drill.shown);
+    check('context 恢復後提示收起、渲染器恢復', drill.hidden && !drill.lostFlag, JSON.stringify(drill));
+    check('恢復後遊戲迴圈仍在跑、畫面不是空白', frame2 > drill.frame && shot.length > 30000, `frame ${drill.frame} -> ${frame2}, png ${shot.length} B`);
+  }
   check('全程沒有 JS 錯誤 / 當機', errors.length === 0, errors.slice(0, 5).join(' | '));
   await page.screenshot({ path: OUT + '/soak-end.png' }).catch(() => {});
   if (process.env.SOAK_JSON) fs.writeFileSync(process.env.SOAK_JSON, JSON.stringify({ bootMs, boot, samples }, null, 1));

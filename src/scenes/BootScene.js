@@ -6,6 +6,7 @@ import { initVfxTextures } from '../engine/vfxTextures.js';
 import GlowFilterPostFxPipeline from 'phaser3-rex-plugins/plugins/shaders/glowfilter/GlowFilterPostFxPipeline.js';
 import ShockwavePostFxPipeline from 'phaser3-rex-plugins/plugins/shaders/shockwave/ShockwavePostFxPipeline.js';
 import { isTouchDevice } from '../engine/device.js';
+import { downscaleTexture } from '../engine/assetLoader.js';
 
 export class BootScene extends Phaser.Scene {
   constructor() {
@@ -46,6 +47,8 @@ export class BootScene extends Phaser.Scene {
 
     // 背景 / 怪物 / NPC / 跳台 / 職業動作圖 / 特效不在開機載入：進入地圖時由 BaseMapScene.preload 依需要載入
     // （src/engine/assetPlan.js 決定清單，assetCatalog.js 的 scope 標籤為準）；怪物去背在首次生成時才處理。
+
+    downscaleTexture(this, 'title_bg');   // 主選單背景 1376×768 → 1280×714（與地圖背景一致）
 
     // 預渲染 VFX 紋理（魔法陣/弧形斬擊/命中環/衝擊圓），消滅遊戲過程的 earcut 熱點
     initVfxTextures(this);

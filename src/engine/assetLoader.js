@@ -24,7 +24,7 @@ export const isLoaded = (scene, key) => scene.textures.exists(key);
 
 // 背景圖載入後縮到 ≤ 1280×720（像素風設定用最近鄰取樣，縮放比例接近 1 時用平滑縮小畫質較好），
 // 並用同 key 重新註冊、釋放原圖。規則 D：紋理尺寸應對齊顯示尺寸。
-function downscaleTexture(scene, key, maxW = 1280, maxH = 720) {
+export function downscaleTexture(scene, key, maxW = 1280, maxH = 720) {
   if (!scene.textures.exists(key)) return;
   const src = scene.textures.get(key).getSourceImage();
   if (!src || (src.width <= maxW && src.height <= maxH)) return;
