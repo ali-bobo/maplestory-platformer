@@ -78,6 +78,7 @@ export const game = new Phaser.Game(config);
 if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('debug') === '1') {
   window.__setFps = (target, useTimeout = true) => setGameFps(game, target, useTimeout);
   window.__hpBarMode = (mode) => setHpBarMode(mode);
+  window.__game = game;   // 供自動化測試取得遊戲實例
 }
 
 // 關閉分頁 / 切到背景時補存一次（只在實際遊玩的場景中；選單與結算畫面的狀態不覆蓋存檔）

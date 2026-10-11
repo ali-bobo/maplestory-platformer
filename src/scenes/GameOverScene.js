@@ -1,7 +1,8 @@
 import Phaser from 'phaser';
 import { createInitialGameState } from '../config/constants.js';
 import { audio } from '../engine/audio.js';
-import { hasSave, loadSave, clearSave, startFromState } from '../engine/saveService.js';
+import { clearSave, autoSave, startFromState } from '../engine/saveService.js';
+import { calcScore, applyDeathPenalty, countEquipment } from '../engine/death.js';
 
 export class GameOverScene extends Phaser.Scene {
   constructor() {
@@ -11,14 +12,24 @@ export class GameOverScene extends Phaser.Scene {
   init(data) {
     this._victory = data && data.victory;
     this._gs = data && data.gameState;
+    this._deathX = data && data.deathX;
   }
 
   create() {
     audio.stopBgm();   // 結算畫面停止地圖 BGM
-    // 通關後清除存檔，避免從已通關的狀態繼續；死亡則保留最近的檢查點
-    if (this._victory) clearSave();
     const { width, height } = this.cameras.main;
     const gs = this._gs || {};
+    // 通關後清除存檔，避免從已通關的狀態繼續。
+    // 死亡：立即算出重生狀態（失去裝備）並寫入存檔，關閉分頁也無法逃避懲罰。
+    this._lostEquipCount = 0;
+    this._respawn = null;
+    if (this._victory) {
+      clearSave();
+    } else {
+      this._lostEquipCount = countEquipment(gs);
+      this._respawn = applyDeathPenalty(gs, this._deathX);
+      autoSave(this._respawn);
+    }
 
     // 背景
     const bg = this.add.graphics();
@@ -50,11 +61,20 @@ export class GameOverScene extends Phaser.Scene {
       this.add.text(width / 2, 190, '恭喜您擊敗了暗影魔君！', {
         fontSize: '24px', color: '#ffee88', fontFamily: 'Arial',
       }).setOrigin(0.5, 0.5);
+    } else {
+      const lost = this._lostEquipCount > 0
+        ? `重新開始將失去身上的 ${this._lostEquipCount} 件裝備`
+        : '重新開始不會損失任何裝備（目前未穿戴裝備）';
+      this.add.text(width / 2, 190, lost, {
+        fontSize: '20px', color: '#ffaa88', fontFamily: 'Arial',
+      }).setOrigin(0.5, 0.5);
     }
 
     // 統計資訊
     const statsY = 260;
+    const score = calcScore(gs, this._victory);
     const statsData = [
+      ['分數',        `${score}`],
       ['達到等級',    `Lv.${gs.level || 1}`],
       ['擊殺數',      `${gs.killCount || 0} 隻`],
       ['獲得金幣',    `${gs.meso || 0} 金`],
@@ -77,12 +97,11 @@ export class GameOverScene extends Phaser.Scene {
 
     // 按鈕
     const btnY = statsY + statsData.length * 44 + 80;
-    // 死亡後「再試一次」：有檢查點就從最近的存檔繼續，否則重新開始；通關後一律新遊戲
-    const retryLabel = !this._victory && hasSave() ? '從存檔繼續' : '再試一次';
+    // 死亡：從死亡點重新開始（失去裝備，其餘進度保留）；通關：開始新遊戲
+    const retryLabel = this._victory ? '再玩一次' : '從死亡點重新開始';
     this._makeButton(width / 2 - 120, btnY, retryLabel, () => {
-      const saved = !this._victory && hasSave() ? loadSave() : null;
-      if (saved && saved.ok) {
-        startFromState(this, saved.state);
+      if (this._respawn) {
+        startFromState(this, this._respawn, this._respawn.spawnX);
         return;
       }
       const fresh = createInitialGameState();

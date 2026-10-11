@@ -39,10 +39,11 @@ export function saveOnExit(gs) {
 }
 
 // 以指定狀態開始（或繼續）遊戲：寫入 registry 並啟動該狀態所在地圖。
-export function startFromState(scene, gs) {
+// spawnX 省略時使用地圖預設出生點。
+export function startFromState(scene, gs, spawnX) {
   const key = MAP_SCENE_KEYS[gs.currentMap] || MAP_SCENE_KEYS.sky;
   scene.registry.set('gameState', gs);
-  scene.scene.start(key, { gameState: gs });
+  scene.scene.start(key, { gameState: gs, spawnX });
 }
 
 function stamp(d = new Date()) {

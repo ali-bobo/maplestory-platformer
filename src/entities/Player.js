@@ -415,7 +415,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.setTint(0xff0000);
     this.scene.time.delayedCall(1500, () => {
       this.scene.scene.stop('UIScene');
-      this.scene.scene.start('GameOverScene', { victory: false, gameState: this.gameState });
+      this.scene.scene.start('GameOverScene', { victory: false, gameState: this.gameState, deathX: this.x });
     });
   }
 
