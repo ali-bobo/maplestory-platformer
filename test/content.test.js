@@ -3,7 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { MAPS } from '../src/config/maps.js';
 import { MONSTERS } from '../src/config/monsters.js';
-import { QUESTS } from '../src/config/quests.js';
+import { QUESTS, JOB_QUEST_CHAIN, JOB_NPC_ID, TRIAL_ITEM } from '../src/config/quests.js';
 import { DUNGEONS } from '../src/config/dungeons.js';
 import { MAP_SCENE_KEYS, JOBS, JOB_IDS } from '../src/config/constants.js';
 import {
@@ -12,6 +12,7 @@ import {
 } from '../src/config/assetCatalog.js';
 
 const monsterIds = new Set(MONSTERS.map((m) => m.id));
+const npcIds = new Set(Object.values(MAPS).flatMap((m) => (m.npcs || []).map((n) => n.npcId).filter(Boolean)));
 const assetKeys = new Set([
   ...CHARACTER_ASSETS, ...BACKGROUND_ASSETS, ...PLATFORM_ASSETS, ...MONSTER_ASSETS,
   ...NPC_ASSETS, ...BOSS_ASSETS, ...ICON_ASSETS, ...UI_ASSETS, ...POTION_ICON_ASSETS,
@@ -35,6 +36,7 @@ test('地圖：怪物 id、背景、場景鍵都存在；傳送門目標有效',
     assert.ok(assetKeys.has(map.bgImage), `${key} 背景 ${map.bgImage}`);
     for (const m of map.monsters) assert.ok(monsterIds.has(m.id), `${key} 怪物 ${m.id}`);
     for (const p of map.portals) {
+      if (p.requiresQuest) assert.ok(QUESTS[p.requiresQuest], `${key} 傳送門要求的任務 ${p.requiresQuest}`);
       if (p.target === 'dungeon') assert.ok(DUNGEONS[p.dungeonId], `${key} 副本 ${p.dungeonId}`);
       else assert.ok(MAPS[p.target], `${key} 傳送門目標 ${p.target}`);
     }
@@ -50,6 +52,15 @@ test('任務：討伐目標存在、到達目標是有效地圖、獎勵為正',
     assert.equal(q.id, id);
     if (q.type === 'kill') assert.ok(monsterIds.has(q.target), `${id} 目標 ${q.target}`);
     if (q.type === 'reach') assert.ok(MAPS[q.target], `${id} 到達地圖 ${q.target}`);
+    if (q.type === 'dungeon') assert.ok(DUNGEONS[q.target], `${id} 副本 ${q.target}`);
+    if (q.type === 'talk' || q.type === 'choice') assert.ok(npcIds.has(q.target), `${id} 對話對象 ${q.target} 不是任何地圖上的 NPC（npcId）`);
+    if (q.type === 'collect') {
+      assert.ok(q.collect && q.collect.dropRate > 0 && q.collect.dropRate <= 1, `${id} 掉落率`);
+      for (const m of q.collect.maps) assert.ok(MAPS[m] && MAPS[m].monsters.length > 0, `${id} 掉落地圖 ${m} 要有怪物`);
+    }
+    if (['talk', 'choice', 'collect', 'dungeon', 'kill', 'reach'].includes(q.type)) assert.ok(q.count >= 1, `${id} count`);
+    assert.ok(['kill', 'reach', 'talk', 'choice', 'collect', 'dungeon'].includes(q.type), `${id} 未知類型 ${q.type}`);
+    for (const r of q.requires || []) assert.ok(QUESTS[r] && r !== id, `${id} 前置任務 ${r}`);
     assert.ok(q.rewards && q.rewards.exp > 0, `${id} 獎勵`);
   }
 });
@@ -88,4 +99,37 @@ test('職業：頭像與每個動作圖都在素材目錄，且技能池的技�
       assert.ok(assetKeys.has(`player_${id}_${pose}`), `${id} 必要動作 ${pose}`);
     }
   }
+});
+
+test('轉職任務鏈：五個任務依序串接、由 NPC 發放、只有最後一步轉職', () => {
+  assert.deepEqual(JOB_QUEST_CHAIN, ['job_call', 'job_choose', 'job_proof', 'job_trial', 'job_awaken']);
+  JOB_QUEST_CHAIN.forEach((id, i) => {
+    const q = QUESTS[id];
+    assert.ok(q, id);
+    if (i > 0) assert.deepEqual(q.requires, [JOB_QUEST_CHAIN[i - 1]], `${id} 前置`);
+    assert.equal(!!q.rewards.advanceJob, i === JOB_QUEST_CHAIN.length - 1, `${id} advanceJob`);
+  });
+  assert.equal(QUESTS.job_call.minLevel, 10);
+  assert.equal(QUESTS.job_proof.target, TRIAL_ITEM);
+  assert.equal(QUESTS.job_proof.count, 5);
+  assert.equal(QUESTS.job_trial.target, 'shadow_trial');
+  // 影之長老在晨曦鎮，發放後四個任務；城鎮居民發放影之召喚
+  const elder = MAPS.town.npcs.find((n) => n.npcId === JOB_NPC_ID);
+  assert.ok(elder && elder.role === 'jobAdvisor' && assetKeys.has(elder.id));
+  assert.deepEqual(elder.questIds, ['job_choose', 'job_proof', 'job_trial', 'job_awaken']);
+  assert.ok(MAPS.town.npcs.some((n) => (n.questIds || []).includes('job_call')));
+  // 影之試煉入口：副本傳送門 + 任務限定；副本有試煉守衛（小王）
+  const portal = MAPS.town.portals.find((p) => p.dungeonId === 'shadow_trial');
+  assert.ok(portal && portal.requiresQuest === 'job_trial');
+  const trial = DUNGEONS.shadow_trial;
+  assert.ok(trial.timeLimit > 0 && trial.waves.length >= 1);
+  const guard = MONSTERS.find((m) => m.id === 'shadow_guardian');
+  assert.equal(guard.spawnRole, 'miniboss');
+  assert.ok(trial.waves.some((w) => w.monsters.some((m) => m.id === 'shadow_guardian')));
+});
+
+test('新增任務的怪物 / 圖都在目錄裡（試煉守衛圖、任務物品貼圖由程式產生）', () => {
+  const guard = MONSTERS.find((m) => m.id === 'shadow_guardian');
+  assert.ok(assetKeys.has(guard.spriteKey), guard.spriteKey);
+  assert.ok(assetKeys.has(DUNGEONS.shadow_trial.bgImage));
 });

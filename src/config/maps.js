@@ -307,13 +307,19 @@ export const MAPS = {
       { x: TOWN_WIDTH - 50, y: GROUND_Y - 48, width: 40, height: 72, target: 'sky', label: '→浮空島嶼', spawnX: 200 },
       // Phase 14：副本入口（target='dungeon' 觸發 DungeonScene，dungeonId 指定哪個副本）
       { x: 800, y: GROUND_Y - 48, width: 40, height: 72, target: 'dungeon', dungeonId: 'slime_cave', label: '⚔ 史萊姆洞窟' },
+      // 一轉任務「影之試煉」：requiresQuest 沒接任務時進不去（影之殿堂地圖美術未到，先用副本場景代替）
+      { x: 1400, y: GROUND_Y - 48, width: 40, height: 72, target: 'dungeon', dungeonId: 'shadow_trial', label: '⚔ 影之試煉', requiresQuest: 'job_trial' },
     ],
     npcs: [
       { x: 520,  y: GROUND_Y - 60, id: 'npc_merchant', name: '商人老陳', shop: true,
         dialog: ['歡迎光臨雜貨店！'] },
       { x: 1000, y: GROUND_Y - 60, id: 'npc_townsfolk', name: '城鎮居民',
-        questIds: ['reach_town'],
+        questIds: ['reach_town', 'job_call'], jobLetter: true,
         dialog: ['晨曦鎮是安全的休息站，這裡不會有怪物。', '需要補給就找商人老陳。', '右邊的傳送門可以回到浮空島嶼。'] },
+      // 轉職官（NPC 圖為暫代：舊居民圖染紫；影之殿堂與專屬立繪等美術到位後替換）
+      { x: 1230, y: GROUND_Y - 60, id: 'npc_townsfolk', tint: 0xa88ae0, npcId: 'shadow_elder', role: 'jobAdvisor', name: '影之長老',
+        questIds: ['job_choose', 'job_proof', 'job_trial', 'job_awaken'],
+        dialog: ['影子裡藏著力量，也藏著試煉。', '等你準備好了，再來找我。'] },
     ],
     spawnX: 200,
   },

@@ -259,6 +259,13 @@ function generateItems(scene){
   g.fillStyle(0xffee88); g.fillCircle(6,6,3);
   g.generateTexture('item-meso',16,16); g.destroy();
 
+  // 任務物品「試煉之證」（程式繪製暫代：紫色菱形徽章 + 金邊；手繪圖示到位後可換成 dist/assets 的圖）
+  g=g_(scene);
+  g.fillStyle(0xffd24a); g.fillTriangle(10,0,20,10,10,20); g.fillTriangle(10,0,0,10,10,20);
+  g.fillStyle(0x4a2a80); g.fillTriangle(10,3,17,10,10,17); g.fillTriangle(10,3,3,10,10,17);
+  g.fillStyle(0xc9a0ff); g.fillTriangle(10,5,14,10,10,15); g.fillStyle(0xffffff, 0.8); g.fillCircle(8,8,1.5);
+  g.generateTexture('item-quest-token',20,20); g.destroy();
+
   const eqs=[
     {key:'item-weapon', fn:g=>{ R(g,5,0,5,14,0x444455); R(g,5,0,5,12,0xcccccc); R(g,2,9,12,4,0x999999); R(g,6,0,3,6,0xffcc33); R(g,6,1,1,4,0xffffff,0.5); }},
     {key:'item-armor',  fn:g=>{ R(g,3,2,10,12,0x113388); R(g,1,2,3,9,0x2244aa); R(g,12,2,3,9,0x2244aa); R(g,5,3,6,5,0x4488cc); R(g,6,4,4,3,0x99ccff,0.5); }},

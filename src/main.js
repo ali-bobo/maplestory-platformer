@@ -22,6 +22,7 @@ import { audio } from './engine/audio.js';
 import { SKILL_SLOT_KEYS, skillForSlot } from './config/constants.js';
 import { TutorialScene } from './scenes/TutorialScene.js';
 import { debugSetJob } from './engine/jobChange.js';
+import { QUESTS } from './config/quests.js';
 
 const config = {
   type: Phaser.WEBGL,
@@ -93,6 +94,7 @@ if (typeof window !== 'undefined' && new URLSearchParams(window.location.search)
   window.__setFps = (target, useTimeout = true) => setGameFps(game, target, useTimeout);
   window.__hpBarMode = (mode) => setHpBarMode(mode);
   window.__game = game;   // 供自動化測試取得遊戲實例
+  window.__QUESTS = QUESTS;   // 測試可調整任務參數（例如把試煉之證掉落率拉到 100%）
   // 直接設定職業與等級（跳過轉職任務）：__setJob('assassin', 24)；'thief' 可切回盜賊。回傳是否成功
   window.__setJob = (job, level) => {
     const gs = game.registry.get('gameState');

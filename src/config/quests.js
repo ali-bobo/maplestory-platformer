@@ -3,6 +3,13 @@
 // 任務類型：
 //  - 'kill' 討伐：擊殺 N 隻指定 monsterId（target = monsterId）
 //  - 'reach' 抵達：到達指定地圖（target = mapKey）
+//  - 'talk' 對話：和指定 NPC 說話（target = NPC 的 npcId）
+//  - 'choice' 抉擇：在 NPC 對話選項中做選擇（轉職選職業；完成由 chooseJobPath 觸發）
+//  - 'collect' 收集：怪物在指定地圖掉落任務物品（target = itemId，collect.maps / dropRate）
+//  - 'dungeon' 副本：通關指定副本（target = dungeonId）
+//
+// 選用欄位：minLevel（接任務的最低等級）、requires（需先完成的任務 id 陣列，用來串任務鏈）、
+// rewards.advanceJob（完成時依 gameState.jobChoice 轉職）
 //
 // 進度結構（存於 gameState.quests.active）：
 //  { id, progress }  // progress 為當前計數（kill 為已殺數、reach 為 0/1）
@@ -144,6 +151,57 @@ export const QUESTS = {
     rewards: { exp: 100, meso: 200 },
   },
 };
+
+// ── 一轉任務鏈（Lv.10）：影之召喚 → 選擇你的道路 → 試煉之證 → 影之試煉 → 覺醒 ────
+// 「影之殿堂」地圖的美術還沒有，影之長老先放在晨曦鎮（NPC 圖為暫代）。
+export const JOB_QUEST_CHAIN = ['job_call', 'job_choose', 'job_proof', 'job_trial', 'job_awaken'];
+export const JOB_NPC_ID = 'shadow_elder';
+export const TRIAL_ITEM = 'trial_token';
+export const TRIAL_ITEM_NAME = '試煉之證';
+
+Object.assign(QUESTS, {
+  job_call: {
+    id: 'job_call',
+    name: '影之召喚',
+    desc: '一封神祕的信要你去晨曦鎮找影之長老。',
+    type: 'talk', target: JOB_NPC_ID, count: 1,
+    minLevel: 10,
+    rewards: { exp: 100, meso: 300 },
+  },
+  job_choose: {
+    id: 'job_choose',
+    name: '選擇你的道路',
+    desc: '影之長老要你選擇：成為「暗夜之刃」刺客，或「赤焰劫客」俠盜。',
+    type: 'choice', target: JOB_NPC_ID, count: 1,
+    requires: ['job_call'],
+    rewards: { exp: 100, meso: 300 },
+  },
+  job_proof: {
+    id: 'job_proof',
+    name: '試煉之證',
+    desc: '在浮空島嶼、森林獵場或古代廢墟打倒怪物，收集 5 個「試煉之證」。',
+    type: 'collect', target: TRIAL_ITEM, count: 5,
+    collect: { maps: ['sky', 'henesys', 'ruins'], dropRate: 0.4 },
+    requires: ['job_choose'],
+    rewards: { exp: 300, meso: 800 },
+  },
+  job_trial: {
+    id: 'job_trial',
+    name: '影之試煉',
+    desc: '進入晨曦鎮右側的影之試煉傳送門，限時擊敗試煉守衛。',
+    type: 'dungeon', target: 'shadow_trial', count: 1,
+    requires: ['job_proof'],
+    rewards: { exp: 500, meso: 1500 },
+  },
+  job_awaken: {
+    id: 'job_awaken',
+    name: '覺醒',
+    desc: '回到影之長老身邊，領受新的力量。',
+    type: 'talk', target: JOB_NPC_ID, count: 1,
+    requires: ['job_trial'],
+    rewards: { exp: 800, meso: 2000, advanceJob: true },
+  },
+});
 
 // 取得任務定義
 export function getQuestDef(id) {

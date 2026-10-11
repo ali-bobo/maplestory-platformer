@@ -11,6 +11,7 @@ import { MONSTERS } from '../config/monsters.js';
 import { getDungeonDef } from '../config/dungeons.js';
 import { WORLD_HEIGHT } from '../config/constants.js';
 import { recordDungeonEntry } from '../engine/dungeonRecord.js';
+import { onDungeonCleared } from '../engine/questManager.js';
 
 const GROUND_Y = WORLD_HEIGHT;
 
@@ -177,6 +178,8 @@ export class DungeonScene extends BaseMapScene {
     const totalMeso = def.rewards?.meso || 0;
     // 發獎勵
     this._grantRewards(totalExp, totalMeso);
+    // 副本型任務（影之試煉）：通關即完成
+    onDungeonCleared(this, this.dungeonId);
     // 通知 UIScene 顯示結算
     this.registry.events.emit('dungeon-end', {
       victory: true, def,

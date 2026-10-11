@@ -30,6 +30,24 @@ export const DUNGEONS = {
     bgColor: 0x2a1a3a, // 紫暗色洞窟感
     bgImage: 'bg_dungeon',
   },
+  // 一轉任務「影之試煉」：單波，擊敗試煉守衛（小王）。失敗可重試（次數上限放寬）
+  shadow_trial: {
+    id: 'shadow_trial',
+    name: '影之試煉',
+    desc: '轉職試煉。在限時內擊敗試煉守衛。',
+    minLevel: 10,
+    timeLimit: 120,
+    waves: [
+      { monsters: [{ id: 'shadow_guardian', count: 1 }, { id: 'shadow-slime', count: 2 }] },
+    ],
+    rewards: { exp: 400, meso: 800 },
+    failRewards: { exp: 20, meso: 50 },
+    timeBonus: 2,
+    dailyLimit: 20,
+    mapWidth: 1600,
+    bgColor: 0x1a1030,
+    bgImage: 'bg_dungeon',
+  },
 };
 
 export function getDungeonDef(id) {

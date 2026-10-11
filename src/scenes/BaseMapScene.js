@@ -11,7 +11,9 @@ import { getVisualFootPadding } from '../config/alignment.js';
 import { addParchmentPanel } from '../engine/woodUi.js';
 import { VFX_TEX } from '../engine/vfxTextures.js';
 import { saveGame, isSavableMap } from '../engine/saveGame.js';
-import { onMonsterKilled, onMapEntered, acceptQuest, isQuestActive, isQuestCompleted } from '../engine/questManager.js';
+import { onMonsterKilled, onMapEntered, acceptQuest, isQuestActive, isQuestCompleted, onNpcTalked, onItemCollected, questItemDrop, chooseJobPath } from '../engine/questManager.js';
+import { buildNpcDialog } from '../engine/npcDialog.js';
+import { getQuestDef, TRIAL_ITEM_NAME } from '../config/quests.js';
 import { canEnterDungeon, getRemainingEntries } from '../engine/dungeonRecord.js';
 import { getDungeonDef } from '../config/dungeons.js';
 import { keyHint } from '../engine/device.js';
@@ -130,13 +132,16 @@ export class BaseMapScene extends Phaser.Scene {
       }
       // Phase 15：每個 NPC 只能發放它自己的 questIds（綁定地圖任務）
       // 不再走全域 listAvailableQuestIds()——避免單一 NPC 把所有任務接完
+      // 順序：先推進「對話型」任務（例如影之召喚），再接新任務（前置完成的下一步），最後再推進一次
+      // （剛接的覺醒任務在同一次對話就完成）
+      onNpcTalked(this, npcData.npcId);
       const npcQuestIds = Array.isArray(npcData.questIds) ? npcData.questIds : [];
       for (const questId of npcQuestIds) {
         if (!isQuestActive(this, questId) && !isQuestCompleted(this, questId)) {
-          acceptQuest(this, questId);
-          break;  // 一次只接一個，玩家完成後可再對話接下一個
+          if (acceptQuest(this, questId)) break;   // 一次只接一個，玩家完成後可再對話接下一個；等級 / 前置不符的略過
         }
       }
+      onNpcTalked(this, npcData.npcId);
       this._openNpcDialog(npcData);
     };
     this.input.keyboard.on('keydown-F', this._onInteractKeyDown);
@@ -324,6 +329,7 @@ export class BaseMapScene extends Phaser.Scene {
       portal.targetMap = pd.target;
       portal.spawnX   = pd.spawnX;  // 目標地圖的重生位置
       portal.dungeonId = pd.dungeonId;  // Phase 14：副本 ID（target='dungeon' 時用）
+      portal.requiresQuest = pd.requiresQuest;
       portal.refreshBody();
 
       // Phase 14：dungeon 類型 portal 在 label 後補「(今日剩 N 次)」，給玩家可見回饋
@@ -400,6 +406,7 @@ export class BaseMapScene extends Phaser.Scene {
       const npcSrc = npc.texture.getSourceImage();
       npc.setScale(80 / Math.max(1, npcSrc.height || 80));
       npc.setDepth(8);
+      if (npcDef.tint) npc.setTint(npcDef.tint);
       npc.refreshBody();
       npc._npcData = npcDef;
 
@@ -528,13 +535,11 @@ export class BaseMapScene extends Phaser.Scene {
     const cx = cam.scrollX + cam.width / 2;
     const cy = cam.scrollY + cam.height * 0.65;
 
-    const dialogLines = npcDef.dialog || [
-      '歡迎光臨！勇士請多保重。',
-      '這裡的怪物最近鬧得很兇...',
-      '你可以在這裡購買補給品。',
-    ];
+    // 內容依任務進度而變（影之長老）；有 choices 時多一排選項按鈕
+    const { lines: dialogLines, choices } = buildNpcDialog(this.registry.get('gameState'), npcDef);
+    const panelH = choices ? 214 : 170;
 
-    const bg = addParchmentPanel(this, cx - 240, cy - 84, 480, 170, { depth: 100, world: true });
+    const bg = addParchmentPanel(this, cx - 240, cy - 84, 480, panelH, { depth: 100, world: true });
 
     const title = this.add.text(cx, cy - 58, npcDef.name || 'NPC', {
       fontSize: '16px', color: '#ffe27a', fontFamily: 'Arial', fontStyle: 'bold',
@@ -547,7 +552,7 @@ export class BaseMapScene extends Phaser.Scene {
       wordWrap: { width: 400 }, lineSpacing: 4,
     }).setOrigin(0.5, 0).setDepth(101);
 
-    const close = this.add.text(cx, cy + 60, keyHint('[ 按 F 或 ESC 關閉 ]', '[ 點此關閉 ]'), {
+    const close = this.add.text(cx, cy + (choices ? 112 : 60), keyHint('[ 按 F 或 ESC 關閉 ]', '[ 點此關閉 ]'), {
       fontSize: '12px', color: '#e8d3a8', fontFamily: 'Arial', stroke: '#1a0e06', strokeThickness: 3,
     }).setOrigin(0.5, 0.5).setDepth(101)
       .setInteractive({ useHandCursor: true })
@@ -555,16 +560,51 @@ export class BaseMapScene extends Phaser.Scene {
       .on('pointerover', () => close.setColor('#ffe27a'))
       .on('pointerout',  () => close.setColor('#e8d3a8'));
 
-    this._npcDialog = { bg, title, msgText, close };
+    const extras = [];
+    const keyHandlers = [];
+    if (choices) {
+      const bw = 214, bh = 34, gap = 12;
+      const startX = cx - (choices.length * bw + (choices.length - 1) * gap) / 2;
+      choices.forEach((choice, i) => {
+        const bx = startX + i * (bw + gap);
+        const by = cy + 60;
+        const btn = this.add.rectangle(bx + bw / 2, by + bh / 2, bw, bh, 0x6b3f1a, 0.95)
+          .setStrokeStyle(2, 0xe0b04a, 0.9).setDepth(101).setInteractive({ useHandCursor: true });
+        const label = this.add.text(bx + bw / 2, by + bh / 2, `${keyHint(`${i + 1}　`, '')}${choice.label}`, {
+          fontSize: '14px', color: '#fff3dc', fontFamily: 'Arial', fontStyle: 'bold', stroke: '#1a0e06', strokeThickness: 3,
+        }).setOrigin(0.5).setDepth(102);
+        btn.on('pointerover', () => btn.setFillStyle(0x9a5a22, 0.98));
+        btn.on('pointerout', () => btn.setFillStyle(0x6b3f1a, 0.95));
+        btn.on('pointerdown', () => this._onDialogChoice(npcDef, choice));
+        extras.push(btn, label);
+        const evt = i === 0 ? 'keydown-ONE' : 'keydown-TWO';
+        const handler = () => this._onDialogChoice(npcDef, choice);
+        this.input.keyboard.on(evt, handler);
+        keyHandlers.push([evt, handler]);
+      });
+    }
+
+    this._npcDialog = { bg, title, msgText, close, extras, keyHandlers };
+  }
+
+  // 對話選項被選中：目前只有轉職選職業。選完重開對話顯示新的進度
+  _onDialogChoice(npcDef, choice) {
+    if (!this._npcDialog) return;
+    if (!chooseJobPath(this, choice.id)) return;
+    this._closeNpcDialog();
+    this._showTransientMessage(`你選擇了「${choice.label}」`, 2200);
+    this._openNpcDialog(npcDef);
   }
 
   _closeNpcDialog() {
     if (!this._npcDialog) return;
-    const { bg, title, msgText, close } = this._npcDialog;
+    const { bg, title, msgText, close, extras, keyHandlers } = this._npcDialog;
     if (bg?.active) bg.destroy();
     if (title?.active) title.destroy();
     if (msgText?.active) msgText.destroy();
     if (close?.active) close.destroy();
+    for (const o of extras || []) if (o?.active) o.destroy();
+    for (const [evt, handler] of keyHandlers || []) this.input.keyboard.off(evt, handler);
     this._npcDialog = null;
   }
 
@@ -591,6 +631,14 @@ export class BaseMapScene extends Phaser.Scene {
   // ── 傳送 ───────────────────────────────────────────────────────────────────
   _onPortalEnter(player, portal) {
     if (!portal.targetMap || this._transitioning) return;
+    // 任務專屬傳送門（影之試煉）：沒接任務不能進，提示限速避免站在門上洗版
+    if (portal.requiresQuest && !isQuestActive(this, portal.requiresQuest)) {
+      if (this.time.now - (this._lastGateMsgAt || -9999) > 2600) {
+        this._lastGateMsgAt = this.time.now;
+        this._showTransientMessage(`需要先接受任務「${getQuestDef(portal.requiresQuest)?.name || ''}」`, 2200);
+      }
+      return;
+    }
     this._transitioning = true;
     this.cameras.main.fadeOut(400);
     this.time.delayedCall(400, () => {
@@ -656,6 +704,9 @@ export class BaseMapScene extends Phaser.Scene {
       this.registry.events.emit('changedata-meso', null, gs.meso);
     } else if (type === 'equipment') {
       this.player.pickupEquipment(data);
+    } else if (type === 'quest') {
+      onItemCollected(this, data);
+      this._showTransientMessage(`獲得 ${TRIAL_ITEM_NAME}`, 1200);
     }
     audio.playPickup();
     pickup.destroy();
@@ -673,6 +724,9 @@ export class BaseMapScene extends Phaser.Scene {
     if (monster?.config?.id) {
       onMonsterKilled(this, monster.config.id);
     }
+    // 任務物品掉落（試煉之證）：有進行中的收集任務、在指定地圖才會掉
+    const itemId = questItemDrop(gs, this.mapKey, Math.random());
+    if (itemId && typeof monster._spawnPickup === 'function') monster._spawnPickup('item-quest-token', itemId, 'quest');
 
     if (gs.killCount >= 60 && !gs.bossUnlocked) {
       gs.bossUnlocked = true;
