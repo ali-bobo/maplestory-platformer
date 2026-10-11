@@ -33,6 +33,7 @@ const PLATFORM_THEMES = {
   town:    { key: 'platform_town',    surfaceTop: 1 },
   // TODO(art): 影之殿堂專屬跳台 platform_shrine.png（白石 + 金邊）還沒有，先借用晨曦鎮的跳台
   shrine:  { key: 'platform_town',    surfaceTop: 1 },
+  harbor:  { key: 'platform_harbor',  surfaceTop: 3 },
   boss:    { key: 'platform_boss',    surfaceTop: 0 },
   dungeon: { key: 'platform_dungeon', surfaceTop: 0 },
 };

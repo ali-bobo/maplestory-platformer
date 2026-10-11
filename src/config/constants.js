@@ -187,6 +187,7 @@ export const MAP_SCENE_KEYS = {
   boss:    'BossScene',
   town:    'TownScene',
   shrine:  'ShrineScene',
+  harbor:  'HarborScene',
 };
 
 // 建立一份全新的初始遊戲狀態。

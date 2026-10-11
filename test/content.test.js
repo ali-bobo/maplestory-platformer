@@ -175,3 +175,38 @@ test('影之殿堂是安全地圖：沒有怪物，有長老與技能導師，�
   assert.ok(BACKGROUND_ASSETS.some((a) => a.key === 'bg_shrine' && a.targetMaps.includes('shrine')));
   assert.ok(m.width <= 1280, '一個畫面寬，背景不平鋪');
 });
+
+test('碧濤港：5 種怪 + 1 小王、素材都在目錄且標為使用中、3 個任務由 NPC 發放', () => {
+  const m = MAPS.harbor;
+  const ids = ['crab', 'jellyfish', 'pirate_ghost', 'octopus', 'seagull'];
+  for (const id of ids) assert.ok(m.monsters.some((s) => s.id === id), `碧濤港缺 ${id}`);
+  const captain = MONSTERS.find((x) => x.id === 'pirate_captain');
+  assert.equal(captain.spawnRole, 'miniboss');
+  assert.ok(m.monsters.some((s) => s.id === 'pirate_captain' && s.count === 1));
+  // 每種怪的圖都登記在 MONSTER_ASSETS，且 monsterIds 指回該怪
+  for (const id of [...ids, 'pirate_captain']) {
+    const def = MONSTERS.find((x) => x.id === id);
+    const asset = MONSTER_ASSETS.find((a) => a.key === def.spriteKey);
+    assert.ok(asset && asset.status === 'used' && asset.monsterIds.includes(id), `${id} 素材登記`);
+  }
+  // 等級帶 12-18，小王比同圖最強的小怪血量高 4 倍以上
+  const regs = ids.map((id) => MONSTERS.find((x) => x.id === id));
+  for (const r of regs) assert.ok(r.level >= 12 && r.level <= 18, `${r.id} 等級`);
+  assert.equal(captain.level, 18);
+  assert.ok(captain.hp >= 4 * Math.max(...regs.map((r) => r.hp)));
+  // NPC、平台、背景素材
+  for (const n of m.npcs) assert.ok(NPC_ASSETS.some((a) => a.key === n.id && a.status === 'used'), `${n.id} 登記為 used`);
+  assert.ok(PLATFORM_ASSETS.some((a) => a.key === 'platform_harbor' && a.status === 'used'));
+  assert.ok(BACKGROUND_ASSETS.some((a) => a.key === 'bg_harbor' && a.targetMaps.includes('harbor')));
+  const offered = m.npcs.flatMap((n) => n.questIds || []);
+  assert.deepEqual([...offered].sort(), ['harbor_captain', 'harbor_crabs', 'harbor_sailor']);
+  assert.deepEqual(QUESTS.harbor_captain.requires, ['harbor_sailor']);
+});
+
+test('碧濤港接在森林獵場與古代廢墟之間，所有平台在地圖範圍內', () => {
+  assert.ok(MAPS.henesys.portals.some((p) => p.target === 'harbor'));
+  assert.ok(!MAPS.henesys.portals.some((p) => p.target === 'ruins'));
+  assert.ok(MAPS.harbor.portals.some((p) => p.target === 'henesys') && MAPS.harbor.portals.some((p) => p.target === 'ruins'));
+  assert.ok(MAPS.ruins.portals.some((p) => p.target === 'harbor'));
+  for (const p of MAPS.harbor.platforms) assert.ok(p.x >= 0 && p.x + p.width <= MAPS.harbor.width, `平台 x=${p.x}`);
+});

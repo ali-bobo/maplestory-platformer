@@ -637,7 +637,7 @@ export class UIScene extends Phaser.Scene {
     const gs = this.registry.get('gameState');
     if (!gs) return;
     // 地圖名稱也加 dirty flag：值沒變就跳過 setText
-    const mapNames = { sky: '浮空島嶼', henesys: '森林獵場', ruins: '古代廢墟', ellinia: '神秘之境', taipei: '台北都會', kerning: '暗巷城', boss: '暗影領域', town: '晨曦鎮', shrine: '影之殿堂' };
+    const mapNames = { sky: '浮空島嶼', henesys: '森林獵場', ruins: '古代廢墟', ellinia: '神秘之境', taipei: '台北都會', kerning: '暗巷城', boss: '暗影領域', town: '晨曦鎮', shrine: '影之殿堂', harbor: '碧濤港' };
     const mapName = mapNames[gs.currentMap] || '';
     if (mapName !== this._lastMapName) {
       this._lastMapName = mapName;
@@ -1410,7 +1410,7 @@ export class UIScene extends Phaser.Scene {
   // ── 地圖資訊彈出 ────────────────────────────────────────────────────────
   _buildMapPopup(push, popX, contentY, popW) {
     const gs = this.registry.get('gameState');
-    const mapNames = { sky: '浮空島嶼', henesys: '森林獵場', ruins: '古代廢墟', ellinia: '神秘之境', taipei: '台北都會', kerning: '暗巷城', boss: '暗影領域', town: '晨曦鎮', shrine: '影之殿堂' };
+    const mapNames = { sky: '浮空島嶼', henesys: '森林獵場', ruins: '古代廢墟', ellinia: '神秘之境', taipei: '台北都會', kerning: '暗巷城', boss: '暗影領域', town: '晨曦鎮', shrine: '影之殿堂', harbor: '碧濤港' };
     const currentMap = gs ? gs.currentMap : '';
     push(this.add.text(popX + 14, contentY, `目前地圖：${mapNames[currentMap] || '未知'}`, {
       fontSize: '13px', color: '#aaddff', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2,
@@ -1422,8 +1422,9 @@ export class UIScene extends Phaser.Scene {
       town:    ['→ 浮空島嶼（地圖右端）', '→ 影之殿堂（地圖右側）'],
       shrine:  ['← 晨曦鎮（地圖左端）', '⚔ 影之試煉（地圖右端，需接任務）'],
       sky:     ['← 晨曦鎮（地圖左端）', '→ 森林獵場（地圖右端）'],
-      henesys: ['← 浮空島嶼（地圖左端）', '→ 古代廢墟（地圖右端）'],
-      ruins:   ['← 森林獵場（地圖左端）', '→ 神秘之境（地圖右端）'],
+      henesys: ['← 浮空島嶼（地圖左端）', '→ 碧濤港（地圖右端）'],
+      harbor:  ['← 森林獵場（地圖左端）', '→ 古代廢墟（地圖右端）'],
+      ruins:   ['← 碧濤港（地圖左端）', '→ 神秘之境（地圖右端）'],
       ellinia: ['← 古代廢墟（地圖左端）', '↑ 台北都會（地圖中央）', '→ 暗巷城（地圖右端）'],
       taipei:  ['← 神秘之境（地圖左端）', '→ 暗巷城（地圖右端）'],
       kerning: ['← 神秘之境（地圖左端）', '⚠ Boss 決戰（地圖右端，需擊殺60怪）'],

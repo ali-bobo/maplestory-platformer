@@ -48,6 +48,22 @@ const HENESYS_PLATFORMS = [
   plat(2060, 240, 580, 'wood'),
 ];
 
+// ─────────── 碧濤港（Lv12-18，海港 / 海盜）───────────
+// 3 層木棧橋：低層 y=450、中層 y=330、高層 y=210（層間落差 120～150px，一跳就上得去）
+const HARBOR_PLATFORMS = [
+  ground(0, GROUND_Y, MAP_WIDTH, 'wood'),
+
+  plat(60,   450, 380, 'wood'),
+  plat(1000, 450, 460, 'wood'),
+  plat(2060, 450, 440, 'wood'),
+
+  plat(480,  330, 400, 'wood'),
+  plat(1280, 330, 420, 'wood'),
+
+  plat(780,  210, 380, 'wood'),
+  plat(1560, 210, 420, 'wood'),
+];
+
 // ─────────── 古代廢墟 ───────────
 // 2 層（磚石系，棕橘色調）
 const RUINS_PLATFORMS = [
@@ -183,13 +199,43 @@ export const MAPS = {
       { id: 'snake',    count: 2 },
     ],
     portals: [
-      { x: MAP_WIDTH - 50, y: GROUND_Y - 48, width: 40, height: 72, target: 'ruins',   label: '→古代廢墟', spawnX: 200 },
+      { x: MAP_WIDTH - 50, y: GROUND_Y - 48, width: 40, height: 72, target: 'harbor',  label: '→碧濤港', spawnX: 200 },
       { x: 30,             y: GROUND_Y - 48, width: 40, height: 72, target: 'sky',     label: '←浮空島嶼', spawnX: MAP_WIDTH - 200 },
     ],
     npcs: [
       { x: 300, y: GROUND_Y - 60, id: 'npc_new_0', name: '獵人協會員',
         questIds: ['mushroom_hunt', 'stump_clear'],
         dialog: ['歡迎來到森林獵場！', '這裡是中級練功地點。', '小心那些野豬，衝刺速度非常快！'] },
+    ],
+    spawnX: 150,
+  },
+
+  // ── 地圖 2.5：碧濤港（Lv12-18）黃昏海港，海盜與海洋生物 ─────────────────────
+  harbor: {
+    key: 'harbor', name: '碧濤港', sceneKey: 'HarborScene',
+    width: MAP_WIDTH, bgColor: 0xc4502c,
+    platforms: HARBOR_PLATFORMS,
+    bgType: 'harbor', bgImage: 'bg_harbor',
+    monsters: [
+      // 小王放第一個：怪物依平台輪流分配，第一個一定落在地板上（重生才會隨機平台）
+      { id: 'pirate_captain', count: 1 },
+      { id: 'crab',           count: 4 },
+      { id: 'jellyfish',      count: 3 },
+      { id: 'pirate_ghost',   count: 3 },
+      { id: 'octopus',        count: 3 },
+      { id: 'seagull',        count: 3 },
+    ],
+    portals: [
+      { x: 30,             y: GROUND_Y - 48, width: 40, height: 72, target: 'henesys', label: '←森林獵場', spawnX: MAP_WIDTH - 200 },
+      { x: MAP_WIDTH - 50, y: GROUND_Y - 48, width: 40, height: 72, target: 'ruins',   label: '→古代廢墟', spawnX: 200 },
+    ],
+    npcs: [
+      { x: 330, y: GROUND_Y - 60, id: 'npc_dockworker', npcId: 'dockworker', name: '碼頭工人',
+        questIds: ['harbor_crabs', 'harbor_sailor'],
+        dialog: ['歡迎來到碧濤港！', '最近螃蟹爬上碼頭，貨物都被夾壞了。', '海鷗會俯衝，章魚會噴墨，水母別硬碰。'] },
+      { x: 720, y: GROUND_Y - 60, id: 'npc_sailor', npcId: 'old_sailor', name: '老水手',
+        questIds: ['harbor_captain'],
+        dialog: ['我在這片海上跑了四十年。', '那艘幽靈船的船長，把整座碼頭都嚇壞了。', '想挑戰他就先備好藥水，他的鐵鉤可不輕。'] },
     ],
     spawnX: 150,
   },
@@ -211,7 +257,7 @@ export const MAPS = {
     ],
     portals: [
       { x: MAP_WIDTH - 50, y: GROUND_Y - 48, width: 40, height: 72, target: 'ellinia', label: '→神秘之境', spawnX: 200 },
-      { x: 30,             y: GROUND_Y - 48, width: 40, height: 72, target: 'henesys', label: '←森林獵場', spawnX: MAP_WIDTH - 200 },
+      { x: 30,             y: GROUND_Y - 48, width: 40, height: 72, target: 'harbor',  label: '←碧濤港', spawnX: MAP_WIDTH - 200 },
     ],
     npcs: [
       { x: 300, y: GROUND_Y - 60, id: 'npc_new_3', name: '廢墟探險家',

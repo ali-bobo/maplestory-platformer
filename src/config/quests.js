@@ -140,6 +140,36 @@ export const QUESTS = {
     rewards: { exp: 700, meso: 1300 },
   },
 
+  // ── 碧濤港（harbor）── 由「碼頭工人」「老水手」發佈 ───────────────────────────
+  harbor_crabs: {
+    id: 'harbor_crabs',
+    name: '碼頭清蟹',
+    desc: '爬上碼頭的螃蟹把貨物夾壞了，打倒 6 隻螃蟹。',
+    type: 'kill',
+    target: 'crab',
+    count: 6,
+    rewards: { exp: 450, meso: 900 },
+  },
+  harbor_sailor: {
+    id: 'harbor_sailor',
+    name: '拜訪老水手',
+    desc: '碼頭工人說老水手知道幽靈船的事，去和他聊聊。',
+    type: 'talk',
+    target: 'old_sailor',
+    count: 1,
+    rewards: { exp: 250, meso: 500 },
+  },
+  harbor_captain: {
+    id: 'harbor_captain',
+    name: '擊退海盜船長',
+    desc: '老水手拜託你擊敗在碼頭作亂的小王「海盜船長」。',
+    type: 'kill',
+    target: 'pirate_captain',
+    count: 1,
+    requires: ['harbor_sailor'],
+    rewards: { exp: 1000, meso: 2000 },
+  },
+
   // ── 晨曦鎮（town）── 由「城鎮居民」發佈 ──────────────────────────────────
   reach_town: {
     id: 'reach_town',

@@ -244,6 +244,15 @@ export const BACKGROUND_ASSETS = [
     targetMaps: ['shrine'],
   },
   {
+    assetId: 'BG-HBR-001',
+    groupId: 'BG-HBR',
+    kind: 'background',
+    key: 'bg_harbor',
+    path: 'dist/assets/bg_harbor.webp',
+    status: 'used',
+    targetMaps: ['harbor'],
+  },
+  {
     assetId: 'BG-DGN-001',
     groupId: 'BG-DGN',
     kind: 'background',
@@ -310,6 +319,14 @@ export const PLATFORM_ASSETS = [
     kind: 'platform',
     key: 'platform_town',
     path: 'dist/assets/platform_town.png',
+    status: 'used',
+  },
+  {
+    assetId: 'PLT-HBR-001',
+    groupId: 'PLT-HBR',
+    kind: 'platform',
+    key: 'platform_harbor',
+    path: 'dist/assets/platform_harbor.png',
     status: 'used',
   },
   {
@@ -607,6 +624,13 @@ export const MONSTER_ASSETS = [
   { assetId: 'MON-CITY-002', groupId: 'MON-CITY', kind: 'monster', key: 'monster_punk_red', path: 'dist/assets/monster_punk_red.png', status: 'used', monsterIds: ['street_punk'], alignmentStatus: 'complete' },
   { assetId: 'MON-CITY-003', groupId: 'MON-CITY', kind: 'monster', key: 'monster_pickpocket', path: 'dist/assets/monster_pickpocket.png', status: 'used', monsterIds: ['city_elite'], alignmentStatus: 'complete' },
   { assetId: 'MON-CITY-004', groupId: 'MON-CITY', kind: 'miniboss', key: 'miniboss_street', path: 'dist/assets/miniboss_street.png', status: 'used', monsterIds: ['city_boss1'], alignmentStatus: 'complete' },
+  // 碧濤港
+  { assetId: 'MON-HBR-001', groupId: 'MON-HBR', kind: 'monster', key: 'monster_crab', path: 'dist/assets/monster_crab.png', status: 'used', monsterIds: ['crab'], alignmentStatus: 'complete' },
+  { assetId: 'MON-HBR-002', groupId: 'MON-HBR', kind: 'monster', key: 'monster_jellyfish', path: 'dist/assets/monster_jellyfish.png', status: 'used', monsterIds: ['jellyfish'], alignmentStatus: 'complete' },
+  { assetId: 'MON-HBR-003', groupId: 'MON-HBR', kind: 'monster', key: 'monster_pirate_ghost', path: 'dist/assets/monster_pirate_ghost.png', status: 'used', monsterIds: ['pirate_ghost'], alignmentStatus: 'complete' },
+  { assetId: 'MON-HBR-004', groupId: 'MON-HBR', kind: 'monster', key: 'monster_octopus', path: 'dist/assets/monster_octopus.png', status: 'used', monsterIds: ['octopus'], alignmentStatus: 'complete' },
+  { assetId: 'MON-HBR-005', groupId: 'MON-HBR', kind: 'monster', key: 'monster_seagull', path: 'dist/assets/monster_seagull.png', status: 'used', monsterIds: ['seagull'], alignmentStatus: 'complete' },
+  { assetId: 'MON-HBR-006', groupId: 'MON-HBR', kind: 'miniboss', key: 'miniboss_captain', path: 'dist/assets/miniboss_captain.png', status: 'used', monsterIds: ['pirate_captain'], alignmentStatus: 'complete' },
   { assetId: 'MON-JOB-001', groupId: 'MON-JOB', kind: 'miniboss', key: 'miniboss_trialguard', path: 'dist/assets/miniboss_trialguard.png', status: 'used', monsterIds: ['shadow_guardian'], alignmentStatus: 'complete' },
 ];
 
@@ -673,6 +697,22 @@ export const NPC_ASSETS = [
     kind: 'npc',
     key: 'npc_townsfolk',
     path: 'dist/assets/npc_townsfolk.png',
+    status: 'used',
+  },
+  {
+    assetId: 'NPC-HBR-001',
+    groupId: 'NPC-HBR',
+    kind: 'npc',
+    key: 'npc_dockworker',
+    path: 'dist/assets/npc_dockworker.png',
+    status: 'used',
+  },
+  {
+    assetId: 'NPC-HBR-002',
+    groupId: 'NPC-HBR',
+    kind: 'npc',
+    key: 'npc_sailor',
+    path: 'dist/assets/npc_sailor.png',
     status: 'used',
   },
   {

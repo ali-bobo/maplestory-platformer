@@ -226,6 +226,27 @@ export const TRACKS = {
     mix: { reverb: 0.5, echo: 0.3, tone: 8500 },
   },
 
+  // ── 碧濤港：D 混合利地亞，水手號子（長笛 + 撥弦 + 風琴襯底 + 搖擺的 oom-pah 低音）──────────
+  harbor: {
+    key: { tonic: 'D', mode: 'mixolydian' }, bpm: 126, swing: 0.35,
+    chords: ['D', 'D', 'G', 'D', 'D', 'C', 'G', 'D',
+             'Em', 'G', 'D', 'D', 'G', 'C', 'D', 'D'],
+    lead: [
+      'A5.4 F#5.4 D5.4 F#5.4', 'D6.6 C6.2 A5.4 F#5.4', 'G5.4 B5.4 D6.4 B5.4', 'A5.4 F#5.4 D5.8',
+      'F#5.4 A5.4 D6.4 E6.2 F#6.2', 'E6.4 C6.4 G5.4 E5.4', 'D6.4 B5.4 G5.4 B5.4', 'A5.4 F#5.4 D5.8',
+      'E5.4 G5.4 B5.4 G5.4', 'B5.4 D6.4 G6.4 D6.4', 'F#6.4 D6.4 A5.4 D6.4', 'D6.4 F#6.4 A6.8',
+      'G6.4 D6.4 B5.4 D6.4', 'E6.4 G6.4 C6.2 B5.2 A5.4', 'D6.4 F#6.4 A6.4 F#6.4', 'D6.6 C6.2 A5.8',
+    ],
+    parts: {
+      lead: { inst: 'flute', vel: 0.85, pan: 0.0 },
+      pad:  { inst: 'organ', vel: 0.32 },
+      comp: { style: 'chop', inst: 'pluck', vel: 0.55 },
+      bass: { style: 'bounce', inst: 'sub', vel: 0.35 },
+      perc: { style: 'folk', vel: 0.5 },
+    },
+    mix: { reverb: 0.18, tone: 8500 },
+  },
+
   // ── Boss 戰：E 小調（V 級用和聲小調的 B 大三和弦），緊迫有力 ───────────────────────
   boss: {
     key: { tonic: 'E', mode: 'minor' }, bpm: 150, swing: 0,

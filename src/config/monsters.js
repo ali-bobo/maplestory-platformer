@@ -11,6 +11,7 @@ export const MONSTER_FAMILIES = {
   FLYING: '飛行類',
   MACHINE: '機械類',
   CITY: '城市類',
+  SEA: '海港類',
   ELITE: '菁英 / 小王',
   BOSS_SUPPORT: 'Boss 援軍',
 };
@@ -45,6 +46,12 @@ const MONSTER_CLASSIFICATION = {
   city_elite: { family: MONSTER_FAMILIES.ELITE, habitats: ['taipei'] },
   'shadow-slime': { family: MONSTER_FAMILIES.BOSS_SUPPORT, habitats: ['boss'] },
   shadow_guardian: { family: MONSTER_FAMILIES.ELITE, habitats: ['dungeon'] },
+  crab: { family: MONSTER_FAMILIES.SEA, habitats: ['harbor'] },
+  jellyfish: { family: MONSTER_FAMILIES.SEA, habitats: ['harbor'] },
+  pirate_ghost: { family: MONSTER_FAMILIES.SPIRIT, habitats: ['harbor'] },
+  octopus: { family: MONSTER_FAMILIES.SEA, habitats: ['harbor'] },
+  seagull: { family: MONSTER_FAMILIES.FLYING, habitats: ['harbor'] },
+  pirate_captain: { family: MONSTER_FAMILIES.ELITE, habitats: ['harbor'] },
 };
 
 export const MONSTERS = [
@@ -83,6 +90,16 @@ export const MONSTERS = [
   { id: 'city_boss1',  name: '小王：扒手頭目', level: 27, hp: 3000, atk: 170, exp: 600, speed: 105, meso: 150, dropRate: 0.50, behavior: 'chase', spriteKey: 'miniboss_street',  area: 'taipei',  spawnRole: 'miniboss' },
   { id: 'city_boss2',  name: '小王：機械領袖', level: 29, hp: 4000, atk: 185, exp: 800, speed: 85,  meso: 200, dropRate: 0.50, behavior: 'chase', spriteKey: 'miniboss_1',  area: 'kerning', spawnRole: 'miniboss' },
   { id: 'city_elite',  name: '夜市扒手', level: 24, hp: 1300,atk: 140, exp: 380, speed: 85,  meso: 66, dropRate: 0.25, behavior: 'patrol',  spriteKey: 'monster_pickpocket',    area: 'taipei', jumpProfile: { minInterval: 3600, maxInterval: 5400, velocity: 310, chance: 0.3 } },
+
+  // ── 碧濤港 (harbor) Lv12-18 ──────────────────────────────────────────────
+  // 數值接在古代廢墟（同 Lv 的 ruin_beast / skeleton / snake）後面：Lv12 約 hp 480-500 / atk 60，Lv17 約 hp 680 / atk 86。
+  // 引擎沒有飛行 / 漂浮行為：水母用 patrol + 頻繁小跳（像浮沉），海鷗用 chase + 高跳（像俯衝拍翅）。
+  { id: 'crab',         name: '螃蟹',     level: 12, hp: 500, atk: 62,  exp: 125, speed: 60,  meso: 30, dropRate: 0.16, behavior: 'patrol', spriteKey: 'monster_crab',         area: 'harbor' },
+  { id: 'jellyfish',    name: '水母',     level: 13, hp: 470, atk: 66,  exp: 135, speed: 45,  meso: 32, dropRate: 0.16, behavior: 'patrol', spriteKey: 'monster_jellyfish',    area: 'harbor', jumpProfile: { minInterval: 700, maxInterval: 1300, velocity: 230, chance: 0.9 } },
+  { id: 'seagull',      name: '海鷗',     level: 14, hp: 540, atk: 72,  exp: 150, speed: 95,  meso: 34, dropRate: 0.17, behavior: 'chase',  spriteKey: 'monster_seagull',      area: 'harbor', jumpProfile: { minInterval: 1500, maxInterval: 2600, velocity: 390, chance: 0.6 } },
+  { id: 'pirate_ghost', name: '海盜幽靈', level: 16, hp: 640, atk: 80,  exp: 175, speed: 80,  meso: 38, dropRate: 0.18, behavior: 'chase',  spriteKey: 'monster_pirate_ghost', area: 'harbor' },
+  { id: 'octopus',      name: '章魚',     level: 17, hp: 700, atk: 86,  exp: 195, speed: 55,  meso: 40, dropRate: 0.19, behavior: 'ranged', spriteKey: 'monster_octopus',      area: 'harbor' },
+  { id: 'pirate_captain', name: '小王：海盜船長', level: 18, hp: 3200, atk: 105, exp: 700, speed: 80, meso: 160, dropRate: 0.50, behavior: 'chase', spriteKey: 'miniboss_captain', area: 'harbor', spawnRole: 'miniboss' },
 
   // ── Boss 援軍 (boss) ─────────────────────────────────────────────────────
   // 一轉「影之試煉」守衛（小王；圖暫用街頭小王染紫，專屬美術待補）
