@@ -149,7 +149,7 @@ export const CHARACTER_ASSETS = [
     kind: 'character',
     key: 'player_cast',
     path: 'dist/assets/player_cast.png',
-    status: 'unused',
+    status: 'used',
   },
   {
     assetId: 'CHR-TTL-001',

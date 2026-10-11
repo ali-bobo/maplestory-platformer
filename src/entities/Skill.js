@@ -845,6 +845,7 @@ export function castAssassinate(scene, player, enemies) {
 
 export function castVortex(scene, player, enemies) {
   audio.playSkill('V');
+  player._lockPose?.('player_cast', 450);
   const gs = player.gameState;
   const dir = player.facingRight ? 1 : -1;
   const origin = getEntityEffectPoint(player);
@@ -990,6 +991,7 @@ function mirrorShurikenFromClone(scene, player, enemies) {
 
 export function castClone(scene, player, enemies) {
   audio.playSkill('B');
+  player._lockPose?.('player_cast', 400);
   const DURATION = 12000;
   const gs = player.gameState;
   const dir = player.facingRight ? 1 : -1;
