@@ -49,6 +49,7 @@
 - 31. 特殊城市怪可作為低頻率、較大尺寸的小王出現
 - 32. 任務系統 MVP：3 個範例任務、HUD 追蹤面板、F 鍵接任務（Phase 13）
 - 33. 副本系統 MVP：史萊姆洞窟波狀關、限時、每日次數上限、勝負結算（Phase 14）
+- 36. Phase 16：localStorage 自動存檔、繼續遊戲、存檔匯出 / 匯入（見 docs/STATUS.md）
 - 35. Phase 15：目標選取框、升級全屏演出、ESC 暫停選單（繼續 / 返回主選單）
 - 34. 效能優化 Phase 15：HP/MP/EXP 列改用 Rectangle+scaleX、背景改用 Rectangle、
        選單按鈕 Graphics→Rectangle、5 個定時器整合為 1、HP bar 位置快取粒度 2px

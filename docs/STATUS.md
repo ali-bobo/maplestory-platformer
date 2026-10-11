@@ -49,6 +49,14 @@
 - 升級時全屏白閃 + 文字彈跳進場。
 - UIScene 新增 ESC 暫停選單（繼續遊戲 / 返回主選單），暫停時停用當前地圖 Scene。
 
+### 存檔系統（Phase 16）
+- `src/engine/saveManager.js`：純邏輯（不依賴 Phaser / DOM）。`sanitizeState` 以初始狀態為底，只複製白名單欄位並夾範圍，未知欄位丟棄；存檔格式 `{ format, version, savedAt, state }`。
+- `src/engine/saveService.js`：接 `localStorage`、檔案下載 / 選取與 Scene。
+- 自動存檔點：抵達地圖（副本 / Boss 除外）、升級、暫停選單返回主選單、`pagehide` / `visibilitychange`。
+- 主選單：繼續遊戲、新遊戲（二次確認）、匯出 / 匯入存檔。死亡後可從最近存檔繼續；通關清除存檔。
+- 單元測試：`npm test`（`test/saveManager.test.js`），CI 會執行。
+- 限制：存檔在玩家端，範圍檢查只防壞檔，不防作弊；分數榜需另做伺服器端驗證。
+
 ### BGM 音效品質
 - audio.js masterGain 隔離：每次 playBgm 建立獨立 GainNode，消除地圖切換音頻殘留。
 - stopBgm 10ms 線性漸出舊 GainNode，避免爆音。
@@ -82,8 +90,7 @@
 
 ### 低優先 / 加值
 1. 藥水經濟平衡（商店已接入主流程，可由 sky 傳送門進入）
-2. localStorage 存檔 / 讀檔
-3. 魔法陣通用效果與更多技能後製
+2. 魔法陣通用效果與更多技能後製
 
 ---
 
@@ -92,7 +99,7 @@
 ### 下一批建議
 1. Boss 第三階段狂暴視覺與技能特效升級。
 2. 藥水經濟平衡。
-3. localStorage 存檔 / 讀檔。
+3. 分數榜（需要後端服務與反作弊策略，見 TODO）。
 
 ### 技術原則
 - 新技能特效優先建立在 WebGL pipeline 與現有 ProceduralAssets 上。

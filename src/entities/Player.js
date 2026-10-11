@@ -5,6 +5,7 @@ import { particles } from '../engine/particles.js';
 import { audio } from '../engine/audio.js';
 import { isEquipmentBetter } from '../config/equipment.js';
 import { ALIGNMENT_PROFILES, applyAlignmentProfile, getVisualCenterPoint, getVisualTopY } from '../config/alignment.js';
+import { autoSave } from '../engine/saveService.js';
 
 export class Player extends Phaser.Physics.Arcade.Sprite {
   constructor(scene, x, y, gameState) {
@@ -362,6 +363,8 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       gs.bossUnlocked = true;
       this._showNotice('暗影魔君現身！前往盜賊地下城右側傳送門！', 3000);
     }
+
+    autoSave(gs);
   }
 
   pickupEquipment(equip) {

@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { createInitialGameState } from '../config/constants.js';
 import { audio } from '../engine/audio.js';
+import { hasSave, loadSave, clearSave, startFromState } from '../engine/saveService.js';
 
 export class GameOverScene extends Phaser.Scene {
   constructor() {
@@ -14,6 +15,8 @@ export class GameOverScene extends Phaser.Scene {
 
   create() {
     audio.stopBgm();   // 結算畫面停止地圖 BGM
+    // 通關後清除存檔，避免從已通關的狀態繼續；死亡則保留最近的檢查點
+    if (this._victory) clearSave();
     const { width, height } = this.cameras.main;
     const gs = this._gs || {};
 
@@ -74,7 +77,14 @@ export class GameOverScene extends Phaser.Scene {
 
     // 按鈕
     const btnY = statsY + statsData.length * 44 + 80;
-    this._makeButton(width / 2 - 120, btnY, '再試一次', () => {
+    // 死亡後「再試一次」：有檢查點就從最近的存檔繼續，否則重新開始；通關後一律新遊戲
+    const retryLabel = !this._victory && hasSave() ? '從存檔繼續' : '再試一次';
+    this._makeButton(width / 2 - 120, btnY, retryLabel, () => {
+      const saved = !this._victory && hasSave() ? loadSave() : null;
+      if (saved && saved.ok) {
+        startFromState(this, saved.state);
+        return;
+      }
       const fresh = createInitialGameState();
       this.registry.set('gameState', fresh);
       this.scene.start('MapleIslandScene', { gameState: fresh });

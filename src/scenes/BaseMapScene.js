@@ -9,6 +9,7 @@ import { getVisualFootPadding } from '../config/alignment.js';
 import { onMonsterKilled, onMapEntered, acceptQuest, isQuestActive, isQuestCompleted } from '../engine/questManager.js';
 import { canEnterDungeon, getRemainingEntries } from '../engine/dungeonRecord.js';
 import { getDungeonDef } from '../config/dungeons.js';
+import { autoSave } from '../engine/saveService.js';
 
 const PLATFORM_HEIGHT = 24;
 const GROUND_Y = WORLD_HEIGHT;
@@ -96,6 +97,9 @@ export class BaseMapScene extends Phaser.Scene {
 
     // Phase 13：推進「抵達型」任務（玩家進入此地圖就視為抵達）
     onMapEntered(this, this.mapKey);
+
+    // 抵達地圖 = 檢查點。放在任務推進後，讓「抵達」任務進度一併存入
+    autoSave(gs);
 
     const CANVAS_H = this.sys.game.canvas.height;   // 720
     this.physics.world.setBounds(0, 0, this.mapData.width, CANVAS_H);

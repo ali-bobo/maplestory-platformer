@@ -5,6 +5,7 @@ import { getQualityLevel, setQualityLevel, downgradeQuality, upgradeQuality } fr
 import { getActiveQuests } from '../engine/questManager.js';
 import { getQuestDef } from '../config/quests.js';
 import { screenFlash } from '../engine/vfx.js';
+import { autoSave } from '../engine/saveService.js';
 
 // HUD 場景（平行運行）— 楓之谷風格底部狀態列
 export class UIScene extends Phaser.Scene {
@@ -923,6 +924,7 @@ export class UIScene extends Phaser.Scene {
       this._isPaused = false;
       for (const obj of this._pauseOverlayObjs) { if (obj?.active) obj.destroy(); }
       this._pauseOverlayObjs = [];
+      autoSave(this.registry.get('gameState'));
       const key = this._getCurrentMapSceneKey();
       if (key) this.scene.stop(key);
       this.scene.start('MenuScene');
