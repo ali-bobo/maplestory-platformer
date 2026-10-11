@@ -65,7 +65,8 @@ src/
 docs/
   PLAYER_GUIDE.md   — 玩家手冊
   GAME_SPEC.md      — 設計規格書
-  ITERATION5_SPEC.md — 目前狀態、缺口與下一步
+  STATUS.md         — 目前狀態、缺口與下一步
+  TODO.md           — 待你決定 / 調整的項目
 dist/
   bundle.js         — esbuild 打包輸出（**已進 git，玩家免 build**）
   assets/           — 50 張 PNG 素材（角色 / 怪物 / 背景 / NPC / Boss）
@@ -108,7 +109,8 @@ package.json        — npm scripts
 |------|------|
 | [docs/PLAYER_GUIDE.md](docs/PLAYER_GUIDE.md) | 玩家手冊 |
 | [docs/GAME_SPEC.md](docs/GAME_SPEC.md) | 設計規格書（設計意圖，數值以 `src/config` 為準） |
-| [docs/ITERATION5_SPEC.md](docs/ITERATION5_SPEC.md) | 目前狀態、已知缺口與下一步 |
+| [docs/STATUS.md](docs/STATUS.md) | 目前狀態、已知缺口與下一步 |
+| [docs/TODO.md](docs/TODO.md) | 待決定與待實作項目 |
 
 ---
 
