@@ -64,6 +64,7 @@ src/
   entities/         — Player、Monster、Boss、Skill、Clone
   config/           — 常數、怪物 / 裝備 / 地圖 / 任務 / 副本定義、asset catalog
   engine/           — 音效、粒子、VFX、品質系統、FPS 控制、任務管理、副本記錄、存檔
+  engine/music/     — BGM：音樂理論、樂曲資料、合成引擎
   assets/           — ProceduralAssets（平台 / 技能 / UI 程式生成材質）
 docs/
   PLAYER_GUIDE.md   — 玩家手冊
@@ -91,6 +92,7 @@ package.json        — npm scripts
 - **HUD**：底部單列狀態列、右上小地圖、技能 / 藥水快捷列、任務追蹤面板
 - **任務系統**（Phase 13）：3 個範例任務、F 鍵自動接、HUD 即時進度
 - **副本系統**（Phase 14）：史萊姆洞窟波狀關、每日 3 次上限、勝負結算 popup
+- **音樂**（Phase 18）：每張地圖一首 16 小節的和弦式配樂（柔和音色、殘響、依地圖風格編曲）
 - **手機支援**（Phase 17）：畫面等比縮放、觸控操作層（搖桿 + 技能 / 藥水 / 互動 / 暫停，支援多指）、直向提示、全螢幕、可加入主畫面
 - **存檔與死亡**（Phase 16）：自動存檔到 localStorage、繼續遊戲、匯出 / 匯入存檔檔；死亡後顯示分數，可從死亡點重新開始（失去裝備）
 - **戰鬥回饋**（Phase 15）：目標選取框、升級全屏演出、ESC 暫停選單

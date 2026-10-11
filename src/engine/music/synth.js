@@ -358,7 +358,7 @@ const PERCUSSION = {
     noiseHit(ctx, a, out, t, vel * 0.1, { filter: 'highpass', freq: 7000, q: 0.5, attack: 0.002, tau: 0.017, length: 0.12, offset: v * 0.61 % 1.8 });
   },
   X(ctx, a, out, t, vel, v) {
-    noiseHit(ctx, a, out, t, vel * 0.11, { filter: 'bandpass', freq: 5200, q: 1.1, attack: 0.012, tau: 0.03, length: 0.16, offset: v * 0.43 % 1.8 });
+    noiseHit(ctx, a, out, t, vel * 0.16, { filter: 'bandpass', freq: 5200, q: 1.1, attack: 0.012, tau: 0.03, length: 0.16, offset: v * 0.43 % 1.8 });
   },
   R(ctx, a, out, t, vel) {
     const o = osc(ctx, 'triangle', 820, t);
