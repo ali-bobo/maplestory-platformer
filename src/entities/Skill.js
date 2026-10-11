@@ -1141,8 +1141,8 @@ export function castClone(scene, player, enemies) {
     // 姿勢
     let key;
     if (time < poseLockUntil && poseLockKey) key = poseLockKey;
-    else if (!onGround) key = 'player_jump';
-    else if (Math.abs(clone.body.velocity.x) > 10) key = Math.floor(time / 140) % 2 ? 'player_walk_1' : 'player_walk_2';
+    else if (!onGround) key = clone.body.velocity.y > 40 ? 'player_fall' : 'player_jump';
+    else if (Math.abs(clone.body.velocity.x) > 10) key = `player_walk_${Math.floor(time / 110) % 4 + 1}`;
     else key = 'player_idle';
     if (scene.textures.exists(key) && clone.texture.key !== key) {
       clone.setTexture(key);

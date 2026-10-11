@@ -170,9 +170,9 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       return;
     }
     if (!onGround) {
-      this._setPose('player_jump');
+      this._setPose(this.body.velocity.y > 40 ? 'player_fall' : 'player_jump');
     } else if (this.body.velocity.x !== 0) {
-      this._setPose(Math.floor(now / 150) % 2 === 0 ? 'player_walk_1' : 'player_walk_2');
+      this._setPose(`player_walk_${Math.floor(now / 110) % 4 + 1}`);
     } else {
       this._setPose('player_idle');
     }
@@ -229,7 +229,11 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       return;
     }
 
-    this._lockPose('player_attack', Math.max(duration, 180));
+    const total = Math.max(duration, 180);
+    this._lockPose('player_throw_1', total * 0.4);
+    this.scene.time.delayedCall(total * 0.4, () => {
+      if (this.active && !this.isDead) this._lockPose('player_throw_2', total * 0.6);
+    });
   }
 
   usePotion(slot) {
