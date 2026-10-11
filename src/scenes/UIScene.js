@@ -9,6 +9,7 @@ import { POTION_ICON_KEYS } from '../config/assetCatalog.js';
 import { ensureSkillIcons } from '../assets/skillIcons.js';
 import { addParchmentPanel, addWoodButton } from '../engine/woodUi.js';
 import { saveGame } from '../engine/saveGame.js';
+import { audio } from '../engine/audio.js';
 
 // HUD 場景（平行運行）— 橫向捲軸風格底部狀態列
 export class UIScene extends Phaser.Scene {
@@ -153,11 +154,13 @@ export class UIScene extends Phaser.Scene {
     // 降級：連續 3 秒 < 45 FPS（積極，卡了就降）
     if (this._lowFpsCount >= 3 && level !== 'low') {
       setQualityLevel(this, downgradeQuality(level));
+      audio.setMusicQuality(getQualityLevel(this));
       this._lowFpsCount = 0;
     }
     // 升級：連續 8 秒 > 55 FPS（保守，避免在臨界點反覆跳檔）
     else if (this._highFpsCount >= 8 && level !== 'high') {
       setQualityLevel(this, upgradeQuality(level));
+      audio.setMusicQuality(getQualityLevel(this));
       this._highFpsCount = 0;
     }
   }

@@ -13,6 +13,7 @@ import { onMonsterKilled, onMapEntered, acceptQuest, isQuestActive, isQuestCompl
 import { canEnterDungeon, getRemainingEntries } from '../engine/dungeonRecord.js';
 import { getDungeonDef } from '../config/dungeons.js';
 import { keyHint } from '../engine/device.js';
+import { getQualityLevel } from '../engine/quality.js';
 
 const PLATFORM_HEIGHT = 24;
 const GROUND_Y = WORLD_HEIGHT;
@@ -106,6 +107,7 @@ export class BaseMapScene extends Phaser.Scene {
       this.scene.wake('UIScene');
     }
 
+    audio.setMusicQuality(getQualityLevel(this));   // 音樂跟著遊戲的自適應品質
     audio.playBgm(this.mapKey);
     this.events.on('monster-died', this._onMonsterDied, this);
     this._playTimeAccum = 0;

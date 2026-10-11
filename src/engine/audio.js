@@ -87,13 +87,21 @@ export class AudioSynth {
   // 切換地圖時舊曲淡出、新曲淡入，不會疊音。
   playBgm(mapKey) {
     if (!this.ctx) return;
+    if (typeof location !== 'undefined' && /[?&]bgm=0(&|$)/.test(location.search)) return;   // 效能 A/B 測試用
     if (!this._music) this._music = new MusicPlayer(this.ctx);
     this.resumeContext();
+    this._music.setQuality(this._musicQuality || 'high');
     this._music.play(mapKey);
   }
 
   stopBgm() {
     if (this._music) this._music.stop();
+  }
+
+  // 配合遊戲的自適應品質（high / medium / low）：弱裝置自動減少音樂聲部與殘響
+  setMusicQuality(level) {
+    this._musicQuality = level;
+    if (this._music) this._music.setQuality(level);
   }
 
   resumeContext() {
