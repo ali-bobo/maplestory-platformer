@@ -5,6 +5,10 @@ import { ALIGNMENT_PROFILES, applyAlignmentProfile, getVisualCenterY } from '../
 import { getTable, jumpClassFor } from '../engine/platformGraph.js';
 import { playFx } from './Skill.js';
 
+// 數值：Lv45 玩家只用普攻也 12 秒就能打倒舊的 10000 HP，遠低於 Lv44 的墮落騎士團長（25300 HP），
+// 最終 Boss 至少要比區域守衛更耐打才有「決戰」的份量
+const BOSS_HP = 28000;
+const BOSS_ATK = 160;
 const BOSS_JUMP_VEL = 640;   // 能跳上相距約 200px 的平台（Boss 房每層落差 140–156）
 
 // 暗影魔君 — 3 階段 Boss（招式與階段門檻見 config/monsterAttacks.js 的 boss 條目）
@@ -15,8 +19,8 @@ export class Boss extends Monster {
       id: 'boss',
       name: '暗影魔君',
       level: 30,
-      hp: 10000,
-      atk: 160,
+      hp: BOSS_HP,
+      atk: BOSS_ATK,
       exp: 5000,
       speed: 120,
       meso: 500,
@@ -26,8 +30,8 @@ export class Boss extends Monster {
       area: 'boss',
     });
 
-    this.maxHp = 10000;
-    this.hp = 10000;
+    this.maxHp = BOSS_HP;
+    this.hp = BOSS_HP;
     applyAlignmentProfile(this, ALIGNMENT_PROFILES.boss);
     this.knockbackResist = 0.9;
 

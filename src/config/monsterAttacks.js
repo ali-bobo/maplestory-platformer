@@ -13,12 +13,12 @@ import { MONSTER_FAMILIES as F } from './monsters.js';
 
 // 預設參數（時間 ms、距離 px、dmg 為 atk 的倍率）
 export const ATTACK_TYPES = {
-  charge: { windup: 520, exec: 650, recover: 700, cd: 5200, min: 110, max: 380, dmg: 1.1, speedMult: 3.2, grounded: true, maxDy: 60 },
+  charge: { windup: 520, exec: 650, recover: 700, cd: 5200, min: 50, max: 380, dmg: 1.1, speedMult: 3.2, grounded: true, maxDy: 60 },
   slam:   { windup: 650, recover: 550, cd: 6500, min: 0, max: 320, dmg: 1.2, waveDmg: 0.7, radius: 80, waveLen: 280, waveSpeed: 330, grounded: true, maxDy: 80, heavy: true },
   pound:  { windup: 760, recover: 500, cd: 6200, min: 0, max: 190, dmg: 1.3, radius: 120, hMax: 55, grounded: true, maxDy: 70, heavy: true },
   shoot:  { windup: 380, recover: 300, cd: 2800, min: 90, max: 560, dmg: 0.8, count: 1, spread: 0, speed: 300, grav: 0, life: 2400, kind: 'orb', vert: true },
   kite:   { windup: 240, recover: 300, cd: 7500, min: 0, max: 170, dmg: 0.8, count: 2, spread: 10, speed: 320, hopVx: 300, hopVy: 320, grav: 0, life: 2200, kind: 'orb', grounded: true, maxDy: 120 },
-  burrow: { windup: 450, exec: 900, pop: 650, recover: 600, cd: 8500, min: 90, max: 440, dmg: 1.3, radius: 62, chain: 0, grounded: true, maxDy: 70, heavy: true },
+  burrow: { windup: 450, exec: 900, pop: 650, recover: 600, cd: 8500, min: 0, max: 440, dmg: 1.3, radius: 62, chain: 0, grounded: true, maxDy: 70, heavy: true },
   dive:   { windup: 500, exec: 700, recover: 650, cd: 5200, min: 60, max: 480, dmg: 1.1, speed: 430, vert: true },
   summon: { windup: 800, recover: 500, cd: 16000, min: 0, max: 620, count: 2, minion: 'shadow-slime', cap: 3, grounded: true, vert: true },
   leap:   { windup: 450, recover: 550, cd: 4500, min: 40, max: 450, dmg: 1.0, radius: 70, grounded: true, vert: true },

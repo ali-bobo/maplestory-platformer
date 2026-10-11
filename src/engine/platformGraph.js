@@ -35,6 +35,8 @@ export function buildPlatformGraph(platforms) {
     left: new Float32Array(n), right: new Float32Array(n), top: new Float32Array(n),
     kind: new Uint8Array(n * n), need: new Float32Array(n * n),
     takeX: new Float32Array(n * n), exitDir: new Int8Array(n * n),
+    // 兩個邊緣都會落到同一個平台時的第二個出口（身體很寬、一側貼著地圖邊界時要改走另一側）
+    has2: new Uint8Array(n * n), takeX2: new Float32Array(n * n), exitDir2: new Int8Array(n * n),
     tables: [],
   };
   for (let i = 0; i < n; i++) {
@@ -56,6 +58,8 @@ export function buildPlatformGraph(platforms) {
         const e = a * n + best;
         if (g.kind[e] === EDGE_NONE) {
           g.kind[e] = EDGE_WALK; g.takeX[e] = edgeX; g.exitDir[e] = side;
+        } else if (g.kind[e] === EDGE_WALK && !g.has2[e]) {
+          g.has2[e] = 1; g.takeX2[e] = edgeX; g.exitDir2[e] = side;
         }
       }
     }
@@ -120,11 +124,12 @@ export function getTable(g, classIdx) {
   return table;
 }
 
-// 站在哪個平台上（腳底 y 與平台頂差不多、x 在範圍內）；空中回傳 -1
-export function platformAt(g, x, feetY, tol = 14) {
+// 站在哪個平台上（腳底 y 與平台頂差不多、x 在範圍內）；空中回傳 -1。
+// margin：重心超出平台邊緣多少仍算站在上面（寬身體的怪重心走出邊緣前不會掉下去，傳入半個身體寬）
+export function platformAt(g, x, feetY, tol = 14, margin = 6) {
   let best = -1, bestD = tol + 1;
   for (let i = 0; i < g.n; i++) {
-    if (x < g.left[i] - 6 || x > g.right[i] + 6) continue;
+    if (x < g.left[i] - margin || x > g.right[i] + margin) continue;
     const d = Math.abs(feetY - g.top[i]);
     if (d < bestD) { bestD = d; best = i; }
   }

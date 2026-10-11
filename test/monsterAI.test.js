@@ -48,6 +48,31 @@ test('平台圖：不會跳的怪只能「走下去」，會跳的才能往上�
   assert.ok(Math.abs(G.need[e] - jumpVelFor(156 + 22)) < 1);
 });
 
+test('平台圖：兩側都能落到同一平台時記錄兩個出口；platformAt 可放寬邊緣（寬身體重心超出邊緣仍站在上面）', () => {
+  const e = 1 * G.n + 0;                      // 平台 1 → 地板
+  assert.equal(G.has2[e], 1);
+  assert.notEqual(G.exitDir[e], G.exitDir2[e]);
+  assert.equal(platformAt(G, 60, 444), -1);   // 預設只容許 6px
+  assert.equal(platformAt(G, 60, 444, 14, 55), 1);
+});
+
+test('追擊：寬身體貼著地圖左界的平台，會改走另一側出口並走到完全離開邊緣', () => {
+  const inp = baseInput(), st = new SteerState(), out = makeSteerOut();
+  inp.selfPlat = 1; inp.tgtPlat = 0; inp.dy = 156; inp.dx = 0; inp.x = 220;
+  inp.half = 55; inp.minX = 55; inp.maxX = 1225;
+  steer(st, inp, 50, out);
+  assert.equal(out.dir, 1);                   // 左出口：80 - 59 = 21 < minX，不可行 → 往右
+  // 走到右邊緣之後繼續往外，不會被拉回
+  inp.x = 360 + 20;
+  steer(st, inp, 50, out);
+  assert.equal(out.dir, 1);
+  // 窄身體則依距離選近的出口
+  const st2 = new SteerState();
+  inp.half = 20; inp.minX = 20; inp.x = 120;
+  steer(st2, inp, 50, out);
+  assert.equal(out.dir, -1);
+});
+
 test('平台圖：低跳（速度 390）上不去 156px 的平台', () => {
   const low = getTable(G, jumpClassFor(390));
   assert.equal(low[0 * G.n + 1], -1);

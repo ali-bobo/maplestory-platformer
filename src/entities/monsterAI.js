@@ -25,7 +25,7 @@ const POOL_CAP = 32;
 const WARN_TINT = 0xff5a3a;
 
 // 除錯統計（e2e 用）：?debug=1 時掛在 window.__aiStats
-export const aiStats = { started: {}, hit: {}, fired: 0, maxActive: 0 };
+export const aiStats = { started: {}, hit: {}, fired: 0, maxActive: 0, freezeWindup: null };
 if (typeof window !== 'undefined' && typeof location !== 'undefined' && /[?&]debug=1/.test(location.search)) {
   window.__aiStats = aiStats;
 }
@@ -145,39 +145,46 @@ export class ProjectilePool {
 
   update(delta) {
     if (this.active <= 0) return;
-    const dt = Math.min(delta, 50) / 1000;
+    // 低 FPS 時把一幀切成最多 34ms 的小步，投射物才不會一幀飛過玩家
+    const total = Math.min(delta, 100) / 1000;
+    const steps = Math.max(1, Math.ceil(total / 0.034));
+    const dt = total / steps;
     const player = this.scene.player;
     const pb = player && player.active && !player.isDead ? player.body : null;
     const worldW = this.scene.physics?.world?.bounds?.width ?? 3000;
+    for (let step = 0; step < steps; step++) {
+      for (let i = 0; i < POOL_CAP; i++) {
+        const s = this.slots[i];
+        if (!s.active) continue;
+        s.life -= dt * 1000;
+        if (s.life <= 0) { this._kill(s); continue; }
+        if (s.g) s.vy += s.g * dt;
+        s.x += s.vx * dt; s.y += s.vy * dt;
+        if (s.y > 700 || s.x < -80 || s.x > worldW + 80) { this._kill(s); continue; }
+        if (pb && !player.isInvincible) {
+          let hit;
+          if (s.wave) {
+            hit = Math.abs(pb.center.x - s.x) < pb.halfWidth + s.w / 2 && pb.bottom > s.feetY - s.h + 4 && pb.top < s.feetY;
+          } else {
+            hit = circleHitsRect(s.x, s.y, s.r, pb.center.x, pb.center.y, pb.halfWidth, pb.halfHeight);
+          }
+          if (hit) {
+            player.takeDamage(s.dmg);
+            bump(aiStats.hit, s.wave ? 'wave' : 'projectile');
+            this._kill(s);
+          }
+        }
+      }
+    }
+    // 外觀只在整幀更新一次
     for (let i = 0; i < POOL_CAP; i++) {
       const s = this.slots[i];
       if (!s.active) continue;
-      s.life -= dt * 1000;
-      if (s.life <= 0) { this._kill(s); continue; }
-      if (s.g) s.vy += s.g * dt;
-      s.x += s.vx * dt; s.y += s.vy * dt;
-      if (s.y > 700 || s.x < -80 || s.x > worldW + 80) { this._kill(s); continue; }
       const img = s.img;
       img.setPosition(s.x, s.y);
-      if (s.wave) {
-        img.setAlpha(Math.min(1, s.life / 250));
-      } else if (s.kind.rot) {
-        img.setRotation(Math.atan2(s.vy, s.vx));
-      } else if (s.kind.spin) {
-        img.setRotation(img.rotation + dt * 14);
-      }
-      if (!pb || player.isInvincible) continue;
-      let hit;
-      if (s.wave) {
-        hit = Math.abs(pb.center.x - s.x) < pb.halfWidth + s.w / 2 && pb.bottom > s.feetY - s.h + 4 && pb.top < s.feetY;
-      } else {
-        hit = circleHitsRect(s.x, s.y, s.r, pb.center.x, pb.center.y, pb.halfWidth, pb.halfHeight);
-      }
-      if (hit) {
-        player.takeDamage(s.dmg);
-        bump(aiStats.hit, s.wave ? 'wave' : 'projectile');
-        this._kill(s);
-      }
+      if (s.wave) img.setAlpha(Math.min(1, s.life / 250));
+      else if (s.kind.rot) img.setRotation(Math.atan2(s.vy, s.vx));
+      else if (s.kind.spin) img.setRotation(img.rotation + total * 14);
     }
   }
 
@@ -226,7 +233,12 @@ export class MonsterBrain {
     let maxN = this.attacks.length;
     for (const ph of this.profile.phases) maxN = Math.max(maxN, withFallback(ph.attacks).length);
     this.cds = new Float32Array(maxN);
-    for (let i = 0; i < this.attacks.length; i++) this.cds[i] = this.attacks[i].cd * (0.2 + Math.random() * 0.5);
+    for (let i = 0; i < this.attacks.length; i++) {
+      const a = this.attacks[i];
+      // 衝撞 / 俯衝 / 撲擊是「接近時的開場招」：初始冷卻短一點，不然走到面前才好、就再也用不出來
+      const opener = a.type === 'charge' || a.type === 'dive';
+      this.cds[i] = a.fallbackOnly ? 0 : a.cd * (opener ? 0.05 + Math.random() * 0.25 : 0.2 + Math.random() * 0.5);
+    }
     this.cdMult = 1; this.dmgMult = 1; this.speedMult = 1;
     this.gcd = 800 + Math.random() * 800;
     this.stage = ST_IDLE; this.cur = -1; this.def = null; this.t = 0;
@@ -274,7 +286,7 @@ export class MonsterBrain {
 
   _showExcl() {
     ensureAiTextures(this.m.scene);
-    this._img('_excl', TEX.EXCL, 40).setVisible(true).setAlpha(1);
+    this._img('_excl', TEX.EXCL, 40).setVisible(true).setAlpha(1).setScale(1.3);
     this._followExcl(0);
   }
 
@@ -288,14 +300,14 @@ export class MonsterBrain {
     const r = this._img('_ring', TEX.RING, 13);
     r.setVisible(true).setPosition(x, y).setTint(tint).setAlpha(alpha);
     const s = (radius * 2) / 116;
-    r.setScale(s, flat ? s * 0.3 : s);
+    r.setScale(s, flat ? s * 0.26 : s);
   }
 
   _discAt(x, y, radius, alpha, flat, tint) {
     const d = this._img('_disc', TEX.DISC, 12);
     d.setVisible(true).setPosition(x, y).setTint(tint).setAlpha(alpha);
     const s = (radius * 2) / 128;
-    d.setScale(s, flat ? s * 0.3 : s);
+    d.setScale(s, flat ? s * 0.26 : s);
   }
 
   // ── 出招流程 ──
@@ -330,7 +342,7 @@ export class MonsterBrain {
   }
 
   tick(delta, player) {
-    const dt = Math.min(delta, 50);
+    const dt = Math.min(delta, 100);
     this.t += dt;
     switch (this.stage) {
       case ST_WINDUP: this._tickWindup(player); break;
@@ -352,6 +364,7 @@ export class MonsterBrain {
 
   _tickWindup(player) {
     const def = this.def, m = this.m;
+    if (aiStats.freezeWindup === def.type && this.t > def.windup * 0.85) this.t = def.windup * 0.85;   // e2e 截圖用：停在前搖尾段
     const p = Math.min(1, this.t / def.windup);
     if (p < 0.7) this._aimAt(player);
     this._pulseTint();
@@ -360,27 +373,30 @@ export class MonsterBrain {
       case 'charge': {
         const len = m.speed * this.speedMult * def.speedMult * def.exec / 1000;
         const b = this._img('_bar', VFX_TEX.WHITE_PX, 12);
-        b.setVisible(true).setOrigin(this.dir > 0 ? 0 : 1, 0.5).setTint(0xff3322).setAlpha(0.2 + 0.4 * p)
-          .setPosition(m.x, this.footY - 6).setDisplaySize(len, 10);
+        b.setVisible(true).setOrigin(this.dir > 0 ? 0 : 1, 0.5).setTint(0xff3322).setAlpha(0.3 + 0.45 * p)
+          .setPosition(m.x, this.footY - 12).setDisplaySize(len, 18);
         break;
       }
-      case 'slam': this._ringAt(this.aimX, this.footY - 4, def.radius, 0.35 + 0.5 * p, true, 0xff7733); break;
+      case 'slam':
+        this._ringAt(this.aimX, this.footY - 12, def.radius, 0.5 + 0.5 * p, true, 0xff7733);
+        this._discAt(this.aimX, this.footY - 12, def.radius, 0.25 + 0.3 * p, true, 0xff7733);
+        break;
       case 'pound': {
-        this._ringAt(m.x, this.footY - 4, def.radius, 0.9, true, 0xff3322);
-        this._discAt(m.x, this.footY - 4, def.radius * p, 0.55, true, 0xff3322);
+        this._ringAt(m.x, this.footY - 12, def.radius, 0.9, true, 0xff3322);
+        this._discAt(m.x, this.footY - 12, def.radius * p, 0.55, true, 0xff3322);
         break;
       }
-      case 'summon': this._ringAt(m.x, this.footY - 4, 70 + 20 * p, 0.8, true, 0xc070ff); break;
+      case 'summon': this._ringAt(m.x, this.footY - 12, 70 + 20 * p, 0.8, true, 0xc070ff); break;
       case 'shoot': case 'kite': case 'burst':
-        this._discAt(m.x + this.dir * 14, m.body.center.y - 6, 10 + 22 * p, 0.55 + 0.4 * p, false, def.tint ?? 0xffe9a0);
+        this._discAt(m.x + this.dir * 18, m.body.center.y - 8, 14 + 36 * p, 0.7 + 0.3 * p, false, def.tint ?? 0xffe9a0);
         break;
       case 'dive': m.setVelocityX(0); if (p > 0.7) m.setVelocityY(0); break;
       case 'rain': {
         const n = Math.min(8, def.count);
         for (let i = 0; i < n; i++) {
           const mk = this._marks[i];
-          const s = 70 / 116;
-          mk.setVisible(true).setPosition(this.rainX[i], this.aimFeet - 4).setTint(0xff4422).setAlpha(0.3 + 0.6 * p).setScale(s, s * 0.3);
+          const s = 84 / 116;
+          mk.setVisible(true).setPosition(this.rainX[i], this.aimFeet - 12).setTint(0xff4422).setAlpha(0.4 + 0.6 * p).setScale(s, s * 0.26);
         }
         break;
       }
@@ -530,8 +546,8 @@ export class MonsterBrain {
       this.bx = m.clampToPlatform(this.bx + Math.max(-5, Math.min(5, player.x - this.bx)));
       m.x = this.bx;
     }
-    this._ringAt(this.bx, this.footY - 4, def.radius * (1.1 - 0.2 * p), 0.4 + 0.5 * p, true, 0xe0a050);
-    this._discAt(this.bx, this.footY - 4, def.radius * p, 0.5, true, 0xe0a050);
+    this._ringAt(this.bx, this.footY - 12, def.radius * (1.1 - 0.2 * p), 0.4 + 0.5 * p, true, 0xe0a050);
+    this._discAt(this.bx, this.footY - 12, def.radius * p, 0.5, true, 0xe0a050);
     if (this.t >= def.pop) this._erupt(player);
   }
 
@@ -657,7 +673,7 @@ export class MonsterBrain {
     }
     playFx(scene, 'fx_smoke', cx, footY - 16, { scale: Math.max(0.6, radius / 90), normal: true, depth: 14 });
     playFx(scene, 'fx_whirl', cx, footY - 30, { scale: Math.max(0.5, radius / 140), frameRate: 20, tint });
-    this._ringAt(cx, footY - 4, radius, 0.9, true, tint);
+    this._ringAt(cx, footY - 12, radius, 0.9, true, tint);
     if (player && Math.abs(player.x - cx) < 700) scene.cameras.main.shake(160, radius > 100 ? 0.007 : 0.004);
   }
 

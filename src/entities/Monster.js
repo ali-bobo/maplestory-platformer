@@ -31,6 +31,10 @@ const RETREAT_NEAR_SQ = 10000;   // 遠程怪：比 100px 近就後退
 const RETREAT_FAR_SQ = 16900;    // 退到 130px 才停（遲滯，避免在邊界來回抖動）
 const WARN_FLASH_MS = 100;
 
+if (typeof window !== 'undefined' && typeof location !== 'undefined' && /[?&]debug=1/.test(location.search)) {
+  window.__MONSTERS = MONSTERS;   // e2e：直接生怪用
+}
+
 let MON_BY_ID = null;
 function monsterDef(id) {
   if (!MON_BY_ID) {
@@ -211,6 +215,7 @@ export class Monster extends Phaser.Physics.Arcade.Sprite {
     this._aiDt = 0;
     this._retreating = false;
     this._arriveDist = this.attackRange * 0.6;
+    this._worldW = scene.physics.world.bounds.width;
     this.brain = new MonsterBrain(this);
 
     // 怪物站位由共享腳底基準 metadata 決定，避免不同圖片來源造成推算漂移。
@@ -585,7 +590,7 @@ export class Monster extends Phaser.Physics.Arcade.Sprite {
   _refreshPlat(player) {
     const g = this.graph;
     if (!g) return;
-    if (this._isGrounded()) this.plat = platformAt(g, this.x, this.body.bottom);
+    if (this._isGrounded()) this.plat = platformAt(g, this.x, this.body.bottom, 14, Math.max(6, this.body.halfWidth));
     const f = this.scene.game.getFrame();
     if (player._aiFrame !== f) {
       player._aiFrame = f;
@@ -627,24 +632,22 @@ export class Monster extends Phaser.Physics.Arcade.Sprite {
     if (distSq < RETREAT_NEAR_SQ) this._retreating = true;
     else if (distSq > RETREAT_FAR_SQ) this._retreating = false;
     const dir = distX < 0 ? 1 : -1;   // 遠離玩家的方向
-    if (this._retreating && aggroSq < this._detectionRangeSq) {
+    if (aggroSq >= this._detectionRangeSq) { this._doPatrol(); return; }
+    if (this._trySpecial(player, distSq, false)) return;   // 後跳射擊、遠程彈幕等
+    if (this._retreating) {
       // 貼牆 / 到平台邊緣就不再後退：改成貼身還手，免得掉下去或卡住
       if (this.edgeAhead(dir, 14) || (dir > 0 ? this.body.blocked.right : this.body.blocked.left)) {
         this.setVelocityX(0);
         if (distSq < this._attackRangeSq) this._doAttack(player);
-        else this._trySpecial(player, distSq, true);
       } else {
         this.setVelocityX(dir * this.speed);
-        this.setFlipX(dir > 0 ? false : true);
+        this.setFlipX(distX < 0);
         this._tryJump();
       }
-    } else if (aggroSq < this._detectionRangeSq) {
-      // 保持距離，瞄準玩家發射（投射物會算上高低差，玩家在別層也打得到）
+    } else {
+      // 保持距離，等招式冷卻（投射物會算上高低差，玩家在別層也打得到）
       this.setVelocityX(0);
       this.setFlipX(distX < 0);
-      this._trySpecial(player, distSq, true);
-    } else {
-      this._doPatrol();
     }
   }
 
@@ -677,6 +680,9 @@ export class Monster extends Phaser.Physics.Arcade.Sprite {
     inp.jumpVel = this.steerJumpVel;
     inp.graph = this.graph;
     inp.table = this._table;
+    inp.half = this.body.halfWidth;
+    inp.minX = inp.half;
+    inp.maxX = this._worldW - inp.half;
     steer(this._steer, inp, adt, out);
     if (out.unreach) {
       if (!this._trySpecial(player, distSq, true)) this._doPatrol();

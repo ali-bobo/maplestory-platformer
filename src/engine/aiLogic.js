@@ -9,7 +9,7 @@ export const RESUME_GAP = 26;         // 到達死區後，目標要再離開這
 export const FLIP_COMMIT_MS = 380;    // 轉向後這段時間內不允許反向（避免左右抖動）
 export const FLIP_OVERRIDE = 70;      // 目標已越過自己這麼遠時，允許提早反向
 export const TAKE_TOL = 12;           // 到起跳點 / 邊緣的容許誤差
-export const UNREACH_MS = 2000;       // 連續到不了目標這麼久 → 改用遠程 / 撲擊 / 回巡邏
+export const UNREACH_MS = 1200;       // 連續到不了目標這麼久 → 改用遠程 / 撲擊 / 回巡邏
 export const STUCK_MS = 650;          // 想走卻沒位移這麼久 → 判定卡住
 
 export class SteerState {
@@ -40,7 +40,14 @@ export function makeSteerInput() {
     selfPlat: -1, tgtPlat: -1,
     grounded: true, speed: 60, arrive: 40,
     jumpVel: 0, graph: null, table: null,
+    half: 20, minX: 0, maxX: 99999,     // 身體半寬與重心可到的 x 範圍（地圖邊界）
   };
+}
+
+// 從 edgeX 往 dir 方向走出去，身體（半寬 clear）完整離開平台時重心要到的位置，是否還在地圖範圍內
+function exitFeasible(edgeX, dir, clear, inp) {
+  const c = edgeX + dir * clear;
+  return c >= inp.minX && c <= inp.maxX;
 }
 
 function sgn(v) { return v > 0 ? 1 : v < 0 ? -1 : 0; }
@@ -80,12 +87,21 @@ export function steer(st, inp, dtMs, out) {
     if (haveTable) hop = inp.table[inp.selfPlat * g.n + inp.tgtPlat];
     if (hop >= 0 && hop !== inp.selfPlat) {
       const e = inp.selfPlat * g.n + hop;
-      const ex = g.takeX[e] - inp.x;
+      // 兩個出口都能走時，選身體真的能完整離開平台、且比較近的那個（寬身體貼著地圖邊界的平台只能走另一側）
+      let tx = g.takeX[e], exitDir = g.exitDir[e];
+      if (g.has2[e]) {
+        const clear1 = inp.half + 4, ok1 = exitFeasible(tx, exitDir, clear1, inp);
+        const tx2 = g.takeX2[e], ed2 = g.exitDir2[e], ok2 = exitFeasible(tx2, ed2, clear1, inp);
+        if ((ok2 && !ok1) || (ok1 === ok2 && Math.abs(tx2 - inp.x) < Math.abs(tx - inp.x))) { tx = tx2; exitDir = ed2; }
+      }
+      const ex = tx - inp.x;
       st.unreachMs = 0;
       st.stopped = false;
       farOverride = Math.abs(ex) > FLIP_OVERRIDE;
-      if (Math.abs(ex) <= TAKE_TOL) {
-        want = g.exitDir[e];
+      // 已經到了（或已越過）起跳 / 離開邊緣的位置：繼續往外走，不要被拉回邊緣（寬身體的怪重心要走出邊緣才會掉）
+      const past = exitDir !== 0 && (inp.x - tx) * exitDir >= -TAKE_TOL;
+      if (past || Math.abs(ex) <= TAKE_TOL) {
+        want = exitDir;
         if (g.kind[e] === EDGE_JUMP && inp.grounded) {
           wantJump = true;
           wantJumpVel = Math.min(inp.jumpVel, g.need[e] * 1.04 + 4);
@@ -99,6 +115,11 @@ export function steer(st, inp, dtMs, out) {
       if (st.stopped) { if (ad > inp.arrive + RESUME_GAP) st.stopped = false; }
       else if (ad < inp.arrive) st.stopped = true;
       want = st.stopped ? 0 : sgn(inp.dx);
+      // 到不了的時候不要為了靠近而走出自己的平台邊緣
+      if (want !== 0 && g && inp.selfPlat >= 0) {
+        if (want > 0 && inp.x >= g.right[inp.selfPlat] - 14) want = 0;
+        else if (want < 0 && inp.x <= g.left[inp.selfPlat] + 14) want = 0;
+      }
       if (st.unreachMs >= UNREACH_MS) out.unreach = true;
     }
   }
