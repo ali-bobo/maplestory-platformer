@@ -69,6 +69,6 @@ test('createKeyState：重複按下只送一次 keydown；放開才送 keyup；r
 });
 
 test('鍵位表與 Phaser KeyCodes 一致（keyCode 正確）', () => {
-  const expected = { left: 37, up: 38, right: 39, down: 40, Z: 90, X: 88, C: 67, V: 86, B: 66, A: 65, S: 83, D: 68, R: 82, G: 71, F: 70, ESC: 27 };
+  const expected = { left: 37, up: 38, right: 39, down: 40, Z: 90, X: 88, C: 67, V: 86, B: 66, A: 65, S: 83, D: 68, R: 82, G: 71, F: 70, ESC: 27, SPACE: 32 };
   for (const [name, code] of Object.entries(expected)) assert.equal(KEYS[name].keyCode, code, name);
 });

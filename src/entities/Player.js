@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { SKILLS, expNeeded, MAP_SCENE_KEYS, POTIONS, createInitialGameState } from '../config/constants.js';
+import { SKILLS, expNeeded, MAP_SCENE_KEYS, POTIONS, createInitialGameState, BASIC_ATTACK, skillForSlot } from '../config/constants.js';
 import { saveGame } from '../engine/saveGame.js';
 import { castShuriken, castDash, castAssassinate, castVortex, castClone } from './Skill.js';
 import { particles } from '../engine/particles.js';
@@ -43,6 +43,8 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     // 輸入按鍵
     const { LEFT, RIGHT, UP, DOWN, ALT } = Phaser.Input.Keyboard.KeyCodes;
     this.cursors = scene.input.keyboard.createCursorKeys();
+    // 普通攻擊：空白鍵（保留 Z 當作舊習慣的別名）；四個技能欄位：X C V B（放哪個技能由 gs.skillSlots 決定）
+    this.keySpace = scene.input.keyboard.addKey('SPACE');
     this.keyZ = scene.input.keyboard.addKey('Z');
     this.keyX = scene.input.keyboard.addKey('X');
     this.keyC = scene.input.keyboard.addKey('C');
@@ -132,11 +134,11 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     }
 
     // ─── 技能施放 ───────────────────────────────────────────────────────────
-    if (Phaser.Input.Keyboard.JustDown(this.keyZ)) this.castSkill('Z');
-    if (Phaser.Input.Keyboard.JustDown(this.keyX)) this.castSkill('X');
-    if (Phaser.Input.Keyboard.JustDown(this.keyC)) this.castSkill('C');
-    if (Phaser.Input.Keyboard.JustDown(this.keyV)) this.castSkill('V');
-    if (Phaser.Input.Keyboard.JustDown(this.keyB)) this.castSkill('B');
+    if (Phaser.Input.Keyboard.JustDown(this.keySpace) || Phaser.Input.Keyboard.JustDown(this.keyZ)) this.castSkill(BASIC_ATTACK);
+    if (Phaser.Input.Keyboard.JustDown(this.keyX)) this.castSkill(skillForSlot(gs, 'X'));
+    if (Phaser.Input.Keyboard.JustDown(this.keyC)) this.castSkill(skillForSlot(gs, 'C'));
+    if (Phaser.Input.Keyboard.JustDown(this.keyV)) this.castSkill(skillForSlot(gs, 'V'));
+    if (Phaser.Input.Keyboard.JustDown(this.keyB)) this.castSkill(skillForSlot(gs, 'B'));
 
     // ─── 藥水快捷鍵 ─────────────────────────────────────────────────────────
     if (Phaser.Input.Keyboard.JustDown(this.keyPotA)) this.usePotion('A');

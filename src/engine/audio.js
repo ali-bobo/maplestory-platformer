@@ -13,14 +13,14 @@ export class AudioSynth {
     // BGM 播放器（懶建立：第一次 playBgm 才需要）
     this._music = null;
     this._lastMap = null;
-    // 音樂開關（偏好存在 localStorage，與存檔分開）
-    this._bgmEnabled = true;
-    try { this._bgmEnabled = localStorage.getItem('thief-legend-bgm') !== 'off'; } catch (_) { /* 靜默 */ }
+    // 靜音開關（音樂 + 音效；偏好存在 localStorage，與存檔分開）
+    this._muted = false;
+    try { this._muted = localStorage.getItem('thief-legend-sound') === 'off'; } catch (_) { /* 靜默 */ }
   }
 
   // ─── 內部：即時播放單音（SFX 用）────────────────────────────
   _tone(freq, duration, type = 'square', volume = 0.15) {
-    if (!this.ctx) return;
+    if (!this.ctx || this._muted) return;
     try {
       const osc  = this.ctx.createOscillator();
       const gain = this.ctx.createGain();
@@ -91,7 +91,7 @@ export class AudioSynth {
   // 切換地圖時舊曲淡出、新曲淡入，不會疊音。
   playBgm(mapKey) {
     this._lastMap = mapKey;
-    if (!this.ctx || !this._bgmEnabled) return;
+    if (!this.ctx || this._muted) return;
     if (typeof location !== 'undefined' && /[?&]bgm=0(&|$)/.test(location.search)) return;   // 效能 A/B 測試用
     if (!this._music) this._music = new MusicPlayer(this.ctx);
     this.resumeContext();
@@ -103,14 +103,17 @@ export class AudioSynth {
     if (this._music) this._music.stop();
   }
 
-  isBgmEnabled() { return this._bgmEnabled; }
+  isMuted() { return this._muted; }
 
-  // 音樂開關：關閉時立刻淡出，重新開啟時從目前地圖的曲子開始
-  setBgmEnabled(on) {
-    this._bgmEnabled = !!on;
-    try { localStorage.setItem('thief-legend-bgm', on ? 'on' : 'off'); } catch (_) { /* 靜默 */ }
-    if (!on) this.stopBgm();
-    else if (this._lastMap) this.playBgm(this._lastMap);
+  // 靜音開關：音樂與音效一起。靜音時音樂立刻淡出；取消靜音時從目前地圖的曲子重新開始。
+  setMuted(muted) {
+    this._muted = !!muted;
+    try { localStorage.setItem('thief-legend-sound', muted ? 'off' : 'on'); } catch (_) { /* 靜默 */ }
+    if (muted) this.stopBgm();
+    else {
+      this.resumeContext();
+      if (this._lastMap) this.playBgm(this._lastMap);
+    }
   }
 
   // 配合遊戲的自適應品質（high / medium / low）：弱裝置自動減少音樂聲部與殘響
@@ -120,7 +123,7 @@ export class AudioSynth {
   }
 
   resumeContext() {
-    if (this.ctx && this.ctx.state === 'suspended') {
+    if (this.ctx && this.ctx.state !== 'running' && this.ctx.state !== 'closed') {
       this.ctx.resume().catch(() => {});
     }
   }

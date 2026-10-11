@@ -23,12 +23,32 @@ export const POTIONS = {
 };
 
 export const SKILLS = {
-  Z: { name: '三連飛鏢', unlockLevel: 1,  cooldown: 0.5,  mpCost: 10,  maxLevel: 10 },
+  // Z = 普通攻擊（電腦版空白鍵 / 手機最大的攻擊鈕）：不耗 MP、冷卻短，不佔技能欄位
+  Z: { name: '普通攻擊', unlockLevel: 1,  cooldown: 0.35, mpCost: 0,   maxLevel: 10 },
   X: { name: '暗影步伐', unlockLevel: 5,  cooldown: 3.0,  mpCost: 30,  maxLevel: 10 },
   C: { name: '暗殺',     unlockLevel: 10, cooldown: 5.0,  mpCost: 50,  maxLevel: 10 },
   V: { name: '暗影漩渦', unlockLevel: 15, cooldown: 8.0,  mpCost: 70,  maxLevel: 10 },
   B: { name: '影分身',   unlockLevel: 20, cooldown: 15.0, mpCost: 100, maxLevel: 10 },
 };
+
+// 技能欄位：普通攻擊（Z）之外，只能放 4 個技能，對應 4 個欄位 / 快捷鍵（電腦 X C V B；手機同位置的 4 顆按鈕）。
+// 欄位裡放哪個技能存在 gameState.skillSlots；四個技能全部解鎖後可在 HUD 技能欄拖曳調整順序。
+export const SKILL_SLOT_KEYS = ['X', 'C', 'V', 'B'];
+export const DEFAULT_SKILL_SLOTS = ['X', 'C', 'V', 'B'];
+export const BASIC_ATTACK = 'Z';
+
+// 欄位快捷鍵 → 目前放在該欄位的技能 id（Z 欄位固定是普通攻擊）
+export function skillForSlot(gs, slotKey) {
+  if (slotKey === BASIC_ATTACK) return BASIC_ATTACK;
+  const idx = SKILL_SLOT_KEYS.indexOf(slotKey);
+  const slots = gs && Array.isArray(gs.skillSlots) ? gs.skillSlots : DEFAULT_SKILL_SLOTS;
+  return slots[idx] || DEFAULT_SKILL_SLOTS[idx];
+}
+
+// 是否已可調整欄位順序：四個技能全部解鎖（Lv.20）
+export function canReorderSkills(gs) {
+  return DEFAULT_SKILL_SLOTS.every((id) => gs && Array.isArray(gs.unlockedSkills) && gs.unlockedSkills.includes(id));
+}
 
 // 技能等級對傷害的加成：每級 +12%（Lv.1 = 1.0x，可調）
 export function skillDamageScale(level) {
@@ -76,6 +96,7 @@ export function createInitialGameState() {
     skillCooldowns: { Z: 0, X: 0, C: 0, V: 0, B: 0 },
     unlockedSkills: ['Z'],
     skillLevels: { Z: 1, X: 0, C: 0, V: 0, B: 0 },
+    skillSlots: [...DEFAULT_SKILL_SLOTS],
     skillPoints: 0,
     currentMap: 'sky',
     bossUnlocked: false,

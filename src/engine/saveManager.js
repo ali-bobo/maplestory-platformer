@@ -12,7 +12,7 @@
 // 存檔不含：技能冷卻（讀檔時歸零）、裝置相關設定（qualityLevel）、副本每日次數（另有獨立 key）。
 
 import {
-  createInitialGameState, SKILLS, POTIONS, expNeeded,
+  createInitialGameState, SKILLS, POTIONS, expNeeded, DEFAULT_SKILL_SLOTS,
 } from '../config/constants.js';
 import { MAPS } from '../config/maps.js';
 import { EQUIPMENT_SLOTS, EQUIPMENT_BASES, RARITIES } from '../config/equipment.js';
@@ -151,6 +151,13 @@ export function sanitizeState(raw) {
     gs.skillLevels[key] = unlocked.has(key) ? Math.max(1, lv) : 0;
   }
   gs.unlockedSkills = Object.keys(SKILLS).filter((k) => unlocked.has(k));
+
+  // 技能欄位：必須剛好是 X C V B 四個技能的一種排列，否則回預設（防壞檔 / 重複 / 夾帶普通攻擊）
+  const slots = Array.isArray(raw.skillSlots) ? raw.skillSlots : null;
+  const validSlots = slots && slots.length === DEFAULT_SKILL_SLOTS.length
+    && new Set(slots).size === slots.length && slots.every((id) => DEFAULT_SKILL_SLOTS.includes(id));
+  // 尚未全部解鎖時不允許自訂順序（避免拿舊檔 / 改檔提前調整）
+  gs.skillSlots = validSlots && DEFAULT_SKILL_SLOTS.every((id) => unlocked.has(id)) ? [...slots] : [...DEFAULT_SKILL_SLOTS];
 
   gs.currentMap = sanitizeMap(raw.currentMap);
   gs.spawnX = MAPS[gs.currentMap].spawnX ?? gs.spawnX;
