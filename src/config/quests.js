@@ -170,6 +170,102 @@ export const QUESTS = {
     rewards: { exp: 1000, meso: 2000 },
   },
 
+  // ── 黃沙遺跡（desert）── 由「考古學家」發佈（商隊領隊是對話對象）──────────────────
+  desert_scorpions: {
+    id: 'desert_scorpions',
+    name: '清掃沙漠蠍',
+    desc: '考古隊的營地被沙漠蠍佔了，打倒 8 隻。',
+    type: 'kill', target: 'scorpion', count: 8,
+    rewards: { exp: 700, meso: 1400 },
+  },
+  desert_caravan: {
+    id: 'desert_caravan',
+    name: '拜訪商隊領隊',
+    desc: '考古學家說商隊領隊看過沙塵巨蟲的巢穴，去和他聊聊。',
+    type: 'talk', target: 'caravan_master', count: 1,
+    rewards: { exp: 300, meso: 600 },
+  },
+  desert_sandworm: {
+    id: 'desert_sandworm',
+    name: '擊敗沙塵巨蟲',
+    desc: '深入遺跡，擊敗守著星光碎片的小王「沙塵巨蟲」。',
+    type: 'kill', target: 'sandworm_boss', count: 1,
+    requires: ['desert_caravan'],
+    rewards: { exp: 2200, meso: 3600 },
+  },
+
+  // ── 霜牙峰（snow）── 由「雪原巡守員」發佈（山寺僧侶是對話對象）────────────────────
+  snow_wolves: {
+    id: 'snow_wolves',
+    name: '驅趕冰原狼',
+    desc: '成群的冰原狼威脅著山路，打倒 8 隻。小心別在冰上滑進狼群裡。',
+    type: 'kill', target: 'icewolf', count: 8,
+    rewards: { exp: 1000, meso: 1800 },
+  },
+  snow_monk: {
+    id: 'snow_monk',
+    name: '拜訪山寺僧侶',
+    desc: '巡守員說山寺僧侶知道冰霜巨人的弱點，去和他聊聊。',
+    type: 'talk', target: 'mountain_monk', count: 1,
+    rewards: { exp: 350, meso: 700 },
+  },
+  snow_giant: {
+    id: 'snow_giant',
+    name: '擊敗冰霜巨人',
+    desc: '擊敗守著星光碎片的小王「冰霜巨人」。',
+    type: 'kill', target: 'frost_giant', count: 1,
+    requires: ['snow_monk'],
+    rewards: { exp: 3000, meso: 5000 },
+  },
+
+  // ── 熔岩巢穴（lava）── 由「熔爐鐵匠」發佈（礦工是對話對象）──────────────────────
+  lava_hounds: {
+    id: 'lava_hounds',
+    name: '獵殺火焰獵犬',
+    desc: '火焰獵犬燒毀了礦坑的木架，打倒 8 隻。',
+    type: 'kill', target: 'firehound', count: 8,
+    rewards: { exp: 1300, meso: 2200 },
+  },
+  lava_miner: {
+    id: 'lava_miner',
+    name: '拜訪礦工',
+    desc: '鐵匠說礦工看過熔岩龍醒來的地方，去和他聊聊。',
+    type: 'talk', target: 'miner', count: 1,
+    rewards: { exp: 400, meso: 800 },
+  },
+  lava_dragon_hunt: {
+    id: 'lava_dragon_hunt',
+    name: '討伐熔岩龍',
+    desc: '擊敗守著星光碎片的小王「熔岩龍」。',
+    type: 'kill', target: 'lava_dragon', count: 1,
+    requires: ['lava_miner'],
+    rewards: { exp: 4000, meso: 6500 },
+  },
+
+  // ── 魔君王城（castle）── 由「被囚的騎士」發佈（幽靈女僕是對話對象）─────────────────
+  castle_knights: {
+    id: 'castle_knights',
+    name: '解放暗黑騎士',
+    desc: '被暗影附身的騎士在城裡遊蕩，打倒 8 隻讓他們安息。',
+    type: 'kill', target: 'darkknight', count: 8,
+    rewards: { exp: 1700, meso: 2800 },
+  },
+  castle_maid: {
+    id: 'castle_maid',
+    name: '拜訪幽靈女僕',
+    desc: '被囚的騎士說幽靈女僕在城裡待了一輩子，去問問團長的事。',
+    type: 'talk', target: 'ghost_maid', count: 1,
+    rewards: { exp: 500, meso: 1000 },
+  },
+  castle_commander: {
+    id: 'castle_commander',
+    name: '擊敗墮落騎士團長',
+    desc: '擊敗守著最後一塊星光碎片的小王「墮落騎士團長」。',
+    type: 'kill', target: 'fallen_commander', count: 1,
+    requires: ['castle_maid'],
+    rewards: { exp: 5500, meso: 9000 },
+  },
+
   // ── 晨曦鎮（town）── 由「城鎮居民」發佈 ──────────────────────────────────
   reach_town: {
     id: 'reach_town',

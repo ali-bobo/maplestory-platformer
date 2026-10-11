@@ -1,5 +1,5 @@
 # 專案狀態盤點與下一步（原 ITERATION5_SPEC）
-# 最後更新：Phase 22（影之殿堂與碧濤港）後
+# 最後更新：Phase 23（世界重整：星光碎片主線 + 四張新地圖）後
 
 ---
 
@@ -204,3 +204,22 @@
 - ✅ HP 自動回復（每秒 +5）
 - ✅ 掉落物 30 秒後消失
 - ✅ Boss killCount >= 60 解鎖機制（任何等級均有效）
+
+
+---
+
+## 世界重整（Phase 23，依 `docs/WORLD_DESIGN.md`）
+
+### 階段 1：世界骨架與星光碎片主線（已完成）
+- **地圖圖**：浮空島嶼 → 森林獵場 → 古代廢墟 → 碧濤港 → 黃沙遺跡 → 霜牙峰 → 熔岩巢穴 → 魔君王城 →（星光之塔點亮後）暗影領域。支線：森林獵場中央傳送門 → 神秘之境（死路）；晨曦鎮 →（Lv18，`portal.minLevel`）暗巷城 ⇄ 台北都會。傳送門連接由 `engine/worldGraph.js` 從 maps.js 推導（世界地圖用同一份）。
+- **等級上限 50**（`MAX_LEVEL`）；每級 HP+20 / MP+12 / 攻擊+5 / 速度+2（上限 320），Lv50 仍在存檔夾限內。
+- **星光碎片**：`config/shards.js`（5 個守護者 → 碎片 id）、`engine/shards.js`（取得 / 點亮塔 / 塔對話）。守護者 100% 掉落、每存檔一次、會被玩家吸過來；存檔欄位 `shards`、`towerLit`、`visitedMaps`（皆驗證）；`bossUnlocked` 只在 `towerLit` 或舊存檔已為 true 時成立（grandfather）。集滿 5 塊換稱號「星光守護者・職業稱號」；HUD 左下顯示 5 顆星與 n/5。
+- 晨曦鎮**星光之塔**（`prop_star_tower.png`）：F 鍵看進度，5/5 播 `fx_star_restore` + 光芒並解鎖 Boss；Boss 傳送門在魔君王城右端。Boss 房死亡 / 讀檔回魔君王城（`BOSS_FALLBACK_MAP`）。
+- 碧濤港數值改為 Lv14-20、小王 Lv22；森林蛇、神秘之境三種怪、暗巷城 / 台北的怪調整到所屬等級帶（content.test 檢查）。
+- `portal.minLevel` 擋下時顯示「需要 Lv.N 才能進入」。
+
+### 階段 2：四張新地圖（已完成）
+黃沙遺跡 Lv20-26（流沙：地面區域移速 -40%）、霜牙峰 Lv25-31（冰面滑行）、熔岩巢穴 Lv30-36（地面四區每 5.2 秒預警 1.4 秒後噴發 1 秒，最大 HP 5% 傷害，平台上安全）、魔君王城 Lv35-42（暗角視野 + 燭台）。各 5 小怪 + 1 守護者（hp 約同級小怪 8.5-9.4 倍、Lv = 帶上限 + 2）、2 NPC（1 任務發放、1 區域商店）、3 個任務、專屬 BGM。機制在 `engine/mapModifiers.js`（純邏輯 `mapModifierLogic.js`）。商店通用化：`config/shops.js`、`engine/shop.js`，商店畫面移到 BaseMapScene。數值公式與偏離：hp≈0.8×45·Lv(1+Lv/50)、atk≈5Lv+0.04Lv²（Lv30 起 ×0.92）、meso≈2.9·Lv（設計文件的 0.6·Lv 與既有曲線不符，採既有曲線）。
+- 驗證：Playwright 走完整條主線傳送門、四個守護者各掉一塊碎片、冰面滑行 / 流沙 ×0.6 / 岩漿扣血、每張新圖截圖無頁面錯誤；e2e-skills2 / mobile / jobs 通過；e2e-quest（已改成影之殿堂流程）通過。
+
+### 階段 3：世界地圖與傳送（**未完成**，見 TODO）

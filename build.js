@@ -6,8 +6,6 @@ const esbuild = require('esbuild');
 const fs = require('fs');
 const path = require('path');
 
-const { distAssetDefine } = require('./scripts/distAssets.cjs');
-
 const isWatch = process.argv.includes('--watch');
 
 const buildOptions = {
@@ -19,8 +17,6 @@ const buildOptions = {
   minify: !isWatch,
   sourcemap: isWatch,
   loader: { '.js': 'js' },
-  // 選配素材清單（見 scripts/distAssets.cjs）：新增美術檔後重新 build 才會生效
-  define: distAssetDefine(),
 };
 
 async function build() {

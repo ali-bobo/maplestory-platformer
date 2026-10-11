@@ -8,7 +8,7 @@ export function generateTextures(scene) {
   generateParticles(scene);
   generateItems(scene);
   generateUI(scene);
-  generateProps(scene);
+  generateModifierTextures(scene);
 }
 
 const g_ = (scene) => scene.add.graphics();
@@ -295,48 +295,44 @@ function generateUI(scene){
 }
 
 
-// ── 場景擺設 ────────────────────────────────────────────────────────────────
-// TODO(art): 星光之塔暫代圖。把 prop_star_tower.png（約 220×420、頂端有發光星星）放進 dist/assets 後
-// 重新 `npm run build`，assetCatalog 的選配素材機制就會預載它，這裡因為 key 已存在而跳過。
-function generateProps(scene) {
-  if (scene.textures.exists('prop_star_tower')) return;
-  const g = g_(scene);
-  const W = 220, H = 420;
-  const poly = (pts, color, alpha = 1) => { g.fillStyle(color, alpha); g.fillPoints(pts.map(([x, y]) => ({ x, y })), true); };
-  // 底座與台階
-  R(g, 36, 396, 148, 24, 0x57546b); R(g, 48, 384, 124, 14, 0x6d6a80);
-  // 塔身（上窄下寬）+ 左側受光面
-  poly([[56, 386], [164, 386], [146, 118], [74, 118]], 0x8a86a3);
-  poly([[56, 386], [92, 386], [86, 118], [74, 118]], 0xa7a3c2);
-  poly([[132, 386], [164, 386], [146, 118], [124, 118]], 0x6f6b8a);
-  // 石磚橫縫
-  g.lineStyle(1, 0x5a5672, 0.7);
-  for (let y = 150; y < 386; y += 26) {
-    const t = (y - 118) / (386 - 118);
-    g.lineBetween(74 - 18 * t, y, 146 + 18 * t, y);
+// ── 地圖機制用的貼圖（程式畫，沒有對應的美術檔）──────────────────────────────────
+function generateModifierTextures(scene) {
+  // 暗黑視野遮罩（魔君王城）：1024×1024，中心 0.14 半徑內全透明，到 0.22 半徑漸變成近黑色，之外整片黑
+  if (!scene.textures.exists('dark-vignette')) {
+    const tex = scene.textures.createCanvas('dark-vignette', 1024, 1024);
+    const ctx = tex.getContext();
+    const grad = ctx.createRadialGradient(512, 512, 0, 512, 512, 512);
+    grad.addColorStop(0, 'rgba(8,4,16,0)');
+    grad.addColorStop(0.14, 'rgba(8,4,16,0)');
+    grad.addColorStop(0.17, 'rgba(8,4,16,0.35)');
+    grad.addColorStop(0.2, 'rgba(8,4,16,0.8)');
+    grad.addColorStop(0.22, 'rgba(8,4,16,1)');
+    grad.addColorStop(1, 'rgba(8,4,16,1)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, 1024, 1024);
+    tex.refresh();
   }
-  // 拱形窗（發光）
-  for (const wy of [330, 262, 194]) {
-    R(g, 100, wy, 20, 30, 0xffe27a, 0.9);
-    g.fillStyle(0xffe27a, 0.9); g.fillCircle(110, wy, 10);
-    R(g, 105, wy - 6, 10, 36, 0xfff3c8, 0.55);
+  // 岩漿噴發的火柱：由下往上，底部亮橘黃、頂端透明
+  if (!scene.textures.exists('lava-flame')) {
+    const tex = scene.textures.createCanvas('lava-flame', 32, 96);
+    const ctx = tex.getContext();
+    const grad = ctx.createLinearGradient(0, 96, 0, 0);
+    grad.addColorStop(0, 'rgba(255,240,170,1)');
+    grad.addColorStop(0.35, 'rgba(255,150,40,0.9)');
+    grad.addColorStop(0.75, 'rgba(255,70,10,0.45)');
+    grad.addColorStop(1, 'rgba(200,30,0,0)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, 32, 96);
+    tex.refresh();
   }
-  // 平台與尖頂
-  R(g, 62, 104, 96, 16, 0x56527a); R(g, 68, 96, 84, 10, 0x6a6690);
-  poly([[110, 54], [70, 100], [150, 100]], 0x4a3f8a);
-  poly([[110, 54], [90, 100], [70, 100]], 0x6a5db0);
-  R(g, 108, 30, 4, 28, 0x3b3260);
-  // 頂端星星（五角）與光暈
-  g.fillStyle(0xffe27a, 0.18); g.fillCircle(110, 30, 30);
-  g.fillStyle(0xffe27a, 0.3); g.fillCircle(110, 30, 20);
-  const star = [];
-  for (let i = 0; i < 10; i++) {
-    const r = i % 2 === 0 ? 17 : 7;
-    const a = -Math.PI / 2 + (i * Math.PI) / 5;
-    star.push([110 + Math.cos(a) * r, 30 + Math.sin(a) * r]);
+  // 燭台（魔君王城）：16×56，鐵座 + 燭杯 + 小火苗
+  if (!scene.textures.exists('prop-torch')) {
+    const g = g_(scene);
+    R(g, 7, 20, 3, 34, 0x3a3340); R(g, 3, 52, 11, 4, 0x2a252f);
+    g.fillStyle(0x4a4252); g.fillTriangle(1, 14, 16, 14, 8, 24);
+    R(g, 2, 12, 13, 4, 0x5a5264);
+    g.fillStyle(0xff9a2a); g.fillTriangle(8, 0, 12, 12, 4, 12);
+    g.fillStyle(0xffe27a); g.fillTriangle(8, 4, 10.5, 12, 5.5, 12);
+    g.generateTexture('prop-torch', 16, 56); g.destroy();
   }
-  poly(star, 0xffd24a);
-  g.lineStyle(1, 0xfff3c8, 1); g.strokePoints(star.map(([x, y]) => ({ x, y })), true);
-  g.generateTexture('prop_star_tower', W, H);
-  g.destroy();
 }

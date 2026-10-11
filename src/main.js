@@ -11,6 +11,10 @@ import { TaipeiScene } from './scenes/TaipeiScene.js';
 import { TownScene } from './scenes/TownScene.js';
 import { ShrineScene } from './scenes/ShrineScene.js';
 import { HarborScene } from './scenes/HarborScene.js';
+import { DesertScene } from './scenes/DesertScene.js';
+import { SnowScene } from './scenes/SnowScene.js';
+import { LavaScene } from './scenes/LavaScene.js';
+import { CastleScene } from './scenes/CastleScene.js';
 import { BossScene } from './scenes/BossScene.js';
 import { DungeonScene } from './scenes/DungeonScene.js';
 import { UIScene } from './scenes/UIScene.js';
@@ -80,6 +84,10 @@ const config = {
     TownScene,
     ShrineScene,
     HarborScene,
+    DesertScene,
+    SnowScene,
+    LavaScene,
+    CastleScene,
     BossScene,
     DungeonScene,
     UIScene,

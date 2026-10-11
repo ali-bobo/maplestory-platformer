@@ -190,7 +190,7 @@ export function titleFor(jobId, shardCount) {
 }
 
 // 最終 Boss 房死亡 / 讀檔時回到的地圖（主線最後一張一般地圖）
-export const BOSS_FALLBACK_MAP = 'harbor';
+export const BOSS_FALLBACK_MAP = 'castle';
 
 export const MAP_SCENE_KEYS = {
   sky:     'MapleIslandScene',
@@ -203,6 +203,10 @@ export const MAP_SCENE_KEYS = {
   town:    'TownScene',
   shrine:  'ShrineScene',
   harbor:  'HarborScene',
+  desert:  'DesertScene',
+  snow:    'SnowScene',
+  lava:    'LavaScene',
+  castle:  'CastleScene',
 };
 
 // 建立一份全新的初始遊戲狀態。

@@ -9,7 +9,10 @@ import { jobOf } from '../config/constants.js';
 import { Monster } from '../entities/Monster.js';
 import { audio } from '../engine/audio.js';
 import { getVisualFootPadding } from '../config/alignment.js';
-import { addParchmentPanel } from '../engine/woodUi.js';
+import { addParchmentPanel, addWoodButton } from '../engine/woodUi.js';
+import { POTION_ICON_KEYS } from '../config/assetCatalog.js';
+import { shopOf } from '../config/shops.js';
+import { shopItemLabel, buyShopItem } from '../engine/shop.js';
 import { VFX_TEX } from '../engine/vfxTextures.js';
 import { saveGame, isSavableMap } from '../engine/saveGame.js';
 import { onMonsterKilled, onMapEntered, acceptQuest, isQuestActive, isQuestCompleted, onNpcTalked, onItemCollected, questItemDrop, chooseJobPath } from '../engine/questManager.js';
@@ -22,6 +25,7 @@ import { getQualityLevel } from '../engine/quality.js';
 import { SHARD_COUNT, SHARD_TEXTURE } from '../config/shards.js';
 import { grantShard, lightTower, shardCount } from '../engine/shards.js';
 import { visitMap } from '../engine/worldGraph.js';
+import { createMapModifier } from '../engine/mapModifiers.js';
 
 const PLATFORM_HEIGHT = 24;
 const GROUND_Y = WORLD_HEIGHT;
@@ -38,6 +42,11 @@ const PLATFORM_THEMES = {
   // TODO(art): 影之殿堂專屬跳台 platform_shrine.png（白石 + 金邊）還沒有，先借用晨曦鎮的跳台
   shrine:  { key: 'platform_town',    surfaceTop: 1 },
   harbor:  { key: 'platform_harbor',  surfaceTop: 3 },
+  // 四張新圖的跳台圖是 246×21～22 的細長條：stretchH 把它縱向拉到和其他跳台差不多的厚度
+  desert:  { key: 'platform_desert',  surfaceTop: 2, stretchH: 36 },
+  snow:    { key: 'platform_snow',    surfaceTop: 3, stretchH: 38 },
+  lava:    { key: 'platform_lava',    surfaceTop: 2, stretchH: 38 },
+  castle:  { key: 'platform_castle',  surfaceTop: 2, stretchH: 36 },
   boss:    { key: 'platform_boss',    surfaceTop: 0 },
   dungeon: { key: 'platform_dungeon', surfaceTop: 0 },
 };
@@ -112,6 +121,7 @@ export class BaseMapScene extends Phaser.Scene {
     this._createPortals();
     this._createNPCs();
     this._setupColliders();
+    this._modifier = createMapModifier(this, this.mapData.modifier);   // 冰面 / 流沙 / 岩漿 / 暗黑視野（沒有則 null）
 
     if (!this.scene.isActive('UIScene')) {
       this.scene.launch('UIScene');
@@ -185,14 +195,16 @@ export class BaseMapScene extends Phaser.Scene {
     // 不使用 tileSprite：背景圖多為非 2 次方尺寸，平鋪時接縫處會出現裂痕／破圖，
     // 且每幀更新 tilePosition 也是額外負擔。改用固定單圖即可徹底消除接縫。
     if (bgImage && this.textures.exists(bgImage)) {
-      const src = this.textures.get(bgImage).getSourceImage();
-      const sc = Math.max(SCREEN_W / src.width, bgH / src.height);
-      const bg = this.add.image(SCREEN_W / 2, bgH, bgImage);
-      bg.setOrigin(0.5, 1);
-      bg.setScale(sc);
-      bg.setScrollFactor(0);
-      bg.setDepth(-9);
+      this._addCoverBackground(bgImage);
     }
+  }
+
+  _addCoverBackground(key) {
+    const SCREEN_W = 1280;
+    const src = this.textures.get(key).getSourceImage();
+    const sc = Math.max(SCREEN_W / src.width, WORLD_HEIGHT / src.height);
+    return this.add.image(SCREEN_W / 2, WORLD_HEIGHT, key)
+      .setOrigin(0.5, 1).setScale(sc).setScrollFactor(0).setDepth(-9);
   }
 
   // ── 平台建立 ───────────────────────────────────────────────────────────────
@@ -214,11 +226,12 @@ export class BaseMapScene extends Phaser.Scene {
   }
 
   // 把主題圖切成左端 / 中段 / 右端三張紋理（中段左右邊緣交叉淡化，重複鋪時看不出接縫）
-  _ensurePlatformSlices(themeKey) {
+  // outH：縱向拉伸後的高度（細長的跳台圖用；沒給就用原圖高度）
+  _ensurePlatformSlices(themeKey, outH) {
     const leftKey = `${themeKey}__L`;
     if (this.textures.exists(leftKey)) return;
     const src = this.textures.get(themeKey).getSourceImage();
-    const w = src.width, h = src.height;
+    const w = src.width, srcH = src.height, h = outH || srcH;
     const capW = Math.round(w * PLATFORM_CAP_RATIO);
     const tileW = Math.round(w * PLATFORM_TILE_RATIO);
     const blendW = Math.round(tileW * 0.25);
@@ -226,7 +239,7 @@ export class BaseMapScene extends Phaser.Scene {
 
     const slice = (key, sx, sw) => {
       const tex = this.textures.createCanvas(key, sw, h);
-      tex.getContext().drawImage(src, sx, 0, sw, h, 0, 0, sw, h);
+      tex.getContext().drawImage(src, sx, 0, sw, srcH, 0, 0, sw, h);
       tex.refresh();
     };
     slice(leftKey, 0, capW);
@@ -234,18 +247,18 @@ export class BaseMapScene extends Phaser.Scene {
 
     const mid = this.textures.createCanvas(`${themeKey}__M`, tileW, h);
     const ctx = mid.getContext();
-    ctx.drawImage(src, tileX, 0, tileW, h, 0, 0, tileW, h);
+    ctx.drawImage(src, tileX, 0, tileW, srcH, 0, 0, tileW, h);
     // 左緣用 tile 右側之後的像素淡入，讓 tile 首尾相接
     for (let i = 0; i < blendW; i++) {
       ctx.globalAlpha = 1 - i / blendW;
-      ctx.drawImage(src, tileX + tileW + i, 0, 1, h, i, 0, 1, h);
+      ctx.drawImage(src, tileX + tileW + i, 0, 1, srcH, i, 0, 1, h);
     }
     ctx.globalAlpha = 1;
     mid.refresh();
   }
 
   _drawThemedPlatform(p, theme) {
-    this._ensurePlatformSlices(theme.key);
+    this._ensurePlatformSlices(theme.key, theme.stretchH);
     const leftTex = this.textures.get(`${theme.key}__L`).getSourceImage();
     const h = leftTex.height;
     const fullCapW = leftTex.width;
@@ -476,6 +489,7 @@ export class BaseMapScene extends Phaser.Scene {
     screenFlash(this, 200, 0.5);
     this.cameras.main.shake(500, 0.006);
     spawnLightRays(this, x, topY, { count: 24, length: 300, color: 0xfff0b0, alpha: 0.6, duration: 1400, width: 3 });
+    playFx(this, 'fx_star_restore', x, topY + 110, { scale: 3.4, frameRate: 7, depth: 64 });   // 碎片歸位的金色光爆
     playFx(this, 'fx_job_change', x, topY + 20, { scale: 2.6, frameRate: 6, depth: 64 });
     this.time.delayedCall(500, () => playFx(this, 'fx_job_change', x, topY + 70, { scale: 3.2, frameRate: 6, depth: 64 }));
     if (this._towerGlow) {
@@ -587,6 +601,7 @@ export class BaseMapScene extends Phaser.Scene {
 
   _openNpcDialog(npcDef) {
     if (this._npcDialog) return;
+    if (npcDef.shop) { this._openShop(npcDef); return; }
 
     const cam = this.cameras.main;
     const cx = cam.scrollX + cam.width / 2;
@@ -659,6 +674,14 @@ export class BaseMapScene extends Phaser.Scene {
 
   _closeNpcDialog() {
     if (!this._npcDialog) return;
+    // 商店面板也存進 _npcDialog（_shop 標記），沿用 F / ESC 的開關與場景關閉清理
+    if (this._npcDialog._shop) {
+      for (const obj of this._npcDialog.objects) {
+        if (obj && obj.destroy) obj.destroy();
+      }
+      this._npcDialog = null;
+      return;
+    }
     const { bg, title, msgText, close, extras, keyHandlers } = this._npcDialog;
     if (bg?.active) bg.destroy();
     if (title?.active) title.destroy();
@@ -667,6 +690,71 @@ export class BaseMapScene extends Phaser.Scene {
     for (const o of extras || []) if (o?.active) o.destroy();
     for (const [evt, handler] of keyHandlers || []) this.input.keyboard.off(evt, handler);
     this._npcDialog = null;
+  }
+
+  // ── 商店（地圖資料 npc.shop；商品表見 config/shops.js）────────────────────────────
+  _openShop(npcDef) {
+    if (this._npcDialog) return;
+    const shop = shopOf(npcDef);
+
+    const { width } = this.cameras.main;
+    const panelW = 480, panelH = 142 + shop.items.length * 50 + 20;
+    const panelX = (width - panelW) / 2;
+    const panelY = 70;
+    const objs = [];
+    const push = (obj) => { objs.push(obj); return obj; };
+
+    push(addParchmentPanel(this, panelX, panelY, panelW, panelH, { depth: 150 }));
+
+    push(this.add.text(panelX + panelW / 2, panelY + 34, `🏪 ${npcDef.name || '商人'}的${shop.title}`, {
+      fontSize: '19px', color: '#ffe27a', fontFamily: 'Arial', fontStyle: 'bold', stroke: '#1a0e06', strokeThickness: 4,
+    }).setOrigin(0.5, 0.5).setScrollFactor(0).setDepth(151));
+
+    if (npcDef.dialog && npcDef.dialog[0]) {
+      push(this.add.text(panelX + panelW / 2, panelY + 56, npcDef.dialog[0], {
+        fontSize: '12px', color: '#e8d3a8', fontFamily: 'Arial', stroke: '#1a0e06', strokeThickness: 2,
+      }).setOrigin(0.5, 0.5).setScrollFactor(0).setDepth(151));
+    }
+    const gs = this.registry.get('gameState');
+    const mesoText = push(this.add.text(panelX + panelW / 2, panelY + 76, `持有金幣：${gs.meso}`, {
+      fontSize: '14px', color: '#fff3c8', fontFamily: 'Arial', stroke: '#1a0e06', strokeThickness: 3,
+    }).setOrigin(0.5, 0.5).setScrollFactor(0).setDepth(151));
+
+    // 商品：購買後補進藥水庫存（gs.potions），HUD 藥水欄會自動刷新
+    const items = shop.items.map((it) => ({ ...it, name: shopItemLabel(it), cost: it.cost }));
+
+    items.forEach((item, i) => {
+      const rowY = panelY + 106 + i * 50;
+      const iconKey = POTION_ICON_KEYS[item.key];
+      if (iconKey && this.textures.exists(iconKey)) {
+        const icon = push(this.add.image(panelX + 70, rowY, iconKey).setScrollFactor(0).setDepth(152));
+        icon.setScale(32 / icon.height);
+      }
+      const label = `${item.name}  —  ${item.cost} 金幣`;
+      const btn = addWoodButton(this, panelX + panelW / 2 + 20, rowY, 300, 38, label, () => {
+        const state = this.registry.get('gameState');
+        if (buyShopItem(state, item) === 'ok') {
+          this.registry.set('gameState', state);
+          this.registry.events.emit('changedata-meso', null, state.meso);
+          mesoText.setText(`持有金幣：${state.meso}`);
+          audio.playPickup();
+          btn.label.setText(`${item.name}  — 購買成功！`);
+        } else {
+          btn.label.setText(`${item.name}  — 金幣不足`);
+        }
+        this.time.delayedCall(900, () => { if (btn.label.active) btn.label.setText(label); });
+      }, { depth: 151, fontSize: 15 });
+      btn.objects.forEach(push);
+    });
+
+    // 觸控裝置沒有鍵盤：關閉字樣本身可點擊
+    push(this.add.text(panelX + panelW / 2, panelY + panelH - 30, keyHint('[ 按 F 或 ESC 關閉 ]', '[ 點此關閉 ]'), {
+      fontSize: '12px', color: '#e8d3a8', fontFamily: 'Arial', stroke: '#1a0e06', strokeThickness: 3,
+    }).setOrigin(0.5, 0.5).setScrollFactor(0).setDepth(151)
+      .setInteractive({ useHandCursor: true })
+      .on('pointerdown', () => this._closeNpcDialog()));
+
+    this._npcDialog = { _shop: true, objects: objs };
   }
 
   // ── 碰撞設定 ───────────────────────────────────────────────────────────────
@@ -822,6 +910,7 @@ export class BaseMapScene extends Phaser.Scene {
 
   update(time, delta) {
     if (!this.player || this.player.isDead) return;
+    if (this._modifier) this._modifier.update(time, delta, this.player);   // 先設好 speedMult / iceFloor 再讓玩家移動
     this.player.update(delta);
     this.player.recoverMp(delta);
     this.player.recoverHp(delta);
@@ -883,6 +972,7 @@ export class BaseMapScene extends Phaser.Scene {
   }
 
   _onSceneShutdown() {
+    if (this._modifier) { this._modifier.destroy(); this._modifier = null; }
     this.events.off('monster-died', this._onMonsterDied, this);
     this.events.off('job-changed', this._onJobChanged, this);
 

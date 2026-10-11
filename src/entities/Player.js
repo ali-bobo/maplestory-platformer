@@ -6,6 +6,7 @@ import { castSlash, castShuriken, castDash, castAssassinate, castVortex, castClo
 import { castTwinBlade, castSabre, castBackstab, castPoison, castMark, castWhirl, castSteal, castSmoke } from './JobSkills.js';
 import { particles } from '../engine/particles.js';
 import { audio } from '../engine/audio.js';
+import { iceVelocity } from '../engine/mapModifierLogic.js';
 import { isEquipmentBetter } from '../config/equipment.js';
 import { ALIGNMENT_PROFILES, applyAlignmentProfile, getVisualCenterPoint, getVisualTopY } from '../config/alignment.js';
 
@@ -23,6 +24,8 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.isDead = false;
     this.dropThrough = false;
     this.isDashing = false;
+    this.speedMult = 1;      // 地圖機制：流沙等造成的移速倍率
+    this.iceFloor = false;   // 地圖機制：冰面（滑行）
     this._jumpKeyWasDown = false;
     // 動作圖切換：攻擊/受傷期間鎖定姿勢到 _poseLockUntil
     this._poseLockKey = null;
@@ -106,16 +109,17 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     }
 
     // ─── 移動 ───────────────────────────────────────────────────────────────
-    if (left) {
-      this.setVelocityX(-gs.speed);
-      this.facingRight = false;
-      this.setFlipX(true);
-    } else if (right) {
-      this.setVelocityX(gs.speed);
-      this.facingRight = true;
-      this.setFlipX(false);
+    // 地圖機制（engine/mapModifiers.js）每幀先設好：speedMult（流沙 0.6）、iceFloor（冰面：在地面上加速 / 煞車都有慣性）
+    const speed = gs.speed * this.speedMult;
+    const dir = left ? -1 : right ? 1 : 0;
+    if (dir !== 0) {
+      this.facingRight = dir > 0;
+      this.setFlipX(dir < 0);
+    }
+    if (this.iceFloor && onGround) {
+      this.setVelocityX(iceVelocity(this.body.velocity.x, dir * speed, dt));
     } else {
-      this.setVelocityX(0);
+      this.setVelocityX(dir * speed);
     }
 
     // ─── 跳躍 / 下落穿越 ────────────────────────────────────────────────────

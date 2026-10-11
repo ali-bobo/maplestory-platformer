@@ -69,3 +69,26 @@
 ## 文件維護
 
 - `docs/GAME_SPEC.md` 的 [VISUAL_STYLE]、[EQUIPMENT_SYSTEM]、[BOSS] 章節尚未逐條對照程式，之後調整這些系統時順手核對。
+
+
+## 世界重整後續（Phase 23 之後）
+
+### 未完成：階段 3 世界地圖與傳送
+- HUD「地圖」鈕目前只開「地圖資訊」小視窗（`UIScene._buildMapPopup`，傳送門清單由地圖資料產生）。要做：世界地圖遮罩、節點（鎖定 / 已解鎖 / 目前所在）、點已去過的地圖花金幣傳送（樞紐免費、費用隨等級、副本 / Boss 中禁用）。資料已備：`gs.visitedMaps`（已存檔、已驗證）、`engine/worldGraph.js`（`worldEdges()` 連線、`visitMap`）、`maps.js` 的 `levelBand` / `hub`。
+- 美術已到位並已登錄（`PROP_UI_ASSETS`）：`ui_world_map.webp`（960×558）、`ui_map_node_unlocked|current|locked.png`（40×40）；10 個節點座標在 `docs/asset_src/ui_world_map_nodes.json`（由左到右沿路線，建議：1 浮空島嶼 2 森林 3 廢墟 4 碧濤港 5 黃沙 6 霜牙 7 熔岩 8 魔君王城 9 暗影領域 10 保留；晨曦鎮 / 影之殿堂 / 神秘之境 / 城市特區用小節點或下方清單）。
+
+### 美術已在 dist/assets 但尚未接進程式
+| 檔案 | 用途 | 狀態 |
+|------|------|------|
+| `item_boots.png` | 靴子掉落圖示 | 已登錄（ICON_ASSETS），取代程式圖 |
+| `ui_quest_mark.png` `ui_quest_ing.png` `ui_quest_done.png` | NPC 頭上任務標記 | 已登錄預載，**尚未畫在 NPC 上** |
+| `platform_shrine.png`（246×30） | 影之殿堂跳台 | 已登錄，**BaseMapScene `PLATFORM_THEMES.shrine` 還是借用 platform_town**（改 key 並加 stretchH） |
+| `fx_shuriken.png`（4×32） | 飛鏢旋轉 | 已登錄預載，**未取代 `skill-shuriken`**（Skill.js `launchShuriken`） |
+| `fx_vortex.png`（6×192，ADD） | 暗影漩渦 | 已登錄預載，**未接** |
+| `fx_boss_aura.png`（4×192，ADD） | Boss 後期紫焰環 | 已登錄預載，**未接**（Boss.js） |
+| `player_idle_2.png`（及刺客 / 俠盜 `idle_2`） | 待機呼吸，每約 600ms 與 idle 交替 | **未接**（Player._updatePose；poseKey 取 `idle_2`，缺圖退回單格） |
+
+### 已知小問題
+- 遠離玩家（>1600px）的怪物血條停在畫面左上角 (0,0)（Monster 建構時定位，未更新），所有地圖皆有，需修。
+- 星光之塔 5/5 的 e2e 腳本在 scratchpad，未納入 repo。
+- 區域套裝、怪物圖鑑、每日委託、區域副本、`fx_star_restore` 以外的特效尚未做。

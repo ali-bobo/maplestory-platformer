@@ -12,6 +12,10 @@ export const MONSTER_FAMILIES = {
   MACHINE: '機械類',
   CITY: '城市類',
   SEA: '海港類',
+  DESERT: '沙漠類',
+  ICE: '冰雪類',
+  FIRE: '熔岩類',
+  DARK: '魔族類',
   ELITE: '菁英 / 小王',
   BOSS_SUPPORT: 'Boss 援軍',
 };
@@ -52,6 +56,30 @@ const MONSTER_CLASSIFICATION = {
   octopus: { family: MONSTER_FAMILIES.SEA, habitats: ['harbor'] },
   seagull: { family: MONSTER_FAMILIES.FLYING, habitats: ['harbor'] },
   pirate_captain: { family: MONSTER_FAMILIES.ELITE, habitats: ['harbor'] },
+  scorpion: { family: MONSTER_FAMILIES.DESERT, habitats: ['desert'] },
+  cactus: { family: MONSTER_FAMILIES.PLANT, habitats: ['desert'] },
+  mummy: { family: MONSTER_FAMILIES.DESERT, habitats: ['desert'] },
+  bandit: { family: MONSTER_FAMILIES.WARRIOR, habitats: ['desert'] },
+  sandworm: { family: MONSTER_FAMILIES.DESERT, habitats: ['desert'] },
+  sandworm_boss: { family: MONSTER_FAMILIES.ELITE, habitats: ['desert'] },
+  snowman: { family: MONSTER_FAMILIES.ICE, habitats: ['snow'] },
+  penguin: { family: MONSTER_FAMILIES.ICE, habitats: ['snow'] },
+  icewolf: { family: MONSTER_FAMILIES.ICE, habitats: ['snow'] },
+  crystal: { family: MONSTER_FAMILIES.ROCK, habitats: ['snow'] },
+  yeti: { family: MONSTER_FAMILIES.ICE, habitats: ['snow'] },
+  frost_giant: { family: MONSTER_FAMILIES.ELITE, habitats: ['snow'] },
+  fireimp: { family: MONSTER_FAMILIES.FIRE, habitats: ['lava'] },
+  lavaslime: { family: MONSTER_FAMILIES.FIRE, habitats: ['lava'] },
+  firehound: { family: MONSTER_FAMILIES.FIRE, habitats: ['lava'] },
+  ember: { family: MONSTER_FAMILIES.FIRE, habitats: ['lava'] },
+  lavagolem: { family: MONSTER_FAMILIES.ROCK, habitats: ['lava'] },
+  lava_dragon: { family: MONSTER_FAMILIES.ELITE, habitats: ['lava'] },
+  imp: { family: MONSTER_FAMILIES.DARK, habitats: ['castle'] },
+  bat: { family: MONSTER_FAMILIES.FLYING, habitats: ['castle'] },
+  darkknight: { family: MONSTER_FAMILIES.WARRIOR, habitats: ['castle'] },
+  vampire: { family: MONSTER_FAMILIES.DARK, habitats: ['castle'] },
+  gargoyle: { family: MONSTER_FAMILIES.ROCK, habitats: ['castle'] },
+  fallen_commander: { family: MONSTER_FAMILIES.ELITE, habitats: ['castle'] },
 };
 
 export const MONSTERS = [
@@ -101,6 +129,42 @@ export const MONSTERS = [
   { id: 'pirate_ghost', name: '海盜幽靈', level: 18, hp: 760, atk: 92,  exp: 220, speed: 80,  meso: 44, dropRate: 0.20, behavior: 'chase',  spriteKey: 'monster_pirate_ghost', area: 'harbor' },
   { id: 'octopus',      name: '章魚',     level: 20, hp: 950, atk: 110, exp: 275, speed: 55,  meso: 54, dropRate: 0.22, behavior: 'ranged', spriteKey: 'monster_octopus',      area: 'harbor' },
   { id: 'pirate_captain', name: '小王：海盜船長', level: 22, hp: 7800, atk: 140, exp: 1100, speed: 80, meso: 260, dropRate: 0.50, behavior: 'chase', spriteKey: 'miniboss_captain', area: 'harbor', spawnRole: 'miniboss' },
+
+  // ── 黃沙遺跡 (desert) Lv20-26 ────────────────────────────────────────────
+  // 數值延伸既有曲線：hp ≈ 0.8 × 45·Lv·(1+Lv/50)（既有暗巷城 / 廢墟的實測約為公式的 0.77-0.83）、atk ≈ 5·Lv + 0.04·Lv²（Lv30 起 ×0.92，
+  // 免得玩家每級只長 20 HP 而怪物攻擊追不上）、exp ≈ 0.55·Lv²×(1.2→1.08)、meso ≈ 2.9·Lv、dropRate = 0.22 + 0.01·(Lv-19)（上限 0.4）。
+  // 小王 Lv = 等級帶上限 + 2，hp = 同級小怪的 8.5 倍，exp 4 倍、meso 4 倍，掉落該區星光碎片（config/shards.js）。
+  { id: 'scorpion', name: '沙漠蠍',   level: 20, hp: 1010, atk: 116, exp: 264, speed: 60, meso: 58, dropRate: 0.23, behavior: 'patrol', spriteKey: 'monster_scorpion', area: 'desert' },
+  { id: 'cactus',   name: '針刺仙人掌', level: 22, hp: 1140, atk: 129, exp: 317, speed: 35, meso: 64, dropRate: 0.25, behavior: 'ranged', spriteKey: 'monster_cactus',   area: 'desert', projTint: 0x66dd55 },
+  { id: 'mummy',    name: '木乃伊',   level: 23, hp: 1210, atk: 136, exp: 344, speed: 55, meso: 67, dropRate: 0.26, behavior: 'chase',  spriteKey: 'monster_mummy',    area: 'desert' },
+  { id: 'bandit',   name: '沙漠盜賊', level: 25, hp: 1350, atk: 150, exp: 403, speed: 95, meso: 72, dropRate: 0.28, behavior: 'chase',  spriteKey: 'monster_bandit',   area: 'desert', jumpProfile: { minInterval: 2600, maxInterval: 4200, velocity: 360, chance: 0.42 } },
+  { id: 'sandworm', name: '沙蟲',     level: 26, hp: 1420, atk: 157, exp: 434, speed: 70, meso: 75, dropRate: 0.29, behavior: 'chase',  spriteKey: 'monster_sandworm', area: 'desert' },
+  { id: 'sandworm_boss', name: '小王：沙塵巨蟲', level: 28, hp: 13300, atk: 197, exp: 1992, speed: 85, meso: 324, dropRate: 0.50, behavior: 'chase', spriteKey: 'miniboss_sandworm', area: 'desert', spawnRole: 'miniboss' },
+
+  // ── 霜牙峰 (snow) Lv25-31 ─────────────────────────────────────────────────
+  { id: 'snowman',  name: '雪人',     level: 25, hp: 1350, atk: 150, exp: 403, speed: 40,  meso: 72, dropRate: 0.28, behavior: 'ranged', spriteKey: 'monster_snowman', area: 'snow', projTint: 0xcfefff },
+  { id: 'penguin',  name: '企鵝',     level: 26, hp: 1420, atk: 157, exp: 434, speed: 70,  meso: 75, dropRate: 0.29, behavior: 'patrol', spriteKey: 'monster_penguin', area: 'snow', jumpProfile: { minInterval: 1600, maxInterval: 2600, velocity: 230, chance: 0.5 } },
+  { id: 'icewolf',  name: '冰原狼',   level: 28, hp: 1570, atk: 171, exp: 498, speed: 110, meso: 81, dropRate: 0.31, behavior: 'chase',  spriteKey: 'monster_icewolf', area: 'snow', jumpProfile: { minInterval: 2400, maxInterval: 3800, velocity: 390, chance: 0.44 } },
+  { id: 'crystal',  name: '冰晶怪',   level: 29, hp: 1650, atk: 179, exp: 532, speed: 30,  meso: 84, dropRate: 0.32, behavior: 'patrol', spriteKey: 'monster_crystal', area: 'snow' },
+  { id: 'yeti',     name: '雪怪',     level: 31, hp: 1810, atk: 178, exp: 602, speed: 70,  meso: 90, dropRate: 0.34, behavior: 'chase',  spriteKey: 'monster_yeti',    area: 'snow' },
+  { id: 'frost_giant', name: '小王：冰霜巨人', level: 33, hp: 16700, atk: 221, exp: 2704, speed: 70, meso: 384, dropRate: 0.50, behavior: 'chase', spriteKey: 'miniboss_frostgiant', area: 'snow', spawnRole: 'miniboss' },
+
+  // ── 熔岩巢穴 (lava) Lv30-36 ───────────────────────────────────────────────
+  // 餘燼精靈沒有飛行行為：用 patrol + 頻繁小跳近似漂浮（同碧濤港的水母）
+  { id: 'fireimp',   name: '火焰小鬼',   level: 30, hp: 1730, atk: 171, exp: 567, speed: 55,  meso: 87, dropRate: 0.33, behavior: 'ranged', spriteKey: 'monster_fireimp',   area: 'lava', projTint: 0xff9a2a, jumpProfile: { minInterval: 1800, maxInterval: 3000, velocity: 300, chance: 0.4 } },
+  { id: 'lavaslime', name: '熔岩史萊姆', level: 31, hp: 1810, atk: 178, exp: 602, speed: 40,  meso: 90, dropRate: 0.34, behavior: 'patrol', spriteKey: 'monster_lavaslime', area: 'lava', jumpProfile: { minInterval: 1200, maxInterval: 2200, velocity: 260, chance: 0.7 } },
+  { id: 'firehound', name: '火焰獵犬',   level: 33, hp: 1970, atk: 192, exp: 676, speed: 110, meso: 96, dropRate: 0.36, behavior: 'chase',  spriteKey: 'monster_firehound', area: 'lava', jumpProfile: { minInterval: 2400, maxInterval: 3600, velocity: 380, chance: 0.45 } },
+  { id: 'ember',     name: '餘燼精靈',   level: 34, hp: 2060, atk: 199, exp: 714, speed: 45,  meso: 99, dropRate: 0.37, behavior: 'patrol', spriteKey: 'monster_ember',     area: 'lava', jumpProfile: { minInterval: 700, maxInterval: 1300, velocity: 260, chance: 0.9 } },
+  { id: 'lavagolem', name: '熔岩魔像',   level: 36, hp: 2230, atk: 213, exp: 793, speed: 35,  meso: 104, dropRate: 0.39, behavior: 'patrol', spriteKey: 'monster_lavagolem', area: 'lava' },
+  { id: 'lava_dragon', name: '小王：熔岩龍', level: 38, hp: 20500, atk: 262, exp: 3496, speed: 75, meso: 440, dropRate: 0.50, behavior: 'chase', spriteKey: 'miniboss_lavadragon', area: 'lava', spawnRole: 'miniboss' },
+
+  // ── 魔君王城 (castle) Lv35-42 ─────────────────────────────────────────────
+  { id: 'imp',        name: '小惡魔',   level: 35, hp: 2140, atk: 206, exp: 753,  speed: 60,  meso: 102, dropRate: 0.38, behavior: 'ranged', spriteKey: 'monster_imp',        area: 'castle', projTint: 0xb04aff, jumpProfile: { minInterval: 1800, maxInterval: 3000, velocity: 300, chance: 0.4 } },
+  { id: 'bat',        name: '吸血蝙蝠', level: 37, hp: 2320, atk: 221, exp: 833,  speed: 100, meso: 107, dropRate: 0.40, behavior: 'chase',  spriteKey: 'monster_bat',        area: 'castle', jumpProfile: { minInterval: 1500, maxInterval: 2600, velocity: 390, chance: 0.6 } },
+  { id: 'darkknight', name: '暗黑騎士', level: 39, hp: 2500, atk: 235, exp: 916,  speed: 70,  meso: 113, dropRate: 0.40, behavior: 'chase',  spriteKey: 'monster_darkknight', area: 'castle' },
+  { id: 'vampire',    name: '吸血鬼',   level: 40, hp: 2590, atk: 243, exp: 959,  speed: 85,  meso: 116, dropRate: 0.40, behavior: 'chase',  spriteKey: 'monster_vampire',    area: 'castle', jumpProfile: { minInterval: 2800, maxInterval: 4400, velocity: 360, chance: 0.35 } },
+  { id: 'gargoyle',   name: '石像鬼',   level: 42, hp: 2780, atk: 258, exp: 1047, speed: 50,  meso: 122, dropRate: 0.40, behavior: 'patrol', spriteKey: 'monster_gargoyle',   area: 'castle', jumpProfile: { minInterval: 2200, maxInterval: 3600, velocity: 330, chance: 0.4 } },
+  { id: 'fallen_commander', name: '小王：墮落騎士團長', level: 44, hp: 25300, atk: 315, exp: 4548, speed: 75, meso: 512, dropRate: 0.50, behavior: 'chase', spriteKey: 'miniboss_fallen', area: 'castle', spawnRole: 'miniboss' },
 
   // ── Boss 援軍 (boss) ─────────────────────────────────────────────────────
   // 一轉「影之試煉」守衛（小王；圖暫用街頭小王染紫，專屬美術待補）

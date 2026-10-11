@@ -557,7 +557,7 @@ export class Monster extends Phaser.Physics.Arcade.Sprite {
     const dir = player.x > this.x ? 1 : -1;
     const center = getVisualCenterPoint(this);
     const proj = scene.physics.add.sprite(this.x, center.y - 10, 'skill-orb');
-    proj.setTint(0xff4444);
+    proj.setTint(this.config.projTint ?? 0xff4444);
     proj.setDepth(20);
     proj.body.setAllowGravity(false);
     proj.setVelocity(dir * 250, -50);
