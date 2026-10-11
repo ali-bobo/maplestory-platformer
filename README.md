@@ -122,4 +122,6 @@ PR 會由 CI 檢查 `npm run build` 能成功，且提交的 `dist/bundle.js` �
 
 ## 授權
 
-本專案為學習用途，遊戲圖片素材版權歸原作者所有。
+原始碼（`src/`、`build.js` 等）以 [MIT License](LICENSE) 授權。
+
+`dist/assets/` 內的圖片素材**不在 MIT 授權範圍內**，版權歸原作者所有，僅供學習用途；重新散布或商用前請自行確認來源與授權。
