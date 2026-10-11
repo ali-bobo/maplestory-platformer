@@ -6,58 +6,34 @@ import { Player } from '../entities/Player.js';
 import { Monster } from '../entities/Monster.js';
 import { audio } from '../engine/audio.js';
 import { getVisualFootPadding } from '../config/alignment.js';
+import { addParchmentPanel } from '../engine/woodUi.js';
+import { VFX_TEX } from '../engine/vfxTextures.js';
+import { saveGame, isSavableMap } from '../engine/saveGame.js';
 import { onMonsterKilled, onMapEntered, acceptQuest, isQuestActive, isQuestCompleted } from '../engine/questManager.js';
 import { canEnterDungeon, getRemainingEntries } from '../engine/dungeonRecord.js';
 import { getDungeonDef } from '../config/dungeons.js';
 
 const PLATFORM_HEIGHT = 24;
 const GROUND_Y = WORLD_HEIGHT;
-const PLATFORM_DECORATION_ROW_INDEX = {
-  henesys: 0,
-  ellinia: 2,
-  taipei: 1,
+// 每張地圖專屬的跳台圖：左端、中段（可重複鋪）、右端由同一張圖切出
+// surfaceTop：圖片頂端到可站立表面的距離（px）
+const PLATFORM_THEMES = {
+  sky:     { key: 'platform_sky',     surfaceTop: 7 },
+  henesys: { key: 'platform_forest',  surfaceTop: 12 },
+  ruins:   { key: 'platform_ruins',   surfaceTop: 0 },
+  ellinia: { key: 'platform_mystic',  surfaceTop: 10 },
+  kerning: { key: 'platform_city',    surfaceTop: 11 },
+  taipei:  { key: 'platform_city',    surfaceTop: 11 },
+  town:    { key: 'platform_town',    surfaceTop: 1 },
+  boss:    { key: 'platform_boss',    surfaceTop: 0 },
+  dungeon: { key: 'platform_dungeon', surfaceTop: 0 },
 };
-const MAX_PLATFORM_WHITE_THRESHOLD = 253;
-const IMAGE_PLATFORM_STYLE = {
-  henesys: {
-    renderHeight: 84,
-    imageCropTopRatio: 0.16,
-    imageCropHeightRatio: 0.58,
-    sourceWindowWidthRatio: 0.72,
-    renderWidthRatio: 1.12,
-    walkableTopRatio: 0.30,
-    standingLineRatio: 0.12,
-    removeNearWhite: true,
-    whiteThreshold: 242,
-    edgeFadePixels: 22,
-    bottomFadePixels: 16,
-  },
-  ellinia: {
-    renderHeight: 112,
-    imageCropTopRatio: 0.16,
-    imageCropHeightRatio: 0.58,
-    sourceWindowWidthRatio: 0.74,
-    renderWidthRatio: 1.18,
-    walkableTopRatio: 0.64,
-    removeNearWhite: true,
-    whiteThreshold: 242,
-    edgeFadePixels: 22,
-    bottomFadePixels: 16,
-  },
-  taipei: {
-    renderHeight: 88,
-    imageCropTopRatio: 0.18,
-    imageCropHeightRatio: 0.56,
-    sourceWindowWidthRatio: 0.78,
-    renderWidthRatio: 1.02,
-    walkableTopRatio: 0.66,
-    standingLineRatio: 0.88,
-    removeNearWhite: true,
-    whiteThreshold: 242,
-    edgeFadePixels: 20,
-    bottomFadePixels: 14,
-  },
-};
+const PLATFORM_CAP_RATIO = 0.2;
+const PLATFORM_TILE_RATIO = 0.3;
+
+const MONSTER_RESPAWN_MS = 8000;
+const AUTOSAVE_INTERVAL_MS = 30000;
+const MINIBOSS_RESPAWN_MS = 45000;
 
 export class BaseMapScene extends Phaser.Scene {
   constructor(key, mapKey) {
@@ -159,6 +135,18 @@ export class BaseMapScene extends Phaser.Scene {
     // 只註冊 shutdown：場景被 destroy 前 Phaser 必先觸發 shutdown，且本遊戲場景
     // 從不被 scene.remove()，重複註冊 destroy 監聽只會在 relaunch 時累積死監聽。
     this.events.once('shutdown', this._onSceneShutdown, this);
+
+    // 自動存檔：進入一般地圖時存一次，之後每 30 秒存一次
+    if (isSavableMap(this.mapKey)) {
+      const gs = this.registry.get('gameState');
+      if (gs) gs.currentMap = this.mapKey;
+      saveGame(gs);
+      this.time.addEvent({
+        delay: AUTOSAVE_INTERVAL_MS,
+        loop: true,
+        callback: () => saveGame(this.registry.get('gameState')),
+      });
+    }
   }
 
   // ── 背景（單張 Image 以 cover 填滿，底部對齊 GROUND_Y）────────────────────
@@ -190,268 +178,67 @@ export class BaseMapScene extends Phaser.Scene {
   _createPlatforms() {
     this.platforms      = this.physics.add.staticGroup();
     this.thinPlatforms  = this.physics.add.staticGroup();
+    const theme = PLATFORM_THEMES[this.mapKey];
+    const useTheme = theme && this.textures.exists(theme.key);
     for (const p of this.mapData.platforms) {
       const group = p.thin ? this.thinPlatforms : this.platforms;
-      if (p.renderMode === 'image-native' && p.decorationKey && this.textures.exists(p.decorationKey)) {
-        this._createImageNativePlatform(group, p);
-        continue;
-      }
-
-      const textureKey = `platform-${p.type || 'grass'}`;
-      const sprite = group.create(p.x + p.width / 2, p.y + PLATFORM_HEIGHT / 2, textureKey);
+      const sprite = group.create(p.x + p.width / 2, p.y + PLATFORM_HEIGHT / 2, `platform-${p.type || 'grass'}`);
       sprite.setDisplaySize(p.width, PLATFORM_HEIGHT);
       sprite.refreshBody();
       sprite.setDepth(5);
-      if (p.isGround) sprite.setAlpha(0);  // 地板用背景自然地板視覺，不疊加紋理
-      if (p.decorationKey && this.textures.exists(p.decorationKey)) {
-        this._createPlatformDecoration(p);
-      }
+      // 地板用背景自然地板視覺；有主題跳台圖時碰撞體透明，改畫主題圖
+      if (p.isGround || useTheme) sprite.setAlpha(0);
+      if (!p.isGround && useTheme) this._drawThemedPlatform(p, theme);
     }
   }
 
-  _createImageNativePlatform(group, platformData) {
-    const mapStyle = IMAGE_PLATFORM_STYLE[this.mapKey] || {};
-    const {
-      decorationKey,
-      type = 'wood',
-      x,
-      y,
-      width,
-      imageRowIndex,
-      imageCropTopRatio = mapStyle.imageCropTopRatio ?? 0.28,
-      imageCropHeightRatio = mapStyle.imageCropHeightRatio ?? 0.48,
-      sourceWindowWidthRatio = mapStyle.sourceWindowWidthRatio ?? 1,
-      renderHeight = mapStyle.renderHeight,
-      renderWidthRatio = mapStyle.renderWidthRatio,
-      walkableTopRatio = mapStyle.walkableTopRatio ?? 0.42,
-      standingLineRatio = mapStyle.standingLineRatio ?? walkableTopRatio,
-      walkableHeight = 18,
-      walkableLeftInset = mapStyle.walkableLeftInset,
-      walkableRightInset = mapStyle.walkableRightInset,
-      walkableLeftInsetRatio = mapStyle.walkableLeftInsetRatio ?? 0,
-      walkableRightInsetRatio = mapStyle.walkableRightInsetRatio ?? 0,
-      walkableCenterOffset = mapStyle.walkableCenterOffset ?? 0,
-      removeNearWhite = mapStyle.removeNearWhite ?? false,
-      whiteThreshold = mapStyle.whiteThreshold ?? 245,
-      edgeFadePixels = mapStyle.edgeFadePixels ?? 0,
-      bottomFadePixels = mapStyle.bottomFadePixels ?? 0,
-    } = platformData;
+  // 把主題圖切成左端 / 中段 / 右端三張紋理（中段左右邊緣交叉淡化，重複鋪時看不出接縫）
+  _ensurePlatformSlices(themeKey) {
+    const leftKey = `${themeKey}__L`;
+    if (this.textures.exists(leftKey)) return;
+    const src = this.textures.get(themeKey).getSourceImage();
+    const w = src.width, h = src.height;
+    const capW = Math.round(w * PLATFORM_CAP_RATIO);
+    const tileW = Math.round(w * PLATFORM_TILE_RATIO);
+    const blendW = Math.round(tileW * 0.25);
+    const tileX = Math.round((w - tileW) / 2);
 
-    const texture = this.textures.get(decorationKey);
-    const source = texture?.getSourceImage?.();
-    if (!source?.width || !source?.height) return null;
-
-    const rowCount = 3;
-    const rowHeight = Math.floor(source.height / rowCount);
-    const rowIndex = imageRowIndex ?? PLATFORM_DECORATION_ROW_INDEX[this.mapKey] ?? 0;
-    const cropTop = rowIndex * rowHeight + Math.floor(rowHeight * imageCropTopRatio);
-    const cropHeight = Math.max(64, Math.floor(rowHeight * imageCropHeightRatio));
-    const sourceWindowWidth = Math.min(
-      source.width,
-      Math.max(width, Math.round(source.width * sourceWindowWidthRatio)),
-    );
-    const cropLeft = Math.max(0, Math.floor((source.width - sourceWindowWidth) / 2));
-    const displayHeight = renderHeight
-      ?? Math.round(cropHeight * 0.5);
-    const proportionalWidth = Math.max(1, Math.round((displayHeight * sourceWindowWidth) / cropHeight));
-    const displayWidth = platformData.renderWidth
-      ?? (renderWidthRatio
-        ? Math.round(width * renderWidthRatio)
-        : proportionalWidth);
-    const centerX = x + width / 2;
-    const visualLeftX = centerX - displayWidth / 2;
-    const baseEdgeInset = Math.max(0, Math.round((displayWidth - width) / 2));
-    const resolvedLeftInset = this._resolvePlatformEdgeInset({
-      explicitInset: walkableLeftInset,
-      insetRatio: walkableLeftInsetRatio,
-      displayWidth,
-      baseInset: baseEdgeInset,
-    });
-    const resolvedRightInset = this._resolvePlatformEdgeInset({
-      explicitInset: walkableRightInset,
-      insetRatio: walkableRightInsetRatio,
-      displayWidth,
-      baseInset: baseEdgeInset,
-    });
-    const walkableMinX = visualLeftX + resolvedLeftInset;
-    const walkableMaxX = visualLeftX + displayWidth - resolvedRightInset;
-    const computedWalkableWidth = Math.max(24, Math.round(walkableMaxX - walkableMinX));
-    const walkableWidth = platformData.walkableWidth ?? computedWalkableWidth;
-    const walkableCenterX = (walkableMinX + walkableMaxX) / 2 + walkableCenterOffset;
-    const walkableLeftX = computedWalkableWidth > walkableWidth
-      ? Phaser.Math.Clamp(walkableCenterX - walkableWidth / 2, walkableMinX, walkableMaxX - walkableWidth)
-      : walkableMinX;
-    const colliderCenterX = walkableLeftX + walkableWidth / 2;
-    const walkableTopOffset = Math.round(displayHeight * walkableTopRatio);
-    const visualTopY = y - walkableTopOffset;
-    const standingTopOffset = Math.round(displayHeight * standingLineRatio);
-    const walkableTopY = visualTopY + standingTopOffset;
-    const textureKey = (removeNearWhite || edgeFadePixels > 0 || bottomFadePixels > 0)
-      ? this._getPlatformProcessedTextureKey({
-          decorationKey,
-          rowIndex,
-          cropLeft,
-          cropTop,
-          cropWidth: sourceWindowWidth,
-          cropHeight,
-          whiteThreshold,
-          edgeFadePixels,
-          bottomFadePixels,
-        })
-      : decorationKey;
-
-    platformData.width = walkableWidth;
-    platformData.x = walkableLeftX;
-    platformData.standingBounds = {
-      left: walkableLeftX,
-      right: walkableLeftX + walkableWidth,
-      width: walkableWidth,
-      centerX: colliderCenterX,
-      topY: walkableTopY,
-      bottomY: walkableTopY + walkableHeight,
-      visualLeftX,
-      visualRightX: visualLeftX + displayWidth,
-      visualWidth: displayWidth,
-      visualTopY,
-      visualBottomY: visualTopY + displayHeight,
-      standingTopOffset,
-      edgeInsetLeft: walkableLeftX - visualLeftX,
-      edgeInsetRight: visualLeftX + displayWidth - (walkableLeftX + walkableWidth),
+    const slice = (key, sx, sw) => {
+      const tex = this.textures.createCanvas(key, sw, h);
+      tex.getContext().drawImage(src, sx, 0, sw, h, 0, 0, sw, h);
+      tex.refresh();
     };
+    slice(leftKey, 0, capW);
+    slice(`${themeKey}__R`, w - capW, capW);
 
-    const collider = group.create(colliderCenterX, walkableTopY + walkableHeight / 2, `platform-${type}`);
-    collider.setDisplaySize(walkableWidth, walkableHeight);
-    collider.setAlpha(0);
-    collider.refreshBody();
-
-    const sprite = this.add.image(centerX, y - walkableTopOffset, textureKey);
-
-    sprite.setOrigin(0.5, 0);
-    if (!removeNearWhite) {
-      sprite.setCrop(cropLeft, cropTop, sourceWindowWidth, cropHeight);
+    const mid = this.textures.createCanvas(`${themeKey}__M`, tileW, h);
+    const ctx = mid.getContext();
+    ctx.drawImage(src, tileX, 0, tileW, h, 0, 0, tileW, h);
+    // 左緣用 tile 右側之後的像素淡入，讓 tile 首尾相接
+    for (let i = 0; i < blendW; i++) {
+      ctx.globalAlpha = 1 - i / blendW;
+      ctx.drawImage(src, tileX + tileW + i, 0, 1, h, i, 0, 1, h);
     }
-    sprite.setDisplaySize(displayWidth, displayHeight);
-    sprite.setDepth(6);
-
-    return collider;
+    ctx.globalAlpha = 1;
+    mid.refresh();
   }
 
-  _resolvePlatformEdgeInset({ explicitInset, insetRatio = 0, displayWidth, baseInset = 0 }) {
-    if (typeof explicitInset === 'number') {
-      return Math.max(0, Math.round(explicitInset));
+  _drawThemedPlatform(p, theme) {
+    this._ensurePlatformSlices(theme.key);
+    const leftTex = this.textures.get(`${theme.key}__L`).getSourceImage();
+    const h = leftTex.height;
+    const fullCapW = leftTex.width;
+    const capW = Math.min(fullCapW, Math.floor(p.width / 2));
+    const top = p.y - theme.surfaceTop;
+
+    const left = this.add.image(p.x, top, `${theme.key}__L`).setOrigin(0, 0).setDepth(5);
+    if (capW < fullCapW) left.setCrop(0, 0, capW, h);
+    const right = this.add.image(p.x + p.width - fullCapW, top, `${theme.key}__R`).setOrigin(0, 0).setDepth(5);
+    if (capW < fullCapW) right.setCrop(fullCapW - capW, 0, capW, h);
+    const midW = p.width - capW * 2;
+    if (midW > 0) {
+      this.add.tileSprite(p.x + capW, top, midW, h, `${theme.key}__M`).setOrigin(0, 0).setDepth(5);
     }
-
-    return Math.max(baseInset, Math.round(displayWidth * insetRatio));
-  }
-
-  _getPlatformProcessedTextureKey({
-    decorationKey,
-    rowIndex,
-    cropLeft,
-    cropTop,
-    cropWidth,
-    cropHeight,
-    whiteThreshold,
-    edgeFadePixels,
-    bottomFadePixels,
-  }) {
-    const processedKey = [
-      decorationKey,
-      'processed',
-      rowIndex,
-      cropLeft,
-      cropTop,
-      cropWidth,
-      cropHeight,
-      whiteThreshold,
-      edgeFadePixels,
-      bottomFadePixels,
-    ].join('-');
-
-    if (this.textures.exists(processedKey)) {
-      return processedKey;
-    }
-
-    const source = this.textures.get(decorationKey)?.getSourceImage?.();
-    if (!source?.width || !source?.height) {
-      return decorationKey;
-    }
-
-    const canvasTexture = this.textures.createCanvas(processedKey, cropWidth, cropHeight);
-    const context = canvasTexture.getContext();
-    context.clearRect(0, 0, cropWidth, cropHeight);
-    context.drawImage(
-      source,
-      cropLeft,
-      cropTop,
-      cropWidth,
-      cropHeight,
-      0,
-      0,
-      cropWidth,
-      cropHeight,
-    );
-
-    const imageData = context.getImageData(0, 0, cropWidth, cropHeight);
-    const pixels = imageData.data;
-    for (let index = 0; index < pixels.length; index += 4) {
-      const pixelIndex = index / 4;
-      const x = pixelIndex % cropWidth;
-      const y = Math.floor(pixelIndex / cropWidth);
-      const red = pixels[index];
-      const green = pixels[index + 1];
-      const blue = pixels[index + 2];
-      const baseAlpha = pixels[index + 3];
-      if (baseAlpha === 0) continue;
-
-      let alpha = baseAlpha;
-      const minChannelValue = Math.min(red, green, blue);
-      const safeWhiteThreshold = Math.min(whiteThreshold, MAX_PLATFORM_WHITE_THRESHOLD);
-      if (minChannelValue >= safeWhiteThreshold) {
-        const fadeRatio = Phaser.Math.Clamp((255 - minChannelValue) / (255 - safeWhiteThreshold), 0, 1);
-        alpha = Math.round(alpha * fadeRatio);
-      }
-
-      if (edgeFadePixels > 0) {
-        const sideDistance = Math.min(x, cropWidth - 1 - x);
-        if (sideDistance < edgeFadePixels) {
-          alpha = Math.round(alpha * Phaser.Math.Clamp(sideDistance / edgeFadePixels, 0, 1));
-        }
-      }
-
-      if (bottomFadePixels > 0) {
-        const bottomDistance = cropHeight - 1 - y;
-        if (bottomDistance < bottomFadePixels) {
-          alpha = Math.round(alpha * Phaser.Math.Clamp(bottomDistance / bottomFadePixels, 0, 1));
-        }
-      }
-
-      pixels[index + 3] = alpha;
-    }
-    context.putImageData(imageData, 0, 0);
-    canvasTexture.refresh();
-
-    return processedKey;
-  }
-
-  _createPlatformDecoration(platformData) {
-    const { decorationKey, x, y, width } = platformData;
-    const decoration = this.add.image(x + width / 2, y + PLATFORM_HEIGHT / 2, decorationKey);
-    const texture = this.textures.get(decorationKey);
-    const source = texture?.getSourceImage?.();
-
-    if (source?.width && source?.height) {
-      const rowCount = 3;
-      const rowHeight = Math.floor(source.height / rowCount);
-      const rowIndex = PLATFORM_DECORATION_ROW_INDEX[this.mapKey] ?? 0;
-      const cropHeight = Math.max(48, Math.floor(rowHeight * 0.36));
-      const cropTop = rowIndex * rowHeight + Math.floor(rowHeight * 0.37);
-      decoration.setCrop(0, cropTop, source.width, cropHeight);
-    }
-
-    decoration.setDisplaySize(width, PLATFORM_HEIGHT);
-    decoration.setDepth(6);
-    return decoration;
   }
 
   // ── 怪物生成（依平台隨機分佈）─────────────────────────────────────────────
@@ -462,6 +249,8 @@ export class BaseMapScene extends Phaser.Scene {
     const allPlats = [...this.mapData.platforms].sort((a, b) => a.x - b.x);
     // 排除寬度太窄的平台
     const validPlats = allPlats.filter((platform) => this._getPlatformStandingBounds(platform).width >= 80);
+
+    this._spawnPlatforms = validPlats;
 
     let platIdx = 0;
 
@@ -475,21 +264,45 @@ export class BaseMapScene extends Phaser.Scene {
         // 輪流使用各個平台，確保均勻分佈
         const plat = validPlats[platIdx % validPlats.length];
         platIdx++;
-
-        // 在平台寬度內隨機 x，邊緣留 20px 空間
-        const bounds = this._getPlatformStandingBounds(plat);
-        const margin = 20;
-        const usableWidth = bounds.width - margin * 2;
-        const mx = usableWidth > 10
-          ? bounds.left + margin + Math.random() * usableWidth
-          : bounds.centerX;
-        const monster = new Monster(this, mx, 0, monsterDef);
-        this._alignDynamicEntityToPlatformTop(monster, bounds.topY);
-        monster.player = this.player;
-        monster.patrolOriginX = mx;
-        this.monsters.add(monster);
+        this._spawnMonsterOn(monsterDef, plat);
       }
     }
+  }
+
+  _spawnMonsterOn(monsterDef, plat) {
+    // 在平台寬度內隨機 x，邊緣留 20px 空間
+    const bounds = this._getPlatformStandingBounds(plat);
+    const margin = 20;
+    const usableWidth = bounds.width - margin * 2;
+    const mx = usableWidth > 10
+      ? bounds.left + margin + Math.random() * usableWidth
+      : bounds.centerX;
+    const monster = new Monster(this, mx, 0, monsterDef);
+    this._alignDynamicEntityToPlatformTop(monster, bounds.topY);
+    monster.player = this.player;
+    monster.patrolOriginX = mx;
+    // 一般地圖的怪會重生（副本 / Boss 戰自己生怪，不帶這個標記）
+    monster._respawnDef = monsterDef;
+    this.monsters.add(monster);
+    return monster;
+  }
+
+  // 怪物死亡 8 秒後（小王 45 秒）在隨機平台重生，優先選離玩家較遠的平台，淡入登場
+  _scheduleRespawn(monsterDef) {
+    const delay = monsterDef.spawnRole === 'miniboss' ? MINIBOSS_RESPAWN_MS : MONSTER_RESPAWN_MS;
+    this.time.delayedCall(delay, () => {
+      if (!this.sys.isActive() || !this._spawnPlatforms?.length) return;
+      const px = this.player?.x ?? 0;
+      const far = this._spawnPlatforms.filter((plat) => {
+        const b = this._getPlatformStandingBounds(plat);
+        return Math.abs(b.centerX - px) > 320;
+      });
+      const pool = far.length ? far : this._spawnPlatforms;
+      const plat = pool[Math.floor(Math.random() * pool.length)];
+      const monster = this._spawnMonsterOn(monsterDef, plat);
+      monster.setAlpha(0);
+      this.tweens.add({ targets: monster, alpha: 1, duration: 500 });
+    });
   }
 
   // ── 傳送門 ─────────────────────────────────────────────────────────────────
@@ -499,7 +312,7 @@ export class BaseMapScene extends Phaser.Scene {
       if (pd.requireBoss && !gs.bossUnlocked) continue;
 
       const portal = this.portals.create(pd.x, pd.y, 'portal');
-      portal.setDepth(6);
+      portal.setVisible(false);  // 只當碰撞區，畫面由下方的光門特效負責
       portal.targetMap = pd.target;
       portal.spawnX   = pd.spawnX;  // 目標地圖的重生位置
       portal.dungeonId = pd.dungeonId;  // Phase 14：副本 ID（target='dungeon' 時用）
@@ -514,17 +327,54 @@ export class BaseMapScene extends Phaser.Scene {
           labelText = `${labelText}（今日剩 ${remaining} 次）`;
         }
       }
+      this._createPortalVisual(pd, labelText);
+    }
+  }
 
-      this.add.text(pd.x, pd.y - 10, labelText, {
-        fontSize: '12px', color: '#ddaaff', fontFamily: 'Arial',
-      }).setDepth(7).setOrigin(0.5, 1);
+  // 光門：橢圓光環 + 旋轉漩渦 + 地面符文 + 上升光點 + 木牌標籤
+  // 顏色依目的地區分：一般地圖青藍、副本翠綠、Boss 暗紅紫
+  _createPortalVisual(pd, labelText) {
+    const color = pd.target === 'dungeon' ? 0x5cf08a : pd.target === 'boss' ? 0xff4f8a : 0x6fd8ff;
+    const x = pd.x;
+    const cy = pd.y - 6;
+    const feetY = pd.y + 39;
+    const ADD = Phaser.BlendModes.ADD;
+    this._portalTweens = this._portalTweens || [];
+    const loop = (cfg) => this._portalTweens.push(this.tweens.add({ repeat: -1, ...cfg }));
 
-      // Phase 6.5：portal 無限循環 tween 必須在場景 shutdown 時 stop，
-      // 否則跳地圖時殘留的 tween 會累積（Phaser 場景切換不自動清 tween）
-      this._portalTweens = this._portalTweens || [];
-      this._portalTweens.push(
-        this.tweens.add({ targets: portal, alpha: 0.5, duration: 800, yoyo: true, repeat: -1 })
-      );
+    const rune = this.add.image(x, feetY - 3, VFX_TEX.GROUND_RUNE).setDepth(6)
+      .setTint(color).setBlendMode(ADD).setScale(0.36, 0.09).setAlpha(0.8);
+    const glow = this.add.image(x, cy, VFX_TEX.SOFT_GLOW).setDepth(6)
+      .setTint(color).setBlendMode(ADD).setScale(2.2, 3.1).setAlpha(0.55);
+    const swirl = this.add.image(x, cy, VFX_TEX.VORTEX_SPIRAL).setDepth(6)
+      .setTint(color).setBlendMode(ADD).setScale(0.3, 0.46).setAlpha(0.75);
+    const ring = this.add.image(x, cy, VFX_TEX.PORTAL_RING).setDepth(7)
+      .setTint(color).setBlendMode(ADD).setScale(0.62, 0.62);
+
+    loop({ targets: rune, angle: 360, duration: 6000 });
+    loop({ targets: swirl, angle: -360, duration: 2600 });
+    loop({ targets: glow, alpha: 0.3, duration: 900, yoyo: true, ease: 'Sine.easeInOut' });
+    loop({ targets: ring, scaleX: 0.66, scaleY: 0.65, duration: 1100, yoyo: true, ease: 'Sine.easeInOut' });
+
+    const motes = this.add.particles(x, feetY - 6, 'particle-dot', {
+      x: { min: -22, max: 22 },
+      speedY: { min: -70, max: -30 },
+      speedX: { min: -6, max: 6 },
+      lifespan: 1300,
+      frequency: 110,
+      scale: { start: 0.9, end: 0 },
+      alpha: { start: 0.9, end: 0 },
+      tint: [color, 0xffffff],
+      blendMode: 'ADD',
+    });
+    motes.setDepth(7);
+
+    if (labelText) {
+      const label = this.add.text(x, cy - 62, labelText, {
+        fontSize: '13px', color: '#3a2410', fontFamily: 'Arial', fontStyle: 'bold',
+      }).setOrigin(0.5, 0.5).setDepth(9);
+      this.add.nineslice(x, cy - 62, 'hud_panel_sm', undefined, Math.max(64, label.width + 24), 26, 9, 9, 9, 9)
+        .setOrigin(0.5, 0.5).setDepth(8).setTint(0xe6d6bc);
     }
   }
 
@@ -538,7 +388,9 @@ export class BaseMapScene extends Phaser.Scene {
       // NPC 圖片以腳底貼齊平台頂，和玩家/怪物站在同一平面。
       const npc = this.physics.add.staticImage(placement.x, footY, npcDef.id || 'npc_new_2');
       npc.setOrigin(0.5, 1);
-      npc.setDisplaySize(60, 80);
+      // NPC 圖統一 80px 高，依原圖比例縮放避免變形
+      const npcSrc = npc.texture.getSourceImage();
+      npc.setScale(80 / Math.max(1, npcSrc.height || 80));
       npc.setDepth(8);
       npc.refreshBody();
       npc._npcData = npcDef;
@@ -672,29 +524,26 @@ export class BaseMapScene extends Phaser.Scene {
       '你可以在這裡購買補給品。',
     ];
 
-    const bg = this.add.graphics().setDepth(100);
-    bg.fillStyle(0x001122, 0.92);
-    bg.fillRoundedRect(cx - 220, cy - 70, 440, 140, 10);
-    bg.lineStyle(2, 0x4488aa, 0.9);
-    bg.strokeRoundedRect(cx - 220, cy - 70, 440, 140, 10);
+    const bg = addParchmentPanel(this, cx - 240, cy - 84, 480, 170, { depth: 100, world: true });
 
-    const title = this.add.text(cx, cy - 52, npcDef.name || 'NPC', {
-      fontSize: '15px', color: '#ffee88', fontFamily: 'Arial',
-      stroke: '#000', strokeThickness: 3,
+    const title = this.add.text(cx, cy - 58, npcDef.name || 'NPC', {
+      fontSize: '16px', color: '#ffe27a', fontFamily: 'Arial', fontStyle: 'bold',
+      stroke: '#1a0e06', strokeThickness: 4,
     }).setOrigin(0.5, 0).setDepth(101);
 
     const msgText = this.add.text(cx, cy - 24, dialogLines.join('\n'), {
-      fontSize: '13px', color: '#ddffee', fontFamily: 'Arial',
+      fontSize: '14px', color: '#fff3dc', fontFamily: 'Arial',
+      stroke: '#1a0e06', strokeThickness: 2,
       wordWrap: { width: 400 }, lineSpacing: 4,
     }).setOrigin(0.5, 0).setDepth(101);
 
-    const close = this.add.text(cx, cy + 58, '[ 按 F 或 ESC 關閉 ]', {
-      fontSize: '12px', color: '#88aacc', fontFamily: 'Arial',
+    const close = this.add.text(cx, cy + 60, '[ 按 F 或 ESC 關閉 ]', {
+      fontSize: '12px', color: '#e8d3a8', fontFamily: 'Arial', stroke: '#1a0e06', strokeThickness: 3,
     }).setOrigin(0.5, 0.5).setDepth(101)
       .setInteractive({ useHandCursor: true })
       .on('pointerdown', () => this._closeNpcDialog())
-      .on('pointerover', () => close.setStyle({ color: '#aaccff' }))
-      .on('pointerout',  () => close.setStyle({ color: '#88aacc' }));
+      .on('pointerover', () => close.setColor('#ffe27a'))
+      .on('pointerout',  () => close.setColor('#e8d3a8'));
 
     this._npcDialog = { bg, title, msgText, close };
   }
@@ -803,6 +652,7 @@ export class BaseMapScene extends Phaser.Scene {
   }
 
   _onMonsterDied(monster) {
+    if (monster?._respawnDef) this._scheduleRespawn(monster._respawnDef);
     const gs = this.registry.get('gameState');
     gs.killCount++;
     this.player.gainExp(monster.exp || 0);

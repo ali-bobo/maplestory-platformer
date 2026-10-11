@@ -21,6 +21,12 @@ export const VFX_TEX = {
   LIGHT_RAYS: 'vfx_light_rays',
   WHITE_PX: 'vfx_white_px', // 8×8 白方塊，供 Image 版 HP 條等 texture-based 元件用
   SPEED_LINES: 'vfx_speed_lines', // X 技能衝刺速度線（從中心向 +X 方向的多條水平線）
+  SHURIKEN: 'vfx_shuriken', // 48×48 四刃飛鏢（金屬漸層 + 刃口高光，原色不需 tint）
+  VORTEX_SPIRAL: 'vfx_vortex_spiral', // 256×256 白色螺旋臂（靠 tint 染色、旋轉）
+  VORTEX_CORE: 'vfx_vortex_core', // 128×128 黑洞核心（深色中心 + 亮邊）
+  GROUND_RUNE: 'vfx_ground_rune', // 256×256 符文環（使用時 scaleY 壓扁成地面橢圓）
+  SOFT_GLOW: 'vfx_soft_glow', // 64×64 白色徑向柔光
+  PORTAL_RING: 'vfx_portal_ring', // 100×150 傳送門橢圓光環（白色，tint 染色）
 };
 
 /**
@@ -316,5 +322,160 @@ export function initVfxTextures(scene) {
     drawSpeedLinesTo(g, 100, 50, 60, 80, 10); // cx, cy, length, spread, count
     g.generateTexture(VFX_TEX.SPEED_LINES, 200, 100);
     g.destroy();
+  }
+
+  // 12-16. Canvas 2D 漸層紋理（Graphics 無法做漸層，改用 createCanvas）
+  canvasTexture(scene, VFX_TEX.SHURIKEN, 48, 48, drawShurikenCanvas);
+  canvasTexture(scene, VFX_TEX.VORTEX_SPIRAL, 256, 256, drawVortexSpiralCanvas);
+  canvasTexture(scene, VFX_TEX.VORTEX_CORE, 128, 128, drawVortexCoreCanvas);
+  canvasTexture(scene, VFX_TEX.GROUND_RUNE, 256, 256, drawGroundRuneCanvas);
+  canvasTexture(scene, VFX_TEX.PORTAL_RING, 100, 150, drawPortalRingCanvas);
+  canvasTexture(scene, VFX_TEX.SOFT_GLOW, 64, 64, (ctx, w) => {
+    const grad = ctx.createRadialGradient(w / 2, w / 2, 0, w / 2, w / 2, w / 2);
+    grad.addColorStop(0, 'rgba(255,255,255,1)');
+    grad.addColorStop(0.35, 'rgba(255,255,255,0.45)');
+    grad.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, w, w);
+  });
+}
+
+function canvasTexture(scene, key, w, h, draw) {
+  if (scene.textures.exists(key)) return;
+  const canvasTex = scene.textures.createCanvas(key, w, h);
+  draw(canvasTex.getContext(), w, h);
+  canvasTex.refresh();
+}
+
+function drawShurikenCanvas(ctx, w) {
+  const c = w / 2;
+  ctx.translate(c, c);
+  // 外圍藍色光暈
+  const halo = ctx.createRadialGradient(0, 0, 4, 0, 0, c);
+  halo.addColorStop(0, 'rgba(150,190,255,0.55)');
+  halo.addColorStop(1, 'rgba(150,190,255,0)');
+  ctx.fillStyle = halo;
+  ctx.beginPath(); ctx.arc(0, 0, c, 0, Math.PI * 2); ctx.fill();
+  // 四片刃，每片一半亮一半暗，做出立體感
+  const tip = c - 3;
+  const root = 6;
+  for (let i = 0; i < 4; i++) {
+    ctx.save();
+    ctx.rotate((Math.PI / 2) * i);
+    ctx.fillStyle = '#e8eef8';
+    ctx.beginPath(); ctx.moveTo(0, -tip); ctx.lineTo(root, -root); ctx.lineTo(0, 0); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#7d879c';
+    ctx.beginPath(); ctx.moveTo(0, -tip); ctx.lineTo(-root, -root); ctx.lineTo(0, 0); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = 'rgba(30,34,52,0.9)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(-root, -root); ctx.lineTo(0, -tip); ctx.lineTo(root, -root); ctx.stroke();
+    ctx.restore();
+  }
+  // 中心環 + 孔
+  ctx.fillStyle = '#3a4158';
+  ctx.beginPath(); ctx.arc(0, 0, 6.5, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#c9d4ea';
+  ctx.beginPath(); ctx.arc(0, 0, 4.5, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#1a1d2a';
+  ctx.beginPath(); ctx.arc(0, 0, 2, 0, Math.PI * 2); ctx.fill();
+}
+
+function drawVortexSpiralCanvas(ctx, w) {
+  const c = w / 2;
+  const arms = 4;
+  ctx.translate(c, c);
+  ctx.lineCap = 'round';
+  for (let a = 0; a < arms; a++) {
+    const base = (Math.PI * 2 * a) / arms;
+    // 由外向內畫，越內越粗越亮
+    for (let t = 0; t < 1; t += 0.012) {
+      const r = (c - 6) * (1 - t);
+      const ang = base + t * Math.PI * 2.6;
+      const r2 = (c - 6) * (1 - t - 0.014);
+      const ang2 = base + (t + 0.014) * Math.PI * 2.6;
+      ctx.strokeStyle = `rgba(255,255,255,${(0.25 + t * 0.75).toFixed(3)})`;
+      ctx.lineWidth = 4 + t * 14;
+      ctx.beginPath();
+      ctx.moveTo(Math.cos(ang) * r, Math.sin(ang) * r);
+      ctx.lineTo(Math.cos(ang2) * r2, Math.sin(ang2) * r2);
+      ctx.stroke();
+    }
+  }
+}
+
+function drawVortexCoreCanvas(ctx, w) {
+  const c = w / 2;
+  const glow = ctx.createRadialGradient(c, c, 0, c, c, c);
+  glow.addColorStop(0, 'rgba(8,0,18,1)');
+  glow.addColorStop(0.32, 'rgba(20,0,40,1)');
+  glow.addColorStop(0.45, 'rgba(210,140,255,0.95)');
+  glow.addColorStop(0.6, 'rgba(140,60,230,0.55)');
+  glow.addColorStop(1, 'rgba(90,20,170,0)');
+  ctx.fillStyle = glow;
+  ctx.fillRect(0, 0, w, w);
+}
+
+function drawGroundRuneCanvas(ctx, w) {
+  const c = w / 2;
+  ctx.translate(c, c);
+  ctx.strokeStyle = 'rgba(255,255,255,0.95)';
+  ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.arc(0, 0, c - 4, 0, Math.PI * 2); ctx.stroke();
+  ctx.lineWidth = 1.5;
+  ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+  ctx.beginPath(); ctx.arc(0, 0, c - 14, 0, Math.PI * 2); ctx.stroke();
+  ctx.beginPath(); ctx.arc(0, 0, c * 0.45, 0, Math.PI * 2); ctx.stroke();
+  // 符文刻痕（環帶上的短筆劃）
+  ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+  ctx.lineWidth = 2;
+  const marks = 24;
+  for (let i = 0; i < marks; i++) {
+    const ang = (Math.PI * 2 * i) / marks;
+    ctx.save();
+    ctx.rotate(ang);
+    ctx.translate(0, -(c - 9));
+    ctx.beginPath();
+    if (i % 3 === 0) { ctx.moveTo(-3, -3); ctx.lineTo(3, 3); ctx.moveTo(3, -3); ctx.lineTo(-3, 3); }
+    else if (i % 3 === 1) { ctx.moveTo(0, -4); ctx.lineTo(0, 4); ctx.moveTo(-3, 0); ctx.lineTo(3, 0); }
+    else { ctx.arc(0, 0, 2.5, 0, Math.PI * 2); }
+    ctx.stroke();
+    ctx.restore();
+  }
+  // 內部六芒星
+  ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+  ctx.lineWidth = 1.5;
+  for (let k = 0; k < 2; k++) {
+    ctx.beginPath();
+    for (let i = 0; i <= 3; i++) {
+      const ang = -Math.PI / 2 + k * Math.PI / 3 + (Math.PI * 2 * i) / 3;
+      const x = Math.cos(ang) * (c - 16);
+      const y = Math.sin(ang) * (c - 16);
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+}
+
+function drawPortalRingCanvas(ctx, w, h) {
+  const cx = w / 2;
+  const cy = h / 2;
+  // 內部半透明填色（越靠中心越亮）
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.scale(1, (h - 12) / (w - 12));
+  const fill = ctx.createRadialGradient(0, 0, 4, 0, 0, (w - 12) / 2);
+  fill.addColorStop(0, 'rgba(255,255,255,0.55)');
+  fill.addColorStop(0.7, 'rgba(255,255,255,0.18)');
+  fill.addColorStop(1, 'rgba(255,255,255,0.05)');
+  ctx.fillStyle = fill;
+  ctx.beginPath(); ctx.arc(0, 0, (w - 12) / 2, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+  // 外環：粗柔光 + 細亮線
+  for (const [lw, a] of [[10, 0.25], [5, 0.55], [2, 1]]) {
+    ctx.strokeStyle = `rgba(255,255,255,${a})`;
+    ctx.lineWidth = lw;
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, w / 2 - 7, h / 2 - 7, 0, 0, Math.PI * 2);
+    ctx.stroke();
   }
 }

@@ -17,7 +17,8 @@
     "dev": "node build.js --watch",
     "serve": "npx serve . -l tcp://127.0.0.1:3000",
     "play": "npx --yes serve . -l tcp://127.0.0.1:3000",
-    "audit": "npm audit --audit-level=moderate"
+    "audit": "npm audit --audit-level=moderate",
+    "test": "node test/run.js"
   },
   "dependencies": {
     "phaser": "3.90.0",
@@ -27,6 +28,6 @@
     "esbuild": "0.25.12"
   },
   "overrides": {
-    "i18next-http-backend": "3.0.5"
+    "i18next-http-backend": "4.0.2"
   }
 }

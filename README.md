@@ -1,6 +1,6 @@
-# 盜賊傳說 — MapleStory 風格平台遊戲
+# 盜賊傳說 — 橫向捲軸平台動作遊戲
 
-楓之谷風格的 2D 橫向捲軸平台動作遊戲，採用 Phaser 3 + esbuild 開發。扮演盜賊，從浮空島嶼出發、串接 6 張地圖、挑戰暗影魔君 Boss，並有副本系統提升重玩價值。
+2D 橫向捲軸平台動作遊戲，採用 Phaser 3 + esbuild 開發。扮演盜賊，從浮空島嶼出發、串接 6 張地圖、挑戰暗影魔君 Boss，並有副本系統提升重玩價值。
 
 > **🎮 想直接玩遊戲？請看 [PLAYER_GUIDE.md](docs/PLAYER_GUIDE.md)**（含 30 秒上手、操作說明、地圖介紹、副本系統、FAQ、Troubleshooting）
 >
@@ -24,7 +24,10 @@ npm install
 # 2. 打包（把 src/*.js → dist/bundle.js）
 npm run build
 
-# 3. 啟動本地伺服器
+# 3. 執行測試（選用）
+npm test
+
+# 4. 啟動本地伺服器
 npm run serve
 ```
 
@@ -60,7 +63,7 @@ src/
                        TownScene / BossScene / DungeonScene / UIScene / GameOverScene
   entities/         — Player、Monster、Boss、Skill、Clone
   config/           — 常數、怪物 / 裝備 / 地圖 / 任務 / 副本定義、asset catalog
-  engine/           — 音效、粒子、VFX、品質系統、FPS 控制、任務管理、副本記錄
+  engine/           — 音效、粒子、VFX、品質系統、FPS 控制、任務管理、副本記錄、存檔
   assets/           — ProceduralAssets（平台 / 技能 / UI 程式生成材質）
 docs/
   PLAYER_GUIDE.md   — 玩家手冊
@@ -86,6 +89,7 @@ package.json        — npm scripts
 - **HUD**：底部單列狀態列、右上小地圖、技能 / 藥水快捷列、任務追蹤面板
 - **任務系統**（Phase 13）：3 個範例任務、F 鍵自動接、HUD 即時進度
 - **副本系統**（Phase 14）：史萊姆洞窟波狀關、每日 3 次上限、勝負結算 popup
+- **存檔與死亡**（Phase 16）：自動存檔到 localStorage、繼續遊戲、匯出 / 匯入存檔檔；死亡後顯示分數，可從死亡點重新開始（失去裝備）
 - **戰鬥回饋**（Phase 15）：目標選取框、升級全屏演出、ESC 暫停選單
 - **效能**：自適應品質系統（FPS 監測自動降級）、VFX 紋理預渲染、HUD 凍結
 
@@ -116,7 +120,7 @@ package.json        — npm scripts
 
 ## 貢獻
 
-PR 會由 CI 檢查 `npm run build` 能成功，且提交的 `dist/bundle.js` 與原始碼一致。修改 `src/` 後請先執行 `npm run build` 並一併提交 bundle。
+PR 會由 CI 執行 `npm test`、檢查 `npm run build` 能成功，且提交的 `dist/bundle.js` 與原始碼一致。修改 `src/` 後請先執行 `npm run build` 並一併提交 bundle。
 
 ---
 

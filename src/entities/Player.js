@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { SKILLS, expNeeded, MAP_SCENE_KEYS, POTIONS, createInitialGameState } from '../config/constants.js';
+import { saveGame } from '../engine/saveGame.js';
 import { castShuriken, castDash, castAssassinate, castVortex, castClone } from './Skill.js';
 import { particles } from '../engine/particles.js';
 import { audio } from '../engine/audio.js';
@@ -8,7 +9,7 @@ import { ALIGNMENT_PROFILES, applyAlignmentProfile, getVisualCenterPoint, getVis
 
 export class Player extends Phaser.Physics.Arcade.Sprite {
   constructor(scene, x, y, gameState) {
-    super(scene, x, y, 'final_char');
+    super(scene, x, y, 'player_idle');
     scene.add.existing(this);
     scene.physics.add.existing(this);
 
@@ -21,7 +22,9 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.dropThrough = false;
     this.isDashing = false;
     this._jumpKeyWasDown = false;
-    this._throwAnimTween = null;
+    // 動作圖切換：攻擊/受傷期間鎖定姿勢到 _poseLockUntil
+    this._poseLockKey = null;
+    this._poseLockUntil = 0;
     // HP/MP 自然回復的 UI 節流：只在顯示整數改變時才更新 registry/事件
     this._lastEmittedHp = -1;
     this._lastEmittedMp = -1;
@@ -35,7 +38,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.enemies = null;
 
     // 目標選取框（單一 Graphics 物件複用，每幀同步最近怪物的位置）
-    this._targetGfx = scene.add.graphics().setDepth(13);
+    this._targetGfx = scene.add.graphics().setDepth(30);
 
     // 輸入按鍵
     const { LEFT, RIGHT, UP, DOWN, ALT } = Phaser.Input.Keyboard.KeyCodes;
@@ -142,9 +145,35 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     if (Phaser.Input.Keyboard.JustDown(this.keyPotR)) this.usePotion('R');
     if (Phaser.Input.Keyboard.JustDown(this.keyPotG)) this.usePotion('G');
 
-    // ─── 更新面向 + 目標框 ──────────────────────────────────────────────────
+    // ─── 更新面向 + 目標框 + 動作圖 ─────────────────────────────────────────
     this._updateFacing();
     this._updateTargetBox();
+    this._updatePose(onGround);
+  }
+
+  _lockPose(key, duration) {
+    this._poseLockKey = key;
+    this._poseLockUntil = this.scene.time.now + duration;
+    this._setPose(key);
+  }
+
+  _setPose(key) {
+    if (this.texture.key !== key && this.scene.textures.exists(key)) this.setTexture(key);
+  }
+
+  _updatePose(onGround) {
+    const now = this.scene.time.now;
+    if (now < this._poseLockUntil) {
+      this._setPose(this._poseLockKey);
+      return;
+    }
+    if (!onGround) {
+      this._setPose('player_jump');
+    } else if (this.body.velocity.x !== 0) {
+      this._setPose(Math.floor(now / 150) % 2 === 0 ? 'player_walk_1' : 'player_walk_2');
+    } else {
+      this._setPose('player_idle');
+    }
   }
 
   _updateFacing() {
@@ -169,17 +198,21 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     return nearest;
   }
 
-  // 每幀更新目標選取框位置（橙色外框，跟隨最近怪物）
+  // 每幀更新鎖定標記：最近怪物頭上一個上下浮動的小箭頭（取代舊的橙色方框）
   _updateTargetBox() {
     if (!this._targetGfx || !this._targetGfx.active) return;
     const target = this._findNearestMonster();
-    if (target && target.active) {
-      const pad = 5;
-      const hw = target.displayWidth / 2 + pad;
-      const hh = target.displayHeight / 2 + pad;
-      this._targetGfx.clear();
-      this._targetGfx.lineStyle(2, 0xff8800, 0.85);
-      this._targetGfx.strokeRect(target.x - hw, target.y - hh, hw * 2, hh * 2);
+    if (target && target.active && target.body) {
+      // 以碰撞框為準，Boss 等寬畫布（含特效留白）也能標在身體正上方
+      const b = target.body;
+      const x = b.center.x;
+      const y = b.top - 22 + Math.sin(this.scene.time.now / 160) * 3;
+      const g = this._targetGfx;
+      g.clear();
+      g.fillStyle(0x1a0e06, 0.7);
+      g.fillTriangle(x - 8, y - 2, x + 8, y - 2, x, y + 10);
+      g.fillStyle(0xffd24a, 0.95);
+      g.fillTriangle(x - 6, y, x + 6, y, x, y + 8);
     } else {
       this._targetGfx.clear();
     }
@@ -194,19 +227,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       return;
     }
 
-    if (this._throwAnimTween) this._throwAnimTween.remove();
-    const throwAngle = this.facingRight ? -18 : 18;
-    this.setAngle(throwAngle);
-    this._throwAnimTween = this.scene.tweens.add({
-      targets: this,
-      angle: 0,
-      duration,
-      ease: 'Cubic.easeOut',
-      onComplete: () => {
-        if (this.active) this.setAngle(0);
-        this._throwAnimTween = null;
-      },
-    });
+    this._lockPose('player_attack', Math.max(duration, 180));
   }
 
   usePotion(slot) {
@@ -291,7 +312,8 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.scene.registry.set('gameState', gs);
     this.scene.registry.events.emit('changedata-hp', null, gs.hp);
 
-    // 傷害閃紅
+    // 傷害閃紅 + 受傷動作
+    this._lockPose('player_hurt', 300);
     this.setTint(0xff4444);
     this.scene.time.delayedCall(200, () => { if (this.active) this.clearTint(); });
 
@@ -327,6 +349,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.scene.registry.set('gameState', gs);
     this.scene.registry.events.emit('changedata-exp', null, gs.exp);
     if (leveledUp) {
+      saveGame(gs);
       this.scene.registry.events.emit('changedata-level', null, gs.level);
       // 升級音效 + 粒子 + UI 全屏演出一律發出一次（避免多級同時累加）
       audio.playLevelUp();
@@ -412,7 +435,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.setTint(0xff0000);
     this.scene.time.delayedCall(1500, () => {
       this.scene.scene.stop('UIScene');
-      this.scene.scene.start('GameOverScene', { victory: false, gameState: this.gameState });
+      this.scene.scene.start('GameOverScene', { victory: false, gameState: this.gameState, deathX: this.x });
     });
   }
 
@@ -445,10 +468,6 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   }
 
   destroy(fromScene) {
-    if (this._throwAnimTween) {
-      this._throwAnimTween.remove();
-      this._throwAnimTween = null;
-    }
     if (this._targetGfx) {
       this._targetGfx.destroy();
       this._targetGfx = null;

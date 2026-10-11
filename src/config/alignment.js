@@ -8,52 +8,20 @@ const createProfile = ({ displayWidth, displayHeight, bodyWidth, bodyOffsetX, bo
   bodyHeight: displayHeight - bodyOffsetY - footPadding,
 });
 
-const TEXTURE_FOOT_PADDING_RATIO = {
-  final_char: 29 / 231,
-  monster_boar: 9 / 80,
-  monster_cyclops: 7 / 80,
-  monster_dragon: 5 / 80,
-  monster_golem: 7 / 80,
-  monster_mimic: 8 / 80,
-  monster_mushroom: 7 / 80,
-  monster_robot: 7 / 80,
-  monster_slime: 5 / 80,
-  monster_snail: 5 / 80,
-  monster_snake: 8 / 80,
-  monster_stump: 6 / 80,
-  monster_new_0: 4 / 219,
-  monster_new_1: 4 / 201,
-  monster_new_2: 4 / 199,
-  monster_new_3: 3 / 230,
-  monster_new_4: 1 / 261,
-  monster_new_5: 3 / 173,
-  monster_new_6: 4 / 203,
-  monster_big_0: 1 / 425,
-  monster_big_1: 2 / 408,
-  monster_big_2: 2 / 417,
-  monster_big_3: 0 / 460,
-  monster_big_4: 0 / 403,
-  miniboss_0: 0 / 609,
-  miniboss_1: 0 / 577,
-};
-
+// 新版角色/怪物/Boss 圖都已裁到腳底貼齊圖片底邊，直接使用 profile 內的 footPadding。
 function resolveFootPadding(entity, profile) {
-  const textureKey = entity?.texture?.key;
-  const ratio = textureKey ? TEXTURE_FOOT_PADDING_RATIO[textureKey] : null;
-  if (typeof ratio === 'number') {
-    return Math.round(profile.displayHeight * ratio);
-  }
   return profile.footPadding;
 }
 
 export const ALIGNMENT_PROFILES = {
+  // 主角動作圖統一為 100x80 畫布，腳底貼齊底邊、身體置中
   player: createProfile({
-    displayWidth: 80,
+    displayWidth: 100,
     displayHeight: 80,
-    bodyWidth: 48,
-    bodyOffsetX: 16,
+    bodyWidth: 44,
+    bodyOffsetX: 28,
     bodyOffsetY: 10,
-    footPadding: 2,
+    footPadding: 0,
   }),
   monster: createProfile({
     displayWidth: 56,
@@ -61,16 +29,16 @@ export const ALIGNMENT_PROFILES = {
     bodyWidth: 44,
     bodyOffsetX: 6,
     bodyOffsetY: 4,
-    footPadding: 1,
+    footPadding: 0,
   }),
-  // 暗影魔君：對齊裁切後的動作圖比例（來源 275x222）
+  // 暗影魔君：動作圖統一為 460x220 畫布，身體置中、腳底貼齊底邊（攻擊特效需要較寬畫布）
   boss: createProfile({
-    displayWidth: 260,
-    displayHeight: 210,
-    bodyWidth: 120,
-    bodyOffsetX: 70,
-    bodyOffsetY: 38,
-    footPadding: 11,
+    displayWidth: 460,
+    displayHeight: 220,
+    bodyWidth: 110,
+    bodyOffsetX: 175,
+    bodyOffsetY: 40,
+    footPadding: 0,
   }),
 };
 

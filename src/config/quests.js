@@ -13,7 +13,7 @@
 // 才能接該地圖的任務（避免單一 NPC 接完全部任務）
 
 export const QUESTS = {
-  // ── 浮空島嶼（sky）── 由「楓葉義工」發佈 ──────────────────────────────────
+  // ── 浮空島嶼（sky）── 由「島嶼義工」發佈 ──────────────────────────────────
   slime_hunt: {
     id: 'slime_hunt',
     name: '史萊姆獵手',
@@ -96,8 +96,8 @@ export const QUESTS = {
   // ── 台北都會（taipei）── 由「台北導遊」發佈 ──────────────────────────────
   mech_purge: {
     id: 'mech_purge',
-    name: '機械淨化',
-    desc: '都會中的失控機械需要被解除。',
+    name: '街頭掃蕩',
+    desc: '把在街頭鬧事的龐克飆仔趕出台北都會。',
     type: 'kill',
     target: 'city_mech',
     count: 4,
@@ -105,19 +105,19 @@ export const QUESTS = {
   },
   elite_takedown: {
     id: 'elite_takedown',
-    name: '精英斬首',
-    desc: '台北都會的精英衛兵是更高難度的挑戰。',
+    name: '抓扒手',
+    desc: '夜市扒手偷走了攤商的錢，把他們抓起來。',
     type: 'kill',
     target: 'city_elite',
     count: 2,
     rewards: { exp: 600, meso: 1100 },
   },
 
-  // ── Kerning City（kerning）── 由「地下城嚮導」發佈 ────────────────────────
+  // ── 暗巷城（kerning）── 由「地下城嚮導」發佈 ────────────────────────
   thug_cleanup: {
     id: 'thug_cleanup',
     name: '街頭整治',
-    desc: '清掃 Kerning City 的城市流氓。',
+    desc: '清掃 暗巷城 的城市流氓。',
     type: 'kill',
     target: 'city_thug',
     count: 8,
@@ -133,11 +133,11 @@ export const QUESTS = {
     rewards: { exp: 700, meso: 1300 },
   },
 
-  // ── 楓葉城（town）── 由「城鎮居民」發佈 ──────────────────────────────────
+  // ── 晨曦鎮（town）── 由「城鎮居民」發佈 ──────────────────────────────────
   reach_town: {
     id: 'reach_town',
-    name: '初訪楓葉城',
-    desc: '到楓葉城認識城鎮樞紐與商店。',
+    name: '初訪晨曦鎮',
+    desc: '到晨曦鎮認識城鎮樞紐與商店。',
     type: 'reach',
     target: 'town',
     count: 1,

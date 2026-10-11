@@ -1,18 +1,66 @@
 export const CHARACTER_ASSETS = [
   {
-    assetId: 'CHR-THF-001',
-    groupId: 'CHR-THF',
+    assetId: 'CHR-PLY-001',
+    groupId: 'CHR-PLY',
     kind: 'character',
-    key: 'thief',
-    path: 'dist/assets/thief.png',
+    key: 'player_idle',
+    path: 'dist/assets/player_idle.png',
     status: 'used',
   },
   {
-    assetId: 'CHR-FIN-001',
-    groupId: 'CHR-FIN',
+    assetId: 'CHR-PLY-002',
+    groupId: 'CHR-PLY',
     kind: 'character',
-    key: 'final_char',
-    path: 'dist/assets/final_char.png',
+    key: 'player_walk_1',
+    path: 'dist/assets/player_walk_1.png',
+    status: 'used',
+  },
+  {
+    assetId: 'CHR-PLY-003',
+    groupId: 'CHR-PLY',
+    kind: 'character',
+    key: 'player_walk_2',
+    path: 'dist/assets/player_walk_2.png',
+    status: 'used',
+  },
+  {
+    assetId: 'CHR-PLY-004',
+    groupId: 'CHR-PLY',
+    kind: 'character',
+    key: 'player_jump',
+    path: 'dist/assets/player_jump.png',
+    status: 'used',
+  },
+  {
+    assetId: 'CHR-PLY-005',
+    groupId: 'CHR-PLY',
+    kind: 'character',
+    key: 'player_attack',
+    path: 'dist/assets/player_attack.png',
+    status: 'used',
+  },
+  {
+    assetId: 'CHR-PLY-006',
+    groupId: 'CHR-PLY',
+    kind: 'character',
+    key: 'player_hurt',
+    path: 'dist/assets/player_hurt.png',
+    status: 'used',
+  },
+  {
+    assetId: 'CHR-PLY-007',
+    groupId: 'CHR-PLY',
+    kind: 'character',
+    key: 'player_portrait',
+    path: 'dist/assets/player_portrait.png',
+    status: 'used',
+  },
+  {
+    assetId: 'CHR-TTL-001',
+    groupId: 'CHR-TTL',
+    kind: 'character',
+    key: 'title_hero',
+    path: 'dist/assets/title_hero.png',
     status: 'used',
   },
 ];
@@ -58,17 +106,17 @@ export const BACKGROUND_ASSETS = [
     assetId: 'BG-TOY-001',
     groupId: 'BG-TOY',
     kind: 'background',
-    key: 'bg_toytown',
-    path: 'dist/assets/bg_toytown.png',
+    key: 'bg_town',
+    path: 'dist/assets/bg_town.png',
     status: 'used',
     targetMaps: ['town'],
   },
   {
-    assetId: 'BG-TOY-002',
-    groupId: 'BG-TOY',
+    assetId: 'BG-MYS-001',
+    groupId: 'BG-MYS',
     kind: 'background',
-    key: 'bg_toytown_refresh',
-    path: 'dist/assets/bg_toytown_refresh.png',
+    key: 'bg_mystic',
+    path: 'dist/assets/bg_mystic.png',
     status: 'used',
     targetMaps: ['ellinia'],
   },
@@ -90,50 +138,34 @@ export const BACKGROUND_ASSETS = [
     status: 'used',
     targetMaps: ['boss'],
   },
-];
-
-export const CANDIDATE_BACKGROUND_ASSETS = [
   {
-    candidateId: 'CAND-BG-TOY-001',
-    groupId: 'CAND-BG-TOY',
+    assetId: 'BG-DGN-001',
+    groupId: 'BG-DGN',
     kind: 'background',
-    key: 'bg_toytown_refresh',
-    plannedPath: 'dist/assets/bg_toytown_refresh.png',
-    status: 'promoted-runtime',
-    targetMaps: ['ellinia'],
-    source: '參考用遊戲畫面/toy-TOWN_new (1).png',
+    key: 'bg_dungeon',
+    path: 'dist/assets/bg_dungeon.png',
+    status: 'used',
+    targetMaps: ['dungeon'],
   },
   {
-    candidateId: 'CAND-BG-TPE-001',
-    groupId: 'CAND-BG-TPE',
+    assetId: 'BG-TTL-001',
+    groupId: 'BG-TTL',
     kind: 'background',
-    key: 'bg_taipei',
-    plannedPath: 'dist/assets/bg_taipei.png',
-    status: 'promoted-runtime',
-    targetMaps: ['taipei'],
-    source: '參考用遊戲畫面/Taipei_city.png',
-  },
-  {
-    candidateId: 'CAND-BG-BOSS-001',
-    groupId: 'CAND-BG-BOSS',
-    kind: 'background',
-    key: 'bg_boss_room',
-    plannedPath: 'dist/assets/bg_boss_room.png',
-    status: 'promoted-runtime',
-    targetMaps: ['boss'],
-    source: '遊戲畫面/boss_room.png',
+    key: 'title_bg',
+    path: 'dist/assets/title_bg.png',
+    status: 'used',
+    targetMaps: ['menu'],
   },
 ];
 
 export const PLATFORM_ASSETS = [
   {
-    assetId: 'PLT-LONG-001',
-    groupId: 'PLT-LONG',
+    assetId: 'PLT-SKY-001',
+    groupId: 'PLT-SKY',
     kind: 'platform',
-    key: 'platform_long',
-    path: 'dist/assets/platform_long.png',
+    key: 'platform_sky',
+    path: 'dist/assets/platform_sky.png',
     status: 'used',
-    targetMaps: ['ellinia', 'taipei'],
   },
   {
     assetId: 'PLT-FOR-001',
@@ -142,7 +174,54 @@ export const PLATFORM_ASSETS = [
     key: 'platform_forest',
     path: 'dist/assets/platform_forest.png',
     status: 'used',
-    targetMaps: ['henesys'],
+  },
+  {
+    assetId: 'PLT-RUI-001',
+    groupId: 'PLT-RUI',
+    kind: 'platform',
+    key: 'platform_ruins',
+    path: 'dist/assets/platform_ruins.png',
+    status: 'used',
+  },
+  {
+    assetId: 'PLT-MYS-001',
+    groupId: 'PLT-MYS',
+    kind: 'platform',
+    key: 'platform_mystic',
+    path: 'dist/assets/platform_mystic.png',
+    status: 'used',
+  },
+  {
+    assetId: 'PLT-CIT-001',
+    groupId: 'PLT-CIT',
+    kind: 'platform',
+    key: 'platform_city',
+    path: 'dist/assets/platform_city.png',
+    status: 'used',
+  },
+  {
+    assetId: 'PLT-TOW-001',
+    groupId: 'PLT-TOW',
+    kind: 'platform',
+    key: 'platform_town',
+    path: 'dist/assets/platform_town.png',
+    status: 'used',
+  },
+  {
+    assetId: 'PLT-BOS-001',
+    groupId: 'PLT-BOS',
+    kind: 'platform',
+    key: 'platform_boss',
+    path: 'dist/assets/platform_boss.png',
+    status: 'used',
+  },
+  {
+    assetId: 'PLT-DUN-001',
+    groupId: 'PLT-DUN',
+    kind: 'platform',
+    key: 'platform_dungeon',
+    path: 'dist/assets/platform_dungeon.png',
+    status: 'used',
   },
 ];
 
@@ -363,8 +442,8 @@ export const MONSTER_ASSETS = [
     kind: 'monster',
     key: 'monster_big_2',
     path: 'dist/assets/monster_big_2.png',
-    status: 'used',
-    monsterIds: ['city_mech'],
+    status: 'unused',
+    monsterIds: [],
     alignmentStatus: 'complete',
     sourceSheet: '遊戲畫面/monster3.jpg',
     sourceFamily: 'machine',
@@ -387,8 +466,8 @@ export const MONSTER_ASSETS = [
     kind: 'monster',
     key: 'monster_big_4',
     path: 'dist/assets/monster_big_4.png',
-    status: 'used',
-    monsterIds: ['city_elite'],
+    status: 'unused',
+    monsterIds: [],
     alignmentStatus: 'complete',
     sourceSheet: '遊戲畫面/monster3.jpg',
     sourceFamily: 'elite',
@@ -399,8 +478,8 @@ export const MONSTER_ASSETS = [
     kind: 'miniboss',
     key: 'miniboss_0',
     path: 'dist/assets/miniboss_0.png',
-    status: 'used',
-    monsterIds: ['city_boss1'],
+    status: 'unused',
+    monsterIds: [],
     alignmentStatus: 'complete',
     sourceSheet: '遊戲畫面/monster3.jpg',
     sourceFamily: 'miniboss',
@@ -417,6 +496,12 @@ export const MONSTER_ASSETS = [
     sourceSheet: '遊戲畫面/monster3.jpg',
     sourceFamily: 'miniboss',
   },
+  // 台北街頭怪：由 art-source/characters 的兩張原始總表裁切（夜市扒手 / 龐克），
+  // 混混與扒手頭目是現有圖的換色版
+  { assetId: 'MON-CITY-001', groupId: 'MON-CITY', kind: 'monster', key: 'monster_punk', path: 'dist/assets/monster_punk.png', status: 'used', monsterIds: ['city_mech'], alignmentStatus: 'complete' },
+  { assetId: 'MON-CITY-002', groupId: 'MON-CITY', kind: 'monster', key: 'monster_punk_red', path: 'dist/assets/monster_punk_red.png', status: 'used', monsterIds: ['street_punk'], alignmentStatus: 'complete' },
+  { assetId: 'MON-CITY-003', groupId: 'MON-CITY', kind: 'monster', key: 'monster_pickpocket', path: 'dist/assets/monster_pickpocket.png', status: 'used', monsterIds: ['city_elite'], alignmentStatus: 'complete' },
+  { assetId: 'MON-CITY-004', groupId: 'MON-CITY', kind: 'miniboss', key: 'miniboss_street', path: 'dist/assets/miniboss_street.png', status: 'used', monsterIds: ['city_boss1'], alignmentStatus: 'complete' },
 ];
 
 export const NPC_ASSETS = [
@@ -468,9 +553,25 @@ export const NPC_ASSETS = [
     path: 'dist/assets/npc_new_5.png',
     status: 'used',
   },
+  {
+    assetId: 'NPC-SHP-001',
+    groupId: 'NPC-SHP',
+    kind: 'npc',
+    key: 'npc_merchant',
+    path: 'dist/assets/npc_merchant.png',
+    status: 'used',
+  },
+  {
+    assetId: 'NPC-TWN-001',
+    groupId: 'NPC-TWN',
+    kind: 'npc',
+    key: 'npc_townsfolk',
+    path: 'dist/assets/npc_townsfolk.png',
+    status: 'used',
+  },
 ];
 
-// 暗影魔君動作圖：由 boss_main.png（9 格動作對照表）裁切去背而成
+// 暗影魔君動作圖：每個動作一張，統一 460x220 畫布
 export const BOSS_ASSETS = [
   {
     assetId: 'BOSS-SHADOW-IDLE',
@@ -481,7 +582,6 @@ export const BOSS_ASSETS = [
     status: 'used',
     targetMaps: ['boss'],
     pose: 'idle',
-    sourceSheet: 'dist/assets/boss_main.png',
   },
   {
     assetId: 'BOSS-SHADOW-MOVE',
@@ -492,7 +592,6 @@ export const BOSS_ASSETS = [
     status: 'used',
     targetMaps: ['boss'],
     pose: 'move',
-    sourceSheet: 'dist/assets/boss_main.png',
   },
   {
     assetId: 'BOSS-SHADOW-ATTACK',
@@ -503,7 +602,6 @@ export const BOSS_ASSETS = [
     status: 'used',
     targetMaps: ['boss'],
     pose: 'attack',
-    sourceSheet: 'dist/assets/boss_main.png',
   },
   {
     assetId: 'BOSS-SHADOW-DEATH1',
@@ -514,7 +612,6 @@ export const BOSS_ASSETS = [
     status: 'used',
     targetMaps: ['boss'],
     pose: 'death1',
-    sourceSheet: 'dist/assets/boss_main.png',
   },
   {
     assetId: 'BOSS-SHADOW-DEATH2',
@@ -525,9 +622,48 @@ export const BOSS_ASSETS = [
     status: 'used',
     targetMaps: ['boss'],
     pose: 'death2',
-    sourceSheet: 'dist/assets/boss_main.png',
   },
 ];
+
+// 裝備掉落圖示：沿用程序材質的 key，載入後 generateItems 會跳過已存在的 key
+export const ICON_ASSETS = ['weapon', 'armor', 'gloves', 'helmet'].map((slot) => ({
+  assetId: `ICO-${slot.toUpperCase()}-001`,
+  groupId: 'ICO-EQP',
+  kind: 'icon',
+  key: `item-${slot}`,
+  path: `dist/assets/item_${slot}.png`,
+  status: 'used',
+}));
+
+// 藥水圖示：key 對應 POTIONS 的快捷鍵
+export const POTION_ICON_KEYS = {
+  A: 'potion_hp',
+  S: 'potion_hp_big',
+  D: 'potion_mp',
+  R: 'potion_mp_big',
+  G: 'potion_elixir',
+};
+
+export const POTION_ICON_ASSETS = Object.values(POTION_ICON_KEYS).map((key) => ({
+  assetId: `ICO-${key.toUpperCase()}-001`,
+  groupId: 'ICO-POT',
+  kind: 'icon',
+  key,
+  path: `dist/assets/${key}.png`,
+  status: 'used',
+}));
+
+// HUD 木質介面：血條框（3-slice）、技能/藥水格、羊皮紙面板（9-slice）
+export const UI_ASSETS = [
+  'hud_bar_frame', 'hud_slot_42', 'hud_slot_52', 'hud_slot_80', 'hud_panel', 'hud_panel_sm',
+].map((key) => ({
+  assetId: `UI-${key.toUpperCase()}-001`,
+  groupId: 'UI-HUD',
+  kind: 'ui',
+  key,
+  path: `dist/assets/${key}.png`,
+  status: 'used',
+}));
 
 export const PRELOAD_IMAGE_ASSETS = [
   ...CHARACTER_ASSETS,
@@ -536,6 +672,9 @@ export const PRELOAD_IMAGE_ASSETS = [
   ...MONSTER_ASSETS,
   ...BOSS_ASSETS,
   ...NPC_ASSETS,
+  ...ICON_ASSETS,
+  ...POTION_ICON_ASSETS,
+  ...UI_ASSETS,
 ];
 
 export const PENDING_ALIGNMENT_ASSETS = MONSTER_ASSETS.filter(
