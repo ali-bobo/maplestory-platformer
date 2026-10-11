@@ -794,7 +794,8 @@ export class BaseMapScene extends Phaser.Scene {
     // 支線入口：站在門上並按互動鍵（F / 觸控「互動」）才進入，走過、落在門上都不會誤入
     if (portal.interact) {
       const now = this.time.now;
-      for (const h of this._branchHints) if (Math.abs(h.x - portal.x) < 2) { h.until = now + 160; h.hint.setAlpha(1); }
+      const bh = this._branchHints;
+      for (let i = 0; i < bh.length; i++) if (Math.abs(bh[i].x - portal.x) < 2) { bh[i].until = now + 160; bh[i].hint.setAlpha(1); }
       if (now - (this._interactPressedAt ?? -9999) > 450) return;
       this._interactPressedAt = -9999;
     }
@@ -939,7 +940,8 @@ export class BaseMapScene extends Phaser.Scene {
       this._getNearbyNpcData();
     }
 
-    for (const h of this._branchHints) if (h.until && time > h.until) { h.until = 0; h.hint.setAlpha(0); }
+    const bh = this._branchHints;
+    for (let i = 0; i < bh.length; i++) if (bh[i].until && time > bh[i].until) { bh[i].until = 0; bh[i].hint.setAlpha(0); }
 
     // Phase 8.3：畫面外怪物跳過 AI update（約 1.25 螢幕外）。
     // 跳過的只是 AI 決策；arcade physics（重力/碰撞）仍由 physics.world 獨立 step，
