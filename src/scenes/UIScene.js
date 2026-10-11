@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { SKILLS, POTIONS, expNeeded, MAP_SCENE_KEYS, WORLD_HEIGHT } from '../config/constants.js';
+import { SKILLS, POTIONS, expNeeded, MAP_SCENE_KEYS, WORLD_HEIGHT, SKILL_SLOT_KEYS, skillForSlot, canReorderSkills } from '../config/constants.js';
 import { MAPS } from '../config/maps.js';
 import { getQualityLevel, setQualityLevel, downgradeQuality, upgradeQuality } from '../engine/quality.js';
 import { getActiveQuests } from '../engine/questManager.js';
@@ -10,6 +10,7 @@ import { ensureSkillIcons } from '../assets/skillIcons.js';
 import { addParchmentPanel, addWoodButton } from '../engine/woodUi.js';
 import { saveGame } from '../engine/saveGame.js';
 import { audio } from '../engine/audio.js';
+import { addSoundButton } from '../engine/soundButton.js';
 
 // HUD 場景（平行運行）— 橫向捲軸風格底部狀態列
 export class UIScene extends Phaser.Scene {
@@ -132,8 +133,18 @@ export class UIScene extends Phaser.Scene {
     // 只註冊 shutdown（理由同 BaseMapScene）：避免 relaunch 時 destroy 監聽累積
     this.events.once('shutdown', this._onShutdown, this);
 
+    // 技能欄拖曳用的全域指標事件
+    this._drag = null;
+    this.input.on('pointermove', this._onDragMove, this);
+    this.input.on('pointerup', this._onDragEnd, this);
+    this.input.on('pointerupoutside', this._onDragEnd, this);
+
+    // 聲音開關（右上、小地圖左側）：手機與電腦都能點
+    this._soundBtn = addSoundButton(this, width - 196, 28, { depth: 120, size: 40 });
+
     // Phase 15：ESC 暫停選單
     this._isPaused = false;
+    this._bornAt = this.time.now;   // 剛啟動時忽略 Esc：教學按 Esc 跳過時，同一個按鍵事件會被這個新場景再收到一次
     this._pauseOverlayObjs = [];
     this._onUiEscKey = () => this._onEscKeyDown();
     this.input.keyboard.on('keydown-ESC', this._onUiEscKey);
@@ -425,7 +436,9 @@ export class UIScene extends Phaser.Scene {
     ensureSkillIcons(this);
     const skillKeys   = ['Z', 'X', 'C', 'V', 'B'];
     const potionKeys  = ['A', 'S', 'D', 'R', 'G'];
-    const skillLabels = { Z: '三連鏢', X: '影步伐', C: '暗殺', V: '漩渦', B: '影分身' };
+    const skillLabels = { Z: '普通攻擊', X: '影步伐', C: '暗殺', V: '漩渦', B: '影分身' };
+    this._skillLabels = skillLabels;
+    const gsNow = this.registry.get('gameState');
 
     const slot = 52, gap = 4;
     const pot = 42, potGap = 4;
@@ -439,19 +452,21 @@ export class UIScene extends Phaser.Scene {
     };
 
     // ── 技能槽：木框 + 程式繪製圖示 + 冷卻遮罩/秒數 + 等級 ───────────────────
+    // key 是「欄位」的快捷鍵：Z 欄固定是普通攻擊（空白鍵），X C V B 四欄放哪個技能由 gs.skillSlots 決定
     skillKeys.forEach((key, i) => {
       const sx = skillStartX + i * (slot + gap);
       const sy = rowY;
+      const skillId = skillForSlot(gsNow, key);
       this.add.image(sx, sy, 'hud_slot_52').setOrigin(0, 0).setDepth(51).setScrollFactor(0);
-      const icon = this.add.image(sx + slot / 2, sy + slot / 2, `skill_icon_${key}`)
+      const icon = this.add.image(sx + slot / 2, sy + slot / 2, `skill_icon_${skillId}`)
         .setDepth(52).setScrollFactor(0);
 
       // 快捷鍵（左上角）
-      this.add.text(sx + 5, sy + 3, key, {
-        fontSize: '12px', color: '#ffffff', fontFamily: 'Arial', fontStyle: 'bold', stroke: '#000', strokeThickness: 3,
+      this.add.text(sx + 5, sy + 3, key === 'Z' ? 'SPACE' : key, {
+        fontSize: key === 'Z' ? '9px' : '12px', color: '#ffffff', fontFamily: 'Arial', fontStyle: 'bold', stroke: '#000', strokeThickness: 3,
       }).setDepth(55).setScrollFactor(0);
       // 技能名稱（格子下方）
-      this.add.text(sx + slot / 2, sy + slot + 3, skillLabels[key] || key, labelStyle)
+      const nameText = this.add.text(sx + slot / 2, sy + slot + 3, skillLabels[skillId] || skillId, labelStyle)
         .setOrigin(0.5, 0).setDepth(53).setScrollFactor(0);
 
       // 技能等級（右下角）
@@ -460,7 +475,7 @@ export class UIScene extends Phaser.Scene {
       }).setOrigin(1, 1).setDepth(55).setScrollFactor(0);
 
       // 未解鎖提示
-      const lockText = this.add.text(sx + slot / 2, sy + slot / 2, `Lv${SKILLS[key]?.unlockLevel ?? ''}`, {
+      const lockText = this.add.text(sx + slot / 2, sy + slot / 2, `Lv${SKILLS[skillId]?.unlockLevel ?? ''}`, {
         fontSize: '11px', color: '#ffb0b0', fontFamily: 'Arial', fontStyle: 'bold', stroke: '#000', strokeThickness: 3,
       }).setOrigin(0.5, 0.5).setDepth(55).setScrollFactor(0).setVisible(false);
 
@@ -470,7 +485,13 @@ export class UIScene extends Phaser.Scene {
       }).setOrigin(0.5, 0.5).setDepth(56).setScrollFactor(0);
       const ix = sx + (slot - 38) / 2;
       const iy = sy + (slot - 38) / 2;
-      this._cdOverlays[key] = { overlay: cdOverlay, cdText, lockText, x: ix, y: iy, w: 38, h: 38 };
+      this._cdOverlays[key] = { overlay: cdOverlay, cdText, lockText, nameText, x: ix, y: iy, w: 38, h: 38, skillId, sx, sy, slotW: slot };
+      // 四個技能欄位可拖曳調整（全部解鎖後）；普通攻擊欄不能拖
+      if (key !== 'Z') {
+        this.add.rectangle(sx + slot / 2, sy + slot / 2, slot, slot, 0xffffff, 0)
+          .setDepth(57).setScrollFactor(0).setInteractive({ useHandCursor: true })
+          .on('pointerdown', (pointer) => this._beginSkillDrag(key, pointer));
+      }
       this._skillSlots[key] = icon;
       this._skillLevelTexts[key] = lvText;
     });
@@ -530,6 +551,60 @@ export class UIScene extends Phaser.Scene {
     }
   }
 
+  // ── 技能欄拖曳：四個技能全部解鎖後，可把圖示拖到另一格交換位置 ───────────────────────
+  _beginSkillDrag(slotKey, pointer) {
+    const gs = this.registry.get('gameState');
+    if (!gs || this._isPaused) return;
+    if (!canReorderSkills(gs)) {
+      this._flashHudNotice('四個技能全部解鎖（Lv.20）後，才能拖曳調整位置');
+      return;
+    }
+    const skillId = skillForSlot(gs, slotKey);
+    const ghost = this.add.image(pointer.x, pointer.y, `skill_icon_${skillId}`)
+      .setDepth(200).setScrollFactor(0).setAlpha(0.85).setScale(1.15);
+    this._drag = { from: slotKey, ghost };
+  }
+
+  _onDragMove(pointer) {
+    if (this._drag) this._drag.ghost.setPosition(pointer.x, pointer.y);
+  }
+
+  _onDragEnd(pointer) {
+    const drag = this._drag;
+    if (!drag) return;
+    this._drag = null;
+    drag.ghost.destroy();
+    // 放開位置落在哪一格（用格子中心距離，容許一點偏差）
+    let target = null;
+    let best = 40;
+    for (const [slotKey, data] of Object.entries(this._cdOverlays)) {
+      if (slotKey === 'Z') continue;
+      const d = Math.hypot(pointer.x - (data.sx + data.slotW / 2), pointer.y - (data.sy + data.slotW / 2));
+      if (d < best) { best = d; target = slotKey; }
+    }
+    if (!target || target === drag.from) return;
+    const gs = this.registry.get('gameState');
+    const slots = [...(gs.skillSlots || [])];
+    const a = SKILL_SLOT_KEYS.indexOf(drag.from);
+    const b = SKILL_SLOT_KEYS.indexOf(target);
+    [slots[a], slots[b]] = [slots[b], slots[a]];
+    gs.skillSlots = slots;
+    this.registry.set('gameState', gs);
+    saveGame(gs);
+    this._flashHudNotice(`${this._skillLabels[slots[b]]} → ${target} 欄`);
+  }
+
+  _flashHudNotice(text) {
+    if (this._hudNotice && this._hudNotice.active) this._hudNotice.destroy();
+    const { width, height } = this.cameras.main;
+    const t = this.add.text(width / 2, height - 150, text, {
+      fontSize: '16px', color: '#fff4dc', fontFamily: 'Arial', fontStyle: 'bold',
+      backgroundColor: '#3a2410cc', padding: { x: 12, y: 6 }, stroke: '#1a0e06', strokeThickness: 3,
+    }).setOrigin(0.5).setDepth(210).setScrollFactor(0);
+    this._hudNotice = t;
+    this.tweens.add({ targets: t, alpha: 0, delay: 1400, duration: 400, onComplete: () => t.destroy() });
+  }
+
   _refreshCooldowns() {
     const gs = this.registry.get('gameState');
     if (!gs) return;
@@ -541,8 +616,17 @@ export class UIScene extends Phaser.Scene {
       this._mapText.setText(mapName);
     }
 
-    for (const [key, data] of Object.entries(this._cdOverlays)) {
+    for (const [slotKey, data] of Object.entries(this._cdOverlays)) {
       const { overlay, cdText, lockText, x, y, w, h } = data;
+      // 欄位放的技能可能被玩家拖曳換過：變了就換圖示 / 名稱 / 解鎖等級，並重置 dirty flag
+      const key = skillForSlot(gs, slotKey);
+      if (key !== data.skillId) {
+        data.skillId = key;
+        this._skillSlots[slotKey].setTexture(`skill_icon_${key}`);
+        data.nameText.setText(this._skillLabels[key] || key);
+        lockText.setText(`Lv${SKILLS[key]?.unlockLevel ?? ''}`);
+        data._lastRatioQ = undefined; data._lastCdLabel = undefined; data._lastUnlocked = undefined; data._lastLvText = undefined;
+      }
       const cd = gs.skillCooldowns[key] || 0;
       const maxCd = SKILLS[key] ? SKILLS[key].cooldown : 1;
       const ratio = Math.min(1, cd / maxCd);
@@ -564,18 +648,18 @@ export class UIScene extends Phaser.Scene {
       }
       // 解鎖狀態加 dirty flag
       const unlocked = !!(gs.unlockedSkills && gs.unlockedSkills.includes(key));
-      if (this._skillSlots[key] && unlocked !== data._lastUnlocked) {
+      if (this._skillSlots[slotKey] && unlocked !== data._lastUnlocked) {
         data._lastUnlocked = unlocked;
-        this._skillSlots[key].setAlpha(unlocked ? 1 : 0.3);
+        this._skillSlots[slotKey].setAlpha(unlocked ? 1 : 0.3);
         lockText.setVisible(!unlocked);
       }
       // 技能等級加 dirty flag
-      if (this._skillLevelTexts[key]) {
+      if (this._skillLevelTexts[slotKey]) {
         const lv = gs.skillLevels ? (gs.skillLevels[key] || 0) : 0;
         const lvText = unlocked && lv > 0 ? `${lv}` : '';
         if (lvText !== data._lastLvText) {
           data._lastLvText = lvText;
-          this._skillLevelTexts[key].setText(lvText);
+          this._skillLevelTexts[slotKey].setText(lvText);
         }
       }
     }
@@ -800,6 +884,9 @@ export class UIScene extends Phaser.Scene {
     // Phase 15：清除 ESC 暫停選單
     if (this._onUiEscKey) {
       this.input.keyboard.off('keydown-ESC', this._onUiEscKey);
+      this.input.off('pointermove', this._onDragMove, this);
+      this.input.off('pointerup', this._onDragEnd, this);
+      this.input.off('pointerupoutside', this._onDragEnd, this);
       this._onUiEscKey = null;
     }
     if (this._isPaused) {
@@ -899,6 +986,8 @@ export class UIScene extends Phaser.Scene {
   }
 
   _onEscKeyDown() {
+    if (this.registry.get('helpOpen')) return;   // 操作說明浮層開著：Esc 只用來關閉說明
+    if (this.time.now - this._bornAt < 600) return;
     // 暫停中：被暫停的地圖場景不再是 active，必須先處理關閉，否則 ESC 只能開不能關
     if (this._isPaused) {
       this._closePauseMenu();
@@ -931,7 +1020,7 @@ export class UIScene extends Phaser.Scene {
     push(this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.6)
       .setDepth(190).setScrollFactor(0));
 
-    push(addParchmentPanel(this, width / 2 - 150, height / 2 - 120, 300, 305, { depth: 192 }));
+    push(addParchmentPanel(this, width / 2 - 150, height / 2 - 120, 300, 362, { depth: 192 }));
 
     // 標題
     push(this.add.text(width / 2, height / 2 - 72, '遊戲暫停', {
@@ -942,15 +1031,21 @@ export class UIScene extends Phaser.Scene {
     addWoodButton(this, width / 2, height / 2 + 4, 190, 42, '繼續遊戲', () => this._closePauseMenu(),
       { depth: 195, fontSize: 18 }).objects.forEach(push);
 
-    // 音樂開關：弱裝置覺得卡頓時可以直接關閉
-    const musicBtn = addWoodButton(this, width / 2, height / 2 + 60, 190, 42,
-      audio.isBgmEnabled() ? '音樂：開' : '音樂：關', () => {
-        audio.setBgmEnabled(!audio.isBgmEnabled());
-        musicBtn.label.setText(audio.isBgmEnabled() ? '音樂：開' : '音樂：關');
-      }, { depth: 195, fontSize: 18 });
+    // 聲音開關（音樂 + 音效）：弱裝置覺得卡頓、或不想要聲音時可以直接關閉
+    const soundLabel = () => (audio.isMuted() ? '聲音：關' : '聲音：開');
+    const musicBtn = addWoodButton(this, width / 2, height / 2 + 60, 190, 42, soundLabel(), () => {
+      audio.setMuted(!audio.isMuted());
+      musicBtn.label.setText(soundLabel());
+      this._soundBtn?.refresh();
+    }, { depth: 195, fontSize: 18 });
     musicBtn.objects.forEach(push);
 
-    addWoodButton(this, width / 2, height / 2 + 116, 190, 42, '存檔並回主選單', () => {
+    // 操作說明：重看新手教學（浮層，看完回到暫停選單）
+    addWoodButton(this, width / 2, height / 2 + 116, 190, 42, '操作說明', () => {
+      this.scene.launch('TutorialScene', { mode: 'overlay' });
+    }, { depth: 195, fontSize: 18 }).objects.forEach(push);
+
+    addWoodButton(this, width / 2, height / 2 + 172, 190, 42, '存檔並回主選單', () => {
       saveGame(this.registry.get('gameState'));
       this._isPaused = false;
       for (const obj of this._pauseOverlayObjs) { if (obj?.active) obj.destroy(); }
@@ -1139,7 +1234,9 @@ export class UIScene extends Phaser.Scene {
       const lv = (gs && gs.skillLevels && gs.skillLevels[key]) || 0;
       const maxLv = def.maxLevel || 10;
 
-      push(this.add.text(popX + 14, rowY, `[${key}] ${def.name}`, {
+      const slotIdx = gs && Array.isArray(gs.skillSlots) ? gs.skillSlots.indexOf(key) : -1;
+      const keyLabel = key === 'Z' ? '空白鍵' : (slotIdx >= 0 ? `${SKILL_SLOT_KEYS[slotIdx]} 欄` : key);
+      push(this.add.text(popX + 14, rowY, `[${keyLabel}] ${def.name}`, {
         fontSize: '12px', color: unlocked ? '#88ffcc' : '#666666', fontFamily: 'Arial',
         stroke: '#000', strokeThickness: 2,
       }).setDepth(152).setScrollFactor(0));
@@ -1189,6 +1286,11 @@ export class UIScene extends Phaser.Scene {
     });
 
     const sp = gs ? (gs.skillPoints || 0) : 0;
+    push(this.add.text(popX + 14, contentY + 5 * 44 + 14, canReorderSkills(gs)
+      ? '拖曳畫面下方技能欄的圖示，可以調整四個技能的位置'
+      : '四個技能全部解鎖（Lv.20）後，可拖曳技能欄調整位置', {
+      fontSize: '9px', color: '#aaccff', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2,
+    }).setDepth(152).setScrollFactor(0));
     push(this.add.text(popX + 14, contentY + 5 * 44, `可用 SP：${sp}　點 [+] 花 1 點提升技能傷害`, {
       fontSize: '10px', color: sp > 0 ? '#ffff44' : '#888855', fontFamily: 'Arial',
       stroke: '#000', strokeThickness: 2,

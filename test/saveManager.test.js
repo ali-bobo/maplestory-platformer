@@ -4,7 +4,7 @@ import {
   sanitizeState, serializeSave, parseSave, createSaveStore,
   SAVE_KEY, SAVE_VERSION, MAX_SAVE_BYTES,
 } from '../src/engine/saveManager.js';
-import { createInitialGameState, expNeeded } from '../src/config/constants.js';
+import { createInitialGameState, expNeeded, skillForSlot, canReorderSkills, SKILLS } from '../src/config/constants.js';
 import { generateEquipment } from '../src/config/equipment.js';
 
 function memStorage() {
@@ -239,4 +239,34 @@ test('相容舊版存檔格式：{ version, savedAt, gameState }（無 format �
   // 沒有 format 也沒有 gameState 的東西仍然拒絕
   assert.equal(parseSave('{"version":1,"state":{}}').ok, false);
   assert.equal(parseSave('{"version":1}').ok, false);
+});
+
+test('技能欄位：全部解鎖後可保留自訂順序；未全部解鎖 / 重複 / 夾帶普通攻擊 → 回預設', () => {
+  const lv20 = { level: 20, unlockedSkills: ['Z', 'X', 'C', 'V', 'B'], skillLevels: { Z: 1, X: 1, C: 1, V: 1, B: 1 } };
+  assert.deepEqual(sanitizeState({ ...lv20, skillSlots: ['B', 'V', 'C', 'X'] }).skillSlots, ['B', 'V', 'C', 'X']);
+  assert.deepEqual(sanitizeState({ ...lv20, skillSlots: ['X', 'X', 'C', 'V'] }).skillSlots, ['X', 'C', 'V', 'B']);
+  assert.deepEqual(sanitizeState({ ...lv20, skillSlots: ['Z', 'X', 'C', 'V'] }).skillSlots, ['X', 'C', 'V', 'B']);
+  assert.deepEqual(sanitizeState({ ...lv20, skillSlots: ['B', 'V', 'C'] }).skillSlots, ['X', 'C', 'V', 'B']);
+  assert.deepEqual(sanitizeState({ ...lv20, skillSlots: 'BVCX' }).skillSlots, ['X', 'C', 'V', 'B']);
+  // 等級不足：不允許提前自訂順序
+  assert.deepEqual(sanitizeState({ level: 10, skillSlots: ['B', 'V', 'C', 'X'] }).skillSlots, ['X', 'C', 'V', 'B']);
+  // 舊存檔沒有 skillSlots：預設
+  assert.deepEqual(sanitizeState({ level: 25 }).skillSlots, ['X', 'C', 'V', 'B']);
+  // 往返不變
+  const s = sanitizeState({ ...lv20, skillSlots: ['C', 'B', 'X', 'V'] });
+  assert.deepEqual(parseSave(serializeSave(s)).state.skillSlots, ['C', 'B', 'X', 'V']);
+});
+
+test('skillForSlot / canReorderSkills：Z 欄固定普通攻擊；欄位依 skillSlots；Lv.20 前不可調整', () => {
+  const gs = createInitialGameState();
+  assert.equal(skillForSlot(gs, 'Z'), 'Z');
+  assert.equal(skillForSlot(gs, 'X'), 'X');
+  gs.skillSlots = ['B', 'V', 'C', 'X'];
+  assert.equal(skillForSlot(gs, 'X'), 'B');
+  assert.equal(skillForSlot(gs, 'B'), 'X');
+  assert.equal(skillForSlot({}, 'C'), 'C');               // 沒有 skillSlots → 預設
+  assert.equal(canReorderSkills(gs), false);
+  gs.unlockedSkills = ['Z', 'X', 'C', 'V', 'B'];
+  assert.equal(canReorderSkills(gs), true);
+  assert.equal(SKILLS.Z.mpCost, 0);                        // 普通攻擊不耗 MP
 });

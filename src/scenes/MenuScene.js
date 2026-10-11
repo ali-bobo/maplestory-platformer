@@ -5,6 +5,8 @@ import { addWoodButton } from '../engine/woodUi.js';
 import {
   getSaveSummary, loadGame, canSave, exportSaveFile, importSaveFile,
 } from '../engine/saveGame.js';
+import { addSoundButton } from '../engine/soundButton.js';
+import { hasSeenTutorial } from './TutorialScene.js';
 
 export class MenuScene extends Phaser.Scene {
   constructor() {
@@ -65,6 +67,9 @@ export class MenuScene extends Phaser.Scene {
       this.input.keyboard.once('keydown', () => this._startGame());
     }
 
+    // 聲音開關（右上角）
+    this._soundBtn = addSoundButton(this, width - 44, 44, { depth: 50, size: 44 });
+
     // 匯出 / 匯入存檔（換瀏覽器、換裝置時使用）
     const linkY = 676;
     if (summary) {
@@ -122,6 +127,11 @@ export class MenuScene extends Phaser.Scene {
     this._starting = true;
     const gs = createInitialGameState();
     this.registry.set('gameState', gs);
+    // 第一次進遊戲先看新手教學（故事 + 按鍵 + 任務系統）；可用 Esc / 「跳過全部」略過，之後可在暫停選單重看
+    if (!hasSeenTutorial()) {
+      this.scene.start('TutorialScene', { mode: 'newGame', gameState: gs });
+      return;
+    }
     this.scene.start('MapleIslandScene');
   }
 }

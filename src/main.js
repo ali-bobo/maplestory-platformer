@@ -19,6 +19,8 @@ import { saveOnExit } from './engine/saveGame.js';
 import { isTouchDevice } from './engine/device.js';
 import { mountTouchControls } from './engine/touchControls.js';
 import { audio } from './engine/audio.js';
+import { SKILL_SLOT_KEYS, skillForSlot } from './config/constants.js';
+import { TutorialScene } from './scenes/TutorialScene.js';
 
 const config = {
   type: Phaser.WEBGL,
@@ -76,6 +78,7 @@ const config = {
     DungeonScene,
     UIScene,
     GameOverScene,
+    TutorialScene,
   ],
 };
 
@@ -103,24 +106,44 @@ document.addEventListener('visibilitychange', () => {
 });
 
 // ── 手機支援 ────────────────────────────────────────────────────────────────
-// 瀏覽器要求使用者操作後才能啟動音效：第一次點擊 / 觸碰 / 按鍵時恢復 AudioContext
+// 瀏覽器要求「使用者手勢」後才能啟動音效。觸控裝置上，手指按下（pointerdown / touchstart）不算有效手勢，
+// 要在放開（pointerup / touchend）或 click 時才行 —— 這是手機版原本沒聲音的原因。所以這幾種事件都監聽。
+const UNLOCK_EVENTS = ['pointerup', 'touchend', 'click', 'keydown'];
 function unlockAudio() {
   audio.resumeContext();
-  if (!audio.ctx || audio.ctx.state === 'running') {
-    window.removeEventListener('pointerdown', unlockAudio, true);
-    window.removeEventListener('keydown', unlockAudio, true);
-  }
+  try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (_) { /* iOS 16.4+：讓網頁音訊不被靜音鍵擋住 */ }
+  // resume() 是非同步的：稍後確認真的在跑了再移除監聽，否則下一次手勢再試
+  setTimeout(() => {
+    if (!audio.ctx || audio.ctx.state === 'running') {
+      for (const ev of UNLOCK_EVENTS) window.removeEventListener(ev, unlockAudio, true);
+    }
+  }, 300);
 }
-window.addEventListener('pointerdown', unlockAudio, true);
-window.addEventListener('keydown', unlockAudio, true);
+for (const ev of UNLOCK_EVENTS) window.addEventListener(ev, unlockAudio, true);
+// 切回分頁時（iOS 切到背景會把 context 打斷）重新啟動
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') audio.resumeContext(); });
 
 // 觸控裝置：掛上操作層，只在實際遊玩（HUD 場景存在）時顯示
 if (isTouchDevice()) {
   const controls = mountTouchControls({ canvasProvider: () => game.canvas });
-  const gameplayScenes = ['BootScene', 'MenuScene', 'GameOverScene'];
+  const gameplayScenes = ['BootScene', 'MenuScene', 'GameOverScene', 'TutorialScene'];
+  const SHORT = { Z: '普攻', X: '步', C: '殺', V: '渦', B: '影' };
+  let lastSkillSig = '';
   setInterval(() => {
     const idle = gameplayScenes.some((key) => game.scene.isActive(key));
     controls.setVisible(!idle && game.scene.isActive('UIScene'));
+    // 技能鈕字樣 / 鎖定狀態跟著 gameState.skillSlots 與解鎖進度
+    const gs = game.registry.get('gameState');
+    if (gs) {
+      const labels = {}; const locked = {};
+      for (const slot of SKILL_SLOT_KEYS) {
+        const id = skillForSlot(gs, slot);
+        labels[slot] = SHORT[id];
+        locked[slot] = !(gs.unlockedSkills || []).includes(id);
+      }
+      const sig = JSON.stringify([labels, locked]);
+      if (sig !== lastSkillSig) { lastSkillSig = sig; controls.setSkillButtons(labels, locked); }
+    }
   }, 250);
   game.scale.on('resize', () => controls.layout());
 }

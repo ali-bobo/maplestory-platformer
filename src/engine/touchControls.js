@@ -17,6 +17,7 @@ export const KEYS = {
   right: { key: 'ArrowRight', code: 'ArrowRight', keyCode: 39 },
   down:  { key: 'ArrowDown',  code: 'ArrowDown',  keyCode: 40 },
   Z: { key: 'z', code: 'KeyZ', keyCode: 90 },
+  SPACE: { key: ' ', code: 'Space', keyCode: 32 },
   X: { key: 'x', code: 'KeyX', keyCode: 88 },
   C: { key: 'c', code: 'KeyC', keyCode: 67 },
   V: { key: 'v', code: 'KeyV', keyCode: 86 },
@@ -72,14 +73,16 @@ function fireKeyboardEvent(type, def) {
 
 const BUTTONS = [
   // [css class, 顯示文字, 鍵名, 說明, 所在群組]
-  ['tc-jump',   '跳',  'up',  '跳躍', 'actions'],
-  ['tc-attack', 'Z',   'Z',   '三連飛鏢', 'actions'],
-  ['tc-skill tc-x', 'X', 'X', '暗影步伐', 'actions'],
-  ['tc-skill tc-c', 'C', 'C', '暗殺', 'actions'],
-  ['tc-skill tc-v', 'V', 'V', '暗影漩渦', 'actions'],
-  ['tc-skill tc-b', 'B', 'B', '影分身', 'actions'],
-  ['tc-util tc-interact', '互動', 'F', '互動 / 對話', 'actions'],
+  // 移動區（同一隻手）：跳、↓、搖桿
+  ['tc-jump',   '跳',  'up',  '跳躍（可二段跳）', 'moves'],
   ['tc-down',   '↓',   'down', '下穿平台', 'moves'],
+  // 動作區：普通攻擊（空白鍵）、四個技能欄位（X C V B，放哪個技能由玩家決定）、互動
+  ['tc-attack', '普攻', 'SPACE', '普通攻擊', 'actions'],
+  ['tc-skill tc-x', '步', 'X', '技能欄 1', 'actions'],
+  ['tc-skill tc-c', '殺', 'C', '技能欄 2', 'actions'],
+  ['tc-skill tc-v', '渦', 'V', '技能欄 3', 'actions'],
+  ['tc-skill tc-b', '影', 'B', '技能欄 4', 'actions'],
+  ['tc-util tc-interact', '互動', 'F', '互動 / 對話', 'actions'],
   ['tc-util tc-pause', '暫停', 'ESC', '暫停選單 / 關閉', 'top'],
 ];
 
@@ -106,6 +109,7 @@ export function mountTouchControls({ canvasProvider, hudBottomRatio = 120 / 720 
   const readHand = () => { try { return localStorage.getItem(HAND_KEY); } catch (_) { return null; } };
   root.classList.toggle('tc-moves-left', readHand() === 'left');
 
+  const buttonEls = {};
   // ── 一般按鈕 ───────────────────────────────────────────────────────────────
   for (const [cls, label, keyName, title, group] of BUTTONS) {
     const btn = document.createElement('div');
@@ -129,6 +133,7 @@ export function mountTouchControls({ canvasProvider, hudBottomRatio = 120 / 720 
     btn.addEventListener('pointercancel', release);
     btn.addEventListener('lostpointercapture', release);
     groups[group].appendChild(btn);
+    buttonEls[keyName] = btn;
   }
 
   // ── 搖桿（左右）────────────────────────────────────────────────────────────
@@ -259,6 +264,15 @@ export function mountTouchControls({ canvasProvider, hudBottomRatio = 120 / 720 
     root,
     layout,
     keys,
+    // 四個技能鈕的字樣會跟著玩家排的技能欄位變：labels = { X: '步', ... }，locked = { X: true, ... }
+    setSkillButtons(labels, locked) {
+      for (const k of ['X', 'C', 'V', 'B']) {
+        const el = buttonEls[k];
+        if (!el) continue;
+        if (labels[k] && el.textContent !== labels[k]) el.textContent = labels[k];
+        el.classList.toggle('tc-locked', !!(locked && locked[k]));
+      }
+    },
     setVisible(visible) {
       const hidden = !visible;
       if (root.classList.contains('tc-hidden') === hidden) return;
