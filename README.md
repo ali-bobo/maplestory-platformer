@@ -2,7 +2,7 @@
 
 楓之谷風格的 2D 橫向捲軸平台動作遊戲，採用 Phaser 3 + esbuild 開發。扮演盜賊，從浮空島嶼出發、串接 6 張地圖、挑戰暗影魔君 Boss，並有副本系統提升重玩價值。
 
-> **🎮 想直接玩遊戲？請看 [PLAYER_GUIDE.md](PLAYER_GUIDE.md)**（含 30 秒上手、操作說明、地圖介紹、副本系統、FAQ、Troubleshooting）
+> **🎮 想直接玩遊戲？請看 [PLAYER_GUIDE.md](docs/PLAYER_GUIDE.md)**（含 30 秒上手、操作說明、地圖介紹、副本系統、FAQ、Troubleshooting）
 >
 > 本檔給「想修改原始碼 / 了解技術細節」的開發者看。
 
@@ -10,7 +10,7 @@
 
 ## 環境需求
 
-- Node.js **18 或以上**（`package.json` 的 `engines` 欄位已限制，安裝時會自動警告）
+- Node.js **18 或以上**（`package.json` 的 `engines` 已限制；建議使用 `.nvmrc` 指定的 20，CI 使用 22）
 - 現代瀏覽器（Chrome / Edge / Firefox 最新版，需 WebGL2）
 
 ---
@@ -62,9 +62,14 @@ src/
   config/           — 常數、怪物 / 裝備 / 地圖 / 任務 / 副本定義、asset catalog
   engine/           — 音效、粒子、VFX、品質系統、FPS 控制、任務管理、副本記錄
   assets/           — ProceduralAssets（平台 / 技能 / UI 程式生成材質）
+docs/
+  PLAYER_GUIDE.md   — 玩家手冊
+  GAME_SPEC.md      — 設計規格書
+  STATUS.md         — 目前狀態、缺口與下一步
+  TODO.md           — 待你決定 / 調整的項目
 dist/
   bundle.js         — esbuild 打包輸出（**已進 git，玩家免 build**）
-  assets/           — 51 張 PNG 素材（角色 / 怪物 / 背景 / NPC / Boss）
+  assets/           — 50 張 PNG 素材（角色 / 怪物 / 背景 / NPC / Boss）
 index.html          — 主入口（含 CSP meta tag）
 build.js            — esbuild 打包腳本
 package.json        — npm scripts
@@ -81,6 +86,7 @@ package.json        — npm scripts
 - **HUD**：底部單列狀態列、右上小地圖、技能 / 藥水快捷列、任務追蹤面板
 - **任務系統**（Phase 13）：3 個範例任務、F 鍵自動接、HUD 即時進度
 - **副本系統**（Phase 14）：史萊姆洞窟波狀關、每日 3 次上限、勝負結算 popup
+- **戰鬥回饋**（Phase 15）：目標選取框、升級全屏演出、ESC 暫停選單
 - **效能**：自適應品質系統（FPS 監測自動降級）、VFX 紋理預渲染、HUD 凍結
 
 ---
@@ -97,6 +103,25 @@ package.json        — npm scripts
 
 ---
 
+## 文件
+
+| 文件 | 內容 |
+|------|------|
+| [docs/PLAYER_GUIDE.md](docs/PLAYER_GUIDE.md) | 玩家手冊 |
+| [docs/GAME_SPEC.md](docs/GAME_SPEC.md) | 設計規格書（設計意圖，數值以 `src/config` 為準） |
+| [docs/STATUS.md](docs/STATUS.md) | 目前狀態、已知缺口與下一步 |
+| [docs/TODO.md](docs/TODO.md) | 待決定與待實作項目 |
+
+---
+
+## 貢獻
+
+PR 會由 CI 檢查 `npm run build` 能成功，且提交的 `dist/bundle.js` 與原始碼一致。修改 `src/` 後請先執行 `npm run build` 並一併提交 bundle。
+
+---
+
 ## 授權
 
-本專案為學習用途，遊戲圖片素材版權歸原作者所有。
+原始碼（`src/`、`build.js` 等）以 [MIT License](LICENSE) 授權。
+
+`dist/assets/` 內的圖片素材**不在 MIT 授權範圍內**，版權歸原作者所有，僅供學習用途；重新散布或商用前請自行確認來源與授權。

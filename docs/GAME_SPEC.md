@@ -49,6 +49,7 @@
 - 31. 特殊城市怪可作為低頻率、較大尺寸的小王出現
 - 32. 任務系統 MVP：3 個範例任務、HUD 追蹤面板、F 鍵接任務（Phase 13）
 - 33. 副本系統 MVP：史萊姆洞窟波狀關、限時、每日次數上限、勝負結算（Phase 14）
+- 35. Phase 15：目標選取框、升級全屏演出、ESC 暫停選單（繼續 / 返回主選單）
 - 34. 效能優化 Phase 15：HP/MP/EXP 列改用 Rectangle+scaleX、背景改用 Rectangle、
        選單按鈕 Graphics→Rectangle、5 個定時器整合為 1、HP bar 位置快取粒度 2px
 - 35. BGM masterGain 隔離：每次 playBgm 建立獨立 GainNode，stopBgm 10ms fade-out，
@@ -56,12 +57,9 @@
 
 ### 部分完成
 - 6. 技能 V / B 已有獨特效果，但仍可持續加強視覺層次
-- 15. 城鎮與商店場景已有基礎程式，但尚未正式接入主流程
+- 15. 城鎮商店已可由 sky 的傳送門進入並購物；藥水經濟平衡尚未完整化
 
 ### 待完成
-- 22. ESC 暫停選單與操作覆蓋層
-- 目標選取框
-- Level Up 全屏演出
 - Boss 第三階段狂暴視覺
 - 進一步補強各地圖專屬平台美術與城市支線互動
 
@@ -462,15 +460,21 @@ MP 每秒自動回復 10
 
 ## [MAP_SYSTEM] 地圖系統
 
-### 地圖一覽（Iteration 4 — 3 個地圖）
+### 地圖一覽
 
-| 地圖 ID   | 名稱         | Scene 類           | 怪物等級 | 建議等級 | 背景圖           |
-|----------|--------------|--------------------|---------|---------|-----------------|
-| `sky`    | 浮空島嶼      | MapleIslandScene   | 1–8     | 1–10    | bg_sky.png       |
-| `ruins`  | 古代廢墟      | PerionScene        | 9–18    | 9–20    | bg_ruins.png     |
-| `kerning`| Kerning City | KerningScene       | 19–28   | 18–30   | bg_city.png      |
+| 地圖 ID | 名稱 | Scene 類 | 背景圖 |
+|---------|------|----------|--------|
+| `town` | 楓葉城（無怪物，商店 / 副本入口） | TownScene | bg_toytown.png |
+| `sky` | 浮空島嶼 | MapleIslandScene | bg_sky.png |
+| `henesys` | 森林獵場 | HenesysScene | bg_forest.png |
+| `ruins` | 古代廢墟 | PerionScene | bg_ruins.png |
+| `ellinia` | 神秘之境 | ElliniaScene | bg_toytown_refresh.png 等 |
+| `taipei` | 台北都會（支線） | TaipeiScene | bg_taipei.png |
+| `kerning` | Kerning City | KerningScene | bg_city.png |
+| `boss` | 暗影領域 | BossScene | bg_boss_room.png |
+| `dungeon` | 史萊姆洞窟（由楓葉城進入） | DungeonScene | 見 `config/dungeons.js` |
 
-進程：`sky` → `ruins` → `kerning`（單向，透過右側傳送門推進）
+進程：`town` ↔ `sky` ↔ `henesys` ↔ `ruins` ↔ `ellinia` ↔ `kerning` → `boss`；`ellinia` ↔ `taipei` 為支線。地圖順序與怪物組合以 `src/config/maps.js` 為準。
 
 ### 地圖切換機制
 ```
@@ -479,14 +483,6 @@ MP 每秒自動回復 10
 - gameState 完整保留（等級、HP、裝備、擊殺數）
 - Boss 解鎖門：擊殺 60 隻後，kerning 右側出現 Boss 傳送門
 ```
-
-### 各地圖視覺（真實圖片背景 + 程式生成平台）
-
-| 地圖          | 背景來源                    | 平台類型        | 怪物組合                            |
-|--------------|---------------------------|-----------------|-------------------------------------|
-| 浮空島嶼(sky) | bg_sky.png（浮空島嶼風景）  | stone + grass   | slime, mushroom, snail, stump       |
-| 古代廢墟(ruins)| bg_ruins.png（廢墟石拱）   | stone + brick   | boar, robot, skeleton, snake        |
-| Kerning City  | bg_city.png（城市夜景磚牆） | brick + wood    | dragon, cyclops, golem, mimic       |
 
 ### NPC（目前已實作）
 ```
@@ -504,10 +500,10 @@ MP 每秒自動回復 10
 ```
 - 怪物具體數值（HP、ATK、EXP、速度等）定義於 src/config/monsters.js
 - 怪物圖片來自 dist/assets/monster_*.png（80×80，已去白底）
-- 12 種怪物分配至 3 個地圖區域
+- 目前 6 張戰鬥地圖的實際怪物組合以 src/config/maps.js 為準
 ```
 
-### 按區域分類（Iteration 4 版本）
+### 早期區域分類（Iteration 4 歷史快照，僅供設計參考；henesys / ellinia / taipei 的組合請看 maps.js）
 
 #### 浮空島嶼 sky（Lv1–8）
 | 怪物 ID   | 圖片 key         | 建議等級 | 行為   |
