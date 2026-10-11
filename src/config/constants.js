@@ -38,12 +38,12 @@ export const BASIC_ATTACK_DEF = { name: '普通攻擊', cooldown: 0.4, damageMul
 // 技能 id：盜賊沿用 Z X C V B；刺客 / 俠盜繼承其中 3 個（同 id、同效果），再各加 3 個專屬技能。
 // 職業專屬技能的數值見 docs/SKILLS_DESIGN.md。
 export const JOB_SKILLS = {
-  backstab: { name: '瞬影連刺', cooldown: 6.0,  mpCost: 40, maxLevel: 10 },
-  poison:   { name: '蝕心毒鏢', cooldown: 4.0,  mpCost: 35, maxLevel: 10 },
-  mark:     { name: '斷命印記', cooldown: 12.0, mpCost: 60, maxLevel: 10 },
-  whirl:    { name: '赤月迴旋', cooldown: 6.0,  mpCost: 45, maxLevel: 10 },
-  steal:    { name: '妙手空空', cooldown: 5.0,  mpCost: 30, maxLevel: 10 },
-  smoke:    { name: '迷煙彈',   cooldown: 14.0, mpCost: 55, maxLevel: 10 },
+  backstab: { name: '瞬影連刺', cooldown: 5.0,  mpCost: 40, maxLevel: 10 },
+  poison:   { name: '蝕心毒鏢', cooldown: 4.0,  mpCost: 30, maxLevel: 10 },
+  mark:     { name: '斷命印記', cooldown: 12.0, mpCost: 50, maxLevel: 10 },
+  whirl:    { name: '赤月迴旋', cooldown: 5.0,  mpCost: 40, maxLevel: 10 },
+  steal:    { name: '妙手空空', cooldown: 4.0,  mpCost: 24, maxLevel: 10 },
+  smoke:    { name: '迷煙彈',   cooldown: 12.0, mpCost: 45, maxLevel: 10 },
 };
 // 全部技能定義（盜賊技能 + 職業專屬）；各職業的解鎖等級以 JOBS[job].skills 為準
 export const ALL_SKILLS = { ...SKILLS, ...JOB_SKILLS };
@@ -80,10 +80,10 @@ export const JOBS = {
     pool: ['Z', 'X', 'C', 'backstab', 'poison', 'mark'],
     unlocks: { Z: 10, X: 10, C: 10, backstab: 12, poison: 18, mark: 24 },
     defaultSlots: ['Z', 'X', 'C', 'backstab'],
-    // 雙刃連斬：兩下、每下 0.55 倍、暴擊率 +10%
+    // 雙刃連斬：兩下、每下 0.55 倍、暴擊率 +10%（再加殺手本能的 +8%）
     basic: { name: '雙刃連斬', cooldown: 0.4, damageMult: 0.55, range: 90, hits: 2, critBonus: 0.1 },
-    passive: { name: '殺手本能', desc: '暴擊傷害 +30%' },
-    passives: { critDamage: 0.3 },
+    passive: { name: '殺手本能', desc: '暴擊率 +8%、暴擊傷害 +40%' },
+    passives: { critDamage: 0.4, critRate: 0.08 },
     portrait: 'portrait_assassin',
   }),
   bandit: buildJob({
@@ -91,10 +91,10 @@ export const JOBS = {
     pool: ['X', 'V', 'B', 'whirl', 'steal', 'smoke'],
     unlocks: { X: 10, V: 10, B: 10, whirl: 12, steal: 18, smoke: 24 },
     defaultSlots: ['X', 'V', 'B', 'whirl'],
-    // 彎刀橫斬：範圍 110、1.1 倍；每連打 3 下第 3 下擊飛
-    basic: { name: '彎刀橫斬', cooldown: 0.5, damageMult: 1.1, range: 110, hits: 1, critBonus: 0, knockupEvery: 3 },
-    passive: { name: '悍匪體魄', desc: '最大 HP +20%、金幣掉落 +15%' },
-    passives: { maxHpMult: 1.2, mesoMult: 1.15 },
+    // 彎刀橫斬：範圍 120、1.2 倍；每連打 3 下第 3 下是 1.6 倍並擊飛
+    basic: { name: '彎刀橫斬', cooldown: 0.45, damageMult: 1.2, range: 120, hits: 1, critBonus: 0, knockupEvery: 3, finisherMult: 1.6 },
+    passive: { name: '悍匪體魄', desc: '最大 HP +30%（升級也成長）、受到傷害 -10%、金幣掉落 +25%' },
+    passives: { maxHpMult: 1.3, mesoMult: 1.25, damageReduction: 0.1 },
     portrait: 'portrait_bandit',
   }),
 };
@@ -129,7 +129,7 @@ export function effectiveCritMulti(gs) {
   return gs.critMulti + jobPassive(gs, 'critDamage', 0);
 }
 export function effectiveCritRate(gs, bonus = 0) {
-  return Math.min(1, gs.critRate + bonus);
+  return Math.min(1, gs.critRate + jobPassive(gs, 'critRate', 0) + bonus);
 }
 
 // 技能池有 5～6 個技能，但技能欄只有 4 格（電腦版快捷鍵 Z X C V；手機同位置的 4 顆按鈕）。

@@ -1,4 +1,5 @@
 const { chromium } = require('/opt/node-tools/node_modules/playwright');
+const PORT = process.env.PORT || 8123;
 let fails = 0; const SPDIR = process.argv[2] || '.';
 const check = (n, c, x = '') => { console.log((c ? 'PASS' : 'FAIL') + ' - ' + n + (x ? ' :: ' + x : '')); if (!c) fails++; };
 (async () => {
@@ -32,7 +33,7 @@ const check = (n, c, x = '') => { console.log((c ? 'PASS' : 'FAIL') + ' - ' + n 
       return r;
     };
   });
-  await page.goto('http://127.0.0.1:8123/index.html?debug=1');
+  await page.goto(`http://127.0.0.1:${PORT}/index.html?debug=1`);
   await page.waitForTimeout(4000);
   await page.keyboard.press('Enter');       // 開始遊戲（第一次按鍵解鎖音訊）
   const rms = () => page.evaluate(async () => {

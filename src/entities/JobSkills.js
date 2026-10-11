@@ -10,13 +10,14 @@ import { VFX_TEX } from '../engine/vfxTextures.js';
 import {
   skillDamageScale, effectiveCritMulti, effectiveCritRate, jobOf, jobPassive,
 } from '../config/constants.js';
+import { M } from '../config/skillModel.js';
 import {
   calcDamage, getEntityEffectPoint, playFx, spawnImpactSpark, spawnShockCircle, spawnAfterimage,
   hitStop, findNearestEnemy, launchShuriken, resolveAssassinateWarpPoint,
 } from './Skill.js';
 import {
   setMark, clearMark, addPoison, tickPoison, POISON_TICK_MULT, MARK_DURATION_MS,
-  pruneSmoke, SMOKE_DURATION_MS, SMOKE_RADIUS, rollSteal, comboStep,
+  pruneSmoke, SMOKE_DURATION_MS, SMOKE_RADIUS, SMOKE_TICK_MULT, STEAL_MP_REFUND, rollSteal, comboStep,
 } from '../engine/statusEffects.js';
 
 const alive = (e) => !!e && e.active && !e.isDead;
@@ -103,7 +104,7 @@ const later = (scene, player, ms, fn) => scene.time.delayedCall(ms, () => {
   fn();
 });
 
-// ── 雙刃連斬（刺客普通攻擊）：兩下、每下 0.55 倍、暴擊率 +10% ─────────────────
+// ── 雙刃連斬（刺客普通攻擊）：兩下、每下 0.55 倍、暴擊率 +10%（數值見 constants.js）────────
 export function castTwinBlade(scene, player, enemies) {
   audio.playSkill('ATK');
   const basic = jobOf(player.gameState).basic;
@@ -116,7 +117,7 @@ export function castTwinBlade(scene, player, enemies) {
   }));
 }
 
-// ── 彎刀橫斬（俠盜普通攻擊）：範圍 110、1.1 倍；連打每第 3 下擊飛 ────────────
+// ── 彎刀橫斬（俠盜普通攻擊）：範圍 120、1.2 倍；連打每第 3 下 1.6 倍並擊飛 ───────
 export function castSabre(scene, player, enemies) {
   audio.playSkill('ATK');
   const basic = jobOf(player.gameState).basic;
@@ -129,12 +130,13 @@ export function castSabre(scene, player, enemies) {
   later(scene, player, 80, () => {
     swingFx(scene, player, 'fx_slash_bandit', { scale: finisher ? 1.25 : 1.0, forward: 54, tilt: finisher ? -0.4 : 0, normal: true });
     meleeStrike(scene, player, enemies, {
-      range: basic.range, mult: basic.damageMult, critBonus: basic.critBonus, knockup: finisher ? -430 : 0,
+      range: basic.range, mult: finisher ? basic.damageMult * basic.finisherMult : basic.damageMult,
+      critBonus: basic.critBonus, knockup: finisher ? -430 : 0,
     });
   });
 }
 
-// ── 瞬影連刺（刺客）：瞬移到最近敵人背後連刺 3 下，每下 0.8 倍，背後攻擊必定暴擊 ─
+// ── 瞬影連刺（刺客）：瞬移到最近敵人背後連刺 3 下，每下 1.45 倍，背後攻擊必定暴擊 ─
 export function castBackstab(scene, player, enemies) {
   const gs = player.gameState;
   const origin = getEntityEffectPoint(player);
@@ -163,7 +165,7 @@ export function castBackstab(scene, player, enemies) {
   player._lockPose(player.pose('crouch_low'), 90);
   later(scene, player, 90, () => player._lockPose(player.pose('backstab'), 420));
 
-  const mult = 0.8 * skillDamageScale(gs.skillLevels.backstab);
+  const mult = M.BACKSTAB * skillDamageScale(gs.skillLevels.backstab);
   [120, 220, 320].forEach((delay, i) => later(scene, player, delay, () => {
     if (!alive(target)) return;
     const c = getEntityEffectPoint(target);
@@ -183,7 +185,7 @@ export function castBackstab(scene, player, enemies) {
   return true;
 }
 
-// ── 蝕心毒鏢（刺客）：0.7 倍飛鏢，命中後中毒 5 秒（每秒 0.25 倍，最多 3 層）─────
+// ── 蝕心毒鏢（刺客）：1.2 倍飛鏢，命中後中毒 6 秒（每秒 0.65 倍，最多 3 層）─────
 export function applyPoison(scene, player, enemy) {
   if (!alive(enemy)) return;
   const gs = player.gameState;
@@ -218,14 +220,14 @@ export function castPoison(scene, player, enemies) {
     const origin = getEntityEffectPoint(player);
     launchShuriken(scene, player, enemies, {
       x: player.x + dir * 24, y: origin.y - 6, vx: dir * 700, vy: 0,
-      multiplier: 0.7, skillKey: 'poison', tint: 0x9dff6a, scale: 1.1,
+      multiplier: M.POISON_DART, skillKey: 'poison', tint: 0x9dff6a, scale: 1.1,
       trailTint: [0xc8ff9a, 0x6edc3c, 0x2f8f1c],
       onHit: (enemy) => applyPoison(scene, player, enemy),
     });
   });
 }
 
-// ── 斷命印記（刺客）：標記最近敵人 6 秒，下一次受擊必暴擊並 +30% 傷害 ───────────
+// ── 斷命印記（刺客）：標記最近敵人 7 秒，期間每次受擊（毒除外）必暴擊並 +20% 傷害 ───
 export function castMark(scene, player, enemies) {
   const origin = getEntityEffectPoint(player);
   const target = findNearestEnemy(enemies, origin.x, origin.y, 460);
@@ -246,86 +248,115 @@ export function castMark(scene, player, enemies) {
   };
   scene.events.on('update', follow);
   const timer = scene.time.delayedCall(MARK_DURATION_MS, () => { if (target._mark === mark) clearMark(target, 'expired'); });
-  mark.onClear = (reason) => {
-    scene.events.off('update', follow);
-    timer.remove();
-    if (icon?.active) icon.destroy();
-    if (reason === 'hit' && target.active) {
-      const p = getEntityEffectPoint(target);
+  // 第一擊演出「斷命」；之後每一擊只閃一下印記，避免多段攻擊洗版
+  mark.onHit = (n) => {
+    if (!target.active) return;
+    const p = getEntityEffectPoint(target);
+    if (n === 1) {
       playFx(scene, 'fx_mark', p.x, p.y, { scale: 1.4, frameRate: 24 });
       floatText(scene, p.x, p.y - 34, '斷命！', '#ff8a8a');
       spawnLightRays(scene, p.x, p.y, { count: 10, length: 90, color: 0xff6a6a, alpha: 0.5, duration: 280 });
     }
   };
+  mark.onClear = () => {
+    scene.events.off('update', follow);
+    timer.remove();
+    if (icon?.active) icon.destroy();
+  };
   return true;
 }
 
-// ── 赤月迴旋（俠盜）：原地旋轉斬，半徑 120 內全體 1.2 倍並擊退 ───────────────
+// ── 赤月迴旋（俠盜）：原地旋轉斬三圈，半徑 140 內全體每圈 1.2 倍，最後一圈擊退；每命中一隻回血 ──
+const WHIRL_RADIUS = 140;
+const WHIRL_HEAL_PER_HIT = 0.015;   // 每圈每隻回最大 HP 1.5%，單次施放最多 6%
 export function castWhirl(scene, player, enemies) {
   audio.playSkill('V');
   const gs = player.gameState;
-  const radius = 120;
+  const radius = WHIRL_RADIUS;
   player._lockPose(player.pose('spin_1'), 130);
   later(scene, player, 130, () => player._lockPose(player.pose('spin_2'), 150));
   later(scene, player, 280, () => player._lockPose(player.pose('spin_1'), 110));
+  later(scene, player, 390, () => player._lockPose(player.pose('spin_2'), 150));
   const c0 = getEntityEffectPoint(player);
-  playFx(scene, 'fx_whirl', c0.x, c0.y + 6, { scale: 1.4, frameRate: 16, normal: true });
+  playFx(scene, 'fx_whirl', c0.x, c0.y + 6, { scale: 1.5, frameRate: 16, normal: true });
   spawnShockCircle(scene, c0.x, c0.y, { startRadius: 20, endRadius: radius, duration: 360, color: 0xff9a5a, alpha: 0.7, lineWidth: 3 });
-  later(scene, player, 140, () => {
-    const o = getEntityEffectPoint(player);
-    let hits = 0;
-    enemies?.getChildren?.().forEach((enemy) => {
-      if (!alive(enemy)) return;
-      const c = getEntityEffectPoint(enemy);
-      if (Phaser.Math.Distance.Between(o.x, o.y, c.x, c.y) > radius + (enemy.body ? enemy.body.halfWidth : 0)) return;
-      const { damage, isCrit } = calcDamage(gs.atk, gs.critRate, effectiveCritMulti(gs), 1.2 * skillDamageScale(gs.skillLevels.whirl));
-      enemy.takeDamage(damage, isCrit);
-      enemy.applyKnockback?.((c.x >= o.x ? 1 : -1) * 320, 240, -140);
-      spawnImpactSpark(scene, c.x, c.y, isCrit ? 0xffdd66 : 0xffa070, 1.2);
-      hits++;
+  let healed = 0;
+  for (let n = 0; n < M.WHIRL_HITS; n++) {
+    const last = n === M.WHIRL_HITS - 1;
+    later(scene, player, 140 + n * 150, () => {
+      const o = getEntityEffectPoint(player);
+      let hits = 0;
+      enemies?.getChildren?.().forEach((enemy) => {
+        if (!alive(enemy)) return;
+        const c = getEntityEffectPoint(enemy);
+        if (Phaser.Math.Distance.Between(o.x, o.y, c.x, c.y) > radius + (enemy.body ? enemy.body.halfWidth : 0)) return;
+        const { damage, isCrit } = calcDamage(gs.atk, effectiveCritRate(gs), effectiveCritMulti(gs), M.WHIRL * skillDamageScale(gs.skillLevels.whirl));
+        enemy.takeDamage(damage, isCrit);
+        enemy.applyKnockback?.((c.x >= o.x ? 1 : -1) * (last ? 320 : 90), 240, last ? -140 : 0);
+        spawnImpactSpark(scene, c.x, c.y, isCrit ? 0xffdd66 : 0xffa070, 1.2);
+        hits++;
+      });
+      audio.playImpact(hits > 0);
+      if (hits > 0) {
+        const heal = Math.min(0.06 - healed, hits * WHIRL_HEAL_PER_HIT);
+        if (heal > 0 && gs.hp > 0) {
+          healed += heal;
+          const amt = Math.floor(gs.maxHp * heal);
+          gs.hp = Math.min(gs.maxHp, gs.hp + amt);
+          scene.registry.set('gameState', gs);
+          scene.registry.events.emit('changedata-hp', null, gs.hp);
+          floatText(scene, o.x, o.y - 50, `+${amt}`, '#7dff9a');
+        }
+        if (last) { hitStop(scene, 60); scene.cameras.main.shake(130, 0.012); cameraShockwave(scene, o.x, o.y, 300); }
+      }
     });
-    audio.playImpact(hits > 0);
-    if (hits > 0) { hitStop(scene, 60); scene.cameras.main.shake(130, 0.012); cameraShockwave(scene, o.x, o.y, 300); }
-  });
+  }
 }
 
-// ── 妙手空空（俠盜）：近戰一擊 1.0 倍；35% 多掉一份金幣、5% 偷到藥水 ───────────
+// ── 妙手空空（俠盜）：近戰兩連擊各 1.8 倍；命中回 10 MP、60% 多掉一份金幣、12% 偷到藥水 ───
 export function castSteal(scene, player, enemies) {
   const gs = player.gameState;
   const dir = player.facingRight ? 1 : -1;
   const origin = getEntityEffectPoint(player);
-  const target = nearestInFront(enemies, origin, dir, 110);
+  const target = nearestInFront(enemies, origin, dir, 130);
   if (!target) return false;
   audio.playSkill('ATK');
   player._lockPose(player.pose('slash_1'), 70);
   later(scene, player, 70, () => player._lockPose(player.pose('slash_2'), 160));
-  later(scene, player, 70, () => {
-    if (!alive(target)) return;
-    const c = getEntityEffectPoint(target);
-    swingFx(scene, player, 'fx_slash_bandit', { scale: 0.85, forward: 50, normal: true });
-    const { damage, isCrit } = calcDamage(gs.atk, gs.critRate, effectiveCritMulti(gs), 1.0 * skillDamageScale(gs.skillLevels.steal));
-    target.takeDamage(damage, isCrit);
-    target.applyKnockback?.(dir * 150, 120);
-    spawnImpactSpark(scene, c.x, c.y, isCrit ? 0xffdd66 : 0xffcf70, 1.1);
-    audio.playImpact(isCrit);
-    const roll = rollSteal(Math.random(), Math.random());
-    if (roll.meso && typeof target._spawnPickup === 'function') {
-      const meso = Math.max(1, Math.floor((target.meso || 5) * (0.5 + Math.random()) * jobPassive(gs, 'mesoMult', 1)));
-      target._spawnPickup('item-meso', meso, 'meso');
-      floatText(scene, c.x, c.y - 34, '妙手！', '#ffe27a');
-    }
-    if (roll.potion && gs.potions) {
-      const slot = Math.random() < 0.5 ? 'A' : 'D';
-      gs.potions[slot] = (gs.potions[slot] || 0) + 1;
-      scene.registry.set('gameState', gs);
-      floatText(scene, c.x, c.y - 52, slot === 'A' ? '偷到 HP藥水！' : '偷到 MP藥水！', '#9ff0c8');
-    }
-  });
+  for (let n = 0; n < M.STEAL_HITS; n++) {
+    const last = n === M.STEAL_HITS - 1;
+    later(scene, player, 70 + n * 110, () => {
+      if (!alive(target)) return;
+      const c = getEntityEffectPoint(target);
+      swingFx(scene, player, 'fx_slash_bandit', { scale: 0.85, forward: 50, normal: true, tilt: n ? -0.3 : 0 });
+      const { damage, isCrit } = calcDamage(gs.atk, effectiveCritRate(gs), effectiveCritMulti(gs), M.STEAL * skillDamageScale(gs.skillLevels.steal));
+      target.takeDamage(damage, isCrit);
+      target.applyKnockback?.(dir * 150, 120);
+      spawnImpactSpark(scene, c.x, c.y, isCrit ? 0xffdd66 : 0xffcf70, 1.1);
+      audio.playImpact(isCrit);
+      if (!last) return;
+      // 命中回 MP（讓妙手空空幾乎自給自足）
+      gs.mp = Math.min(gs.maxMp, gs.mp + STEAL_MP_REFUND);
+      scene.registry.events.emit('changedata-mp', null, gs.mp);
+      const roll = rollSteal(Math.random(), Math.random());
+      if (roll.meso && typeof target._spawnPickup === 'function') {
+        const meso = Math.max(1, Math.floor((target.meso || 5) * (1 + Math.random()) * jobPassive(gs, 'mesoMult', 1)));
+        target._spawnPickup('item-meso', meso, 'meso');
+        floatText(scene, c.x, c.y - 34, '妙手！', '#ffe27a');
+      }
+      if (roll.potion && gs.potions) {
+        const slot = Math.random() < 0.5 ? 'A' : 'D';
+        gs.potions[slot] = (gs.potions[slot] || 0) + 1;
+        scene.registry.set('gameState', gs);
+        floatText(scene, c.x, c.y - 52, slot === 'A' ? '偷到 HP藥水！' : '偷到 MP藥水！', '#9ff0c8');
+      }
+    });
+  }
   return true;
 }
 
 // ── 迷煙彈（俠盜）：落點 5 秒煙霧；範圍內敵人傷害 -50%、不再追擊 ───────────────
-export function castSmoke(scene, player) {
+export function castSmoke(scene, player, enemies) {
   audio.playSkill('B');
   const dir = player.facingRight ? 1 : -1;
   const feetY = player.body ? player.body.bottom : player.y;
@@ -342,6 +373,22 @@ export function castSmoke(scene, player) {
     pruneSmoke(zones, scene.time.now);
     const zone = { x: tx, y: ty, r: SMOKE_RADIUS, until: scene.time.now + SMOKE_DURATION_MS };
     zones.push(zone);
+    // 煙霧內的敵人每秒受到持續傷害（不暴擊）；敵人移出範圍就不再受傷
+    const gs = player.gameState;
+    const ticks = Math.floor(SMOKE_DURATION_MS / 1000);
+    scene.time.addEvent({
+      delay: 1000, repeat: ticks - 1,
+      callback: () => {
+        if (!scene.sys.isActive()) return;
+        const dmg = Math.max(1, Math.floor(gs.atk * SMOKE_TICK_MULT * skillDamageScale(gs.skillLevels.smoke)));
+        enemies?.getChildren?.().forEach((enemy) => {
+          if (!alive(enemy)) return;
+          const c = getEntityEffectPoint(enemy);
+          if (Phaser.Math.Distance.Between(tx, ty, c.x, c.y) > SMOKE_RADIUS) return;
+          enemy.takeDamage(dmg, false, { dot: true });
+        });
+      },
+    });
     spawnShockCircle(scene, tx, ty, { startRadius: 10, endRadius: SMOKE_RADIUS, duration: 400, color: 0xc8c8d8, alpha: 0.6, lineWidth: 3 });
     // 煙霧：用 fx_smoke 第一格（煙團）散布成一片；最後換第四格（消散）淡出。
     // 不直接循環整條動畫——第 2、3 格的煙圈橫跨格線，放大後會有明顯的方形接縫（素材待修）

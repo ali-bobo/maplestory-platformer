@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { poseKey } from '../config/poses.js';
-import { jobOf, jobIdOf, skillDefOf, expNeeded, MAX_LEVEL, MAP_SCENE_KEYS, POTIONS, createInitialGameState, BASIC_ATTACK, skillForSlot } from '../config/constants.js';
+import { jobOf, jobIdOf, skillDefOf, expNeeded, MAX_LEVEL, MAP_SCENE_KEYS, POTIONS, createInitialGameState, BASIC_ATTACK, skillForSlot, jobPassive } from '../config/constants.js';
 import { saveGame } from '../engine/saveGame.js';
 import { castSlash, castShuriken, castDash, castAssassinate, castVortex, castClone } from './Skill.js';
 import { castTwinBlade, castSabre, castBackstab, castPoison, castMark, castWhirl, castSteal, castSmoke } from './JobSkills.js';
@@ -408,7 +408,8 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   _getDefenseBonus() {
     const gs = this.gameState;
     const armor = gs.equipment.armor;
-    return armor ? Math.min(0.5, armor.hp / 500) : 0;
+    const base = armor ? Math.min(0.5, armor.hp / 500) : 0;
+    return Math.min(0.6, base + jobPassive(gs, 'damageReduction', 0));
   }
 
   gainExp(amount) {
@@ -440,7 +441,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
 
   _onLevelUp(gs) {
     // 屬性提升
-    gs.maxHp  = Math.floor(gs.maxHp  + 20);
+    gs.maxHp  = Math.floor(gs.maxHp  + 20 * jobPassive(gs, 'maxHpMult', 1));   // 悍匪體魄：升級 HP 也 +30%
     gs.maxMp  = Math.floor(gs.maxMp  + 12);
     gs.atk    = Math.floor(gs.atk    + 5);
     gs.speed  = Math.min(320, gs.speed + 2);
