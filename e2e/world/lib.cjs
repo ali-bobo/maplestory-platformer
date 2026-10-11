@@ -31,6 +31,7 @@ const api = (page) => ({
   go: async (sceneKey, spawnX) => {
     await page.evaluate(([k, x]) => { const g = window.__game; const sc = g.scene.getScenes(true).find((o) => o.player) || g.scene.getScenes(true)[0]; const gs = g.registry.get('gameState'); g.scene.getScenes(true).forEach((s) => { if (s.sys.settings.key === 'UIScene') s.scene.stop(); }); sc.scene.start(k, { gameState: gs, spawnX: x }); }, [sceneKey, spawnX]);
     await page.waitForTimeout(2600);
+    await page.waitForFunction((k) => { const sc = window.__game.scene.getScenes(true).find((o) => o.sys.settings.key === k); return !!(sc && sc.player && sc.player.enemies && sc.monsters); }, sceneKey, { timeout: 30000, polling: 100 }).catch(() => {});
   },
   tp: (x, y) => page.evaluate(([x, y]) => { const s = window.__game.scene.getScenes(true).find((o) => o.player); const p = s.player; p.setPosition(x, y ?? p.y); p.body.setVelocity(0, 0); p.isInvincible = true; }, [x, y ?? null]),
   press: async (key, ms = 80) => { await page.keyboard.down(key); await page.waitForTimeout(ms); await page.keyboard.up(key); },

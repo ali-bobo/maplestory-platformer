@@ -68,7 +68,7 @@ const OUT = __dirname + '/shots';
   let shards = await A.ev(() => { const sc = window.__game.scene.getScene('HarborScene'); return sc.pickups.getChildren().filter((p) => p.pickupType === 'shard').map((p) => p.pickupData); });
   check('擊殺後掉出 1 塊星光碎片（harbor）', shards.length === 1 && shards[0] === 'harbor', JSON.stringify(shards));
   await shot('shard-drop');
-  await A.ev(() => { const sc = window.__game.scene.getScene('HarborScene'); const pk = sc.pickups.getChildren().find((p) => p.pickupType === 'shard'); sc.player.setPosition(pk.x, pk.y - 4); });
+  await A.ev(() => { const sc = window.__game.scene.getScene('HarborScene'); const pk = sc.pickups.getChildren().find((p) => p.pickupType === 'shard'); if (pk) sc.player.setPosition(pk.x, pk.y - 4); });   // 碎片過 1.2 秒會自動被吸過來，可能已被撿走
   await page.waitForTimeout(1500);
   gs = await A.gs();
   check('撿起後 gs.shards = [harbor]、稱號未變', gs.shards.join() === 'harbor' && gs.title === '星光學徒', JSON.stringify(gs.shards));
