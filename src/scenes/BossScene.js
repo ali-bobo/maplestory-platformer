@@ -1,8 +1,6 @@
 import Phaser from 'phaser';
 import { BaseMapScene } from './BaseMapScene.js';
 import { Boss } from '../entities/Boss.js';
-import { MONSTERS } from '../config/monsters.js';
-import { Monster } from '../entities/Monster.js';
 import { particles } from '../engine/particles.js';
 
 // Boss 戰鬥場景
@@ -35,42 +33,24 @@ export class BossScene extends BaseMapScene {
       warningText.destroy();
       this._boss = new Boss(this, 900, 620);
       this._alignDynamicEntityToPlatformTop(this._boss, this._getClosestPlatformTopY(this._boss.x, 620));
+      // monsters 群組已有地板 / 單向薄平台的 collider；不要再替 Boss 單獨加一組（會繞過單向判定）
       this.monsters.add(this._boss);
       this._bossSpawned = true;
-
-      // Boss 也可以站在平台上
-      this.physics.add.collider(this._boss, this.platforms);
-      this.physics.add.collider(this._boss, this.thinPlatforms);
     });
   }
 
   _setupBossEvents() {
-    // Boss 召喚援軍
-    this._onSummonMinion = (data) => {
-      const minionDef = MONSTERS.find(m => m.id === 'shadow-slime');
-      if (!minionDef) return;
-      const minion = new Monster(this, data.x, data.y - 30, minionDef);
-      this._alignDynamicEntityToPlatformTop(minion, this._getClosestPlatformTopY(minion.x, data.y));
-      this.monsters.add(minion);
-      this.physics.add.collider(minion, this.platforms);
-      this.physics.add.collider(minion, this.thinPlatforms);
-    };
     // Boss 被擊敗
     this._onBossDefeatedEvent = () => this._onBossDefeated();
 
-    this.events.on('boss-summon-minion', this._onSummonMinion);
     this.events.on('boss-defeated', this._onBossDefeatedEvent);
 
     // this.events 是場景級 EventEmitter，場景 shutdown 不會自動清空它，
-    // 必須手動 off，否則重玩二度進入 BossScene 時監聽器會疊加（援軍翻倍／重複轉場）。
+    // 必須手動 off，否則重玩二度進入 BossScene 時監聽器會疊加（重複轉場）。
     this.events.once('shutdown', this._cleanupBossEvents, this);
   }
 
   _cleanupBossEvents() {
-    if (this._onSummonMinion) {
-      this.events.off('boss-summon-minion', this._onSummonMinion);
-      this._onSummonMinion = null;
-    }
     if (this._onBossDefeatedEvent) {
       this.events.off('boss-defeated', this._onBossDefeatedEvent);
       this._onBossDefeatedEvent = null;
