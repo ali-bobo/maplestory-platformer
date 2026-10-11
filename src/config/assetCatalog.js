@@ -864,6 +864,54 @@ export const FX_ASSETS = [
   },
 ];
 
+
+// 轉職後的角色動作圖（刺客 player_assassin_*、俠盜 player_bandit_*）與 HUD 頭像。
+// 全部預載；Player 在缺圖時會退回盜賊的同名動作（見 src/config/poses.js）。
+const JOB_POSE_BASE = [
+  'idle', 'idle_2', 'walk_1', 'walk_2', 'walk_3', 'walk_4', 'jump', 'fall', 'hurt', 'down', 'die',
+  'slash_1', 'slash_2', 'slash_3', 'cast', 'dash', 'throw_1', 'throw_2',
+];
+export const JOB_POSES = {
+  assassin: [...JOB_POSE_BASE, 'backstab', 'lunge', 'guard', 'crouch_low', 'slash_alt_1', 'slash_alt_2'],
+  bandit: [...JOB_POSE_BASE, 'spin_1', 'spin_2', 'slash_alt', 'crouch_sabre', 'guard'],
+};
+// 目前程式實際用到的姿勢；其餘先預載備用（status: 'unused'）
+const JOB_POSES_USED = new Set([
+  'idle', 'walk_1', 'walk_2', 'walk_3', 'walk_4', 'jump', 'fall', 'hurt', 'down', 'slash_1', 'slash_2', 'slash_3',
+  'cast', 'dash', 'throw_1', 'throw_2', 'crouch_low', 'backstab', 'spin_1', 'spin_2',
+]);
+export const JOB_CHARACTER_ASSETS = [
+  ...Object.entries(JOB_POSES).flatMap(([job, poses]) => poses.map((pose, i) => ({
+    assetId: `CHR-${job.slice(0, 3).toUpperCase()}-${String(i + 1).padStart(3, '0')}`,
+    groupId: `CHR-${job.slice(0, 3).toUpperCase()}`,
+    kind: 'character',
+    key: `player_${job}_${pose}`,
+    path: `dist/assets/player_${job}_${pose}.png`,
+    status: JOB_POSES_USED.has(pose) ? 'used' : 'unused',
+  }))),
+  ...['assassin', 'bandit'].map((job) => ({
+    assetId: `CHR-PORTRAIT-${job.toUpperCase()}`,
+    groupId: 'CHR-PORTRAIT',
+    kind: 'character',
+    key: `portrait_${job}`,
+    path: `dist/assets/portrait_${job}.png`,
+    status: 'used',
+  })),
+];
+CHARACTER_ASSETS.push(...JOB_CHARACTER_ASSETS);
+
+// 技能圖示 PNG（手繪圖到位後把 id 加進來；沒列的由 src/assets/skillIcons.js 程式繪製）
+// 檔名規則：dist/assets/skill_icon_<id>.png，38x38；ATK 欄依職業用 ATK_assassin / ATK_bandit
+export const SKILL_ICON_PNG_IDS = [];
+export const SKILL_ICON_ASSETS = SKILL_ICON_PNG_IDS.map((id) => ({
+  assetId: `ICO-SKILL-${id.toUpperCase()}`,
+  groupId: 'ICO-SKILL',
+  kind: 'icon',
+  key: `skill_icon_${id}`,
+  path: `dist/assets/skill_icon_${id}.png`,
+  status: 'used',
+}));
+
 export const PRELOAD_IMAGE_ASSETS = [
   ...CHARACTER_ASSETS,
   ...BACKGROUND_ASSETS,
@@ -874,6 +922,7 @@ export const PRELOAD_IMAGE_ASSETS = [
   ...ICON_ASSETS,
   ...POTION_ICON_ASSETS,
   ...UI_ASSETS,
+  ...SKILL_ICON_ASSETS,
 ];
 
 export const PENDING_ALIGNMENT_ASSETS = MONSTER_ASSETS.filter(

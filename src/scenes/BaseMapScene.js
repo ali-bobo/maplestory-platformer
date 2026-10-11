@@ -3,6 +3,8 @@ import { MAPS } from '../config/maps.js';
 import { MONSTERS } from '../config/monsters.js';
 import { MAP_SCENE_KEYS, WORLD_HEIGHT } from '../config/constants.js';
 import { Player } from '../entities/Player.js';
+import { playJobChangeEffect } from '../entities/Skill.js';
+import { jobOf } from '../config/constants.js';
 import { Monster } from '../entities/Monster.js';
 import { audio } from '../engine/audio.js';
 import { getVisualFootPadding } from '../config/alignment.js';
@@ -110,6 +112,7 @@ export class BaseMapScene extends Phaser.Scene {
     audio.setMusicQuality(getQualityLevel(this));   // 音樂跟著遊戲的自適應品質
     audio.playBgm(this.mapKey);
     this.events.on('monster-died', this._onMonsterDied, this);
+    this.events.on('job-changed', this._onJobChanged, this);
     this._playTimeAccum = 0;
 
     // ESC 關閉 NPC 對話
@@ -712,8 +715,26 @@ export class BaseMapScene extends Phaser.Scene {
     }
   }
 
+  // 轉職完成（任務覺醒或除錯指令）：換外觀、HUD 事件、演出、存檔。opts.silent = 不播演出（除錯切換用）
+  _onJobChanged(jobId, opts = {}) {
+    const gs = this.registry.get('gameState');
+    if (!this.player?.active || !gs) return;
+    this.player.refreshJobVisuals();
+    this.registry.set('gameState', gs);
+    this.registry.events.emit('changedata-hp', null, gs.hp);
+    this.registry.events.emit('changedata-mp', null, gs.mp);
+    this.registry.events.emit('changedata-sp', null, gs.skillPoints);
+    this.registry.events.emit('changedata-level', null, gs.level);
+    if (!opts.silent) {
+      playJobChangeEffect(this, this.player);
+      this._showTransientMessage(`轉職成功！　${jobOf(gs).name}　稱號「${gs.title}」`, 3200);
+    }
+    saveGame(gs);
+  }
+
   _onSceneShutdown() {
     this.events.off('monster-died', this._onMonsterDied, this);
+    this.events.off('job-changed', this._onJobChanged, this);
 
     // Phase 6.5：停止 portal 無限循環 tween，避免跳地圖累積殘留
     for (const tw of this._portalTweens || []) {

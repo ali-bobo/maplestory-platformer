@@ -1,18 +1,21 @@
 import Phaser from 'phaser';
-import { SKILLS, POTIONS, expNeeded, MAP_SCENE_KEYS, WORLD_HEIGHT, SKILL_SLOT_KEYS, SKILL_POOL, BASIC_ATTACK, BASIC_ATTACK_DEF, skillForSlot, canReorderSkills, equipSkill } from '../config/constants.js';
+import { POTIONS, expNeeded, MAP_SCENE_KEYS, WORLD_HEIGHT, SKILL_SLOT_KEYS, BASIC_ATTACK, skillForSlot, canReorderSkills, equipSkill, jobOf, jobIdOf, skillDefOf } from '../config/constants.js';
 import { MAPS } from '../config/maps.js';
 import { getQualityLevel, setQualityLevel, downgradeQuality, upgradeQuality } from '../engine/quality.js';
 import { getActiveQuests } from '../engine/questManager.js';
 import { getQuestDef } from '../config/quests.js';
 import { screenFlash } from '../engine/vfx.js';
 import { POTION_ICON_KEYS } from '../config/assetCatalog.js';
-import { ensureSkillIcons } from '../assets/skillIcons.js';
+import { ensureSkillIcons, skillIconKey } from '../assets/skillIcons.js';
 import { addParchmentPanel, addWoodButton } from '../engine/woodUi.js';
 import { saveGame } from '../engine/saveGame.js';
 import { audio } from '../engine/audio.js';
 import { addSoundButton } from '../engine/soundButton.js';
 
 // HUD 場景（平行運行）— 橫向捲軸風格底部狀態列
+// 盜賊技能在技能欄的簡稱（格子寬度有限）；其他技能直接用全名
+const SHORT_LABELS = { Z: '三連飛鏢', X: '影步伐', C: '暗殺', V: '漩渦', B: '影分身' };
+
 export class UIScene extends Phaser.Scene {
   constructor() {
     super({ key: 'UIScene' });
@@ -39,11 +42,14 @@ export class UIScene extends Phaser.Scene {
     const portSize = 80;
     const portX = 14, portY = barPanelY + 12;
     this.add.image(portX, portY, 'hud_slot_80').setOrigin(0, 0).setDepth(51).setScrollFactor(0);
+    // 頭像 / 職業名會跟著 gs.job 換（_applyJobHud）；先放盜賊頭像
+    this._portrait = null;
     if (this.textures.exists('player_portrait')) {
-      const portrait = this.add.image(portX + portSize / 2, portY + portSize / 2, 'player_portrait');
-      portrait.setScale(Math.min(56 / portrait.width, 56 / portrait.height))
+      this._portrait = this.add.image(portX + portSize / 2, portY + portSize / 2, 'player_portrait');
+      this._portrait.setScale(Math.min(56 / this._portrait.width, 56 / this._portrait.height))
         .setDepth(52).setScrollFactor(0);
     }
+    this._hudJob = null;
     this._levelText = this.add.text(portX + portSize / 2, portY + portSize + 2, 'Lv.1', textStyle(14, '#ffe27a'))
       .setOrigin(0.5, 0.5).setDepth(53).setScrollFactor(0);
 
@@ -85,6 +91,7 @@ export class UIScene extends Phaser.Scene {
     this._cdOverlays = {};
     this._potionSlots = {};
     this._setupSkillAndPotionBar(width, barPanelY);
+    this._applyJobHud(this.registry.get('gameState'));
 
     // ── 初始化 ────────────────────────────────────────────────────────────────
     this._refreshAll();
@@ -436,9 +443,8 @@ export class UIScene extends Phaser.Scene {
     ensureSkillIcons(this);
     const skillKeys   = [BASIC_ATTACK, ...SKILL_SLOT_KEYS];
     const potionKeys  = ['A', 'S', 'D', 'R', 'G'];
-    const skillLabels = { ATK: '普通攻擊', Z: '三連飛鏢', X: '影步伐', C: '暗殺', V: '漩渦', B: '影分身' };
-    this._skillLabels = skillLabels;
     const gsNow = this.registry.get('gameState');
+    this._hudJob = jobIdOf(gsNow);
 
     const slot = 52, gap = 4;
     const pot = 42, potGap = 4;
@@ -458,7 +464,7 @@ export class UIScene extends Phaser.Scene {
       const sy = rowY;
       const skillId = skillForSlot(gsNow, key);
       this.add.image(sx, sy, 'hud_slot_52').setOrigin(0, 0).setDepth(51).setScrollFactor(0);
-      const icon = this.add.image(sx + slot / 2, sy + slot / 2, `skill_icon_${skillId}`)
+      const icon = this.add.image(sx + slot / 2, sy + slot / 2, skillIconKey(skillId, this._hudJob))
         .setDepth(52).setScrollFactor(0);
 
       // 快捷鍵（左上角）
@@ -466,7 +472,7 @@ export class UIScene extends Phaser.Scene {
         fontSize: key === BASIC_ATTACK ? '9px' : '12px', color: '#ffffff', fontFamily: 'Arial', fontStyle: 'bold', stroke: '#000', strokeThickness: 3,
       }).setDepth(55).setScrollFactor(0);
       // 技能名稱（格子下方）
-      const nameText = this.add.text(sx + slot / 2, sy + slot + 3, skillLabels[skillId] || skillId, labelStyle)
+      const nameText = this.add.text(sx + slot / 2, sy + slot + 3, this._skillLabel(skillId, gsNow), labelStyle)
         .setOrigin(0.5, 0).setDepth(53).setScrollFactor(0);
 
       // 技能等級（右下角）
@@ -475,7 +481,7 @@ export class UIScene extends Phaser.Scene {
       }).setOrigin(1, 1).setDepth(55).setScrollFactor(0);
 
       // 未解鎖提示
-      const lockText = this.add.text(sx + slot / 2, sy + slot / 2, `Lv${SKILLS[skillId]?.unlockLevel ?? ''}`, {
+      const lockText = this.add.text(sx + slot / 2, sy + slot / 2, `Lv${skillDefOf(this._hudJob, skillId)?.unlockLevel ?? ''}`, {
         fontSize: '11px', color: '#ffb0b0', fontFamily: 'Arial', fontStyle: 'bold', stroke: '#000', strokeThickness: 3,
       }).setOrigin(0.5, 0.5).setDepth(55).setScrollFactor(0).setVisible(false);
 
@@ -533,6 +539,25 @@ export class UIScene extends Phaser.Scene {
     });
   }
 
+  // 技能欄下方的名稱：盜賊沿用舊的簡稱，轉職技能用全名；普通攻擊欄顯示該職業普攻名
+  _skillLabel(skillId, gs) {
+    if (skillId === BASIC_ATTACK) return jobOf(gs).basic.name;
+    return SHORT_LABELS[skillId] || skillDefOf(jobIdOf(gs), skillId)?.name || skillId;
+  }
+
+  // 依 gs.job 套用 HUD：頭像、職業名（含稱號）、普通攻擊欄圖示 / 名稱，技能欄重刷
+  _applyJobHud(gs) {
+    const jobId = jobIdOf(gs);
+    const job = jobOf(gs);
+    this._hudJob = jobId;
+    if (this._portrait && this.textures.exists(job.portrait)) {
+      this._portrait.setTexture(job.portrait);
+      this._portrait.setScale(Math.min(56 / this._portrait.width, 56 / this._portrait.height));
+    }
+    this._classText.setText(jobId === 'thief' ? job.name : `${job.name} ・ ${job.title}`);
+    for (const data of Object.values(this._cdOverlays)) data.skillId = null;   // 強制 _refreshCooldowns 重刷
+  }
+
   _usePotionFromHud(key) {
     const mapKey = this._getCurrentMapSceneKey();   // 暫停中為 null：不能用藥
     if (!mapKey) return;
@@ -560,7 +585,7 @@ export class UIScene extends Phaser.Scene {
       return;
     }
     const skillId = skillForSlot(gs, slotKey);
-    const ghost = this.add.image(pointer.x, pointer.y, `skill_icon_${skillId}`)
+    const ghost = this.add.image(pointer.x, pointer.y, skillIconKey(skillId, this._hudJob))
       .setDepth(200).setScrollFactor(0).setAlpha(0.85).setScale(1.15);
     this._drag = { from: slotKey, ghost };
   }
@@ -569,10 +594,10 @@ export class UIScene extends Phaser.Scene {
   _equipToSlot(slotKey, skillId) {
     const gs = this.registry.get('gameState');
     if (!gs || !canReorderSkills(gs)) return;
-    gs.skillSlots = equipSkill(gs.skillSlots || [], slotKey, skillId);
+    gs.skillSlots = equipSkill(gs.skillSlots || [], slotKey, skillId, jobOf(gs).pool);
     this.registry.set('gameState', gs);
     saveGame(gs);
-    this._flashHudNotice(`${this._skillLabels[skillId]} → ${slotKey} 欄`);
+    this._flashHudNotice(`${this._skillLabel(skillId, gs)} → ${slotKey} 欄`);
   }
 
   _onDragMove(pointer) {
@@ -619,19 +644,24 @@ export class UIScene extends Phaser.Scene {
       this._mapText.setText(mapName);
     }
 
+    // 轉職了：頭像 / 職業名 / 普通攻擊欄換圖，技能欄全部重刷
+    const jobId = jobIdOf(gs);
+    if (jobId !== this._hudJob) this._applyJobHud(gs);
+    const job = jobOf(gs);
+
     for (const [slotKey, data] of Object.entries(this._cdOverlays)) {
       const { overlay, cdText, lockText, x, y, w, h } = data;
       // 欄位放的技能可能被玩家拖曳換過：變了就換圖示 / 名稱 / 解鎖等級，並重置 dirty flag
       const key = skillForSlot(gs, slotKey);
       if (key !== data.skillId) {
         data.skillId = key;
-        this._skillSlots[slotKey].setTexture(`skill_icon_${key}`);
-        data.nameText.setText(this._skillLabels[key] || key);
-        lockText.setText(`Lv${SKILLS[key]?.unlockLevel ?? ''}`);
+        this._skillSlots[slotKey].setTexture(skillIconKey(key, jobId));
+        data.nameText.setText(this._skillLabel(key, gs));
+        lockText.setText(`Lv${skillDefOf(jobId, key)?.unlockLevel ?? ''}`);
         data._lastRatioQ = undefined; data._lastCdLabel = undefined; data._lastUnlocked = undefined; data._lastLvText = undefined;
       }
       const cd = gs.skillCooldowns[key] || 0;
-      const maxCd = (SKILLS[key] || BASIC_ATTACK_DEF).cooldown;
+      const maxCd = (job.skills[key] || job.basic).cooldown;
       const ratio = Math.min(1, cd / maxCd);
       // dirty flag：ratio 量化到 50 step（0.02 精度），避免每 100ms 重繪
       const quantized = Math.round(ratio * 50);
@@ -1094,7 +1124,12 @@ export class UIScene extends Phaser.Scene {
     const barPanelH = height - WORLD_HEIGHT;
     const barPanelY = WORLD_HEIGHT;
 
-    const popW = 340, popH = type === 'skills' ? 318 : 280;   // 技能視窗多一列「換入」選單
+    // 技能視窗多一列「換入」選單；六技能職業每多一個技能再加一列，有被動技能再加一行說明
+    const skillRows = type === 'skills' ? jobOf(this.registry.get('gameState')).pool.length : 0;
+    const popW = 340;
+    const popH = type === 'skills'
+      ? 318 + (skillRows - 5) * 44 + (jobOf(this.registry.get('gameState')).passive ? 18 : 0)
+      : 280;
     const popX = width - popW - 10;
     const popY = barPanelY - popH - 10;
 
@@ -1229,9 +1264,11 @@ export class UIScene extends Phaser.Scene {
   // ── 技能欄彈出（含 SP 升級）──────────────────────────────────────────────
   _buildSkillsPopup(push, popX, contentY, popW) {
     const gs = this.registry.get('gameState');
-    const keys = SKILL_POOL;
+    const job = jobOf(gs);
+    const keys = job.pool;
+    const footY = contentY + keys.length * 44;   // 技能列下方的說明區起點
     keys.forEach((key, i) => {
-      const def = SKILLS[key];
+      const def = job.skills[key];
       const rowY = contentY + i * 44;
       const unlocked = gs && gs.unlockedSkills && gs.unlockedSkills.includes(key);
       const lv = (gs && gs.skillLevels && gs.skillLevels[key]) || 0;
@@ -1312,17 +1349,17 @@ export class UIScene extends Phaser.Scene {
     });
 
     const sp = gs ? (gs.skillPoints || 0) : 0;
-    const pick = this._equipPick && canReorderSkills(gs) && !(gs.skillSlots || []).includes(this._equipPick) ? this._equipPick : null;
+    const pick = this._equipPick && job.pool.includes(this._equipPick) && canReorderSkills(gs) && !(gs.skillSlots || []).includes(this._equipPick) ? this._equipPick : null;
     this._equipPick = pick;
     if (pick) {
       // 選擇要換掉哪一欄
-      push(this.add.text(popX + 14, contentY + 5 * 44 + 29, `把 ${SKILLS[pick].name} 換進：`, {
+      push(this.add.text(popX + 14, footY + 29, `把 ${job.skills[pick].name} 換進：`, {
         fontSize: '10px', color: '#ffd27a', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2,
       }).setOrigin(0, 0.5).setDepth(152).setScrollFactor(0));
       SKILL_SLOT_KEYS.forEach((slotKey, i) => {
         const bw = 52, bh = 20;
         const bx = popX + 110 + i * (bw + 4);
-        const by = contentY + 5 * 44 + 19;
+        const by = footY + 19;
         const g = push(this.add.graphics().setDepth(152).setScrollFactor(0));
         const draw = (hover) => {
           g.clear();
@@ -1330,7 +1367,7 @@ export class UIScene extends Phaser.Scene {
           g.fillRoundedRect(bx, by, bw, bh, 4);
         };
         draw(false);
-        push(this.add.text(bx + bw / 2, by + bh / 2, `${slotKey} ${SKILLS[skillForSlot(gs, slotKey)].name.slice(0, 2)}`, {
+        push(this.add.text(bx + bw / 2, by + bh / 2, `${slotKey} ${job.skills[skillForSlot(gs, slotKey)].name.slice(0, 2)}`, {
           fontSize: '10px', color: '#ffffff', fontFamily: 'Arial',
         }).setOrigin(0.5).setDepth(153).setScrollFactor(0));
         const z = push(this.add.zone(bx, by, bw, bh).setOrigin(0, 0).setInteractive({ useHandCursor: true }).setDepth(154).setScrollFactor(0));
@@ -1338,22 +1375,27 @@ export class UIScene extends Phaser.Scene {
         z.on('pointerout', () => draw(false));
         z.on('pointerdown', () => { this._equipToSlot(slotKey, pick); this._equipPick = null; this._openPopup('skills'); });
       });
-    } else push(this.add.text(popX + 14, contentY + 5 * 44 + 14, canReorderSkills(gs)
+    } else push(this.add.text(popX + 14, footY + 14, canReorderSkills(gs)
       ? '拖曳畫面下方的技能圖示可互換；沒裝備的技能按「換入」'
-      : '5 個技能全部解鎖（Lv.20）後，可自由挑 4 個放進技能欄', {
+      : `技能解鎖超過 4 個後，可自由挑 4 個放進技能欄`, {
       fontSize: '9px', color: '#aaccff', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2,
     }).setDepth(152).setScrollFactor(0));
-    push(this.add.text(popX + 14, contentY + 5 * 44, `可用 SP：${sp}　點 [+] 花 1 點提升技能傷害`, {
+    push(this.add.text(popX + 14, footY, `可用 SP：${sp}　點 [+] 花 1 點提升技能傷害`, {
       fontSize: '10px', color: sp > 0 ? '#ffff44' : '#888855', fontFamily: 'Arial',
       stroke: '#000', strokeThickness: 2,
     }).setDepth(152).setScrollFactor(0));
+    if (job.passive) {
+      push(this.add.text(popX + 14, footY + 46, `被動：${job.passive.name}　${job.passive.desc}`, {
+        fontSize: '10px', color: '#ffcf8a', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2,
+      }).setDepth(152).setScrollFactor(0));
+    }
   }
 
   // 花 1 SP 升級技能，重建彈窗以反映新等級
   _upgradeSkill(key) {
     const gs = this.registry.get('gameState');
     if (!gs) return;
-    const def = SKILLS[key];
+    const def = jobOf(gs).skills[key];
     const maxLv = (def && def.maxLevel) || 10;
     const lv = (gs.skillLevels && gs.skillLevels[key]) || 0;
     if (!gs.unlockedSkills || !gs.unlockedSkills.includes(key)) return;

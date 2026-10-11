@@ -5,10 +5,10 @@ import { MAPS } from '../src/config/maps.js';
 import { MONSTERS } from '../src/config/monsters.js';
 import { QUESTS } from '../src/config/quests.js';
 import { DUNGEONS } from '../src/config/dungeons.js';
-import { MAP_SCENE_KEYS } from '../src/config/constants.js';
+import { MAP_SCENE_KEYS, JOBS, JOB_IDS } from '../src/config/constants.js';
 import {
   CHARACTER_ASSETS, BACKGROUND_ASSETS, PLATFORM_ASSETS, MONSTER_ASSETS, NPC_ASSETS, BOSS_ASSETS,
-  ICON_ASSETS, UI_ASSETS, POTION_ICON_ASSETS, FX_ASSETS,
+  ICON_ASSETS, UI_ASSETS, POTION_ICON_ASSETS, FX_ASSETS, JOB_POSES, SKILL_ICON_ASSETS,
 } from '../src/config/assetCatalog.js';
 
 const monsterIds = new Set(MONSTERS.map((m) => m.id));
@@ -71,8 +71,21 @@ test('素材目錄裡的每個檔案都真的存在', async () => {
   const { resolve } = await import('node:path');
   const root = process.cwd();   // npm test 從專案根目錄執行
   const missing = [];
-  for (const group of [CHARACTER_ASSETS, BACKGROUND_ASSETS, PLATFORM_ASSETS, MONSTER_ASSETS, NPC_ASSETS, BOSS_ASSETS, ICON_ASSETS, UI_ASSETS, POTION_ICON_ASSETS, FX_ASSETS]) {
+  for (const group of [CHARACTER_ASSETS, BACKGROUND_ASSETS, PLATFORM_ASSETS, MONSTER_ASSETS, NPC_ASSETS, BOSS_ASSETS, ICON_ASSETS, UI_ASSETS, POTION_ICON_ASSETS, FX_ASSETS, SKILL_ICON_ASSETS]) {
     for (const a of group) if (!existsSync(resolve(root, a.path))) missing.push(a.path);
   }
   assert.deepEqual(missing, []);
+});
+
+test('職業：頭像與每個動作圖都在素材目錄，且技能池的技能都有定義', () => {
+  for (const id of JOB_IDS) {
+    const job = JOBS[id];
+    assert.ok(assetKeys.has(job.portrait), `${id} 頭像 ${job.portrait}`);
+    if (id === 'thief') continue;
+    for (const pose of JOB_POSES[id]) assert.ok(assetKeys.has(`player_${id}_${pose}`), `${id} 動作 ${pose}`);
+    // 程式用到的姿勢必須存在
+    for (const pose of ['idle', 'walk_1', 'walk_2', 'walk_3', 'walk_4', 'jump', 'fall', 'hurt', 'down', 'slash_1', 'slash_2', 'slash_3', 'cast', 'dash', 'throw_1', 'throw_2']) {
+      assert.ok(assetKeys.has(`player_${id}_${pose}`), `${id} 必要動作 ${pose}`);
+    }
+  }
 });

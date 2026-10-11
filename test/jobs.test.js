@@ -244,3 +244,17 @@ test('sanitize：jobChoice 只在盜賊時保留，且只能是 assassin / bandi
   assert.equal(sanitizeState({ jobChoice: 'x' }).jobChoice, null);
   assert.equal(sanitizeState({ job: 'assassin', level: 12, jobChoice: 'bandit' }).jobChoice, null);
 });
+
+test('poseKey：盜賊用舊鍵；轉職用職業前綴；缺圖退回盜賊；都沒有 → null', async () => {
+  const { poseKey } = await import('../src/config/poses.js');
+  assert.equal(poseKey('thief', 'idle'), 'player_idle');
+  assert.equal(poseKey('assassin', 'idle'), 'player_assassin_idle');
+  assert.equal(poseKey('bandit', 'spin_1'), 'player_bandit_spin_1');
+  const have = new Set(['player_idle', 'player_slash_1', 'player_bandit_idle']);
+  const exists = (k) => have.has(k);
+  assert.equal(poseKey('bandit', 'idle', exists), 'player_bandit_idle');
+  assert.equal(poseKey('bandit', 'slash_1', exists), 'player_slash_1');       // 缺圖 → 盜賊
+  assert.equal(poseKey('assassin', 'backstab', exists), null);                // 盜賊也沒有
+  assert.equal(poseKey('thief', 'nope', exists), null);
+  assert.equal(poseKey(undefined, 'idle', exists), 'player_idle');
+});

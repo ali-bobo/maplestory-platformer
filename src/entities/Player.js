@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
-import { jobOf, skillDefOf, expNeeded, MAP_SCENE_KEYS, POTIONS, createInitialGameState, BASIC_ATTACK, skillForSlot } from '../config/constants.js';
+import { poseKey } from '../config/poses.js';
+import { jobOf, jobIdOf, skillDefOf, expNeeded, MAP_SCENE_KEYS, POTIONS, createInitialGameState, BASIC_ATTACK, skillForSlot } from '../config/constants.js';
 import { saveGame } from '../engine/saveGame.js';
 import { castSlash, castShuriken, castDash, castAssassinate, castVortex, castClone } from './Skill.js';
 import { particles } from '../engine/particles.js';
@@ -25,6 +26,8 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     // 動作圖切換：攻擊/受傷期間鎖定姿勢到 _poseLockUntil
     this._poseLockKey = null;
     this._poseLockUntil = 0;
+    this._poseKeys = {};     // 姿勢名 → 紋理鍵快取（依職業；換職業時清掉），每幀查表不配置字串
+    this._walkKeys = null;
     // HP/MP 自然回復的 UI 節流：只在顯示整數改變時才更新 registry/事件
     this._lastEmittedHp = -1;
     this._lastEmittedMp = -1;
@@ -63,6 +66,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     // gs.skillCooldowns 持久化在 registry，但 Player 物件在傳送門切場景時會 new 一個新的。
     // 必須掃描現有冷卻值，重建 _coolingDownKeys Set，否則 update() 不會遞減 → 永卡冷卻。
     this._coolingDownKeys = new Set();
+    this._setPose(this.pose('idle'));
     const cds = this.gameState.skillCooldowns || {};
     for (const key in cds) {
       if (cds[key] > 0) this._coolingDownKeys.add(key);
@@ -153,14 +157,37 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this._updatePose(onGround);
   }
 
+  // 目前職業的姿勢紋理鍵（缺圖退回盜賊；都沒有回傳 null）
+  pose(name) {
+    const cache = this._poseKeys;
+    if (cache[name] === undefined) {
+      cache[name] = poseKey(jobIdOf(this.gameState), name, (k) => this.scene.textures.exists(k));
+    }
+    return cache[name];
+  }
+
+  walkPoseKey(now) {
+    if (!this._walkKeys) this._walkKeys = [this.pose('walk_1'), this.pose('walk_2'), this.pose('walk_3'), this.pose('walk_4')];
+    return this._walkKeys[Math.floor(now / 110) % 4];
+  }
+
+  // 轉職後切換外觀：清掉姿勢快取並立刻換成待機圖
+  refreshJobVisuals() {
+    this._poseKeys = {};
+    this._walkKeys = null;
+    this._poseLockUntil = 0;
+    this._setPose(this.pose('idle'));
+  }
+
   _lockPose(key, duration) {
+    if (!key) return;
     this._poseLockKey = key;
     this._poseLockUntil = this.scene.time.now + duration;
     this._setPose(key);
   }
 
   _setPose(key) {
-    if (this.texture.key !== key && this.scene.textures.exists(key)) this.setTexture(key);
+    if (key && this.texture.key !== key && this.scene.textures.exists(key)) this.setTexture(key);
   }
 
   _updatePose(onGround) {
@@ -170,13 +197,13 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       return;
     }
     if (!onGround) {
-      this._setPose(this.body.velocity.y > 40 ? 'player_fall' : 'player_jump');
+      this._setPose(this.pose(this.body.velocity.y > 40 ? 'fall' : 'jump'));
     } else if (this.body.velocity.x !== 0) {
-      this._setPose(`player_walk_${Math.floor(now / 110) % 4 + 1}`);
+      this._setPose(this.walkPoseKey(now));
     } else if (this.cursors.down.isDown) {
-      this._setPose('player_down');
+      this._setPose(this.pose('down'));
     } else {
-      this._setPose('player_idle');
+      this._setPose(this.pose('idle'));
     }
   }
 
@@ -232,9 +259,9 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     }
 
     const total = Math.max(duration, 180);
-    this._lockPose('player_throw_1', total * 0.4);
+    this._lockPose(this.pose('throw_1'), total * 0.4);
     this.scene.time.delayedCall(total * 0.4, () => {
-      if (this.active && !this.isDead) this._lockPose('player_throw_2', total * 0.6);
+      if (this.active && !this.isDead) this._lockPose(this.pose('throw_2'), total * 0.6);
     });
   }
 
@@ -343,7 +370,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.scene.registry.events.emit('changedata-hp', null, gs.hp);
 
     // 傷害閃紅 + 受傷動作
-    this._lockPose('player_hurt', 300);
+    this._lockPose(this.pose('hurt'), 300);
     this.setTint(0xff4444);
     this.scene.time.delayedCall(200, () => { if (this.active) this.clearTint(); });
 
