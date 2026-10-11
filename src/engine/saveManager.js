@@ -4,7 +4,8 @@
 //  - 純邏輯、不依賴 Phaser / DOM，方便以 Node 單元測試；儲存體由呼叫端注入。
 //  - 讀入的資料（包含玩家匯入的檔案）一律視為不可信：sanitizeState 以
 //    createInitialGameState() 為底，只複製白名單欄位並限制範圍，缺的欄位補預設值。
-//  - 存檔格式：{ format: 'maple-save', version, savedAt, state }。
+//  - 存檔格式：{ format: 'thief-legend-save', version, savedAt, state }；
+//    同時相容舊版 { version: 1, savedAt, gameState }（無 format 欄位）。
 //  - 此處的範圍檢查只防止壞檔 / 型別錯誤導致遊戲崩潰，不是防作弊機制
 //    （存檔在玩家端，無法保證數值真實）。
 //
@@ -17,9 +18,9 @@ import { MAPS } from '../config/maps.js';
 import { EQUIPMENT_SLOTS, EQUIPMENT_BASES, RARITIES } from '../config/equipment.js';
 import { getQuestDef } from '../config/quests.js';
 
-export const SAVE_FORMAT = 'maple-save';
+export const SAVE_FORMAT = 'thief-legend-save';
 export const SAVE_VERSION = 1;
-export const SAVE_KEY = 'maple_save_v1';
+export const SAVE_KEY = 'thief-legend-save-v1';   // 與舊版相同的 key，舊存檔可直接讀取
 // 匯入檔案大小上限（正常存檔 < 5 KB），避免讀入惡意大檔
 export const MAX_SAVE_BYTES = 64 * 1024;
 
@@ -176,16 +177,19 @@ export function parseSave(text) {
   } catch (_) {
     return { ok: false, error: '存檔格式錯誤（不是有效的 JSON）' };
   }
-  if (!isPlainObject(data) || data.format !== SAVE_FORMAT) {
+  // 舊版存檔沒有 format 欄位，內容放在 gameState
+  const legacy = isPlainObject(data) && data.format === undefined && isPlainObject(data.gameState);
+  if (!isPlainObject(data) || (data.format !== SAVE_FORMAT && !legacy)) {
     return { ok: false, error: '不是本遊戲的存檔檔案' };
   }
   if (typeof data.version !== 'number' || data.version > SAVE_VERSION) {
     return { ok: false, error: '存檔版本較新，請更新遊戲後再試' };
   }
-  if (!isPlainObject(data.state)) return { ok: false, error: '存檔內容缺失' };
+  const rawState = legacy ? data.gameState : data.state;
+  if (!isPlainObject(rawState)) return { ok: false, error: '存檔內容缺失' };
   return {
     ok: true,
-    state: sanitizeState(data.state),
+    state: sanitizeState(rawState),
     savedAt: Number.isFinite(data.savedAt) ? data.savedAt : 0,
   };
 }

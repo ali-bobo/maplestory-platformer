@@ -28,6 +28,6 @@
     "esbuild": "0.25.12"
   },
   "overrides": {
-    "i18next-http-backend": "3.0.5"
+    "i18next-http-backend": "4.0.2"
   }
 }

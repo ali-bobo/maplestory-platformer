@@ -1,6 +1,6 @@
-# 盜賊傳說 — MapleStory 風格平台遊戲
+# 盜賊傳說 — 橫向捲軸平台動作遊戲
 
-楓之谷風格的 2D 橫向捲軸平台動作遊戲，採用 Phaser 3 + esbuild 開發。扮演盜賊，從浮空島嶼出發、串接 6 張地圖、挑戰暗影魔君 Boss，並有副本系統提升重玩價值。
+2D 橫向捲軸平台動作遊戲，採用 Phaser 3 + esbuild 開發。扮演盜賊，從浮空島嶼出發、串接 6 張地圖、挑戰暗影魔君 Boss，並有副本系統提升重玩價值。
 
 > **🎮 想直接玩遊戲？請看 [PLAYER_GUIDE.md](docs/PLAYER_GUIDE.md)**（含 30 秒上手、操作說明、地圖介紹、副本系統、FAQ、Troubleshooting）
 >

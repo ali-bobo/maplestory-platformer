@@ -15,7 +15,7 @@ import { UIScene } from './scenes/UIScene.js';
 import { GameOverScene } from './scenes/GameOverScene.js';
 import { setGameFps } from './engine/fpsControl.js';
 import { setHpBarMode } from './entities/Monster.js';
-import { saveOnExit } from './engine/saveService.js';
+import { saveOnExit } from './engine/saveGame.js';
 
 const config = {
   type: Phaser.WEBGL,

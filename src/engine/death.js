@@ -3,9 +3,9 @@
 // 死亡規則：
 //  - 保留等級、經驗、金幣、技能、藥水、任務與擊殺數。
 //  - 失去身上所有裝備，裝備提供的屬性一併移除（屬性由等級重新推算）。
-//  - 在死亡的地圖重生（副本 → 楓葉城、Boss 房 → Kerning City）；HP / MP 回滿。
+//  - 在死亡的地圖重生（副本 → 晨曦鎮、Boss 房 → 暗巷城）；HP / MP 回滿。
 
-import { PLAYER_DEFAULTS } from '../config/constants.js';
+import { createInitialGameState } from '../config/constants.js';
 import { EQUIPMENT_SLOTS } from '../config/equipment.js';
 import { sanitizeState } from './saveManager.js';
 
@@ -29,11 +29,12 @@ export function calcScore(gs, victory = false) {
 
 export function baseStatsForLevel(level) {
   const n = Math.max(0, Math.floor(level) - 1);
+  const base = createInitialGameState();   // 1 級、無裝備的屬性
   return {
-    maxHp: PLAYER_DEFAULTS.maxHp + LEVEL_GROWTH.maxHp * n,
-    maxMp: PLAYER_DEFAULTS.maxMp + LEVEL_GROWTH.maxMp * n,
-    atk: PLAYER_DEFAULTS.atk + LEVEL_GROWTH.atk * n,
-    speed: Math.min(SPEED_CAP, PLAYER_DEFAULTS.speed + LEVEL_GROWTH.speed * n),
+    maxHp: base.maxHp + LEVEL_GROWTH.maxHp * n,
+    maxMp: base.maxMp + LEVEL_GROWTH.maxMp * n,
+    atk: base.atk + LEVEL_GROWTH.atk * n,
+    speed: Math.min(SPEED_CAP, base.speed + LEVEL_GROWTH.speed * n),
   };
 }
 

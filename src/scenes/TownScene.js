@@ -1,5 +1,7 @@
 import { BaseMapScene } from './BaseMapScene.js';
 import { audio } from '../engine/audio.js';
+import { addParchmentPanel, addWoodButton } from '../engine/woodUi.js';
+import { POTION_ICON_KEYS } from '../config/assetCatalog.js';
 
 // 城鎮場景：和平安全區，商人 NPC 提供補給商店
 // 商店沿用 BaseMapScene 的 NPC 互動系統（靠近顯示提示、F 開關、ESC 關閉），避免另開按鍵衝突
@@ -33,47 +35,41 @@ export class TownScene extends BaseMapScene {
     if (this._npcDialog) return;
 
     const { width } = this.cameras.main;
-    const panelW = 460, panelH = 332;
+    const panelW = 480, panelH = 400;
     const panelX = (width - panelW) / 2;
-    const panelY = 80;
+    const panelY = 70;
     const objs = [];
     const push = (obj) => { objs.push(obj); return obj; };
 
-    const bg = push(this.add.graphics().setScrollFactor(0).setDepth(150));
-    bg.fillStyle(0x0a0a1a, 0.96);
-    bg.fillRoundedRect(panelX, panelY, panelW, panelH, 12);
-    bg.lineStyle(2, 0xffcc44, 0.9);
-    bg.strokeRoundedRect(panelX, panelY, panelW, panelH, 12);
+    push(addParchmentPanel(this, panelX, panelY, panelW, panelH, { depth: 150 }));
 
-    push(this.add.text(panelX + panelW / 2, panelY + 22, `🏪 ${npcDef.name || '商人'}的雜貨店`, {
-      fontSize: '18px', color: '#ffcc44', fontFamily: 'Arial', stroke: '#000', strokeThickness: 3,
+    push(this.add.text(panelX + panelW / 2, panelY + 34, `🏪 ${npcDef.name || '商人'}的雜貨店`, {
+      fontSize: '19px', color: '#ffe27a', fontFamily: 'Arial', fontStyle: 'bold', stroke: '#1a0e06', strokeThickness: 4,
     }).setOrigin(0.5, 0.5).setScrollFactor(0).setDepth(151));
 
     const gs = this.registry.get('gameState');
-    const mesoText = push(this.add.text(panelX + panelW / 2, panelY + 46, `持有金幣：${gs.meso}`, {
-      fontSize: '13px', color: '#ffee88', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2,
+    const mesoText = push(this.add.text(panelX + panelW / 2, panelY + 60, `持有金幣：${gs.meso}`, {
+      fontSize: '14px', color: '#fff3c8', fontFamily: 'Arial', stroke: '#1a0e06', strokeThickness: 3,
     }).setOrigin(0.5, 0.5).setScrollFactor(0).setDepth(151));
 
     // 商品：購買後補進藥水庫存（gs.potions），HUD 藥水欄會自動刷新
     const items = [
-      { name: 'HP藥水 ×3',    cost: 90,  apply: (g) => { g.potions.A += 3; } },
-      { name: 'MP藥水 ×3',    cost: 90,  apply: (g) => { g.potions.D += 3; } },
-      { name: '強效HP藥水 ×2', cost: 150, apply: (g) => { g.potions.S += 2; } },
-      { name: '萬靈藥 ×1',    cost: 130, apply: (g) => { g.potions.G += 1; } },
+      { key: 'A', name: 'HP藥水 ×3',    cost: 90,  apply: (g) => { g.potions.A += 3; } },
+      { key: 'D', name: 'MP藥水 ×3',    cost: 90,  apply: (g) => { g.potions.D += 3; } },
+      { key: 'S', name: '強效HP藥水 ×2', cost: 150, apply: (g) => { g.potions.S += 2; } },
+      { key: 'R', name: '強效MP藥水 ×2', cost: 150, apply: (g) => { g.potions.R += 2; } },
+      { key: 'G', name: '萬靈藥 ×1',    cost: 130, apply: (g) => { g.potions.G += 1; } },
     ];
 
     items.forEach((item, i) => {
-      const rowY = panelY + 80 + i * 46;
+      const rowY = panelY + 98 + i * 50;
+      const iconKey = POTION_ICON_KEYS[item.key];
+      if (iconKey && this.textures.exists(iconKey)) {
+        const icon = push(this.add.image(panelX + 70, rowY, iconKey).setScrollFactor(0).setDepth(152));
+        icon.setScale(32 / icon.height);
+      }
       const label = `${item.name}  —  ${item.cost} 金幣`;
-      const btn = push(this.add.text(panelX + panelW / 2, rowY, label, {
-        fontSize: '15px', color: '#ffffff', fontFamily: 'Arial',
-        backgroundColor: '#333355', padding: { x: 14, y: 7 },
-      }).setOrigin(0.5, 0.5).setScrollFactor(0).setDepth(151)
-        .setInteractive({ useHandCursor: true }));
-
-      btn.on('pointerover', () => btn.setStyle({ color: '#ffff66' }));
-      btn.on('pointerout',  () => btn.setStyle({ color: '#ffffff' }));
-      btn.on('pointerdown', () => {
+      const btn = addWoodButton(this, panelX + panelW / 2 + 20, rowY, 300, 38, label, () => {
         const state = this.registry.get('gameState');
         if (state.meso >= item.cost) {
           state.meso -= item.cost;
@@ -82,16 +78,17 @@ export class TownScene extends BaseMapScene {
           this.registry.events.emit('changedata-meso', null, state.meso);
           mesoText.setText(`持有金幣：${state.meso}`);
           audio.playPickup();
-          btn.setText(`${item.name}  — 購買成功！`);
+          btn.label.setText(`${item.name}  — 購買成功！`);
         } else {
-          btn.setText(`${item.name}  — 金幣不足`);
+          btn.label.setText(`${item.name}  — 金幣不足`);
         }
-        this.time.delayedCall(900, () => { if (btn.active) btn.setText(label); });
-      });
+        this.time.delayedCall(900, () => { if (btn.label.active) btn.label.setText(label); });
+      }, { depth: 151, fontSize: 15 });
+      btn.objects.forEach(push);
     });
 
-    push(this.add.text(panelX + panelW / 2, panelY + panelH - 22, '[ 按 F 或 ESC 關閉 ]', {
-      fontSize: '12px', color: '#88aacc', fontFamily: 'Arial',
+    push(this.add.text(panelX + panelW / 2, panelY + panelH - 30, '[ 按 F 或 ESC 關閉 ]', {
+      fontSize: '12px', color: '#e8d3a8', fontFamily: 'Arial', stroke: '#1a0e06', strokeThickness: 3,
     }).setOrigin(0.5, 0.5).setScrollFactor(0).setDepth(151));
 
     this._npcDialog = { _shop: true, objects: objs };

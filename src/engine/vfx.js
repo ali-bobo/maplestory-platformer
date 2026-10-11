@@ -73,40 +73,6 @@ export function cameraShockwave(scene, worldX, worldY, duration = 400) {
 }
 
 /**
- * 產生能量拖尾粒子（跟隨指定物件）— 強化版：更密集、帶 ADD blend
- * @param {Phaser.Scene} scene
- * @param {Phaser.GameObjects.Sprite} follower — 要跟隨的物件
- * @param {number} color
- * @param {number} duration — 跟隨持續時間（ms）
- */
-export function spawnEnergyTrail(scene, follower, color = 0x8888ff, duration = 500) {
-  try {
-    // Phase 6.4：中/低品質關閉持續性能量拖尾（高頻 ADD blend，GPU 開銷大）
-    if (!getQuality(scene).energyTrail) return null;
-    const emitter = scene.add.particles(follower.x, follower.y, 'particle-dot', {
-      speed: { min: 15, max: 50 },
-      scale: { start: 1.2, end: 0 },
-      lifespan: 250,
-      // frequency 20→40：每秒從 50 粒降到 25 粒。ADD blend 會強迫拆 batch，
-      // 降低粒子數對 SpriteWebGLRenderer 開銷有顯著減益，視覺差異肉眼難察覺。
-      frequency: 40,
-      tint: [color, 0xffffff],
-      follow: follower,
-      blendMode: 'ADD',
-      alpha: { start: 0.8, end: 0 },
-    });
-    emitter.setDepth(35);
-    scene.time.delayedCall(duration, () => {
-      if (emitter && emitter.active) {
-        emitter.stop();
-        scene.time.delayedCall(300, () => { if (emitter.active) emitter.destroy(); });
-      }
-    });
-    return emitter;
-  } catch (_) { return null; }
-}
-
-/**
  * 畫面白閃（短暫的亮度脈衝）
  * @param {Phaser.Scene} scene
  * @param {number} duration — 閃光持續時間（ms）

@@ -4,7 +4,7 @@ import { particles } from '../engine/particles.js';
 import { ALIGNMENT_PROFILES, applyAlignmentProfile } from '../config/alignment.js';
 
 // 暗影魔君 — 3 階段 Boss
-// 使用由 boss_main.png 裁切的多動作圖（待機 / 移動 / 攻擊 / 死亡），以狀態驅動姿勢動畫
+// 使用多張動作圖（待機 / 移動 / 攻擊 / 死亡），以狀態驅動姿勢動畫
 export class Boss extends Monster {
   constructor(scene, x, y) {
     super(scene, x, y, {
@@ -30,6 +30,7 @@ export class Boss extends Monster {
     this._summonCooldown = 0;
     this._slamCooldown = 0;
     this._berserking = false;
+    this.knockbackResist = 0.9;
 
     // 姿勢動畫狀態
     this._currentPose = 'boss_idle';
@@ -106,7 +107,7 @@ export class Boss extends Monster {
     this._checkPhaseTransition();
     // 受擊閃白會清掉狂暴紅色 tint，閃爍結束後補回
     if (this._berserking) {
-      this.scene.time.delayedCall(170, () => {
+      this.scene.time.delayedCall(190, () => {
         if (this.active && this._berserking && !this.isDead) this.setTint(0xff0000);
       });
     }

@@ -1,4 +1,4 @@
-# GAME_SPEC.md — MapleStory-style Thief Platformer
+# GAME_SPEC.md — Thief Platformer
 # 設計規格書 v3.1
 # 目標遊玩時間：約 60 分鐘（1 ~ 30 級）
 # 技術方向：多檔案前端 + 可接後端 / 資料庫（Node.js / SQLite → PostgreSQL）
@@ -114,7 +114,7 @@ project/
 │   │   ├── HenesysScene.js      — 森林獵場
 │   │   ├── ElliniaScene.js      — 神秘之境
 │   │   ├── PerionScene.js       — 高地戰區
-│   │   ├── KerningScene.js      — Kerning City
+│   │   ├── KerningScene.js      — 暗巷城
 │   │   ├── TownScene.js         — 城鎮 / 商店基礎場景
 │   │   ├── TaipeiScene.js       — 台北支線城市
 │   │   ├── BossScene.js         — 暗影領域
@@ -151,7 +151,7 @@ POST /api/auth    — 帳號系統（未來）
 
 | 類型 | 來源 | 實作位置 |
 |------|------|---------|
-| 角色（盜賊） | 真實圖片 `dist/assets/thief.png`（128×128） | `BootScene.preload()` + `Player` setDisplaySize(72,80) |
+| 角色（盜賊） | 6 張動作圖 `dist/assets/player_*.png`（100×80） | `BootScene.preload()` + `Player._updatePose()` 依狀態切換 |
 | 怪物（12種） | 真實圖片 `dist/assets/monster_*.png`（各 80×80） | `BootScene.preload()` + `Monster` setDisplaySize(56,56) |
 | 背景（3張） | 真實圖片 `dist/assets/bg_sky/ruins/city.png` | `BaseMapScene._createBackground()` tileSprite |
 | 平台 | 程式生成（`ProceduralAssets.js`） | grass/stone/brick/wood 四種類型 |
@@ -326,7 +326,7 @@ POST /api/auth    — 帳號系統（未來）
   Layer 2（0.15x） : 厚重圓形白雲 × 4~6，多圓疊加，shadowBlur:10
   Layer 3（0.3x）  : 遠景深綠樹叢 #1C4A1C 剪影
   Layer 4（0.6x）  : 中景橘葉楓樹，落葉粒子（橙/紅，每2s飄落）
-  Layer 5（0.9x）  : 地面密鋪蘑菇（每 40px 一個，橙蘑菇或紅蘑菇交替）
+  Layer 5（0.9x）  : 地面密鋪蘑菇（每 40px 一個，橙蘑菇或帽帽菇交替）
 
   蘑菇裝飾（純視覺，不可互動，參考 Henesys 截圖密集感）：
     傘 r=6，白點 × 3，柄高 8px，顏色 #E8543A
@@ -428,7 +428,7 @@ ATK:      70（等級每升1級 +4，含裝備加成）
 ### 等級成長系統
 
 ```
-EXP 需求：Lv1→Lv2 = 100，每級 × 1.3 倍（上限 Lv30）
+EXP 需求：100 × Lv^1.45（Lv1→2 = 100，Lv10→11 ≈ 2800，Lv20→21 ≈ 7700，上限 Lv30）；怪物死亡 8 秒後重生（小王 45 秒）
 
 升等效果：
 - HP/MP 上升（自動套用）
@@ -465,15 +465,15 @@ MP 每秒自動回復 10
 
 | 地圖 ID | 名稱 | Scene 類 | 背景圖 |
 |---------|------|----------|--------|
-| `town` | 楓葉城（無怪物，商店 / 副本入口） | TownScene | bg_toytown.png |
+| `town` | 晨曦鎮（無怪物，商店 / 副本入口） | TownScene | bg_toytown.png |
 | `sky` | 浮空島嶼 | MapleIslandScene | bg_sky.png |
 | `henesys` | 森林獵場 | HenesysScene | bg_forest.png |
 | `ruins` | 古代廢墟 | PerionScene | bg_ruins.png |
 | `ellinia` | 神秘之境 | ElliniaScene | bg_toytown_refresh.png 等 |
 | `taipei` | 台北都會（支線） | TaipeiScene | bg_taipei.png |
-| `kerning` | Kerning City | KerningScene | bg_city.png |
+| `kerning` | 暗巷城 | KerningScene | bg_city.png |
 | `boss` | 暗影領域 | BossScene | bg_boss_room.png |
-| `dungeon` | 史萊姆洞窟（由楓葉城進入） | DungeonScene | 見 `config/dungeons.js` |
+| `dungeon` | 史萊姆洞窟（由晨曦鎮進入） | DungeonScene | 見 `config/dungeons.js` |
 
 進程：`town` ↔ `sky` ↔ `henesys` ↔ `ruins` ↔ `ellinia` ↔ `kerning` → `boss`；`ellinia` ↔ `taipei` 為支線。地圖順序與怪物組合以 `src/config/maps.js` 為準。
 
@@ -522,7 +522,7 @@ MP 每秒自動回復 10
 | skeleton | monster_skeleton | Lv14    | chase  |
 | snake    | monster_snake    | Lv17    | ranged |
 
-#### Kerning City kerning（Lv19–28）
+#### 暗巷城 kerning（Lv19–28）
 | 怪物 ID  | 圖片 key         | 建議等級 | 行為   |
 |---------|-----------------|---------|--------|
 | dragon  | monster_dragon  | Lv19    | chase  |
@@ -651,7 +651,7 @@ Boss 死亡：分解成黑色粒子群，1s 淡出，播放「勝利！」音效
   ↓ 右側傳送門
 古代廢墟 ruins（Lv9–20，boar/robot/skeleton/snake）
   ↓ 右側傳送門
-Kerning City kerning（Lv18–30，dragon/cyclops/golem/mimic）
+暗巷城 kerning（Lv18–30，dragon/cyclops/golem/mimic）
   ↓ 累積擊殺 60 隻 → Boss 傳送門解鎖
 Boss 房（暗影魔君）
   ├── 死亡 → 死亡畫面（擊殺數、等級、遊玩時間）→ 可重新開始

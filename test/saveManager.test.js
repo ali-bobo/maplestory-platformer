@@ -159,7 +159,7 @@ test('任務：未知 id、重複、超範圍進度被過濾', () => {
 });
 
 test('原型污染 payload 不會污染 Object.prototype', () => {
-  const evil = '{"format":"maple-save","version":1,"state":{"__proto__":{"polluted":1},"constructor":{"prototype":{"polluted":2}},"level":5}}';
+  const evil = '{"format":"thief-legend-save","version":1,"state":{"__proto__":{"polluted":1},"constructor":{"prototype":{"polluted":2}},"level":5}}';
   const res = parseSave(evil);
   assert.ok(res.ok);
   assert.equal(res.state.level, 5);
@@ -173,10 +173,10 @@ test('parseSave：拒絕空字串、壞 JSON、錯誤格式、過新版本、過
   assert.equal(parseSave('{not json').ok, false);
   assert.equal(parseSave('[]').ok, false);
   assert.equal(parseSave('{"format":"other","version":1,"state":{}}').ok, false);
-  assert.equal(parseSave(`{"format":"maple-save","version":${SAVE_VERSION + 1},"state":{}}`).ok, false);
-  assert.equal(parseSave('{"format":"maple-save","version":1}').ok, false);
-  assert.equal(parseSave('{"format":"maple-save","version":1,"state":{}}' + ' '.repeat(MAX_SAVE_BYTES)).ok, false);
-  const ok = parseSave('{"format":"maple-save","version":1,"state":{}}');
+  assert.equal(parseSave(`{"format":"thief-legend-save","version":${SAVE_VERSION + 1},"state":{}}`).ok, false);
+  assert.equal(parseSave('{"format":"thief-legend-save","version":1}').ok, false);
+  assert.equal(parseSave('{"format":"thief-legend-save","version":1,"state":{}}' + ' '.repeat(MAX_SAVE_BYTES)).ok, false);
+  const ok = parseSave('{"format":"thief-legend-save","version":1,"state":{}}');
   assert.ok(ok.ok);
   assert.equal(ok.savedAt, 0);
 });
@@ -222,4 +222,21 @@ test('重複存讀具冪等性：sanitize(sanitize(x)) 與 sanitize(x) 相同', 
   const once = sanitizeState(playedState());
   const twice = sanitizeState(once);
   assert.deepEqual(twice, once);
+});
+
+test('相容舊版存檔格式：{ version, savedAt, gameState }（無 format 欄位）', () => {
+  const legacy = JSON.stringify({
+    version: 1, savedAt: 1234,
+    gameState: { level: 8, exp: 5, maxHp: 540, meso: 321, currentMap: 'henesys', hp: 3 },
+  });
+  const res = parseSave(legacy);
+  assert.ok(res.ok);
+  assert.equal(res.savedAt, 1234);
+  assert.equal(res.state.level, 8);
+  assert.equal(res.state.meso, 321);
+  assert.equal(res.state.currentMap, 'henesys');
+  assert.equal(res.state.hp, res.state.maxHp);
+  // 沒有 format 也沒有 gameState 的東西仍然拒絕
+  assert.equal(parseSave('{"version":1,"state":{}}').ok, false);
+  assert.equal(parseSave('{"version":1}').ok, false);
 });

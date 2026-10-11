@@ -222,6 +222,16 @@ export class AudioSynth {
     setTimeout(() => this._tone(180, 0.06, 'square', 0.08), 40);
   }
 
+  // 技能命中音：短促高頻「喀」+ 暴擊時加一聲低頻重擊；40ms 節流避免多段命中糊成一團
+  playImpact(isCrit = false) {
+    const now = performance.now();
+    if (this._lastImpactAt && now - this._lastImpactAt < 40) return;
+    this._lastImpactAt = now;
+    this._tone(1400, 0.035, 'square', 0.05);
+    this._tone(320, 0.07, 'triangle', 0.08);
+    if (isCrit) this._tone(110, 0.16, 'sawtooth', 0.09);
+  }
+
   playSkill(skillKey) {
     switch (skillKey) {
       case 'Z': this._tone(660, 0.1, 'sawtooth', 0.1); break;

@@ -9,12 +9,6 @@ const MAP_WIDTH = 2560;
 const TOWN_WIDTH = 1600;
 const TAIPEI_LOWER_Y = 400;
 const TAIPEI_UPPER_Y = 240;
-const HENESYS_PLATFORM_OPTIONS = {
-  decorationKey: 'platform_forest',
-  walkableLeftInsetRatio: 0.08,
-  walkableRightInsetRatio: 0.08,
-};
-
 function plat(x, y, width, type = 'stone', thin = true) {
   return { x, y, width, type, thin };
 }
@@ -22,31 +16,6 @@ function ground(x, y, width, type = 'stone') {
   // isGround: true → BaseMapScene 會讓它透明，只保留碰撞面
   return { x, y, width, type, thin: false, isGround: true };
 }
-function imageSolidPlatform(platform, options = {}) {
-  const imagePlatform = {
-    ...platform,
-    thin: options.thin ?? platform.thin ?? true,
-    decorationKey: options.decorationKey || 'platform_long',
-    renderMode: 'image-native',
-    walkableHeight: options.walkableHeight ?? 18,
-  };
-
-  if (options.imageRowIndex !== undefined) imagePlatform.imageRowIndex = options.imageRowIndex;
-  if (options.imageCropTopRatio !== undefined) imagePlatform.imageCropTopRatio = options.imageCropTopRatio;
-  if (options.imageCropHeightRatio !== undefined) imagePlatform.imageCropHeightRatio = options.imageCropHeightRatio;
-  if (options.sourceWindowWidthRatio !== undefined) imagePlatform.sourceWindowWidthRatio = options.sourceWindowWidthRatio;
-  if (options.renderHeight !== undefined) imagePlatform.renderHeight = options.renderHeight;
-  if (options.walkableTopRatio !== undefined) imagePlatform.walkableTopRatio = options.walkableTopRatio;
-  if (options.walkableWidth !== undefined) imagePlatform.walkableWidth = options.walkableWidth;
-  if (options.walkableLeftInset !== undefined) imagePlatform.walkableLeftInset = options.walkableLeftInset;
-  if (options.walkableRightInset !== undefined) imagePlatform.walkableRightInset = options.walkableRightInset;
-  if (options.walkableLeftInsetRatio !== undefined) imagePlatform.walkableLeftInsetRatio = options.walkableLeftInsetRatio;
-  if (options.walkableRightInsetRatio !== undefined) imagePlatform.walkableRightInsetRatio = options.walkableRightInsetRatio;
-  if (options.walkableCenterOffset !== undefined) imagePlatform.walkableCenterOffset = options.walkableCenterOffset;
-
-  return imagePlatform;
-}
-
 // ─────────── 浮空島嶼 ───────────
 // 2 層浮空平台（sky blue 系，草地＋石頭）
 const SKY_PLATFORMS = [
@@ -69,14 +38,14 @@ const HENESYS_PLATFORMS = [
   ground(0, GROUND_Y, MAP_WIDTH, 'grass'),
 
   // 第一層（y=400）：全部改用森林圖片跳台，沿用 Toytown 腳底接觸線
-  imageSolidPlatform(plat(100,  400, 600, 'grass'), HENESYS_PLATFORM_OPTIONS),
-  imageSolidPlatform(plat(980,  400, 600, 'wood'),  HENESYS_PLATFORM_OPTIONS),
-  imageSolidPlatform(plat(1860, 400, 600, 'grass'), HENESYS_PLATFORM_OPTIONS),
+  plat(100,  400, 600, 'grass'),
+  plat(980,  400, 600, 'wood'),
+  plat(1860, 400, 600, 'grass'),
 
   // 第二層（y=240）：全部採同一套森林圖片跳台規格
-  imageSolidPlatform(plat(380,  240, 580, 'wood'),  HENESYS_PLATFORM_OPTIONS),
-  imageSolidPlatform(plat(1220, 240, 580, 'grass'), HENESYS_PLATFORM_OPTIONS),
-  imageSolidPlatform(plat(2060, 240, 580, 'wood'),  HENESYS_PLATFORM_OPTIONS),
+  plat(380,  240, 580, 'wood'),
+  plat(1220, 240, 580, 'grass'),
+  plat(2060, 240, 580, 'wood'),
 ];
 
 // ─────────── 古代廢墟 ───────────
@@ -101,17 +70,17 @@ const ELLINIA_PLATFORMS = [
   ground(0, GROUND_Y, MAP_WIDTH, 'brick'),
 
   // 第一層（y=400）：全部採用已驗證的 Toytown 圖片跳台模式
-  imageSolidPlatform(plat(100,  400, 600, 'wood'),  { walkableHeight: 20 }),
-  imageSolidPlatform(plat(980,  400, 600, 'brick'), { walkableHeight: 20 }),
-  imageSolidPlatform(plat(1860, 400, 600, 'wood'),  { walkableHeight: 20 }),
+  plat(100,  400, 600, 'wood'),
+  plat(980,  400, 600, 'brick'),
+  plat(1860, 400, 600, 'wood'),
 
   // 第二層（y=240）：移除舊有自訂跳台，統一改為圖片跳台
-  imageSolidPlatform(plat(380,  240, 580, 'brick'), { walkableHeight: 20 }),
-  imageSolidPlatform(plat(1220, 240, 580, 'wood'),  { walkableHeight: 20 }),
-  imageSolidPlatform(plat(2060, 240, 580, 'brick'), { walkableHeight: 20 }),
+  plat(380,  240, 580, 'brick'),
+  plat(1220, 240, 580, 'wood'),
+  plat(2060, 240, 580, 'brick'),
 ];
 
-// ─────────── Kerning City ───────────
+// ─────────── 暗巷城 ───────────
 // 2 層（木頭＋磚石，暗夜都市風）
 const KERNING_PLATFORMS = [
   ground(0, GROUND_Y, MAP_WIDTH, 'brick'),
@@ -132,13 +101,13 @@ const KERNING_PLATFORMS = [
 const TAIPEI_PLATFORMS = [
   ground(0, GROUND_Y, MAP_WIDTH, 'brick'),
 
-  imageSolidPlatform(plat(140,  TAIPEI_LOWER_Y, 560, 'brick'), { walkableHeight: 20 }),
-  imageSolidPlatform(plat(930,  TAIPEI_LOWER_Y, 700, 'wood'),  { walkableHeight: 20 }),
-  imageSolidPlatform(plat(1900, TAIPEI_LOWER_Y, 520, 'brick'), { walkableHeight: 20 }),
+  plat(140,  TAIPEI_LOWER_Y, 560, 'brick'),
+  plat(930,  TAIPEI_LOWER_Y, 700, 'wood'),
+  plat(1900, TAIPEI_LOWER_Y, 520, 'brick'),
 
-  imageSolidPlatform(plat(340,  TAIPEI_UPPER_Y, 560, 'wood'),  { walkableHeight: 20 }),
-  imageSolidPlatform(plat(1180, TAIPEI_UPPER_Y, 620, 'brick'), { walkableHeight: 20 }),
-  imageSolidPlatform(plat(2020, TAIPEI_UPPER_Y, 440, 'wood'),  { walkableHeight: 18 }),
+  plat(340,  TAIPEI_UPPER_Y, 560, 'wood'),
+  plat(1180, TAIPEI_UPPER_Y, 620, 'brick'),
+  plat(2020, TAIPEI_UPPER_Y, 440, 'wood'),
 ];
 
 // ─────────── Boss 房間 ───────────
@@ -154,7 +123,7 @@ const BOSS_PLATFORMS = [
   plat(440,  164, 400, 'brick'),
 ];
 
-// ─────────── 楓葉城（城鎮樞紐） ───────────
+// ─────────── 晨曦鎮（城鎮樞紐） ───────────
 const TOWN_PLATFORMS = [
   ground(0, GROUND_Y, TOWN_WIDTH, 'wood'),
 
@@ -179,13 +148,13 @@ export const MAPS = {
       { id: 'sky_bird', count: 2 },
     ],
     portals: [
-      { x: 30,             y: GROUND_Y - 48, width: 40, height: 72, target: 'town',    label: '←楓葉城',   spawnX: 240 },
+      { x: 30,             y: GROUND_Y - 48, width: 40, height: 72, target: 'town',    label: '←晨曦鎮',   spawnX: 240 },
       { x: MAP_WIDTH - 50, y: GROUND_Y - 48, width: 40, height: 72, target: 'henesys', label: '→森林獵場', spawnX: 200 },
     ],
     npcs: [
-      { x: 250, y: GROUND_Y - 60, id: 'npc_new_2', name: '楓葉義工',
+      { x: 250, y: GROUND_Y - 60, id: 'npc_new_2', name: '島嶼義工',
         questIds: ['slime_hunt', 'snail_collect'],
-        dialog: ['歡迎來到浮空島嶼！', '這裡是新手練功的好地方。', '往左可回楓葉城補給，往右是森林獵場。'] },
+        dialog: ['歡迎來到浮空島嶼！', '這裡是新手練功的好地方。', '往左可回晨曦鎮補給，往右是森林獵場。'] },
     ],
     spawnX: 150,
   },
@@ -247,7 +216,7 @@ export const MAPS = {
     key: 'ellinia', name: '神秘之境', sceneKey: 'ElliniaScene',
     width: MAP_WIDTH, bgColor: 0x4422aa,
     platforms: ELLINIA_PLATFORMS,
-    bgType: 'ellinia', bgImage: 'bg_toytown_refresh',
+    bgType: 'ellinia', bgImage: 'bg_mystic',
     monsters: [
       // 神秘之境：改成純奇幻高空區，避免與天空 / 廢墟地圖再次重複
       { id: 'dragon',   count: 3 },
@@ -255,7 +224,7 @@ export const MAPS = {
       { id: 'mimic',    count: 3 },
     ],
     portals: [
-      { x: MAP_WIDTH - 50, y: GROUND_Y - 48, width: 40, height: 72, target: 'kerning', label: '→Kerning City', spawnX: 200 },
+      { x: MAP_WIDTH - 50, y: GROUND_Y - 48, width: 40, height: 72, target: 'kerning', label: '→暗巷城', spawnX: 200 },
       { x: MAP_WIDTH / 2, y: GROUND_Y - 48, width: 40, height: 72, target: 'taipei', label: '↑台北都會', spawnX: 160 },
       { x: 30,             y: GROUND_Y - 48, width: 40, height: 72, target: 'ruins',   label: '←古代廢墟',    spawnX: MAP_WIDTH - 200 },
     ],
@@ -267,9 +236,9 @@ export const MAPS = {
     spawnX: 150,
   },
 
-  // ── 地圖 5：Kerning City（Lv19-29）暗黑都市，強力城市系怪物 ─────────────
+  // ── 地圖 5：暗巷城（Lv19-29）暗黑都市，強力城市系怪物 ─────────────
   kerning: {
-    key: 'kerning', name: 'Kerning City', sceneKey: 'KerningScene',
+    key: 'kerning', name: '暗巷城', sceneKey: 'KerningScene',
     width: MAP_WIDTH, bgColor: 0x111133,
     platforms: KERNING_PLATFORMS,
     bgType: 'kerning', bgImage: 'bg_city',
@@ -286,7 +255,7 @@ export const MAPS = {
     npcs: [
       { x: 350, y: GROUND_Y - 60, id: 'npc_new_4', name: '地下城嚮導',
         questIds: ['thug_cleanup', 'beast_hunt'],
-        dialog: ['歡迎來到 Kerning City！', '這裡的怪物非常強大，要小心。', '擊敗 60 隻怪物解鎖 Boss！'] },
+        dialog: ['歡迎來到 暗巷城！', '這裡的怪物非常強大，要小心。', '擊敗 60 隻怪物解鎖 Boss！'] },
     ],
     spawnX: 150,
   },
@@ -298,20 +267,21 @@ export const MAPS = {
     platforms: TAIPEI_PLATFORMS,
     bgType: 'taipei', bgImage: 'bg_taipei',
     monsters: [
-      // 台北都會：集中機械 / 菁英 / 都會督軍，與 Kerning 夜區明確分工
-      { id: 'robot',      count: 3 },
-      { id: 'city_mech',  count: 3 },
-      { id: 'city_elite', count: 2 },
+      // 台北都會：夜市街頭混混、扒手與巡邏空拍機，與暗巷城夜區分工
+      { id: 'robot',       count: 2 },
+      { id: 'street_punk', count: 2 },
+      { id: 'city_mech',   count: 3 },
+      { id: 'city_elite',  count: 3 },
       { id: 'city_boss1', count: 1 },
     ],
     portals: [
       { x: 30,             y: GROUND_Y - 48, width: 40, height: 72, target: 'ellinia', label: '←神秘之境', spawnX: MAP_WIDTH / 2 + 120 },
-      { x: MAP_WIDTH - 50, y: GROUND_Y - 48, width: 40, height: 72, target: 'kerning', label: '→Kerning City', spawnX: 260 },
+      { x: MAP_WIDTH - 50, y: GROUND_Y - 48, width: 40, height: 72, target: 'kerning', label: '→暗巷城', spawnX: 260 },
     ],
     npcs: [
       { x: 330, y: GROUND_Y - 60, id: 'npc_new_5', name: '台北導遊',
         questIds: ['mech_purge', 'elite_takedown'],
-        dialog: ['這裡是台北都會試作地圖。', 'monster3 裁出的機械與菁英怪現在已經接進來了。', '再往右走前，先小心那隻都會督軍。'] },
+        dialog: ['歡迎來到台北都會，夜市人多，小心錢包。', '最近龐克飆仔和扒手在街頭鬧事。', '扒手頭目就躲在巷子深處，要去的話小心點。'] },
     ],
     spawnX: 150,
   },
@@ -326,12 +296,12 @@ export const MAPS = {
     spawnX: 200,
   },
 
-  // ── 楓葉城（城鎮樞紐，無戰鬥，提供補給商店）──────────────────────────────
+  // ── 晨曦鎮（城鎮樞紐，無戰鬥，提供補給商店）──────────────────────────────
   town: {
-    key: 'town', name: '楓葉城', sceneKey: 'TownScene',
+    key: 'town', name: '晨曦鎮', sceneKey: 'TownScene',
     width: TOWN_WIDTH, bgColor: 0x46306a,
     platforms: TOWN_PLATFORMS,
-    bgType: 'town', bgImage: 'bg_toytown',
+    bgType: 'town', bgImage: 'bg_town',
     monsters: [],
     portals: [
       { x: TOWN_WIDTH - 50, y: GROUND_Y - 48, width: 40, height: 72, target: 'sky', label: '→浮空島嶼', spawnX: 200 },
@@ -339,11 +309,11 @@ export const MAPS = {
       { x: 800, y: GROUND_Y - 48, width: 40, height: 72, target: 'dungeon', dungeonId: 'slime_cave', label: '⚔ 史萊姆洞窟' },
     ],
     npcs: [
-      { x: 520,  y: GROUND_Y - 60, id: 'npc_new_2', name: '商人老陳', shop: true,
+      { x: 520,  y: GROUND_Y - 60, id: 'npc_merchant', name: '商人老陳', shop: true,
         dialog: ['歡迎光臨雜貨店！'] },
-      { x: 1000, y: GROUND_Y - 60, id: 'npc_new_4', name: '城鎮居民',
+      { x: 1000, y: GROUND_Y - 60, id: 'npc_townsfolk', name: '城鎮居民',
         questIds: ['reach_town'],
-        dialog: ['楓葉城是安全的休息站，這裡不會有怪物。', '需要補給就找商人老陳。', '右邊的傳送門可以回到浮空島嶼。'] },
+        dialog: ['晨曦鎮是安全的休息站，這裡不會有怪物。', '需要補給就找商人老陳。', '右邊的傳送門可以回到浮空島嶼。'] },
     ],
     spawnX: 200,
   },
