@@ -1,0 +1,31 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    name: Build and verify bundle
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install dependencies (lockfile-exact)
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Verify committed bundle is up to date
+        # dist/bundle.js 進 git 以便玩家免 build，需與 src 保持同步
+        run: git diff --exit-code -- dist/bundle.js

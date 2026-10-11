@@ -44,6 +44,11 @@
 - UIScene 5 個分散 addEvent（100/200/500/1000ms + minimap 200ms）整合為 1 個 100ms 迴圈。
 - Monster HP bar 位置快取粒度由 0.5px 放寬至 2px，降低 setPosition 頻率。
 
+### 戰鬥回饋與暫停選單（Phase 15 後段）
+- Player 追蹤最近怪物並繪製橙色目標選取框。
+- 升級時全屏白閃 + 文字彈跳進場。
+- UIScene 新增 ESC 暫停選單（繼續遊戲 / 返回主選單），暫停時停用當前地圖 Scene。
+
 ### BGM 音效品質
 - audio.js masterGain 隔離：每次 playBgm 建立獨立 GainNode，消除地圖切換音頻殘留。
 - stopBgm 10ms 線性漸出舊 GainNode，避免爆音。
@@ -61,9 +66,6 @@
 - WebGL renderer 與 rexUI 已就位，可作為下一輪技能特效與 UI 開發基礎。
 
 ### 已知仍待補強
-- ESC 暫停選單與操作覆蓋層
-- 目標選取框
-- Level Up 全屏演出
 - Boss 第三階段狂暴視覺
 - 城鎮商店正式接入主流程
 
@@ -72,9 +74,7 @@
 ## 四、目前差距分析
 
 ### 高優先
-1. ESC 暫停選單尚未實作，目前 ESC 只負責關閉 NPC 對話。
-2. 目標選取框尚未實作，玩家攻擊對象缺少穩定視覺回饋。
-3. Level Up 演出仍偏簡化，只有 UIScene 文字提示，缺少全屏粒子與節奏感。
+（Phase 15 已清空：ESC 暫停選單、目標選取框、Level Up 演出皆已完成）
 
 ### 中優先
 1. Boss 第三階段缺少狂暴視覺層，強度變化不夠直觀。
@@ -91,9 +91,9 @@
 ## 五、下一步建議順序
 
 ### Phase 5 下一批建議
-1. 先補 ESC 暫停選單，因為它同時影響操作說明與裝備檢視。
-2. 補目標選取框與 Level Up 演出，提升戰鬥回饋。
-3. 再進入 Boss 第三階段狂暴視覺與技能特效升級。
+1. Boss 第三階段狂暴視覺與技能特效升級。
+2. 城鎮商店正式接入主流程。
+3. localStorage 存檔 / 讀檔。
 
 ### 技術原則
 - 新技能特效優先建立在 WebGL pipeline 與現有 ProceduralAssets 上。
