@@ -25,6 +25,8 @@
 
 **之後再接的素材與功能**（完整檔名見下方各表與 `STATUS.md`）：世界地圖與傳送（階段 3 未開始）、任務標記、靴子圖示、影之殿堂平台、飛鏢 / 漩渦 / Boss 氣場特效、三職業待機呼吸動畫；還缺的圖：Boss 狂暴姿勢與背景、劇情插畫 2 與 4、標題徽章。
 
+**線上試玩頁面（Claude Artifact）**：網址 https://claude.ai/artifact/GBMnt9Ca9CEmAgEDQDYNSH （私人，只有擁有者能開；要給別人玩請在頁面的「分享」設定）。專案本身沒有 GitHub Pages 或其他自動部署，合併到 `main` **不會**更新這個網址，要重新打包發布：`npm run build && python3 scripts/make-play-page.py /tmp/index.html`，再用 Artifact 發布到同一網址，並把 `dist/assets/` 的 png / webp 以相同的相對路徑附上（不含 `hisoka.jpg`）。試玩頁面裡「匯出存檔」按鈕因為檢視器不允許下載而無效，匯入與本機存檔可用。
+
 **測試腳本**：已收進 `e2e/`（說明見 `e2e/README.md`），遊玩驗證後如果流程有改，記得同步更新。
 
 整理完成後仍待處理的事項。「需決定」代表需要你先拍板才能動手。
