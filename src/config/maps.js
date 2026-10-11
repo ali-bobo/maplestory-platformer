@@ -132,6 +132,16 @@ const TOWN_PLATFORMS = [
   plat(620,  286, 360, 'stone'),
 ];
 
+// ─────────── 影之殿堂（安全地圖，轉職樞紐；一個畫面寬，不捲動）───────────
+const SHRINE_WIDTH = 1280;
+const SHRINE_PLATFORMS = [
+  ground(0, GROUND_Y, SHRINE_WIDTH, 'stone'),
+
+  // 兩個低矮的白石露台，只做裝飾與站位（TODO(art)：換 platform_shrine 專屬跳台）
+  plat(120,  450, 300, 'stone'),
+  plat(860,  450, 300, 'stone'),
+];
+
 export const MAPS = {
   // ── 地圖 1：浮空島嶼（Lv1-8）淡藍天空，輕柔可愛怪物 ──────────────────────
   sky: {
@@ -307,19 +317,38 @@ export const MAPS = {
       { x: TOWN_WIDTH - 50, y: GROUND_Y - 48, width: 40, height: 72, target: 'sky', label: '→浮空島嶼', spawnX: 200 },
       // Phase 14：副本入口（target='dungeon' 觸發 DungeonScene，dungeonId 指定哪個副本）
       { x: 800, y: GROUND_Y - 48, width: 40, height: 72, target: 'dungeon', dungeonId: 'slime_cave', label: '⚔ 史萊姆洞窟' },
-      // 一轉任務「影之試煉」：requiresQuest 沒接任務時進不去（影之殿堂地圖美術未到，先用副本場景代替）
-      { x: 1400, y: GROUND_Y - 48, width: 40, height: 72, target: 'dungeon', dungeonId: 'shadow_trial', label: '⚔ 影之試煉', requiresQuest: 'job_trial' },
+      // 影之殿堂：轉職長老、技能導師與「影之試煉」入口都在那裡
+      { x: 1400, y: GROUND_Y - 48, width: 40, height: 72, target: 'shrine', label: '→影之殿堂', spawnX: 120 },
     ],
     npcs: [
       { x: 520,  y: GROUND_Y - 60, id: 'npc_merchant', name: '商人老陳', shop: true,
         dialog: ['歡迎光臨雜貨店！'] },
       { x: 1000, y: GROUND_Y - 60, id: 'npc_townsfolk', name: '城鎮居民',
         questIds: ['reach_town', 'job_call'], jobLetter: true,
-        dialog: ['晨曦鎮是安全的休息站，這裡不會有怪物。', '需要補給就找商人老陳。', '右邊的傳送門可以回到浮空島嶼。'] },
-      { x: 1230, y: GROUND_Y - 60, id: 'npc_shadow_elder', npcId: 'shadow_elder', role: 'jobAdvisor', name: '影之長老',
+        dialog: ['晨曦鎮是安全的休息站，這裡不會有怪物。', '需要補給就找商人老陳。', '最右邊的傳送門通往影之殿堂，', '再過去的是回浮空島嶼的路。'] },
+    ],
+    spawnX: 200,
+  },
+
+  // ── 影之殿堂（安全地圖：無怪物，轉職長老 / 技能導師 / 影之試煉入口）──────────────
+  shrine: {
+    key: 'shrine', name: '影之殿堂', sceneKey: 'ShrineScene',
+    width: SHRINE_WIDTH, bgColor: 0x1a1d4a,
+    platforms: SHRINE_PLATFORMS,
+    bgType: 'shrine', bgImage: 'bg_shrine',
+    monsters: [],
+    portals: [
+      { x: 30, y: GROUND_Y - 48, width: 40, height: 72, target: 'town', label: '←晨曦鎮', spawnX: 1300 },
+      // 一轉任務「影之試煉」：requiresQuest 沒接任務時進不去
+      { x: SHRINE_WIDTH - 130, y: GROUND_Y - 48, width: 40, height: 72, target: 'dungeon', dungeonId: 'shadow_trial', label: '⚔ 影之試煉', requiresQuest: 'job_trial' },
+    ],
+    npcs: [
+      { x: 520, y: GROUND_Y - 60, id: 'npc_skill_mentor', npcId: 'skill_mentor', role: 'skillMentor', name: '技能導師',
+        dialog: ['技能不是學得多，而是練得精。', '點畫面下方的「技能」鈕，把 SP 投在最順手的技能上。'] },
+      { x: 780, y: GROUND_Y - 60, id: 'npc_shadow_elder', npcId: 'shadow_elder', role: 'jobAdvisor', name: '影之長老',
         questIds: ['job_choose', 'job_proof', 'job_trial', 'job_awaken'],
         dialog: ['影子裡藏著力量，也藏著試煉。', '等你準備好了，再來找我。'] },
     ],
-    spawnX: 200,
+    spawnX: 120,
   },
 };

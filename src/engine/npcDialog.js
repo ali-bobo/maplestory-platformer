@@ -27,9 +27,18 @@ export function buildNpcDialog(gs, npcDef) {
   // 城鎮居民：Lv.10 後轉交神祕信（影之召喚進行中時多一段話）
   if (npcDef.jobLetter && activeEntry('job_call')) {
     return {
-      lines: ['有你的信！「影之長老在晨曦鎮等你」，', '他就站在鎮上的角落，快去找他吧。', ...lines],
+      lines: ['有你的信！「影之長老在影之殿堂等你」，', '從鎮上最右邊的傳送門進去，快去找她吧。', ...lines],
       choices: null,
     };
+  }
+
+  // 技能導師：依目前職業 / SP 補一行提醒（沒有重置功能，只提示怎麼加點）
+  if (npcDef.role === 'skillMentor') {
+    const sp = (gs && gs.skillPoints) || 0;
+    const extra = gs && gs.job === 'thief' && gs.level < 10
+      ? '到 Lv.10 可以找影之長老轉職，會多出新的專屬技能。'
+      : sp > 0 ? `你還有 ${sp} 點 SP 沒有用，快去升級技能吧。` : '你的 SP 都花完了，繼續升級會再拿到新的點數。';
+    return { lines: [...lines, extra], choices: null };
   }
 
   if (npcDef.role !== 'jobAdvisor') return { lines, choices: null };
@@ -54,7 +63,7 @@ export function buildNpcDialog(gs, npcDef) {
     return { lines: [`你選了「${JOBS[gs.jobChoice]?.title || '…'}」之路。`, `去打倒怪物，帶回 5 個${TRIAL_ITEM_NAME}（${proof.progress}/5）。`], choices: null };
   }
   if (activeEntry('job_trial')) {
-    return { lines: ['證物齊了。接下來是最後的考驗，', '從右邊的傳送門進入「影之試煉」，', '在限時內擊敗試煉守衛。'], choices: null };
+    return { lines: ['證物齊了。接下來是最後的考驗，', '從殿堂右端的傳送門進入「影之試煉」，', '在限時內擊敗試煉守衛。'], choices: null };
   }
   if (activeEntry('job_awaken')) {
     return { lines: ['你通過了試煉，覺醒的時刻到了。'], choices: null };

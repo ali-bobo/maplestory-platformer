@@ -8,6 +8,7 @@
 //  - timeBonus：剩餘秒數 × 此係數 = 額外 exp
 //  - failRewards：失敗時的安慰獎勵
 //  - dailyLimit：每日進入次數上限
+//  - returnMap（選用）：結算後回到的地圖 key，預設晨曦鎮
 //  - mapWidth / background：副本場景的視覺設定
 
 export const DUNGEONS = {
@@ -44,6 +45,7 @@ export const DUNGEONS = {
     failRewards: { exp: 20, meso: 50 },
     timeBonus: 2,
     dailyLimit: 20,
+    returnMap: 'shrine',   // 結算後回到影之殿堂（長老在那裡）；沒設就回晨曦鎮
     mapWidth: 1600,
     bgColor: 0x1a1030,
     bgImage: 'bg_dungeon',

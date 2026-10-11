@@ -9,7 +9,8 @@ import { BaseMapScene } from './BaseMapScene.js';
 import { Monster } from '../entities/Monster.js';
 import { MONSTERS } from '../config/monsters.js';
 import { getDungeonDef } from '../config/dungeons.js';
-import { WORLD_HEIGHT } from '../config/constants.js';
+import { WORLD_HEIGHT, MAP_SCENE_KEYS } from '../config/constants.js';
+import { MAPS } from '../config/maps.js';
 import { recordDungeonEntry } from '../engine/dungeonRecord.js';
 import { onDungeonCleared } from '../engine/questManager.js';
 
@@ -218,6 +219,8 @@ export class DungeonScene extends BaseMapScene {
   exitDungeon() {
     // 玩家狀態已經保存在 registry，直接切回 town
     this.scene.stop('UIScene');
-    this.scene.start('TownScene', { spawnX: 200 });
+    const back = this._dungeonDef?.returnMap;
+    if (back && MAP_SCENE_KEYS[back]) this.scene.start(MAP_SCENE_KEYS[back], { spawnX: MAPS[back].spawnX });
+    else this.scene.start('TownScene', { spawnX: 200 });
   }
 }

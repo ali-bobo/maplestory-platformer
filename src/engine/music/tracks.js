@@ -204,6 +204,28 @@ export const TRACKS = {
     mix: { reverb: 0.26, tone: 9000 },
   },
 
+  // ── 影之殿堂：D 大調，安靜神聖（顫音琴 + 合唱襯底 + 豎琴，沒有鼓，只有星光般的高音）────────
+  shrine: {
+    key: { tonic: 'D', mode: 'major' }, bpm: 80, swing: 0,
+    chords: ['D', 'Bm', 'G', 'A', 'D', 'F#m', 'G', 'A',
+             'Em7', 'A', 'D', 'Bm', 'G', 'A', 'D', 'A'],
+    lead: [
+      'F#5.4 A5.4 D6.4 A5.4', 'B5.4 D6.4 F#6.2 E6.2 D6.4', 'B5.4 G5.4 D6.4 B5.4', 'C#6.4 E6.4 A5.4 E6.4',
+      'D6.6 C#6.2 A5.4 F#5.4', 'C#6.4 A5.4 F#5.4 A5.4', 'G5.4 B5.4 D6.4 G6.4', 'E6.4 C#6.4 A5.8',
+      'G5.4 B5.4 E6.4 D6.4', 'E6.4 C#6.4 A5.4 C#6.4', 'D6.4 F#6.4 A6.4 F#6.4', 'D6.4 B5.4 F#5.8',
+      'B5.4 D6.4 G6.8', 'A5.4 C#6.4 E6.8', 'F#6.6 E6.2 D6.8', 'E6.4 C#6.4 A5.8',
+    ],
+    parts: {
+      lead: { inst: 'vibes', vel: 0.8, pan: 0.0 },
+      pad:  { inst: 'choir', vel: 0.5 },
+      comp: { style: 'arp4', inst: 'harp', vel: 0.5 },
+      sparkle: { inst: 'bell', vel: 0.26, positions: [2, 10] },
+      bass: { style: 'whole', inst: 'sub', vel: 0.26 },
+      perc: { style: 'none', vel: 0 },
+    },
+    mix: { reverb: 0.5, echo: 0.3, tone: 8500 },
+  },
+
   // ── Boss 戰：E 小調（V 級用和聲小調的 B 大三和弦），緊迫有力 ───────────────────────
   boss: {
     key: { tonic: 'E', mode: 'minor' }, bpm: 150, swing: 0,

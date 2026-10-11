@@ -58,7 +58,7 @@ test('buildNpcDialog：城鎮居民在影之召喚進行時轉交神祕信', () 
 });
 
 test('buildNpcDialog：影之長老依任務進度換內容，只有「選擇你的道路」有選項', () => {
-  const elder = MAPS.town.npcs.find((n) => n.role === 'jobAdvisor');
+  const elder = MAPS.shrine.npcs.find((n) => n.role === 'jobAdvisor');
   const lowLv = buildNpcDialog(gsWith(5), elder);
   assert.ok(lowLv.lines.join('').includes('Lv.10') && lowLv.choices === null);
   const choose = buildNpcDialog(gsWith(10, ['job_choose'], ['job_call']), elder);

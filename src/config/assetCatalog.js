@@ -235,6 +235,15 @@ export const BACKGROUND_ASSETS = [
     targetMaps: ['boss'],
   },
   {
+    assetId: 'BG-SHR-001',
+    groupId: 'BG-SHR',
+    kind: 'background',
+    key: 'bg_shrine',
+    path: 'dist/assets/bg_shrine.webp',
+    status: 'used',
+    targetMaps: ['shrine'],
+  },
+  {
     assetId: 'BG-DGN-001',
     groupId: 'BG-DGN',
     kind: 'background',
@@ -680,7 +689,7 @@ export const NPC_ASSETS = [
     kind: 'npc',
     key: 'npc_skill_mentor',
     path: 'dist/assets/npc_skill_mentor.png',
-    status: 'unused',
+    status: 'used',
   },
 ];
 

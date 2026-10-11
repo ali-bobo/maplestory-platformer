@@ -9,6 +9,7 @@ import { PerionScene } from './scenes/PerionScene.js';
 import { KerningScene } from './scenes/KerningScene.js';
 import { TaipeiScene } from './scenes/TaipeiScene.js';
 import { TownScene } from './scenes/TownScene.js';
+import { ShrineScene } from './scenes/ShrineScene.js';
 import { BossScene } from './scenes/BossScene.js';
 import { DungeonScene } from './scenes/DungeonScene.js';
 import { UIScene } from './scenes/UIScene.js';
@@ -76,6 +77,7 @@ const config = {
     KerningScene,
     TaipeiScene,
     TownScene,
+    ShrineScene,
     BossScene,
     DungeonScene,
     UIScene,

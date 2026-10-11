@@ -5,7 +5,8 @@ import { MAPS } from '../src/config/maps.js';
 import { MONSTERS } from '../src/config/monsters.js';
 import { QUESTS, JOB_QUEST_CHAIN, JOB_NPC_ID, TRIAL_ITEM } from '../src/config/quests.js';
 import { DUNGEONS } from '../src/config/dungeons.js';
-import { MAP_SCENE_KEYS, JOBS, JOB_IDS } from '../src/config/constants.js';
+import { MAP_SCENE_KEYS, JOBS, JOB_IDS, createInitialGameState } from '../src/config/constants.js';
+import { TRACKS } from '../src/engine/music/tracks.js';
 import {
   CHARACTER_ASSETS, BACKGROUND_ASSETS, PLATFORM_ASSETS, MONSTER_ASSETS, NPC_ASSETS, BOSS_ASSETS,
   ICON_ASSETS, UI_ASSETS, POTION_ICON_ASSETS, FX_ASSETS, JOB_POSES, SKILL_ICON_ASSETS, QUEST_ITEM_ASSETS,
@@ -113,13 +114,13 @@ test('轉職任務鏈：五個任務依序串接、由 NPC 發放、只有最後
   assert.equal(QUESTS.job_proof.target, TRIAL_ITEM);
   assert.equal(QUESTS.job_proof.count, 5);
   assert.equal(QUESTS.job_trial.target, 'shadow_trial');
-  // 影之長老在晨曦鎮，發放後四個任務；城鎮居民發放影之召喚
-  const elder = MAPS.town.npcs.find((n) => n.npcId === JOB_NPC_ID);
+  // 影之長老在影之殿堂，發放後四個任務；城鎮居民發放影之召喚
+  const elder = MAPS.shrine.npcs.find((n) => n.npcId === JOB_NPC_ID);
   assert.ok(elder && elder.role === 'jobAdvisor' && assetKeys.has(elder.id));
   assert.deepEqual(elder.questIds, ['job_choose', 'job_proof', 'job_trial', 'job_awaken']);
   assert.ok(MAPS.town.npcs.some((n) => (n.questIds || []).includes('job_call')));
   // 影之試煉入口：副本傳送門 + 任務限定；副本有試煉守衛（小王）
-  const portal = MAPS.town.portals.find((p) => p.dungeonId === 'shadow_trial');
+  const portal = MAPS.shrine.portals.find((p) => p.dungeonId === 'shadow_trial');
   assert.ok(portal && portal.requiresQuest === 'job_trial');
   const trial = DUNGEONS.shadow_trial;
   assert.ok(trial.timeLimit > 0 && trial.waves.length >= 1);
@@ -132,4 +133,45 @@ test('新增任務的怪物 / 圖都在目錄裡（試煉守衛圖、任務物�
   const guard = MONSTERS.find((m) => m.id === 'shadow_guardian');
   assert.ok(assetKeys.has(guard.spriteKey), guard.spriteKey);
   assert.ok(assetKeys.has(DUNGEONS.shadow_trial.bgImage));
+});
+
+test('地圖連通：從起始地圖出發，沿傳送門能到每一張地圖（Boss 房需要擊殺數解鎖，仍算連通）', () => {
+  const start = createInitialGameState().currentMap;
+  const seen = new Set([start]);
+  const queue = [start];
+  while (queue.length) {
+    const key = queue.shift();
+    for (const p of MAPS[key].portals) {
+      if (p.target !== 'dungeon' && !seen.has(p.target)) { seen.add(p.target); queue.push(p.target); }
+    }
+  }
+  assert.deepEqual(Object.keys(MAPS).filter((k) => !seen.has(k)), []);
+});
+
+test('傳送門成對：A 能走到 B，B 也有一條能回 A（Boss 房與台北→暗巷城的環狀單向除外）', () => {
+  const ONE_WAY = new Set(['taipei>kerning']);
+  for (const [key, map] of Object.entries(MAPS)) {
+    for (const p of map.portals) {
+      if (p.target === 'dungeon' || p.target === 'boss' || ONE_WAY.has(`${key}>${p.target}`)) continue;
+      assert.ok(MAPS[p.target].portals.some((q) => q.target === key), `${key} → ${p.target} 沒有回程`);
+    }
+  }
+});
+
+test('傳送門落點在目標地圖範圍內，且每張地圖都有背景音樂', () => {
+  for (const [key, map] of Object.entries(MAPS)) {
+    assert.ok(TRACKS[key], `${key} 沒有音樂曲目`);
+    for (const p of map.portals) {
+      if (p.target === 'dungeon') continue;
+      assert.ok(p.spawnX >= 0 && p.spawnX <= MAPS[p.target].width, `${key} → ${p.target} spawnX ${p.spawnX}`);
+    }
+  }
+});
+
+test('影之殿堂是安全地圖：沒有怪物，有長老與技能導師，背景在素材目錄', () => {
+  const m = MAPS.shrine;
+  assert.equal(m.monsters.length, 0);
+  assert.ok(m.npcs.some((n) => n.id === 'npc_skill_mentor') && m.npcs.some((n) => n.id === 'npc_shadow_elder'));
+  assert.ok(BACKGROUND_ASSETS.some((a) => a.key === 'bg_shrine' && a.targetMaps.includes('shrine')));
+  assert.ok(m.width <= 1280, '一個畫面寬，背景不平鋪');
 });
