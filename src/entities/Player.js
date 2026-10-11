@@ -303,6 +303,18 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     audio.resumeContext();
   }
 
+  // 重生保護：一段時間不受傷，期間半透明閃爍
+  grantInvincibility(ms) {
+    this.isInvincible = true;
+    this.scene.tweens.add({
+      targets: this, alpha: 0.4, duration: 150, yoyo: true, repeat: Math.max(0, Math.ceil(ms / 300) - 1),
+    });
+    this.scene.time.delayedCall(ms, () => {
+      this.isInvincible = false;
+      if (this.active) this.setAlpha(1);
+    });
+  }
+
   takeDamage(amount) {
     if (this.isInvincible || this.isDead) return;
     const gs = this.gameState;

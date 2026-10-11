@@ -9,6 +9,7 @@ import { POTION_ICON_KEYS } from '../config/assetCatalog.js';
 import { ensureSkillIcons } from '../assets/skillIcons.js';
 import { addParchmentPanel, addWoodButton } from '../engine/woodUi.js';
 import { saveGame } from '../engine/saveGame.js';
+import { audio } from '../engine/audio.js';
 
 // HUD 場景（平行運行）— 橫向捲軸風格底部狀態列
 export class UIScene extends Phaser.Scene {
@@ -153,11 +154,13 @@ export class UIScene extends Phaser.Scene {
     // 降級：連續 3 秒 < 45 FPS（積極，卡了就降）
     if (this._lowFpsCount >= 3 && level !== 'low') {
       setQualityLevel(this, downgradeQuality(level));
+      audio.setMusicQuality(getQualityLevel(this));
       this._lowFpsCount = 0;
     }
     // 升級：連續 8 秒 > 55 FPS（保守，避免在臨界點反覆跳檔）
     else if (this._highFpsCount >= 8 && level !== 'high') {
       setQualityLevel(this, upgradeQuality(level));
+      audio.setMusicQuality(getQualityLevel(this));
       this._highFpsCount = 0;
     }
   }
@@ -500,7 +503,20 @@ export class UIScene extends Phaser.Scene {
       }).setOrigin(1, 1).setDepth(54).setScrollFactor(0);
 
       this._potionSlots[key] = { bg: slotBg, dot: icon, qtyText };
+
+      // 點擊藥水槽直接使用（手機沒有藥水按鍵；桌機也可用滑鼠點）。點擊範圍比圖示大一圈，方便手指
+      this.add.rectangle(px + pot / 2, py + pot / 2, pot + 8, pot + 8, 0xffffff, 0)
+        .setDepth(55).setScrollFactor(0)
+        .setInteractive({ useHandCursor: true })
+        .on('pointerdown', () => this._usePotionFromHud(key));
     });
+  }
+
+  _usePotionFromHud(key) {
+    const mapKey = this._getCurrentMapSceneKey();   // 暫停中為 null：不能用藥
+    if (!mapKey) return;
+    const player = this.scene.manager.getScene(mapKey)?.player;
+    if (player && !player.isDead) player.usePotion(key);
   }
 
   // ── 定期刷新藥水數量顯示 ──────────────────────────────────────────────────
@@ -883,6 +899,11 @@ export class UIScene extends Phaser.Scene {
   }
 
   _onEscKeyDown() {
+    // 暫停中：被暫停的地圖場景不再是 active，必須先處理關閉，否則 ESC 只能開不能關
+    if (this._isPaused) {
+      this._closePauseMenu();
+      return;
+    }
     const mapSceneKey = this._getCurrentMapSceneKey();
     if (!mapSceneKey) return;
 
@@ -890,11 +911,7 @@ export class UIScene extends Phaser.Scene {
     const mapScene = this.scene.manager.getScene(mapSceneKey);
     if (mapScene?._npcDialog) return;
 
-    if (this._isPaused) {
-      this._closePauseMenu();
-    } else {
-      this._openPauseMenu();
-    }
+    this._openPauseMenu();
   }
 
   _openPauseMenu() {
@@ -914,7 +931,7 @@ export class UIScene extends Phaser.Scene {
     push(this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.6)
       .setDepth(190).setScrollFactor(0));
 
-    push(addParchmentPanel(this, width / 2 - 150, height / 2 - 120, 300, 250, { depth: 192 }));
+    push(addParchmentPanel(this, width / 2 - 150, height / 2 - 120, 300, 305, { depth: 192 }));
 
     // 標題
     push(this.add.text(width / 2, height / 2 - 72, '遊戲暫停', {
@@ -925,7 +942,15 @@ export class UIScene extends Phaser.Scene {
     addWoodButton(this, width / 2, height / 2 + 4, 190, 42, '繼續遊戲', () => this._closePauseMenu(),
       { depth: 195, fontSize: 18 }).objects.forEach(push);
 
-    addWoodButton(this, width / 2, height / 2 + 60, 190, 42, '存檔並回主選單', () => {
+    // 音樂開關：弱裝置覺得卡頓時可以直接關閉
+    const musicBtn = addWoodButton(this, width / 2, height / 2 + 60, 190, 42,
+      audio.isBgmEnabled() ? '音樂：開' : '音樂：關', () => {
+        audio.setBgmEnabled(!audio.isBgmEnabled());
+        musicBtn.label.setText(audio.isBgmEnabled() ? '音樂：開' : '音樂：關');
+      }, { depth: 195, fontSize: 18 });
+    musicBtn.objects.forEach(push);
+
+    addWoodButton(this, width / 2, height / 2 + 116, 190, 42, '存檔並回主選單', () => {
       saveGame(this.registry.get('gameState'));
       this._isPaused = false;
       for (const obj of this._pauseOverlayObjs) { if (obj?.active) obj.destroy(); }

@@ -6,6 +6,7 @@ import { prewarmMonsterTextures } from '../entities/Monster.js';
 import { initVfxTextures } from '../engine/vfxTextures.js';
 import GlowFilterPostFxPipeline from 'phaser3-rex-plugins/plugins/shaders/glowfilter/GlowFilterPostFxPipeline.js';
 import ShockwavePostFxPipeline from 'phaser3-rex-plugins/plugins/shaders/shockwave/ShockwavePostFxPipeline.js';
+import { isTouchDevice } from '../engine/device.js';
 
 // Phase 5.1：背景紋理啟動時 downscale
 // 把超過 maxW × maxH 的紋理用 canvas drawImage 縮小，並用同 key 重新註冊，
@@ -53,7 +54,8 @@ export class BootScene extends Phaser.Scene {
     // Phase 6：自適應品質預設 high（FPS 監測器會依裝置能力動態調整）
     // 用獨立 registry key，不進存檔（裝置相關設定）
     if (!this.registry.get('qualityLevel')) {
-      this.registry.set('qualityLevel', 'high');
+      // 手機 GPU 較弱：預設 medium，FPS 監測器仍會依實際表現上下調整
+      this.registry.set('qualityLevel', isTouchDevice() ? 'medium' : 'high');
     }
 
     // 註冊 rex PostFX pipelines（GlowFilter / Shockwave）

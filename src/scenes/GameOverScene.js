@@ -122,7 +122,7 @@ export class GameOverScene extends Phaser.Scene {
       return;
     }
     this.registry.set('gameState', gs);
-    this.scene.start(MAP_SCENE_KEYS[gs.currentMap] || 'TownScene', { gameState: gs, spawnX: gs.spawnX });
+    this.scene.start(MAP_SCENE_KEYS[gs.currentMap] || 'TownScene', { gameState: gs, spawnX: gs.spawnX, respawn: true });
   }
 
   _formatTime(seconds) {
