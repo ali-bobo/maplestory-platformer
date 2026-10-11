@@ -1,45 +1,18 @@
 import Phaser from 'phaser';
 import { generateTextures } from '../assets/ProceduralAssets.js';
 import { createInitialGameState } from '../config/constants.js';
-import { PRELOAD_IMAGE_ASSETS, PRELOAD_SPRITESHEET_ASSETS, BACKGROUND_ASSETS } from '../config/assetCatalog.js';
-import { prewarmMonsterTextures } from '../entities/Monster.js';
+import { PRELOAD_IMAGE_ASSETS, PRELOAD_SPRITESHEET_ASSETS } from '../config/assetCatalog.js';
 import { initVfxTextures } from '../engine/vfxTextures.js';
 import GlowFilterPostFxPipeline from 'phaser3-rex-plugins/plugins/shaders/glowfilter/GlowFilterPostFxPipeline.js';
 import ShockwavePostFxPipeline from 'phaser3-rex-plugins/plugins/shaders/shockwave/ShockwavePostFxPipeline.js';
 import { isTouchDevice } from '../engine/device.js';
-
-// Phase 5.1：背景紋理啟動時 downscale
-// 把超過 maxW × maxH 的紋理用 canvas drawImage 縮小，並用同 key 重新註冊，
-// 釋放原大圖 GPU 紋理。每幀紋理採樣頻寬從 1 GB/s 降到 220 MB/s。
-// 規則 D：紋理尺寸應對齊顯示尺寸，禁止用 setScale 把大圖縮成小顯示。
-function downscaleTexture(scene, key, maxW = 1280, maxH = 720) {
-  if (!scene.textures.exists(key)) return;
-  const src = scene.textures.get(key).getSourceImage();
-  if (!src || (src.width <= maxW && src.height <= maxH)) return;
-
-  // 保持原比例縮放
-  const scale = Math.min(maxW / src.width, maxH / src.height);
-  const w = Math.max(1, Math.round(src.width * scale));
-  const h = Math.max(1, Math.round(src.height * scale));
-
-  const canvas = document.createElement('canvas');
-  canvas.width = w;
-  canvas.height = h;
-  const ctx = canvas.getContext('2d');
-  ctx.imageSmoothingEnabled = true;
-  ctx.imageSmoothingQuality = 'high';
-  ctx.drawImage(src, 0, 0, w, h);
-
-  // 移除原大圖（釋放 GPU 紋理記憶體），用縮小版以同 key 重新註冊
-  scene.textures.remove(key);
-  scene.textures.addCanvas(key, canvas);
-}
 
 export class BootScene extends Phaser.Scene {
   constructor() {
     super({ key: 'BootScene' });
   }
 
+  // 只載入 scope 'boot' 的小圖（HUD、圖示、主選單背景）；其餘依需要載入
   preload() {
     for (const asset of PRELOAD_IMAGE_ASSETS) {
       this.load.image(asset.key, asset.path);
@@ -71,15 +44,8 @@ export class BootScene extends Phaser.Scene {
     // 生成平台、技能特效、UI 等程序材質（背景/角色/怪物已改用真實圖片）
     generateTextures(this);
 
-    // 預先處理怪物材質去背，避免遊戲中首次生成各種怪物時瞬卡
-    prewarmMonsterTextures(this);
-
-    // Phase 5.1：所有背景圖在啟動時 downscale 到 ≤ 1280×720
-    // 原圖 2752×1536（17 MB GPU 紋理）→ 1280×~720（3.7 MB），省 78% 顯存頻寬
-    // 啟動時間 +200-500 ms（一次性，可接受）
-    for (const asset of BACKGROUND_ASSETS) {
-      downscaleTexture(this, asset.key, 1280, 720);
-    }
+    // 背景 / 怪物 / NPC / 跳台 / 職業動作圖 / 特效不在開機載入：進入地圖時由 BaseMapScene.preload 依需要載入
+    // （src/engine/assetPlan.js 決定清單，assetCatalog.js 的 scope 標籤為準）；怪物去背在首次生成時才處理。
 
     // 預渲染 VFX 紋理（魔法陣/弧形斬擊/命中環/衝擊圓），消滅遊戲過程的 earcut 熱點
     initVfxTextures(this);

@@ -4,6 +4,7 @@
 
 import Phaser from 'phaser';
 import { WORLD_HEIGHT } from '../config/constants.js';
+import { ensureDarkVignette } from '../assets/ProceduralAssets.js';
 import { VFX_TEX } from './vfxTextures.js';
 import { getQualityLevel } from './quality.js';
 import {
@@ -174,6 +175,7 @@ class LavaModifier extends BaseModifier {
 class DarkModifier extends BaseModifier {
   constructor(scene, cfg) {
     super(scene, cfg);
+    ensureDarkVignette(scene);   // 4 MB 的遮罩圖只在這張地圖需要時才建立，離開時移除
     // dark-vignette 貼圖（ProceduralAssets）：中心 0.14 半徑內全透明、到 0.22 半徑漸變成全黑；
     // 縮放到「全透明圈 = cfg.radius」，貼圖邊緣之外仍是整片黑，足以蓋住整個畫面
     const tex = scene.textures.get('dark-vignette').getSourceImage();
@@ -202,5 +204,6 @@ class DarkModifier extends BaseModifier {
   destroy() {
     this.scene.events.off('postupdate', this._follow, this);
     super.destroy();
+    if (this.scene.textures.exists('dark-vignette')) this.scene.textures.remove('dark-vignette');
   }
 }

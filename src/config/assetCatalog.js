@@ -989,7 +989,7 @@ export const FX_ASSETS = [
 
 
 // 轉職後的角色動作圖（刺客 player_assassin_*、俠盜 player_bandit_*）與 HUD 頭像。
-// 全部預載；Player 在缺圖時會退回盜賊的同名動作（見 src/config/poses.js）。
+// 依職業載入（scope: 'job'）；Player 在缺圖時會退回盜賊的同名動作（見 src/config/poses.js）。
 const JOB_POSE_BASE = [
   'idle', 'idle_2', 'walk_1', 'walk_2', 'walk_3', 'walk_4', 'jump', 'fall', 'hurt', 'down', 'die',
   'slash_1', 'slash_2', 'slash_3', 'cast', 'dash', 'throw_1', 'throw_2',
@@ -1072,23 +1072,79 @@ export const PROP_UI_ASSETS = [
   { assetId: 'UI-QST-003', groupId: 'UI-QST', kind: 'ui', key: 'ui_quest_done', path: 'dist/assets/ui_quest_done.png', status: 'used' },
 ];
 
-export const PRELOAD_IMAGE_ASSETS = [
-  ...CHARACTER_ASSETS,
-  ...BACKGROUND_ASSETS,
-  ...PLATFORM_ASSETS,
-  ...MONSTER_ASSETS,
-  ...BOSS_ASSETS,
-  ...NPC_ASSETS,
-  ...ICON_ASSETS,
-  ...POTION_ICON_ASSETS,
-  ...UI_ASSETS,
-  ...SKILL_ICON_ASSETS,
-  ...QUEST_ITEM_ASSETS,
-  ...PROP_UI_ASSETS,
+// 每張地圖專屬的跳台圖：左端、中段（可重複鋪）、右端由同一張圖切出
+// surfaceTop：圖片頂端到可站立表面的距離（px）
+export const PLATFORM_THEMES = {
+  sky:     { key: 'platform_sky',     surfaceTop: 7 },
+  henesys: { key: 'platform_forest',  surfaceTop: 12 },
+  ruins:   { key: 'platform_ruins',   surfaceTop: 0 },
+  ellinia: { key: 'platform_mystic',  surfaceTop: 10 },
+  kerning: { key: 'platform_city',    surfaceTop: 11 },
+  taipei:  { key: 'platform_city',    surfaceTop: 11 },
+  town:    { key: 'platform_town',    surfaceTop: 1 },
+  // TODO(art): 影之殿堂專屬跳台 platform_shrine.png（白石 + 金邊）還沒有，先借用晨曦鎮的跳台
+  shrine:  { key: 'platform_town',    surfaceTop: 1 },
+  harbor:  { key: 'platform_harbor',  surfaceTop: 3 },
+  // 四張新圖的跳台圖是 246×21～22 的細長條：stretchH 把它縱向拉到和其他跳台差不多的厚度
+  desert:  { key: 'platform_desert',  surfaceTop: 2, stretchH: 36 },
+  snow:    { key: 'platform_snow',    surfaceTop: 3, stretchH: 38 },
+  lava:    { key: 'platform_lava',    surfaceTop: 2, stretchH: 38 },
+  castle:  { key: 'platform_castle',  surfaceTop: 2, stretchH: 36 },
+  boss:    { key: 'platform_boss',    surfaceTop: 0 },
+  dungeon: { key: 'platform_dungeon', surfaceTop: 0 },
+};
+
+// ── 載入範圍（scope）標籤 ──────────────────────────────────────────────────────────
+// 全部素材一次解碼會吃掉上百 MB 記憶體（手機 / iframe 分頁因此當掉），所以改成依需要載入：
+//   boot  開機就載入、常駐（主選單與 HUD 要用的小圖）
+//   core  第一次進入遊戲地圖時載入、常駐（盜賊共用特效、世界地圖底圖）
+//   job   jobs 列出的職業才載入（轉職圖、技能特效）；換職業時載入新的、釋放舊的
+//   map   進入地圖時才載入，離開（且不是鄰近地圖）後釋放；maps 為靜態標註的地圖，
+//         怪物 / NPC / 背景 / 跳台另外由 src/engine/assetPlan.js 從地圖與怪物資料推出
+//   lazy  只有呼叫端明確要求才載入（目前沒有程式用到的素材）
+// 新增素材沒標 scope 時，依 kind 取預設值（見 defaultScope）。
+export const ASSET_SCOPES = ['boot', 'core', 'job', 'map', 'lazy'];
+
+const JOB_FX = { assassin: ['fx_slash_assassin', 'fx_backstab', 'fx_poison', 'fx_mark'], bandit: ['fx_slash_bandit', 'fx_whirl', 'fx_smoke'] };
+const CORE_KEYS = new Set(['fx_hit', 'fx_job_change', 'fx_star_restore', 'ui_world_map']);
+const LAZY_KEYS = new Set(['fx_shuriken', 'fx_vortex', 'fx_boss_aura']);
+// 地圖專屬的怪物 / 圖：key → 額外地圖（BossScene 的援軍是暗影史萊姆，怪物資料裡沒有 boss 地圖）
+const EXTRA_MAPS = { monster_slime: ['boss'] };
+
+function defaultScope(a) {
+  const jobPose = /^player_(assassin|bandit)_/.exec(a.key);
+  if (jobPose) return { scope: 'job', jobs: [jobPose[1]] };
+  if (a.kind === 'fx') {
+    for (const [job, keys] of Object.entries(JOB_FX)) if (keys.includes(a.key)) return { scope: 'job', jobs: [job] };
+    if (LAZY_KEYS.has(a.key)) return { scope: 'lazy' };
+    return { scope: 'core' };
+  }
+  if (CORE_KEYS.has(a.key)) return { scope: 'core' };
+  if (a.kind === 'background') return a.targetMaps && a.targetMaps[0] === 'menu' ? { scope: 'boot' } : { scope: 'map', maps: a.targetMaps || [] };
+  if (a.kind === 'platform') {
+    const maps = Object.entries(PLATFORM_THEMES).filter(([, t]) => t.key === a.key).map(([m]) => m);
+    return { scope: 'map', maps };
+  }
+  if (a.kind === 'boss') return { scope: 'map', maps: a.targetMaps || ['boss'] };
+  if (a.kind === 'monster') return { scope: 'map', maps: EXTRA_MAPS[a.key] || [] };
+  if (a.kind === 'npc' || a.kind === 'prop') return { scope: 'map', maps: [] };
+  return { scope: 'boot' };
+}
+
+export const ALL_ASSETS = [
+  ...CHARACTER_ASSETS, ...BACKGROUND_ASSETS, ...PLATFORM_ASSETS, ...MONSTER_ASSETS, ...BOSS_ASSETS, ...NPC_ASSETS,
+  ...ICON_ASSETS, ...POTION_ICON_ASSETS, ...UI_ASSETS, ...SKILL_ICON_ASSETS, ...QUEST_ITEM_ASSETS, ...PROP_UI_ASSETS,
+  ...FX_ASSETS,
 ];
+for (const a of ALL_ASSETS) { if (!a.scope) Object.assign(a, defaultScope(a)); }
+export const ASSET_BY_KEY = new Map(ALL_ASSETS.map((a) => [a.key, a]));
+export const isSpritesheet = (a) => a.frameWidth !== undefined;
+
+// 開機只載入 boot 範圍的圖；其餘由 src/engine/assetLoader.js 依場景需要載入
+const BOOT = ALL_ASSETS.filter((a) => a.scope === 'boot');
+export const PRELOAD_IMAGE_ASSETS = BOOT.filter((a) => !isSpritesheet(a));
+export const PRELOAD_SPRITESHEET_ASSETS = BOOT.filter((a) => isSpritesheet(a) && a.status === 'used');
 
 export const PENDING_ALIGNMENT_ASSETS = MONSTER_ASSETS.filter(
   (asset) => asset.alignmentStatus === 'pending-alignment',
 );
-
-export const PRELOAD_SPRITESHEET_ASSETS = FX_ASSETS.filter((asset) => asset.status === 'used');
