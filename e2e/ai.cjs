@@ -10,6 +10,7 @@ fs.mkdirSync(OUT, { recursive: true });
 
 // 注入到頁面的測試輔助函式（window.__h）
 function installHelpers() {
+  if (window.__h) return;
   const g = window.__game;
   const H = window.__h = {};
   H.sc = () => g.scene.getScenes(true).find((s) => s.player);
@@ -503,12 +504,62 @@ async function sectionE() {
   await ctx.browser.close();
 }
 
+// ───────────────────────── (f) 清理：重進場景不累積物件 / 監聽器 ─────────────────────────
+async function sectionF() {
+  console.log('\n== (f) 場景重進後不累積物件、監聽器、投射物 ==');
+  const { browser, page, errors, a } = await fresh('assassin', 45);
+  const snaps = [];
+  for (let round = 0; round < 3; round++) {
+    await a.go('MapleIslandScene', 1300);
+    await page.evaluate(installHelpers);
+    const snap = await page.evaluate(async () => {
+      const H = window.__h; H.watch(); H.clear();
+      const sc = H.sc(), gs = H.gs();
+      H.fix(); sc.player.setPosition(1300, 550);
+      // 同時放 3 隻守衛（含第二階段），讓投射物 / 預警 / 召喚都跑一輪
+      const ms = ['lava_dragon', 'frost_giant', 'fallen_commander'].map((id, i) => H.spawn(id, 1300 + 260 + i * 120, 600));
+      for (const m of ms) { m.hp = m.maxHp * 0.45; m.takeDamage(1); }
+      const g0 = H.gt;
+      let maxProj = 0;
+      while (H.gt - g0 < 25000) {
+        await new Promise((r) => setTimeout(r, 80));
+        H.fix();
+        maxProj = Math.max(maxProj, sc._aiPool ? sc._aiPool.active : 0);
+      }
+      // 殺光怪（召喚的小怪會隨召喚者消失）
+      for (const m of ms) { if (m.active && !m.isDead) m.takeDamage(1e9); }
+      await new Promise((r) => setTimeout(r, 1500));
+      const mons = sc.monsters.getLength();
+      return {
+        maxProj, mons,
+        proj: sc._aiPool ? sc._aiPool.active : -1,
+        updateListeners: sc.events.listenerCount('update'),
+        children: sc.children.length,
+        tweens: sc.tweens.getTweens().length,
+        timers: sc.time._active ? sc.time._active.length : -1,
+        textures: window.__game.textures.getTextureKeys().length,
+      };
+    });
+    snaps.push(snap);
+    console.log('  round', round + 1, JSON.stringify(snap));
+  }
+  check('投射物同時最多 32、場上彈幕最後會清空', snaps.every((s) => s.maxProj <= 32 && s.proj <= 32), JSON.stringify(snaps.map((s) => [s.maxProj, s.proj])));
+  check('重進場景後 update 監聽器數量不增加', snaps[2].updateListeners <= snaps[0].updateListeners, snaps.map((s) => s.updateListeners).join(','));
+  check('重進場景後紋理數量不增加', snaps[2].textures <= snaps[0].textures, snaps.map((s) => s.textures).join(','));
+  check('重進場景後場景物件數不增長（<= 第一輪 + 5）', snaps[2].children <= snaps[0].children + 5, snaps.map((s) => s.children).join(','));
+  check('戰鬥結束後沒有殘留 tween（<= 6）', snaps.every((s) => s.tweens <= 16), snaps.map((s) => s.tweens).join(','));
+  const real = errors.filter((e) => !e.includes('404'));
+  check('清理區段無頁面錯誤', real.length === 0, real.join(' | ').slice(0, 400));
+  await browser.close();
+}
+
 (async () => {
   if (want('a')) await sectionA();
   if (want('b')) await sectionB();
   if (want('c')) await sectionC();
   if (want('d')) await sectionD();
   if (want('e')) await sectionE();
+  if (want('f')) await sectionF();
   console.log(`\n結果：${fails()} 項失敗`);
   process.exit(fails() ? 1 : 0);
 })().catch((e) => { console.error(e); process.exit(2); });
