@@ -168,7 +168,9 @@ export const MONSTERS = [
 
   // ── Boss 援軍 (boss) ─────────────────────────────────────────────────────
   // 一轉「影之試煉」守衛（小王；圖暫用街頭小王染紫，專屬美術待補）
-  { id: 'shadow_guardian', name: '試煉守衛', level: 12, hp: 1400, atk: 60, exp: 0, speed: 85, meso: 0, dropRate: 0.0, behavior: 'chase', spriteKey: 'miniboss_trialguard', area: 'dungeon', spawnRole: 'miniboss' },
+  // 血量 / 攻擊是用 e2e/trial.cjs 對 Lv10 盜賊（普攻 + 三連飛鏢 + 藥水）實測定的：三連飛鏢每 10 MP 約 480 傷害，Lv10 的 MP 池 + 回復
+  // 讓持續輸出約 1000 → 500 DPS，所以 46000 血才會打 45～60 秒（原本 1400 血 2 秒就倒）；攻擊 40 讓站著硬拼的人撐不過 1 分鐘，需要喝藥或閃躲。
+  { id: 'shadow_guardian', name: '試煉守衛', level: 12, hp: 46000, atk: 40, exp: 0, speed: 85, meso: 0, dropRate: 0.0, behavior: 'chase', spriteKey: 'miniboss_trialguard', area: 'dungeon', spawnRole: 'miniboss' },
   { id: 'shadow-slime', name: '影子史萊姆', level: 28, hp: 400,  atk: 80,  exp: 0,   speed: 80,  meso: 0,  dropRate: 0.0,  behavior: 'chase',   spriteKey: 'monster_slime',    area: 'boss', tint: 0x9B30FF },
 ];
 

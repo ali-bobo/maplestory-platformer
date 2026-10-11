@@ -49,6 +49,7 @@ export class BaseMapScene extends Phaser.Scene {
     this.monsters = null;
     this.pickups = null;
     this.portals = null;
+    this._branchHints = [];
     this._npcDialog = null;
     this._npcEntries = [];
     this._onEscKeyDown = null;
@@ -139,6 +140,7 @@ export class BaseMapScene extends Phaser.Scene {
     this._onEscKeyDown = () => { this._closeNpcDialog(); };
     this.input.keyboard.on('keydown-ESC', this._onEscKeyDown);
     this._onInteractKeyDown = () => {
+      this._interactPressedAt = this.time.now;   // 支線傳送門（portal.interact）要按互動鍵才進入
       const npcData = this._getNearbyNpcData();
       if (!npcData) {
         if (this._npcDialog) this._closeNpcDialog();
@@ -343,6 +345,7 @@ export class BaseMapScene extends Phaser.Scene {
   // ── 傳送門 ─────────────────────────────────────────────────────────────────
   _createPortals() {
     const gs = this.registry.get('gameState');
+    this._branchHints = [];
     for (const pd of this.mapData.portals) {
       if (pd.requireBoss && !gs.bossUnlocked) continue;
 
@@ -353,6 +356,7 @@ export class BaseMapScene extends Phaser.Scene {
       portal.dungeonId = pd.dungeonId;  // Phase 14：副本 ID（target='dungeon' 時用）
       portal.requiresQuest = pd.requiresQuest;
       portal.minLevel = pd.minLevel || 0;
+      portal.interact = !!pd.interact;
       portal.refreshBody();
 
       // Phase 14：dungeon 類型 portal 在 label 後補「(今日剩 N 次)」，給玩家可見回饋
@@ -372,7 +376,8 @@ export class BaseMapScene extends Phaser.Scene {
   // 光門：橢圓光環 + 旋轉漩渦 + 地面符文 + 上升光點 + 木牌標籤
   // 顏色依目的地區分：一般地圖青藍、副本翠綠、Boss 暗紅紫
   _createPortalVisual(pd, labelText) {
-    const color = pd.target === 'dungeon' ? 0x5cf08a : pd.target === 'boss' ? 0xff4f8a : 0x6fd8ff;
+    // 支線入口（interact）用金色，和主線的青藍色傳送門區分
+    const color = pd.interact ? 0xffc850 : pd.target === 'dungeon' ? 0x5cf08a : pd.target === 'boss' ? 0xff4f8a : 0x6fd8ff;
     const x = pd.x;
     const cy = pd.y - 6;
     const feetY = pd.y + 39;
@@ -412,7 +417,13 @@ export class BaseMapScene extends Phaser.Scene {
         fontSize: '13px', color: '#3a2410', fontFamily: 'Arial', fontStyle: 'bold',
       }).setOrigin(0.5, 0.5).setDepth(9);
       this.add.nineslice(x, cy - 62, 'hud_panel_sm', undefined, Math.max(64, label.width + 24), 26, 9, 9, 9, 9)
-        .setOrigin(0.5, 0.5).setDepth(8).setTint(0xe6d6bc);
+        .setOrigin(0.5, 0.5).setDepth(8).setTint(pd.interact ? 0xffe39a : 0xe6d6bc);
+    }
+    if (pd.interact) {
+      const hint = this.add.text(x, cy - 90, keyHint('按 F 進入', '點「互動」進入'), {
+        fontSize: '12px', color: '#ffe9a0', fontFamily: 'Arial', stroke: '#000', strokeThickness: 3,
+      }).setOrigin(0.5, 0.5).setDepth(9).setAlpha(0);
+      this._branchHints.push({ x, hint, until: 0 });
     }
   }
 
@@ -781,6 +792,14 @@ export class BaseMapScene extends Phaser.Scene {
   // ── 傳送 ───────────────────────────────────────────────────────────────────
   _onPortalEnter(player, portal) {
     if (!portal.targetMap || this._transitioning) return;
+    // 支線入口：站在門上並按互動鍵（F / 觸控「互動」）才進入，走過、落在門上都不會誤入
+    if (portal.interact) {
+      const now = this.time.now;
+      const bh = this._branchHints;
+      for (let i = 0; i < bh.length; i++) if (Math.abs(bh[i].x - portal.x) < 2) { bh[i].until = now + 160; bh[i].hint.setAlpha(1); }
+      if (now - (this._interactPressedAt ?? -9999) > 450) return;
+      this._interactPressedAt = -9999;
+    }
     // 任務專屬傳送門（影之試煉）：沒接任務不能進，提示限速避免站在門上洗版
     if (portal.requiresQuest && !isQuestActive(this, portal.requiresQuest)) {
       if (this.time.now - (this._lastGateMsgAt || -9999) > 2600) {
@@ -921,6 +940,9 @@ export class BaseMapScene extends Phaser.Scene {
       this._lastNpcCheckAt = time;
       this._getNearbyNpcData();
     }
+
+    const bh = this._branchHints;
+    for (let i = 0; i < bh.length; i++) if (bh[i].until && time > bh[i].until) { bh[i].until = 0; bh[i].hint.setAlpha(0); }
 
     // Phase 8.3：畫面外怪物跳過 AI update（約 1.25 螢幕外）。
     // 跳過的只是 AI 決策；arcade physics（重力/碰撞）仍由 physics.world 獨立 step，

@@ -36,27 +36,30 @@ test('JOBS：三個職業，技能池 id 都有定義，預設欄位是池內且
 
 test('JOBS：數值與 SKILLS_DESIGN.md 一致（解鎖等級 / MP / 冷卻 / 普攻 / 被動）', () => {
   const a = JOBS.assassin.skills;
-  assert.deepEqual([a.backstab.unlockLevel, a.backstab.mpCost, a.backstab.cooldown], [12, 40, 6]);
-  assert.deepEqual([a.poison.unlockLevel, a.poison.mpCost, a.poison.cooldown], [18, 35, 4]);
-  assert.deepEqual([a.mark.unlockLevel, a.mark.mpCost, a.mark.cooldown], [24, 60, 12]);
+  assert.deepEqual([a.backstab.unlockLevel, a.backstab.mpCost, a.backstab.cooldown], [12, 40, 5]);
+  assert.deepEqual([a.poison.unlockLevel, a.poison.mpCost, a.poison.cooldown], [18, 30, 4]);
+  assert.deepEqual([a.mark.unlockLevel, a.mark.mpCost, a.mark.cooldown], [24, 50, 12]);
   assert.deepEqual([a.Z.unlockLevel, a.Z.mpCost], [10, 10]);
   assert.deepEqual([a.X.mpCost, a.C.mpCost], [30, 50]);
   const b = JOBS.bandit.skills;
-  assert.deepEqual([b.whirl.unlockLevel, b.whirl.mpCost, b.whirl.cooldown], [12, 45, 6]);
-  assert.deepEqual([b.steal.unlockLevel, b.steal.mpCost, b.steal.cooldown], [18, 30, 5]);
-  assert.deepEqual([b.smoke.unlockLevel, b.smoke.mpCost, b.smoke.cooldown], [24, 55, 14]);
+  assert.deepEqual([b.whirl.unlockLevel, b.whirl.mpCost, b.whirl.cooldown], [12, 40, 5]);
+  assert.deepEqual([b.steal.unlockLevel, b.steal.mpCost, b.steal.cooldown], [18, 24, 4]);
+  assert.deepEqual([b.smoke.unlockLevel, b.smoke.mpCost, b.smoke.cooldown], [24, 45, 12]);
   assert.deepEqual([b.V.mpCost, b.B.mpCost, b.B.cooldown], [70, 100, 15]);
   assert.equal(JOBS.assassin.basic.name, '雙刃連斬');
   assert.equal(JOBS.assassin.basic.hits, 2);
   assert.equal(JOBS.assassin.basic.damageMult, 0.55);
   assert.equal(JOBS.assassin.basic.critBonus, 0.1);
-  assert.equal(JOBS.bandit.basic.range, 110);
-  assert.equal(JOBS.bandit.basic.damageMult, 1.1);
-  assert.equal(JOBS.bandit.basic.cooldown, 0.5);
+  assert.equal(JOBS.bandit.basic.range, 120);
+  assert.equal(JOBS.bandit.basic.damageMult, 1.2);
+  assert.equal(JOBS.bandit.basic.cooldown, 0.45);
+  assert.equal(JOBS.bandit.basic.finisherMult, 1.6);
   assert.equal(JOBS.bandit.basic.knockupEvery, 3);
-  assert.equal(JOBS.assassin.passives.critDamage, 0.3);
-  assert.equal(JOBS.bandit.passives.maxHpMult, 1.2);
-  assert.equal(JOBS.bandit.passives.mesoMult, 1.15);
+  assert.equal(JOBS.assassin.passives.critDamage, 0.4);
+  assert.equal(JOBS.assassin.passives.critRate, 0.08);
+  assert.equal(JOBS.bandit.passives.maxHpMult, 1.3);
+  assert.equal(JOBS.bandit.passives.damageReduction, 0.1);
+  assert.equal(JOBS.bandit.passives.mesoMult, 1.25);
   assert.equal(JOBS.assassin.title, '暗夜之刃');
   assert.equal(JOBS.bandit.title, '赤焰劫客');
 });
@@ -80,10 +83,11 @@ test('jobIdOf / jobOf / jobPassive / 暴擊：缺欄位當盜賊；被動只加�
   const gs = createInitialGameState();
   assert.equal(effectiveCritMulti(gs), gs.critMulti);
   gs.job = 'assassin';
-  assert.ok(Math.abs(effectiveCritMulti(gs) - (gs.critMulti + 0.3)) < 1e-9);
+  assert.ok(Math.abs(effectiveCritMulti(gs) - (gs.critMulti + 0.4)) < 1e-9);
+  assert.ok(Math.abs(effectiveCritRate(gs) - (gs.critRate + 0.08)) < 1e-9);   // 殺手本能也加暴擊率
   assert.equal(jobPassive(gs, 'mesoMult', 1), 1);
   gs.job = 'bandit';
-  assert.equal(jobPassive(gs, 'mesoMult', 1), 1.15);
+  assert.equal(jobPassive(gs, 'mesoMult', 1), 1.25);
   assert.equal(effectiveCritRate({ critRate: 0.95 }, 0.1), 1);
 });
 
@@ -117,7 +121,7 @@ test('applyJobChange：刺客——繼承技能保留等級、專屬技能依等
   assert.equal(gs.jobChoice, null);
 });
 
-test('applyJobChange：俠盜——丟棄 Z/C 退還 SP；V/B 於 Lv.10 就解鎖；悍匪體魄 HP +20%', () => {
+test('applyJobChange：俠盜——丟棄 Z/C 退還 SP；V/B 於 Lv.10 就解鎖；悍匪體魄 HP +30%', () => {
   const gs = thiefAt(10);
   gs.unlockedSkills = ['Z', 'X', 'C'];
   gs.skillLevels = { Z: 4, X: 3, C: 2, V: 0, B: 0 };
@@ -128,8 +132,8 @@ test('applyJobChange：俠盜——丟棄 Z/C 退還 SP；V/B 於 Lv.10 就解�
   assert.deepEqual(gs.unlockedSkills, ['X', 'V', 'B']);
   assert.deepEqual(gs.skillLevels, { X: 3, V: 1, B: 1, whirl: 0, steal: 0, smoke: 0 });
   assert.equal(gs.skillPoints, (4 - 1) + (2 - 1) + JOB_CHANGE_SKILL_POINTS);
-  assert.equal(gs.maxHp, 600);
-  assert.equal(gs.hp, 600);
+  assert.equal(gs.maxHp, 650);
+  assert.equal(gs.hp, 650);
   assert.deepEqual(gs.skillSlots, ['X', 'V', 'B', 'whirl']);
   assert.equal(gs.jobChoice, null);
 });

@@ -37,14 +37,14 @@ export const DUNGEONS = {
     name: '影之試煉',
     desc: '轉職試煉。在限時內擊敗試煉守衛。',
     minLevel: 10,
-    timeLimit: 120,
+    timeLimit: 150,   // 穩健打法約 45～60 秒；150 秒留給閃躲、補藥與走位的人
     waves: [
       { monsters: [{ id: 'shadow_guardian', count: 1 }, { id: 'shadow-slime', count: 2 }] },
     ],
-    rewards: { exp: 400, meso: 800 },
-    failRewards: { exp: 20, meso: 50 },
+    rewards: { exp: 700, meso: 1000 },
+    failRewards: { exp: 30, meso: 60 },
     timeBonus: 2,
-    dailyLimit: 20,
+    dailyLimit: 10,
     returnMap: 'shrine',   // 結算後回到影之殿堂（長老在那裡）；沒設就回晨曦鎮
     mapWidth: 1600,
     bgColor: 0x1a1030,

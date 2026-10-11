@@ -23,7 +23,7 @@
 
 **已知問題**：離玩家超過 1600 像素的怪物，血條會跑到畫面左上角（早就存在）。
 
-**之後再接的素材與功能**（完整檔名見下方各表與 `STATUS.md`）：世界地圖與傳送（階段 3 未開始）、任務標記、靴子圖示、影之殿堂平台、飛鏢 / 漩渦 / Boss 氣場特效、三職業待機呼吸動畫；還缺的圖：Boss 狂暴姿勢與背景、劇情插畫 2 與 4、標題徽章。
+**之後再接的素材與功能**（完整檔名見下方各表與 `STATUS.md`）：任務標記、靴子圖示、影之殿堂平台、飛鏢 / 漩渦 / Boss 氣場特效、三職業待機呼吸動畫；還缺的圖：Boss 狂暴姿勢與背景、劇情插畫 2 與 4、標題徽章。
 
 **線上試玩頁面（Claude Artifact）**：網址 https://claude.ai/artifact/GBMnt9Ca9CEmAgEDQDYNSH （私人，只有擁有者能開；要給別人玩請在頁面的「分享」設定）。專案本身沒有 GitHub Pages 或其他自動部署，合併到 `main` **不會**更新這個網址，要重新打包發布：`npm run build && python3 scripts/make-play-page.py /tmp/index.html`，再用 Artifact 發布到同一網址，並把 `dist/assets/` 的 png / webp 以相同的相對路徑附上（不含 `hisoka.jpg`）。試玩頁面裡「匯出存檔」按鈕因為檢視器不允許下載而無效，匯入與本機存檔可用。
 
@@ -102,9 +102,14 @@
 
 ## 世界重整後續（Phase 23 之後）
 
-### 未完成：階段 3 世界地圖與傳送
-- HUD「地圖」鈕目前只開「地圖資訊」小視窗（`UIScene._buildMapPopup`，傳送門清單由地圖資料產生）。要做：世界地圖遮罩、節點（鎖定 / 已解鎖 / 目前所在）、點已去過的地圖花金幣傳送（樞紐免費、費用隨等級、副本 / Boss 中禁用）。資料已備：`gs.visitedMaps`（已存檔、已驗證）、`engine/worldGraph.js`（`worldEdges()` 連線、`visitMap`）、`maps.js` 的 `levelBand` / `hub`。
-- 美術已到位並已登錄（`PROP_UI_ASSETS`）：`ui_world_map.webp`（960×558）、`ui_map_node_unlocked|current|locked.png`（40×40）；10 個節點座標在 `docs/asset_src/ui_world_map_nodes.json`（由左到右沿路線，建議：1 浮空島嶼 2 森林 3 廢墟 4 碧濤港 5 黃沙 6 霜牙 7 熔岩 8 魔君王城 9 暗影領域 10 保留；晨曦鎮 / 影之殿堂 / 神秘之境 / 城市特區用小節點或下方清單）。
+### 階段 3 世界地圖與傳送：已完成（Phase 24），剩下的小事
+- 已做：右上角「地圖」鈕 / 底部「地圖」鈕 / 按 M 開世界地圖浮層、支線岔路入口（見 `WORLD_DESIGN.md` 第八節）。
+- `UIScene._buildMapPopup`（舊的「地圖資訊」小視窗）已沒有入口，可以刪掉。
+- 暗影領域不能從世界地圖傳送（只能走魔君王城的傳送門）；若想開放，需決定是否要先確認 5/5 碎片已點亮並二次確認。
+- 傳送費公式 `30 + 20 × 等級` 是估的（約 10 隻同級怪的金幣），實際遊玩後再調（`engine/worldTravel.js` 的 `travelFee`）。
+- 「戰鬥中」目前用「300px 內有活著的怪」判斷，沒有「最近被打」的記錄；需要時在 `Player.takeDamage` 記時間戳。
+- 試煉守衛的血條（`Monster.js`，不在本次修改範圍）：比例是對的（`scaleX = hp / maxHp`），但小王和小怪共用 `Math.min(64, 圖寬 × 0.62)` 的寬度、5px 高，187px 寬的守衛頭上只有 64×5 的小條，要看懂血量很吃力。建議第 201–202 行改成：
+  `const isBoss = this.config.spawnRole === 'miniboss'; this._hpBarW = Phaser.Math.Clamp(Math.round(this.displayWidth * 0.62), 32, isBoss ? 140 : 64); this._hpBarH = isBoss ? 8 : 4;`，再視需要在小王條上畫名字與百分比。
 
 ### 美術已在 dist/assets 但尚未接進程式
 | 檔案 | 用途 | 狀態 |

@@ -1,6 +1,7 @@
 const { chromium } = require('/opt/node-tools/node_modules/playwright');
+const PORT = process.env.PORT || 8123;
 const SP = process.argv[2];
-const URL = `http://127.0.0.1:${process.env.PORT || 8123}/index.html?debug=1`;
+const URL = `http://127.0.0.1:${PORT}/index.html?debug=1`;
 const KEY = 'thief-legend-save-v1';
 let fails = 0;
 const check = (n, c, x = '') => { console.log((c ? 'PASS' : 'FAIL') + ' - ' + n + (x ? ' :: ' + x : '')); if (!c) fails++; };
@@ -23,7 +24,7 @@ const check = (n, c, x = '') => { console.log((c ? 'PASS' : 'FAIL') + ' - ' + n 
     potions: { A: 6, S: 2, D: 3, R: 1, G: 1 },
     equipment: { weapon: eq('weapon', 60, 0, 0, 0), boots: eq('boots', 0, 100, 50, 17) },
   }};
-  await page.goto(`http://127.0.0.1:${process.env.PORT || 8123}/__blank__`);
+  await page.goto(`http://127.0.0.1:${PORT}/__blank__`);
   await page.evaluate(([k, v]) => localStorage.setItem(k, v), [KEY, JSON.stringify(seeded)]);
   await page.goto(URL);
   await page.waitForTimeout(3500);
@@ -66,7 +67,7 @@ const check = (n, c, x = '') => { console.log((c ? 'PASS' : 'FAIL') + ' - ' + n 
   await page.screenshot({ path: SP + '/respawn.png' });
 
   // 死亡後關掉分頁再回來：懲罰仍然有效（不能靠重開網頁拿回裝備）
-  await page.goto(`http://127.0.0.1:${process.env.PORT || 8123}/__blank__`);
+  await page.goto(`http://127.0.0.1:${PORT}/__blank__`);
   await page.goto(URL);
   await page.waitForTimeout(3500);
   await page.mouse.move(640, 520); await page.waitForTimeout(400); await page.mouse.click(640, 520);
