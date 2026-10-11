@@ -57,6 +57,10 @@ export class AudioSynth {
 
   playSkill(skillKey) {
     switch (skillKey) {
+      case 'ATK':   // 近戰揮刀：短促的氣流 + 刀刃摩擦
+        this._tone(520, 0.07, 'sawtooth', 0.09);
+        this._tone(1500, 0.04, 'square', 0.04);
+        break;
       case 'Z': this._tone(660, 0.1, 'sawtooth', 0.1); break;
       case 'X': this._chord([330, 440, 550], 0.15, 'triangle', 0.12); break;
       case 'C':

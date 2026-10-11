@@ -4,7 +4,7 @@ import {
   sanitizeState, serializeSave, parseSave, createSaveStore,
   SAVE_KEY, SAVE_VERSION, MAX_SAVE_BYTES,
 } from '../src/engine/saveManager.js';
-import { createInitialGameState, expNeeded, skillForSlot, canReorderSkills, SKILLS } from '../src/config/constants.js';
+import { createInitialGameState, expNeeded, skillForSlot, canReorderSkills, equipSkill, SKILLS } from '../src/config/constants.js';
 import { generateEquipment } from '../src/config/equipment.js';
 
 function memStorage() {
@@ -49,7 +49,7 @@ test('往返：存檔後讀回，主要進度不變、hp/mp 回滿、冷卻歸�
   assert.equal(s.currentMap, 'ruins');
   assert.equal(s.hp, 700);
   assert.equal(s.mp, 400);
-  assert.deepEqual(s.skillCooldowns, { Z: 0, X: 0, C: 0, V: 0, B: 0 });
+  assert.deepEqual(s.skillCooldowns, { ATK: 0, Z: 0, X: 0, C: 0, V: 0, B: 0 });
   assert.deepEqual(s.quests, gs.quests);
   assert.equal(s.equipment.weapon.slot, 'weapon');
   assert.equal(s.equipment.weapon.atk, gs.equipment.weapon.atk);
@@ -241,32 +241,40 @@ test('相容舊版存檔格式：{ version, savedAt, gameState }（無 format �
   assert.equal(parseSave('{"version":1}').ok, false);
 });
 
-test('技能欄位：全部解鎖後可保留自訂順序；未全部解鎖 / 重複 / 夾帶普通攻擊 → 回預設', () => {
+test('技能欄位：全部解鎖後可從 5 個技能挑 4 個；未解鎖 / 重複 / 夾帶普通攻擊 → 回預設', () => {
   const lv20 = { level: 20, unlockedSkills: ['Z', 'X', 'C', 'V', 'B'], skillLevels: { Z: 1, X: 1, C: 1, V: 1, B: 1 } };
+  const DEF = ['Z', 'X', 'C', 'V'];
   assert.deepEqual(sanitizeState({ ...lv20, skillSlots: ['B', 'V', 'C', 'X'] }).skillSlots, ['B', 'V', 'C', 'X']);
-  assert.deepEqual(sanitizeState({ ...lv20, skillSlots: ['X', 'X', 'C', 'V'] }).skillSlots, ['X', 'C', 'V', 'B']);
-  assert.deepEqual(sanitizeState({ ...lv20, skillSlots: ['Z', 'X', 'C', 'V'] }).skillSlots, ['X', 'C', 'V', 'B']);
-  assert.deepEqual(sanitizeState({ ...lv20, skillSlots: ['B', 'V', 'C'] }).skillSlots, ['X', 'C', 'V', 'B']);
-  assert.deepEqual(sanitizeState({ ...lv20, skillSlots: 'BVCX' }).skillSlots, ['X', 'C', 'V', 'B']);
-  // 等級不足：不允許提前自訂順序
-  assert.deepEqual(sanitizeState({ level: 10, skillSlots: ['B', 'V', 'C', 'X'] }).skillSlots, ['X', 'C', 'V', 'B']);
+  assert.deepEqual(sanitizeState({ ...lv20, skillSlots: ['X', 'B', 'Z', 'C'] }).skillSlots, ['X', 'B', 'Z', 'C']);
+  assert.deepEqual(sanitizeState({ ...lv20, skillSlots: ['X', 'X', 'C', 'V'] }).skillSlots, DEF);
+  assert.deepEqual(sanitizeState({ ...lv20, skillSlots: ['ATK', 'X', 'C', 'V'] }).skillSlots, DEF);
+  assert.deepEqual(sanitizeState({ ...lv20, skillSlots: ['B', 'V', 'C'] }).skillSlots, DEF);
+  assert.deepEqual(sanitizeState({ ...lv20, skillSlots: 'BVCX' }).skillSlots, DEF);
+  // 等級不足：不允許提前自訂
+  assert.deepEqual(sanitizeState({ level: 10, skillSlots: ['B', 'V', 'C', 'X'] }).skillSlots, DEF);
   // 舊存檔沒有 skillSlots：預設
-  assert.deepEqual(sanitizeState({ level: 25 }).skillSlots, ['X', 'C', 'V', 'B']);
+  assert.deepEqual(sanitizeState({ level: 25 }).skillSlots, DEF);
   // 往返不變
   const s = sanitizeState({ ...lv20, skillSlots: ['C', 'B', 'X', 'V'] });
   assert.deepEqual(parseSave(serializeSave(s)).state.skillSlots, ['C', 'B', 'X', 'V']);
 });
 
-test('skillForSlot / canReorderSkills：Z 欄固定普通攻擊；欄位依 skillSlots；Lv.20 前不可調整', () => {
+test('skillForSlot / canReorderSkills / equipSkill：ATK 欄固定普通攻擊；欄位依 skillSlots；Lv.20 前不可調整', () => {
   const gs = createInitialGameState();
+  assert.equal(skillForSlot(gs, 'ATK'), 'ATK');
   assert.equal(skillForSlot(gs, 'Z'), 'Z');
-  assert.equal(skillForSlot(gs, 'X'), 'X');
+  assert.equal(skillForSlot(gs, 'Q'), undefined);
   gs.skillSlots = ['B', 'V', 'C', 'X'];
-  assert.equal(skillForSlot(gs, 'X'), 'B');
-  assert.equal(skillForSlot(gs, 'B'), 'X');
+  assert.equal(skillForSlot(gs, 'Z'), 'B');
+  assert.equal(skillForSlot(gs, 'V'), 'X');
   assert.equal(skillForSlot({}, 'C'), 'C');               // 沒有 skillSlots → 預設
   assert.equal(canReorderSkills(gs), false);
   gs.unlockedSkills = ['Z', 'X', 'C', 'V', 'B'];
   assert.equal(canReorderSkills(gs), true);
-  assert.equal(SKILLS.Z.mpCost, 0);                        // 普通攻擊不耗 MP
+  // 換入沒裝備的技能 → 取代該欄；已裝備的 → 兩欄互換；同欄 → 不變
+  assert.deepEqual(equipSkill(['Z', 'X', 'C', 'V'], 'X', 'B'), ['Z', 'B', 'C', 'V']);
+  assert.deepEqual(equipSkill(['Z', 'X', 'C', 'V'], 'Z', 'V'), ['V', 'X', 'C', 'Z']);
+  assert.deepEqual(equipSkill(['Z', 'X', 'C', 'V'], 'C', 'C'), ['Z', 'X', 'C', 'V']);
+  assert.deepEqual(equipSkill(['Z', 'X', 'C', 'V'], 'C', 'ATK'), ['Z', 'X', 'C', 'V']);
 });
+

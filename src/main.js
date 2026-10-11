@@ -127,7 +127,7 @@ document.addEventListener('visibilitychange', () => { if (document.visibilitySta
 if (isTouchDevice()) {
   const controls = mountTouchControls({ canvasProvider: () => game.canvas });
   const gameplayScenes = ['BootScene', 'MenuScene', 'GameOverScene', 'TutorialScene'];
-  const SHORT = { Z: '普攻', X: '步', C: '殺', V: '渦', B: '影' };
+  const SHORT = { Z: '鏢', X: '步', C: '殺', V: '渦', B: '影' };
   let lastSkillSig = '';
   setInterval(() => {
     const idle = gameplayScenes.some((key) => game.scene.isActive(key));

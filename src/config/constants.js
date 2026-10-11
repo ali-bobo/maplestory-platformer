@@ -23,31 +23,48 @@ export const POTIONS = {
 };
 
 export const SKILLS = {
-  // Z = 普通攻擊（電腦版空白鍵 / 手機最大的攻擊鈕）：不耗 MP、冷卻短，不佔技能欄位
-  Z: { name: '普通攻擊', unlockLevel: 1,  cooldown: 0.35, mpCost: 0,   maxLevel: 10 },
+  Z: { name: '三連飛鏢', unlockLevel: 1,  cooldown: 0.5,  mpCost: 10,  maxLevel: 10 },
   X: { name: '暗影步伐', unlockLevel: 5,  cooldown: 3.0,  mpCost: 30,  maxLevel: 10 },
   C: { name: '暗殺',     unlockLevel: 10, cooldown: 5.0,  mpCost: 50,  maxLevel: 10 },
   V: { name: '暗影漩渦', unlockLevel: 15, cooldown: 8.0,  mpCost: 70,  maxLevel: 10 },
   B: { name: '影分身',   unlockLevel: 20, cooldown: 15.0, mpCost: 100, maxLevel: 10 },
 };
 
-// 技能欄位：普通攻擊（Z）之外，只能放 4 個技能，對應 4 個欄位 / 快捷鍵（電腦 X C V B；手機同位置的 4 顆按鈕）。
-// 欄位裡放哪個技能存在 gameState.skillSlots；四個技能全部解鎖後可在 HUD 技能欄拖曳調整順序。
-export const SKILL_SLOT_KEYS = ['X', 'C', 'V', 'B'];
-export const DEFAULT_SKILL_SLOTS = ['X', 'C', 'V', 'B'];
-export const BASIC_ATTACK = 'Z';
+// 普通攻擊（電腦版空白鍵 / 手機最大的攻擊鈕）：近戰揮刀，不耗 MP、冷卻短，不屬於技能池、不能升級也不佔技能欄位。
+export const BASIC_ATTACK = 'ATK';
+export const BASIC_ATTACK_DEF = { name: '普通攻擊', cooldown: 0.4, damageMult: 0.9, range: 90 };
 
-// 欄位快捷鍵 → 目前放在該欄位的技能 id（Z 欄位固定是普通攻擊）
+// 技能池有 5 個技能，但技能欄只有 4 格（電腦版快捷鍵 Z X C V；手機同位置的 4 顆按鈕）。
+// 欄位裡放哪個技能存在 gameState.skillSlots；5 個技能全部解鎖（Lv.20）後，可在 HUD 拖曳交換，
+// 也可在技能視窗把沒裝備的技能換進指定欄位。
+export const SKILL_POOL = ['Z', 'X', 'C', 'V', 'B'];
+export const SKILL_SLOT_KEYS = ['Z', 'X', 'C', 'V'];
+export const DEFAULT_SKILL_SLOTS = ['Z', 'X', 'C', 'V'];
+
+// 欄位快捷鍵 → 目前放在該欄位的技能 id（普通攻擊欄固定是 ATK）
 export function skillForSlot(gs, slotKey) {
   if (slotKey === BASIC_ATTACK) return BASIC_ATTACK;
   const idx = SKILL_SLOT_KEYS.indexOf(slotKey);
+  if (idx < 0) return undefined;
   const slots = gs && Array.isArray(gs.skillSlots) ? gs.skillSlots : DEFAULT_SKILL_SLOTS;
   return slots[idx] || DEFAULT_SKILL_SLOTS[idx];
 }
 
-// 是否已可調整欄位順序：四個技能全部解鎖（Lv.20）
+// 是否已可調整欄位：5 個技能全部解鎖（Lv.20）
 export function canReorderSkills(gs) {
-  return DEFAULT_SKILL_SLOTS.every((id) => gs && Array.isArray(gs.unlockedSkills) && gs.unlockedSkills.includes(id));
+  return SKILL_POOL.every((id) => gs && Array.isArray(gs.unlockedSkills) && gs.unlockedSkills.includes(id));
+}
+
+// 把技能 skillId 放進欄位 slotKey：若它已在別的欄位則兩格互換，否則直接取代該欄。回傳新的 slots（不修改輸入）。
+export function equipSkill(slots, slotKey, skillId) {
+  const out = [...slots];
+  const to = SKILL_SLOT_KEYS.indexOf(slotKey);
+  if (to < 0 || !SKILL_POOL.includes(skillId)) return out;
+  const from = out.indexOf(skillId);
+  if (from === to) return out;
+  if (from >= 0) out[from] = out[to];
+  out[to] = skillId;
+  return out;
 }
 
 // 技能等級對傷害的加成：每級 +12%（Lv.1 = 1.0x，可調）
@@ -93,7 +110,7 @@ export function createInitialGameState() {
     playTime: 0,
     equipment: { weapon: null, armor: null, gloves: null, helmet: null, boots: null },
     potions: { A: 5, S: 3, D: 5, R: 3, G: 2 },
-    skillCooldowns: { Z: 0, X: 0, C: 0, V: 0, B: 0 },
+    skillCooldowns: { ATK: 0, Z: 0, X: 0, C: 0, V: 0, B: 0 },
     unlockedSkills: ['Z'],
     skillLevels: { Z: 1, X: 0, C: 0, V: 0, B: 0 },
     skillSlots: [...DEFAULT_SKILL_SLOTS],

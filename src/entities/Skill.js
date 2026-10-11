@@ -8,7 +8,7 @@ import {
 import { VFX_TEX } from '../engine/vfxTextures.js';
 import { getQuality } from '../engine/quality.js';
 import { getVisualCenterPoint, ALIGNMENT_PROFILES, applyAlignmentProfile } from '../config/alignment.js';
-import { skillDamageScale } from '../config/constants.js';
+import { skillDamageScale, BASIC_ATTACK_DEF } from '../config/constants.js';
 
 function getEntityEffectPoint(entity) {
   if (entity?.body?.center) {
@@ -447,6 +447,43 @@ function launchShuriken(scene, player, enemies, opts) {
     cleanupProjectile(scene, shuriken, overlap, trail, afterimageTimer);
   });
   return shuriken;
+}
+
+// 普通攻擊：面前一個短距離的揮刀判定（不耗 MP、不吃技能等級），可同時命中範圍內所有敵人。
+export function castSlash(scene, player, enemies) {
+  audio.playSkill('ATK');
+  const dir = player.facingRight ? 1 : -1;
+  if (typeof player._lockPose === 'function') player._lockPose('player_attack', 220);
+
+  scene.time.delayedCall(80, () => {
+    if (!scene.sys.isActive() || !player.active || player.isDead) return;
+    const gs = player.gameState;
+    const origin = getEntityEffectPoint(player);
+    const range = BASIC_ATTACK_DEF.range;
+    spawnSlashWave(scene, origin.x, origin.y - 4, player.facingRight, {
+      radius: range * 0.8, color: 0xe8f0ff, duration: 200, scale: 1.5,
+    });
+    let hits = 0;
+    let crit = false;
+    enemies?.getChildren?.().forEach((enemy) => {
+      if (!enemy?.active || enemy.isDead) return;
+      const c = getEntityEffectPoint(enemy);
+      const reach = range + (enemy.body ? enemy.body.halfWidth : 20);
+      const ahead = (c.x - origin.x) * dir;
+      if (ahead < -16 || ahead > reach || Math.abs(c.y - origin.y) > 62) return;
+      const { damage, isCrit } = calcDamage(gs.atk, gs.critRate, gs.critMulti, BASIC_ATTACK_DEF.damageMult);
+      enemy.takeDamage(damage, isCrit);
+      enemy.applyKnockback?.(dir * (isCrit ? 240 : 130), isCrit ? 200 : 110);
+      spawnImpactSpark(scene, c.x, c.y, isCrit ? 0xffdd66 : 0xaaccff, isCrit ? 1.3 : 1);
+      audio.playImpact(isCrit);
+      hits++;
+      crit = crit || isCrit;
+    });
+    if (hits > 0) {
+      if (crit) hitStop(scene, 45);
+      scene.cameras.main.shake(crit ? 80 : 35, crit ? 0.009 : 0.003);
+    }
+  });
 }
 
 export function castShuriken(scene, player, enemies) {

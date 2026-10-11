@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
-import { SKILLS, expNeeded, MAP_SCENE_KEYS, POTIONS, createInitialGameState, BASIC_ATTACK, skillForSlot } from '../config/constants.js';
+import { SKILLS, expNeeded, MAP_SCENE_KEYS, POTIONS, createInitialGameState, BASIC_ATTACK, BASIC_ATTACK_DEF, skillForSlot } from '../config/constants.js';
 import { saveGame } from '../engine/saveGame.js';
-import { castShuriken, castDash, castAssassinate, castVortex, castClone } from './Skill.js';
+import { castSlash, castShuriken, castDash, castAssassinate, castVortex, castClone } from './Skill.js';
 import { particles } from '../engine/particles.js';
 import { audio } from '../engine/audio.js';
 import { isEquipmentBetter } from '../config/equipment.js';
@@ -43,7 +43,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     // 輸入按鍵
     const { LEFT, RIGHT, UP, DOWN, ALT } = Phaser.Input.Keyboard.KeyCodes;
     this.cursors = scene.input.keyboard.createCursorKeys();
-    // 普通攻擊：空白鍵（保留 Z 當作舊習慣的別名）；四個技能欄位：X C V B（放哪個技能由 gs.skillSlots 決定）
+    // 普通攻擊：空白鍵（近戰揮刀，不耗 MP）；四個技能欄位：Z X C V（放哪個技能由 gs.skillSlots 決定，Z 預設三連飛鏢）
     this.keySpace = scene.input.keyboard.addKey('SPACE');
     this.keyZ = scene.input.keyboard.addKey('Z');
     this.keyX = scene.input.keyboard.addKey('X');
@@ -134,11 +134,11 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     }
 
     // ─── 技能施放 ───────────────────────────────────────────────────────────
-    if (Phaser.Input.Keyboard.JustDown(this.keySpace) || Phaser.Input.Keyboard.JustDown(this.keyZ)) this.castSkill(BASIC_ATTACK);
+    if (Phaser.Input.Keyboard.JustDown(this.keySpace)) this.basicAttack();
+    if (Phaser.Input.Keyboard.JustDown(this.keyZ)) this.castSkill(skillForSlot(gs, 'Z'));
     if (Phaser.Input.Keyboard.JustDown(this.keyX)) this.castSkill(skillForSlot(gs, 'X'));
     if (Phaser.Input.Keyboard.JustDown(this.keyC)) this.castSkill(skillForSlot(gs, 'C'));
     if (Phaser.Input.Keyboard.JustDown(this.keyV)) this.castSkill(skillForSlot(gs, 'V'));
-    if (Phaser.Input.Keyboard.JustDown(this.keyB)) this.castSkill(skillForSlot(gs, 'B'));
 
     // ─── 藥水快捷鍵 ─────────────────────────────────────────────────────────
     if (Phaser.Input.Keyboard.JustDown(this.keyPotA)) this.usePotion('A');
@@ -263,6 +263,16 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       restoreMsg = 'MP';
     }
     this._showNotice(`使用 ${potion.name}  +${restoreMsg}`, 1200);
+  }
+
+  // 普通攻擊：不耗 MP，冷卻短；冷卻與技能共用 gs.skillCooldowns（key = ATK）
+  basicAttack() {
+    const gs = this.gameState;
+    if (this.isDead || (gs.skillCooldowns[BASIC_ATTACK] || 0) > 0) return;
+    gs.skillCooldowns[BASIC_ATTACK] = BASIC_ATTACK_DEF.cooldown;
+    this._coolingDownKeys.add(BASIC_ATTACK);
+    castSlash(this.scene, this, this.enemies);
+    audio.resumeContext();
   }
 
   castSkill(key) {

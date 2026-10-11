@@ -6,7 +6,7 @@ const SIZE = 38;
 const DESIGN = 44; // 繪圖座標以 44px 設計，輸出時縮放到 SIZE
 
 export function ensureSkillIcons(scene) {
-  const draws = { Z: drawShurikens, X: drawDash, C: drawDagger, V: drawVortex, B: drawClone };
+  const draws = { ATK: drawSlash, Z: drawShurikens, X: drawDash, C: drawDagger, V: drawVortex, B: drawClone };
   for (const [key, draw] of Object.entries(draws)) {
     const texKey = `skill_icon_${key}`;
     if (scene.textures.exists(texKey)) continue;
@@ -55,6 +55,29 @@ function star(ctx, cx, cy, r, rot) {
   }
   ctx.fillStyle = '#2a2f44';
   ctx.beginPath(); ctx.arc(0, 0, r * 0.18, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+}
+
+function drawSlash(ctx) {
+  // 斜斬弧光 + 匕首
+  ctx.lineCap = 'round';
+  ctx.strokeStyle = 'rgba(190,220,255,0.75)';
+  ctx.lineWidth = 4;
+  ctx.beginPath(); ctx.arc(24, 26, 15, Math.PI * 1.05, Math.PI * 1.75); ctx.stroke();
+  ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+  ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(24, 26, 11, Math.PI * 1.1, Math.PI * 1.7); ctx.stroke();
+  ctx.save();
+  ctx.translate(22, 24);
+  ctx.rotate(-0.8);
+  ctx.fillStyle = '#e8eefc';
+  ctx.beginPath(); ctx.moveTo(-3, -16); ctx.lineTo(3, -16); ctx.lineTo(4, 5); ctx.lineTo(-4, 5); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#8a95b0';
+  ctx.fillRect(0, -16, 3, 21);
+  ctx.fillStyle = '#6b4a22';
+  ctx.fillRect(-6, 5, 12, 3);
+  ctx.fillStyle = '#3a2410';
+  ctx.fillRect(-2, 8, 4, 8);
   ctx.restore();
 }
 

@@ -12,7 +12,7 @@
 // 存檔不含：技能冷卻（讀檔時歸零）、裝置相關設定（qualityLevel）、副本每日次數（另有獨立 key）。
 
 import {
-  createInitialGameState, SKILLS, POTIONS, expNeeded, DEFAULT_SKILL_SLOTS,
+  createInitialGameState, SKILLS, POTIONS, expNeeded, DEFAULT_SKILL_SLOTS, SKILL_POOL,
 } from '../config/constants.js';
 import { MAPS } from '../config/maps.js';
 import { EQUIPMENT_SLOTS, EQUIPMENT_BASES, RARITIES } from '../config/equipment.js';
@@ -152,12 +152,12 @@ export function sanitizeState(raw) {
   }
   gs.unlockedSkills = Object.keys(SKILLS).filter((k) => unlocked.has(k));
 
-  // 技能欄位：必須剛好是 X C V B 四個技能的一種排列，否則回預設（防壞檔 / 重複 / 夾帶普通攻擊）
+  // 技能欄位：4 格、各放技能池中不同的一個技能，且都必須已解鎖，否則回預設（防壞檔 / 重複 / 夾帶普通攻擊）
   const slots = Array.isArray(raw.skillSlots) ? raw.skillSlots : null;
   const validSlots = slots && slots.length === DEFAULT_SKILL_SLOTS.length
-    && new Set(slots).size === slots.length && slots.every((id) => DEFAULT_SKILL_SLOTS.includes(id));
-  // 尚未全部解鎖時不允許自訂順序（避免拿舊檔 / 改檔提前調整）
-  gs.skillSlots = validSlots && DEFAULT_SKILL_SLOTS.every((id) => unlocked.has(id)) ? [...slots] : [...DEFAULT_SKILL_SLOTS];
+    && new Set(slots).size === slots.length && slots.every((id) => SKILL_POOL.includes(id) && unlocked.has(id));
+  // 尚未全部解鎖時不允許自訂（避免拿舊檔 / 改檔提前調整）
+  gs.skillSlots = validSlots && SKILL_POOL.every((id) => unlocked.has(id)) ? [...slots] : [...DEFAULT_SKILL_SLOTS];
 
   gs.currentMap = sanitizeMap(raw.currentMap);
   gs.spawnX = MAPS[gs.currentMap].spawnX ?? gs.spawnX;

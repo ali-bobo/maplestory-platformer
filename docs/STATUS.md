@@ -98,8 +98,8 @@
 - SFX（打擊 / 技能 / 升級音）沒有改動。
 
 ### 新手教學 / 技能欄位 / 聲音開關（Phase 19）
-- **普通攻擊**：原本的 Z（三連飛鏢）改為普通攻擊——電腦版空白鍵（Z 保留為別名）、手機最大的攻擊鈕；不耗 MP、冷卻 0.35s、不佔技能欄位。電腦版 ↑ 與 Alt 都能跳躍。
-- **技能欄位**：只放 4 個技能（X C V B 四個欄位 / 手機四顆鈕）。欄位內容存在 `gameState.skillSlots`（`constants.js` 的 `SKILL_SLOT_KEYS` / `skillForSlot` / `canReorderSkills`）；四個技能全部解鎖（Lv.20）後可在 HUD 技能欄拖曳交換位置（UIScene 的指標拖曳，滑鼠與觸控皆可）。存檔驗證 `skillSlots` 必須是 X/C/V/B 的排列，且未全部解鎖時一律回預設（`saveManager.js`）。
+- **普通攻擊與技能（Phase 20 調整後）**：空白鍵 = 近戰揮刀普通攻擊（`Skill.js` 的 `castSlash`，面前 90px 範圍內全部命中、傷害 ×0.9、不耗 MP、冷卻 0.4s、不吃技能等級，常數在 `BASIC_ATTACK_DEF`）；Z = 三連飛鏢技能（耗 MP 10、冷卻 0.5s）。電腦版 ↑ 與 Alt 都能跳躍。
+- **技能欄位**：技能池 5 個（Z X C V B），欄位 4 格（Z X C V 快捷鍵 / 手機四顆鈕），另有固定的普通攻擊欄（ATK，空白鍵）。欄位內容存在 `gameState.skillSlots`（`constants.js` 的 `SKILL_POOL` / `SKILL_SLOT_KEYS` / `skillForSlot` / `canReorderSkills` / `equipSkill`）；5 個技能全部解鎖（Lv.20）後可在 HUD 拖曳互換，或在技能視窗對沒裝備的技能按「換入」再選欄位。存檔驗證 `skillSlots` 必須是 4 個不重複、已解鎖的技能池成員，且未全部解鎖時一律回預設（`saveManager.js`）。
 - **新手教學**（`TutorialScene`）：9 頁——故事 4 頁（晨曦之星被暗影魔君擊碎，你是被託付奪回星光的盜賊「影子」）、操作按鍵（電腦 / 觸控兩種版本）、技能與欄位、任務系統、畫面 / 存檔 / 死亡、出發。Enter / → 下一頁，← 上一頁，Esc 跳過全部；手機點畫面繼續、點「跳過全部」。首次新遊戲自動出現，看過 / 跳過後記在 localStorage（`thief-legend-tutorial-seen`）；暫停選單「操作說明」可用浮層重看（浮層模式 Esc 只關說明）。修正：教學按 Esc 跳過時同一個按鍵事件會被剛啟動的遊戲 UI 再收到一次而彈出暫停選單（UIScene 啟動 0.6 秒內忽略 Esc）。
 - **聲音開關**（`engine/soundButton.js`）：主選單、教學、遊戲 HUD（小地圖左側）與暫停選單都有；全域靜音同時關閉音樂與音效，設定存 localStorage（`thief-legend-sound`）。
 - **手機沒聲音的修正**：音訊啟動改監聽 `pointerup / touchend / click / keydown`（觸控裝置上 `pointerdown` 不算有效手勢），確認 context 真的在跑才移除監聽；切回分頁重新啟動（iOS 會打斷）；iOS 16.4+ 設 `navigator.audioSession.type = 'playback'` 避免被靜音鍵擋住。尚未在真機驗證。
