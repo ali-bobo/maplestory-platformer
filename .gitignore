@@ -30,3 +30,7 @@ openspec/
 技能/
 參考用遊戲畫面/
 遊戲畫面/
+
+# E2E 腳本產生的截圖
+/shots/
+e2e/world/shots/

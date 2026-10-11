@@ -86,7 +86,7 @@ const check = (name, cond, extra='') => { log((cond ? 'PASS' : 'FAIL') + ' - ' +
   await fc.setFiles(SP + '/evil.json');
   await page.waitForTimeout(1500);
   data = JSON.parse(await readSave());
-  check('惡意數值匯入後被修正', data.state.level === 30 && data.state.meso === 0 && data.state.currentMap === 'kerning'
+  check('惡意數值匯入後被修正', data.state.level === 50 && data.state.meso === 0 && data.state.currentMap === 'castle'
     && data.state.maxHp === 400 && data.state.equipment.weapon.slot === 'weapon' && data.state.equipment.weapon.atk === 99999,
     JSON.stringify({ l: data.state.level, m: data.state.currentMap, w: data.state.equipment.weapon && data.state.equipment.weapon.atk }));
   await page.screenshot({ path: SP + '/menu-after-import.png' });

@@ -45,9 +45,10 @@ const OUT = __dirname + '/shots';
   await hop(2560 - 50, 'HarborScene');
   gs = await A.gs();
   check('visitedMaps 記下走過的地圖', ['sky', 'henesys', 'ellinia', 'ruins', 'harbor', 'town', 'kerning', 'taipei'].every((k) => gs.visitedMaps.includes(k)), gs.visitedMaps.join());
-  // 沒解鎖 Boss：右端傳送門不存在，站上去不會進 Boss
-  await A.tp(2560 - 50); await page.waitForTimeout(1500);
-  check('Boss 未解鎖：碧濤港右端沒有傳送門', (await A.scene()) === 'HarborScene');
+  // 主線：碧濤港右端接黃沙遺跡（不需要 Boss 解鎖）
+  await A.tp(2560 - 50); await page.waitForTimeout(2800);
+  check('碧濤港右端傳送門 → 黃沙遺跡', (await A.scene()) === 'DesertScene', await A.scene());
+  await A.go('HarborScene', 1200); await page.waitForTimeout(1500);
 
   // 4. 碧濤港：海盜船長掉星光碎片
   await A.ev(() => { window.__setJob('thief', 22); });
@@ -103,10 +104,10 @@ const OUT = __dirname + '/shots';
   const hud5 = await A.ev(() => window.__game.scene.getScene('UIScene')._shardText.text + '|' + window.__game.scene.getScene('UIScene')._classText.text);
   check('HUD：Boss 解鎖字樣與星光守護者稱號', hud5.includes('Boss 已解鎖') && hud5.includes('星光守護者'), hud5);
 
-  // 6. Boss 傳送門在碧濤港（階段 1 暫放）出現
-  await A.go('HarborScene', 2200);
+  // 6. Boss 傳送門在主線終點魔君王城
+  await A.go('CastleScene', 2200);
   await A.tp(2560 - 50); await page.waitForTimeout(2800);
-  check('解鎖後碧濤港右端傳送門 → 暗影領域', (await A.scene()) === 'BossScene');
+  check('解鎖後魔君王城右端傳送門 → 暗影領域', (await A.scene()) === 'BossScene', await A.scene());
 
   console.log('ERRORS', errors.filter((e) => !e.includes('Failed to load resource')));
   await browser.close();
