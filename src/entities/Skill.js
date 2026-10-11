@@ -10,20 +10,20 @@ import { getQuality } from '../engine/quality.js';
 import { getVisualCenterPoint, ALIGNMENT_PROFILES, applyAlignmentProfile } from '../config/alignment.js';
 import { skillDamageScale, BASIC_ATTACK_DEF, effectiveCritMulti, effectiveCritRate, jobOf, jobPassive } from '../config/constants.js';
 
-function getEntityEffectPoint(entity) {
+export function getEntityEffectPoint(entity) {
   if (entity?.body?.center) {
     return { x: entity.body.center.x, y: entity.body.center.y };
   }
   return getVisualCenterPoint(entity);
 }
 
-function calcDamage(atk, critRate, critMulti, multiplier = 1) {
+export function calcDamage(atk, critRate, critMulti, multiplier = 1) {
   const base = atk * multiplier * (0.85 + Math.random() * 0.3);
   const isCrit = Math.random() < critRate;
   return { damage: Math.floor(isCrit ? base * critMulti : base), isCrit };
 }
 
-function spawnAfterimage(scene, sprite, options = {}) {
+export function spawnAfterimage(scene, sprite, options = {}) {
   if (!sprite?.active) return null;
   // Phase 9：殘影接品質系統——low 品質完全不生殘影（省高頻 image create/destroy）
   if (!getQuality(scene).afterimage) return null;
@@ -79,7 +79,7 @@ function spawnFanBurst(scene, x, y, facingRight) {
   }, 5, 320);
 }
 
-function spawnShockCircle(scene, x, y, options = {}) {
+export function spawnShockCircle(scene, x, y, options = {}) {
   const {
     startRadius = 24,
     endRadius = 80,
@@ -261,7 +261,7 @@ function createCloneLifeBar(scene, clone, duration = 5000) {
   };
 }
 
-function resolveAssassinateWarpPoint(scene, target, desiredX) {
+export function resolveAssassinateWarpPoint(scene, target, desiredX) {
   const platforms = scene?.mapData?.platforms;
   if (!Array.isArray(platforms) || platforms.length === 0) {
     return {
@@ -321,7 +321,7 @@ function cleanupProjectile(scene, projectile, overlap, emitter, timer) {
  * 命中停頓（hit-stop）：短暫放慢物理與補間，讓重擊有「卡一下」的手感。
  * 多次呼叫只會延長，不會疊加縮放。
  */
-function hitStop(scene, duration = 60) {
+export function hitStop(scene, duration = 60) {
   const world = scene.physics?.world;
   if (!world || scene._hitStopActive) return;
   scene._hitStopActive = true;
@@ -354,8 +354,9 @@ export function playFx(scene, key, x, y, opts = {}) {
       repeat: 0,
     });
   }
+  // 預設 ADD（發光系）；橘 / 綠 / 灰這類要在亮背景上看得見的特效用 opts.normal 改成一般混合
   const fx = scene.add.sprite(x, y, key).setDepth(opts.depth ?? 63)
-    .setBlendMode(Phaser.BlendModes.ADD).setScale(opts.scale ?? 1)
+    .setBlendMode(opts.normal ? Phaser.BlendModes.NORMAL : Phaser.BlendModes.ADD).setScale(opts.scale ?? 1)
     .setFlipX(!!opts.flipX).setRotation(opts.rotation ?? 0);
   if (opts.tint != null) fx.setTint(opts.tint);
   fx.once('animationcomplete', () => fx.destroy());
@@ -364,7 +365,7 @@ export function playFx(scene, key, x, y, opts = {}) {
 }
 
 /** 命中星芒：柔光 + 星爆動畫（素材缺失時退回兩道十字閃光） */
-function spawnImpactSpark(scene, x, y, color = 0xaaccff, size = 1) {
+export function spawnImpactSpark(scene, x, y, color = 0xaaccff, size = 1) {
   const glow = scene.add.image(x, y, VFX_TEX.SOFT_GLOW).setDepth(61)
     .setTint(color).setBlendMode(Phaser.BlendModes.ADD).setScale(0.6 * size);
   scene.tweens.add({
@@ -386,7 +387,7 @@ function spawnImpactSpark(scene, x, y, color = 0xaaccff, size = 1) {
   }
 }
 
-function findNearestEnemy(enemies, x, y, maxDist) {
+export function findNearestEnemy(enemies, x, y, maxDist) {
   let nearest = null;
   let minDist = maxDist;
   enemies?.getChildren?.().forEach((enemy) => {
@@ -400,9 +401,9 @@ function findNearestEnemy(enemies, x, y, maxDist) {
 
 /**
  * 發射一顆飛鏢。玩家的 Z 技能與影分身共用。
- * opts: x, y, vx, vy, multiplier, skillKey, tint, scale, pierce, alpha
+ * opts: x, y, vx, vy, multiplier, skillKey, tint, scale, pierce, alpha, onHit(enemy, center, isCrit)
  */
-function launchShuriken(scene, player, enemies, opts) {
+export function launchShuriken(scene, player, enemies, opts) {
   const gs = player.gameState;
   const dir = opts.vx >= 0 ? 1 : -1;
   const scale = opts.scale ?? 1;
@@ -455,6 +456,7 @@ function launchShuriken(scene, player, enemies, opts) {
       spawnImpactSpark(scene, c.x, c.y, isCrit ? 0xffdd66 : 0xaaccff, isCrit ? 1.3 : 1);
       spawnFanBurst(scene, c.x, c.y, dir > 0);
       audio.playImpact(isCrit);
+      if (opts.onHit) opts.onHit(enemy, c, isCrit);
       if (isCrit) {
         hitStop(scene, 50);
         spawnLightRays(scene, c.x, c.y, { count: 10, length: 80, color: 0xffe08a, alpha: 0.45, duration: 280 });

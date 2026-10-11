@@ -761,7 +761,7 @@ export const UI_ASSETS = [
   status: 'used',
 }));
 
-// 特效動畫條（橫排影格，純黑底轉亮度 alpha，建議用 ADD 混合）；unused = 等職業系統完成再啟用
+// 特效動畫條（橫排影格，純黑底轉亮度 alpha，建議用 ADD 混合）；9 組全部已在遊戲中使用（命中、刺客 / 俠盜技能、轉職）
 export const FX_ASSETS = [
   {
     assetId: 'FX-001',
@@ -772,7 +772,7 @@ export const FX_ASSETS = [
     frameWidth: 160,
     frameHeight: 104,
     frames: 4,
-    status: 'unused',
+    status: 'used',
   },
   {
     assetId: 'FX-002',
@@ -783,7 +783,7 @@ export const FX_ASSETS = [
     frameWidth: 160,
     frameHeight: 88,
     frames: 4,
-    status: 'unused',
+    status: 'used',
   },
   {
     assetId: 'FX-003',
@@ -794,7 +794,7 @@ export const FX_ASSETS = [
     frameWidth: 127,
     frameHeight: 128,
     frames: 7,
-    status: 'unused',
+    status: 'used',
   },
   {
     assetId: 'FX-004',
@@ -816,7 +816,7 @@ export const FX_ASSETS = [
     frameWidth: 128,
     frameHeight: 105,
     frames: 5,
-    status: 'unused',
+    status: 'used',
   },
   {
     assetId: 'FX-006',
@@ -827,7 +827,7 @@ export const FX_ASSETS = [
     frameWidth: 96,
     frameHeight: 88,
     frames: 4,
-    status: 'unused',
+    status: 'used',
   },
   {
     assetId: 'FX-007',
@@ -838,7 +838,7 @@ export const FX_ASSETS = [
     frameWidth: 176,
     frameHeight: 122,
     frames: 6,
-    status: 'unused',
+    status: 'used',
   },
   {
     assetId: 'FX-008',
@@ -849,7 +849,7 @@ export const FX_ASSETS = [
     frameWidth: 128,
     frameHeight: 94,
     frames: 4,
-    status: 'unused',
+    status: 'used',
   },
   {
     assetId: 'FX-009',
@@ -860,7 +860,7 @@ export const FX_ASSETS = [
     frameWidth: 171,
     frameHeight: 144,
     frames: 5,
-    status: 'unused',
+    status: 'used',
   },
 ];
 

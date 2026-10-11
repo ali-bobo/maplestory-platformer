@@ -5,6 +5,8 @@ import { rollEquipmentDrop } from '../config/equipment.js';
 import { MONSTER_ASSETS } from '../config/assetCatalog.js';
 import { ALIGNMENT_PROFILES, applyAlignmentProfile, getVisualCenterPoint, getVisualCenterY, getVisualTopY } from '../config/alignment.js';
 import { VFX_TEX } from '../engine/vfxTextures.js';
+import { consumeMark, inSmoke, SMOKE_DAMAGE_FACTOR } from '../engine/statusEffects.js';
+import { effectiveCritMulti, jobPassive } from '../config/constants.js';
 
 // Phase 10.3 PoC：HP 條渲染模式開關（'shape' = Rectangle 走 batchFillPath；
 // 'image' = 白塊 texture 走 batchSprite）。預設 shape（維持 Phase 3 現狀）。
@@ -149,6 +151,7 @@ export class Monster extends Phaser.Physics.Arcade.Sprite {
     this.meso = config.meso;
     this.behavior = config.behavior;
     this.isDead = false;
+    this._smoked = false;
 
     // AI 狀態
     this.state = STATE.PATROL;
@@ -249,13 +252,19 @@ export class Monster extends Phaser.Physics.Arcade.Sprite {
     if (this._hpBar) { this._hpBar.destroy(); this._hpBar = null; }
   }
 
-  takeDamage(amount, isCrit = false) {
+  // opts.dot = 持續傷害（毒）：不會引爆斷命印記，傷害數字改綠色
+  takeDamage(amount, isCrit = false, opts = null) {
     if (this.isDead) return;
+    const dot = !!(opts && opts.dot);
+    if (this._mark && !dot) {
+      const m = consumeMark(this, this.scene.time.now, amount, isCrit, effectiveCritMulti(this.gameState));
+      if (m) { amount = m.amount; isCrit = true; }
+    }
     this.hp = Math.max(0, this.hp - amount);
     this._updateHpBar();
 
     // 傷害數字
-    this._showDamageNumber(amount, isCrit);
+    this._showDamageNumber(amount, isCrit, dot);
 
     // 命中閃白 → 轉紅 → 恢復，比單純閃紅更有打擊感
     this.setTintFill(0xffffff);
@@ -291,11 +300,13 @@ export class Monster extends Phaser.Physics.Arcade.Sprite {
     if (vy && resist < 0.5 && this.body.blocked.down) this.setVelocityY(vy);
   }
 
-  _showDamageNumber(amount, isCrit) {
-    // 顏色分級：一般白 / 暴擊金 / 高傷橘（≥500）
+  _showDamageNumber(amount, isCrit, dot = false) {
+    // 顏色分級：一般白 / 暴擊金 / 高傷橘（≥500）；持續傷害（毒）綠色小字
     let color = '#ffffff';
     let fontSize = '16px';
-    if (isCrit) {
+    if (dot) {
+      color = '#8cff66'; fontSize = '14px';
+    } else if (isCrit) {
       if (amount >= 500) {
         color = '#ff9933'; fontSize = '24px';   // 橘色：高暴擊
       } else {
@@ -356,7 +367,7 @@ export class Monster extends Phaser.Physics.Arcade.Sprite {
     const level = gs ? gs.level : 1;
 
     // 掉金幣
-    const mesoCount = Math.floor(this.meso * (0.5 + Math.random()));
+    const mesoCount = Math.floor(this.meso * (0.5 + Math.random()) * jobPassive(gs, 'mesoMult', 1));
     if (mesoCount > 0) {
       this._spawnPickup('item-meso', mesoCount, 'meso');
     }
@@ -420,6 +431,14 @@ export class Monster extends Phaser.Physics.Arcade.Sprite {
     const distX = player.x - this.x;
     const distY = player.body.center.y - this.body.center.y;
     const distSq = distX * distX + distY * distY;
+
+    // 迷煙彈：範圍內的敵人傷害減半；非遠程怪不再追擊（只在貼身時還手，其餘巡邏）
+    const zones = player.smokeZones;
+    this._smoked = !!zones && zones.length > 0 && inSmoke(zones, this.x, this.body.center.y, this.scene.time.now);
+    if (this._smoked && this.behavior !== 'ranged') {
+      if (distSq < this._attackRangeSq) this._doAttack(player); else this._doPatrol();
+      return;
+    }
 
     switch (this.behavior) {
       case 'patrol':  this._behaviorPatrol(distSq, distX, player); break;
@@ -512,7 +531,7 @@ export class Monster extends Phaser.Physics.Arcade.Sprite {
     this.setVelocityX(0);
     if (this.attackCooldown > 0) return;
     this.attackCooldown = 1500;
-    const dmg = Math.floor(this.atk * (0.8 + Math.random() * 0.4));
+    const dmg = Math.floor(this.atk * (0.8 + Math.random() * 0.4) * (this._smoked ? SMOKE_DAMAGE_FACTOR : 1));
     if (player && !player.isInvincible) {
       player.takeDamage(dmg);
     }
@@ -527,7 +546,7 @@ export class Monster extends Phaser.Physics.Arcade.Sprite {
     // 用區域變數捕捉 scene 與傷害值：投射物存活 2 秒，期間怪物可能先死亡，
     // 屆時 this.scene 會被 Phaser 清為 null，沿用區域 scene 才不會在 cleanup 中崩潰。
     const scene = this.scene;
-    const projDmg = Math.floor(this.atk * 0.7);
+    const projDmg = Math.floor(this.atk * 0.7 * (this._smoked ? SMOKE_DAMAGE_FACTOR : 1));
     const dir = player.x > this.x ? 1 : -1;
     const center = getVisualCenterPoint(this);
     const proj = scene.physics.add.sprite(this.x, center.y - 10, 'skill-orb');

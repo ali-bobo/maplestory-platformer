@@ -3,6 +3,7 @@ import { poseKey } from '../config/poses.js';
 import { jobOf, jobIdOf, skillDefOf, expNeeded, MAP_SCENE_KEYS, POTIONS, createInitialGameState, BASIC_ATTACK, skillForSlot } from '../config/constants.js';
 import { saveGame } from '../engine/saveGame.js';
 import { castSlash, castShuriken, castDash, castAssassinate, castVortex, castClone } from './Skill.js';
+import { castTwinBlade, castSabre, castBackstab, castPoison, castMark, castWhirl, castSteal, castSmoke } from './JobSkills.js';
 import { particles } from '../engine/particles.js';
 import { audio } from '../engine/audio.js';
 import { isEquipmentBetter } from '../config/equipment.js';
@@ -304,7 +305,10 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     if (this.isDead || (gs.skillCooldowns[BASIC_ATTACK] || 0) > 0) return;
     gs.skillCooldowns[BASIC_ATTACK] = jobOf(gs).basic.cooldown;
     this._coolingDownKeys.add(BASIC_ATTACK);
-    castSlash(this.scene, this, this.enemies);
+    const job = this.gameState.job;
+    if (job === 'assassin') castTwinBlade(this.scene, this, this.enemies);
+    else if (job === 'bandit') castSabre(this.scene, this, this.enemies);
+    else castSlash(this.scene, this, this.enemies);
     audio.resumeContext();
   }
 
@@ -338,12 +342,26 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.scene.registry.events.emit('changedata-mp', null, gs.mp);
 
     const enemies = this.enemies;
+    let ok;
     switch (key) {
       case 'Z': castShuriken(this.scene, this, enemies);    break;
       case 'X': castDash(this.scene, this, enemies);        break;
       case 'C': castAssassinate(this.scene, this, enemies); break;
       case 'V': castVortex(this.scene, this, enemies);      break;
       case 'B': castClone(this.scene, this, enemies);       break;
+      case 'backstab': ok = castBackstab(this.scene, this, enemies); break;
+      case 'poison':   ok = castPoison(this.scene, this, enemies);   break;
+      case 'mark':     ok = castMark(this.scene, this, enemies);     break;
+      case 'whirl':    ok = castWhirl(this.scene, this, enemies);    break;
+      case 'steal':    ok = castSteal(this.scene, this, enemies);    break;
+      case 'smoke':    ok = castSmoke(this.scene, this, enemies);    break;
+    }
+    if (ok === false) {
+      // 沒有目標：沒有真的施放，退還 MP 與冷卻
+      gs.mp = Math.min(gs.maxMp, gs.mp + skillDef.mpCost);
+      gs.skillCooldowns[key] = 0;
+      this.scene.registry.events.emit('changedata-mp', null, gs.mp);
+      this._showNotice('範圍內沒有目標');
     }
     audio.resumeContext();
   }
