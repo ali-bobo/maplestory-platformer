@@ -342,7 +342,28 @@ function hitStop(scene, duration = 60) {
   }
 }
 
-/** 命中星芒：白色柔光 + 十字閃光，比單純圓環更有「打中」的感覺 */
+/** 播放一次性特效動畫條（ADD 混合，播完自動銷毀）；素材未載入時回傳 null */
+export function playFx(scene, key, x, y, opts = {}) {
+  if (!scene.textures.exists(key)) return null;
+  const animKey = `${key}_play`;
+  if (!scene.anims.exists(animKey)) {
+    scene.anims.create({
+      key: animKey,
+      frames: scene.anims.generateFrameNumbers(key),
+      frameRate: opts.frameRate ?? 24,
+      repeat: 0,
+    });
+  }
+  const fx = scene.add.sprite(x, y, key).setDepth(opts.depth ?? 63)
+    .setBlendMode(Phaser.BlendModes.ADD).setScale(opts.scale ?? 1)
+    .setFlipX(!!opts.flipX).setRotation(opts.rotation ?? 0);
+  if (opts.tint != null) fx.setTint(opts.tint);
+  fx.once('animationcomplete', () => fx.destroy());
+  fx.play(animKey);
+  return fx;
+}
+
+/** 命中星芒：柔光 + 星爆動畫（素材缺失時退回兩道十字閃光） */
 function spawnImpactSpark(scene, x, y, color = 0xaaccff, size = 1) {
   const glow = scene.add.image(x, y, VFX_TEX.SOFT_GLOW).setDepth(61)
     .setTint(color).setBlendMode(Phaser.BlendModes.ADD).setScale(0.6 * size);
@@ -350,6 +371,8 @@ function spawnImpactSpark(scene, x, y, color = 0xaaccff, size = 1) {
     targets: glow, scale: 1.5 * size, alpha: 0, duration: 220, ease: 'Quad.easeOut',
     onComplete: () => glow.destroy(),
   });
+  const tinted = color !== 0xaaccff && color !== 0xffdd66;
+  if (playFx(scene, 'fx_hit', x, y, { scale: 0.5 * size, frameRate: 32, tint: tinted ? color : undefined })) return;
   const rot = Math.random() * Math.PI;
   for (let i = 0; i < 2; i++) {
     const streak = scene.add.image(x, y, VFX_TEX.WHITE_PX).setDepth(62)
