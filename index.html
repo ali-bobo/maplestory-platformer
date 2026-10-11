@@ -2,33 +2,17 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-sMwjOdshdLIb0OdXdJ09VM+ae+jgTLIK49TNuYpvVeo=' 'sha256-MyHMNFcAIum3vAuLsfYazPNW+PIzRzsTe0iM5pZT7Ww='; style-src 'self' 'sha256-Bi531D33Bsd6OqticDDa8RBwLIos04FA9iwUGN8PCzc='; img-src 'self' data: blob:; connect-src 'self';" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#151522" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="盜賊傳說" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-sMwjOdshdLIb0OdXdJ09VM+ae+jgTLIK49TNuYpvVeo=' 'sha256-MyHMNFcAIum3vAuLsfYazPNW+PIzRzsTe0iM5pZT7Ww='; style-src 'self'; img-src 'self' data: blob:; connect-src 'self';" />
   <title>盜賊傳說 — Phaser 3</title>
-  <style>
-    :root { color-scheme: dark; }
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: linear-gradient(180deg, #23233b 0%, #151522 100%);
-      font-family: "Microsoft JhengHei", sans-serif;
-      overflow: hidden;
-    }
-    #game-container canvas {
-      width: min(100vw, 1280px) !important;
-      height: auto !important;
-      image-rendering: pixelated;
-    }
-    #loading {
-      color: #fff;
-      font-size: 18px;
-      text-align: center;
-    }
-  </style>
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <div id="game-container"></div>

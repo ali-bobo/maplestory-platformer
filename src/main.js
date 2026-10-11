@@ -16,12 +16,22 @@ import { GameOverScene } from './scenes/GameOverScene.js';
 import { setGameFps } from './engine/fpsControl.js';
 import { setHpBarMode } from './entities/Monster.js';
 import { saveOnExit } from './engine/saveGame.js';
+import { isTouchDevice } from './engine/device.js';
+import { mountTouchControls } from './engine/touchControls.js';
+import { audio } from './engine/audio.js';
 
 const config = {
   type: Phaser.WEBGL,
   width: 1280,
   height: 720,
   parent: 'game-container',
+  // 等比縮放進視窗並置中（桌機 / 手機橫放皆適用）；內部座標固定 1280×720
+  scale: {
+    mode: Phaser.Scale.FIT,
+    autoCenter: Phaser.Scale.CENTER_BOTH,
+    width: 1280,
+    height: 720,
+  },
   backgroundColor: '#87ceeb',
   // Phase 5.2：明確標 transparent: false → 瀏覽器配置 RGB canvas（省 25% 寫入頻寬）
   transparent: false,
@@ -91,3 +101,26 @@ window.addEventListener('pagehide', saveIfPlaying);
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'hidden') saveIfPlaying();
 });
+
+// ── 手機支援 ────────────────────────────────────────────────────────────────
+// 瀏覽器要求使用者操作後才能啟動音效：第一次點擊 / 觸碰 / 按鍵時恢復 AudioContext
+function unlockAudio() {
+  audio.resumeContext();
+  if (!audio.ctx || audio.ctx.state === 'running') {
+    window.removeEventListener('pointerdown', unlockAudio, true);
+    window.removeEventListener('keydown', unlockAudio, true);
+  }
+}
+window.addEventListener('pointerdown', unlockAudio, true);
+window.addEventListener('keydown', unlockAudio, true);
+
+// 觸控裝置：掛上操作層，只在實際遊玩（HUD 場景存在）時顯示
+if (isTouchDevice()) {
+  const controls = mountTouchControls({ canvasProvider: () => game.canvas });
+  const gameplayScenes = ['BootScene', 'MenuScene', 'GameOverScene'];
+  setInterval(() => {
+    const idle = gameplayScenes.some((key) => game.scene.isActive(key));
+    controls.setVisible(!idle && game.scene.isActive('UIScene'));
+  }, 250);
+  game.scale.on('resize', () => controls.layout());
+}

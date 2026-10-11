@@ -60,6 +60,17 @@
 - `?debug=1` 時會暴露 `window.__game`，供自動化測試取得遊戲實例。
 - 限制：存檔在玩家端，範圍檢查只防壞檔，不防作弊；分數榜需另做伺服器端驗證。
 
+### 手機支援（Phase 17）
+- 縮放：Phaser `Scale.FIT` + 置中，容器 100dvh；`index.html` 補 viewport / PWA meta，樣式移到外部 `style.css`（CSP 的 `style-src` 因此收緊為 `'self'`）。
+- 觸控操作層：`src/engine/touchControls.js` 以 DOM 疊在畫布上，把觸控轉成合成的 KeyboardEvent 給 window，Phaser 與既有鍵盤邏輯完全不用改。左右搖桿、↓、跳、Z/X/C/V/B、藥水、互動(F)、暫停(ESC)、全螢幕；pointer events + pointer capture 支援多指；失焦 / 切背景 / 指標取消一律放開所有按鍵。
+- 偵測：`src/engine/device.js` 的 `isTouchDevice()`（`pointer: coarse`，`?touch=1|0` 可強制）。
+- 位置：貼齊畫布；兩側黑邊夠寬時放進黑邊，否則疊在畫布內並避開底部 HUD 列。
+- 直向顯示「請橫放」；音效在第一次點擊 / 觸碰時啟動；手機預設 medium 畫質。
+- 加入主畫面：`manifest.webmanifest` + `icons/`（無 service worker，不提供離線）。
+- NPC 提示文字在觸控裝置改為「點互動」；商店面板的關閉字樣可點擊。
+- 順手修正：暫停選單開啟後 ESC 無法關閉（既有 bug）；死亡重生加 3 秒保護。
+- 測試：`test/mobile.test.js`；Chromium 手機模擬（多指、暫停、失焦、直向）端對端已驗證，**尚未在真機上測試**。
+
 ### BGM 音效品質
 - audio.js masterGain 隔離：每次 playBgm 建立獨立 GainNode，消除地圖切換音頻殘留。
 - stopBgm 10ms 線性漸出舊 GainNode，避免爆音。

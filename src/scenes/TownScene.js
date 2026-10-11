@@ -2,6 +2,7 @@ import { BaseMapScene } from './BaseMapScene.js';
 import { audio } from '../engine/audio.js';
 import { addParchmentPanel, addWoodButton } from '../engine/woodUi.js';
 import { POTION_ICON_KEYS } from '../config/assetCatalog.js';
+import { keyHint } from '../engine/device.js';
 
 // 城鎮場景：和平安全區，商人 NPC 提供補給商店
 // 商店沿用 BaseMapScene 的 NPC 互動系統（靠近顯示提示、F 開關、ESC 關閉），避免另開按鍵衝突
@@ -87,9 +88,12 @@ export class TownScene extends BaseMapScene {
       btn.objects.forEach(push);
     });
 
-    push(this.add.text(panelX + panelW / 2, panelY + panelH - 30, '[ 按 F 或 ESC 關閉 ]', {
+    // 觸控裝置沒有鍵盤：關閉字樣本身可點擊
+    push(this.add.text(panelX + panelW / 2, panelY + panelH - 30, keyHint('[ 按 F 或 ESC 關閉 ]', '[ 點此關閉 ]'), {
       fontSize: '12px', color: '#e8d3a8', fontFamily: 'Arial', stroke: '#1a0e06', strokeThickness: 3,
-    }).setOrigin(0.5, 0.5).setScrollFactor(0).setDepth(151));
+    }).setOrigin(0.5, 0.5).setScrollFactor(0).setDepth(151)
+      .setInteractive({ useHandCursor: true })
+      .on('pointerdown', () => this._closeNpcDialog()));
 
     this._npcDialog = { _shop: true, objects: objs };
   }

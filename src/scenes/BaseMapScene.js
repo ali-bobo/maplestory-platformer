@@ -12,6 +12,7 @@ import { saveGame, isSavableMap } from '../engine/saveGame.js';
 import { onMonsterKilled, onMapEntered, acceptQuest, isQuestActive, isQuestCompleted } from '../engine/questManager.js';
 import { canEnterDungeon, getRemainingEntries } from '../engine/dungeonRecord.js';
 import { getDungeonDef } from '../config/dungeons.js';
+import { keyHint } from '../engine/device.js';
 
 const PLATFORM_HEIGHT = 24;
 const GROUND_Y = WORLD_HEIGHT;
@@ -57,6 +58,7 @@ export class BaseMapScene extends Phaser.Scene {
       this.registry.set('gameState', data.gameState);
     }
     this._spawnX = (data && data.spawnX !== undefined) ? data.spawnX : null;
+    this._respawnProtect = !!(data && data.respawn);   // 死亡重生：短暫無敵
   }
 
   create() {
@@ -86,6 +88,7 @@ export class BaseMapScene extends Phaser.Scene {
     this.player = new Player(this, spawnPlacement.x, 0, gs);
     this._alignDynamicEntityToPlatformTop(this.player, spawnPlacement.topY);
     this.cameras.main.startFollow(this.player, true, 0.1, 0.1);
+    if (this._respawnProtect) this.player.grantInvincibility(3000);
 
     this.monsters = this.add.group();
     this.pickups  = this.physics.add.group();
@@ -402,7 +405,9 @@ export class BaseMapScene extends Phaser.Scene {
       }).setDepth(9).setOrigin(0.5, 1);
 
       // 互動提示（靠近時才顯示）
-      const hintLabel = npcDef.shop ? '[按 F 開啟商店]' : '[按 F 對話]';
+      const hintLabel = npcDef.shop
+        ? keyHint('[按 F 開啟商店]', '[點「互動」開啟商店]')
+        : keyHint('[按 F 對話]', '[點「互動」對話]');
       const hint = this.add.text(placement.x, footY - 106, hintLabel, {
         fontSize: '11px', color: '#aaffaa', fontFamily: 'Arial',
         stroke: '#000', strokeThickness: 2,
@@ -537,7 +542,7 @@ export class BaseMapScene extends Phaser.Scene {
       wordWrap: { width: 400 }, lineSpacing: 4,
     }).setOrigin(0.5, 0).setDepth(101);
 
-    const close = this.add.text(cx, cy + 60, '[ 按 F 或 ESC 關閉 ]', {
+    const close = this.add.text(cx, cy + 60, keyHint('[ 按 F 或 ESC 關閉 ]', '[ 點此關閉 ]'), {
       fontSize: '12px', color: '#e8d3a8', fontFamily: 'Arial', stroke: '#1a0e06', strokeThickness: 3,
     }).setOrigin(0.5, 0.5).setDepth(101)
       .setInteractive({ useHandCursor: true })

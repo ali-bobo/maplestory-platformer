@@ -74,6 +74,8 @@ dist/
   bundle.js         — esbuild 打包輸出（**已進 git，玩家免 build**）
   assets/           — 50 張 PNG 素材（角色 / 怪物 / 背景 / NPC / Boss）
 index.html          — 主入口（含 CSP meta tag）
+style.css           — 版面樣式與手機觸控操作層樣式
+manifest.webmanifest — 加入主畫面（PWA）設定；圖示在 icons/
 build.js            — esbuild 打包腳本
 package.json        — npm scripts
 ```
@@ -89,6 +91,7 @@ package.json        — npm scripts
 - **HUD**：底部單列狀態列、右上小地圖、技能 / 藥水快捷列、任務追蹤面板
 - **任務系統**（Phase 13）：3 個範例任務、F 鍵自動接、HUD 即時進度
 - **副本系統**（Phase 14）：史萊姆洞窟波狀關、每日 3 次上限、勝負結算 popup
+- **手機支援**（Phase 17）：畫面等比縮放、觸控操作層（搖桿 + 技能 / 藥水 / 互動 / 暫停，支援多指）、直向提示、全螢幕、可加入主畫面
 - **存檔與死亡**（Phase 16）：自動存檔到 localStorage、繼續遊戲、匯出 / 匯入存檔檔；死亡後顯示分數，可從死亡點重新開始（失去裝備）
 - **戰鬥回饋**（Phase 15）：目標選取框、升級全屏演出、ESC 暫停選單
 - **效能**：自適應品質系統（FPS 監測自動降級）、VFX 紋理預渲染、HUD 凍結
@@ -99,7 +102,7 @@ package.json        — npm scripts
 
 | 機制 | 說明 |
 |------|------|
-| **CSP**（Content Security Policy）| `index.html` 使用 `meta` 標籤宣告 CSP，限制 `script-src` 為 `'self'` + inline script hash，`style-src` 同樣以 hash 限制，阻擋 XSS 注入 |
+| **CSP**（Content Security Policy）| `index.html` 使用 `meta` 標籤宣告 CSP，限制 `script-src` 為 `'self'` + inline script hash，`style-src` 為 `'self'`（樣式放在外部 `style.css`，沒有 inline style），阻擋 XSS 注入 |
 | **本機綁定** | `serve` / `play` 腳本均綁定 `127.0.0.1`，不對外開放網路連線 |
 | **debug 工具** | `window.__setFps` / `window.__hpBarMode` 僅在 URL 含 `?debug=1` 時啟用，避免一般玩家誤操作 |
 | **副本次數** | 每日上限存於 `localStorage`（key: `maple_dungeon_daily_record`），本機端記錄，跨日自動歸零；如需重置可在 DevTools 執行 `localStorage.removeItem('maple_dungeon_daily_record')` |

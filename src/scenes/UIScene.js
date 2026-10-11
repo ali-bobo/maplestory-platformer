@@ -883,6 +883,11 @@ export class UIScene extends Phaser.Scene {
   }
 
   _onEscKeyDown() {
+    // 暫停中：被暫停的地圖場景不再是 active，必須先處理關閉，否則 ESC 只能開不能關
+    if (this._isPaused) {
+      this._closePauseMenu();
+      return;
+    }
     const mapSceneKey = this._getCurrentMapSceneKey();
     if (!mapSceneKey) return;
 
@@ -890,11 +895,7 @@ export class UIScene extends Phaser.Scene {
     const mapScene = this.scene.manager.getScene(mapSceneKey);
     if (mapScene?._npcDialog) return;
 
-    if (this._isPaused) {
-      this._closePauseMenu();
-    } else {
-      this._openPauseMenu();
-    }
+    this._openPauseMenu();
   }
 
   _openPauseMenu() {
