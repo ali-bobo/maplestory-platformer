@@ -419,3 +419,48 @@ test('舊的「擊殺 60 隻」解鎖規則已移除（地圖 / 教學 / 對話�
     assert.ok(!/擊敗 60 隻|擊殺 60|60 隻怪物/.test(text), `${f} 還提到 60 隻`);
   }
 });
+
+// ── 補給商店覆蓋（經濟審查 P6：Lv9 以上不能走很遠才買得到藥）──────────────────────
+const SHOP_EXCEPTIONS = {
+  // 支線城市特區：從晨曦鎮（有商店）一步進入，不另設商店，回晨曦鎮補給
+  kerning: '晨曦鎮的商店在入口旁（傳送門直通）',
+  taipei: '暗巷城盡頭的支線終點，往返晨曦鎮兩步',
+  // 神秘之境：支線入口在森林獵場（有商店）的跳台上
+  ellinia: '森林獵場商店在入口旁（傳送門直通）',
+  // 最終 Boss 戰場：單場決戰，進場前在魔君王城補給
+  boss: '魔君王城的商店在入口旁',
+};
+
+test('補給商店：建議等級 Lv9 以上的每張地圖都有商店，例外必須註明且兩步內有商店地圖', () => {
+  const hasShop = (k) => (MAPS[k].npcs || []).some((n) => n.shop);
+  for (const [key, m] of Object.entries(MAPS)) {
+    if (!m.levelBand || m.levelBand[0] < 9) continue;
+    if (hasShop(key)) { assert.ok(!SHOP_EXCEPTIONS[key], `${key} 已有商店，不該再列為例外`); continue; }
+    assert.ok(SHOP_EXCEPTIONS[key], `${key}（Lv${m.levelBand[0]}+）沒有商店，也沒有列為例外`);
+    if (key === 'boss') continue;   // 決戰場不在傳送門圖上（由星光之塔進入）
+    const near = new Set([key]);
+    for (let i = 0; i < 2; i++) for (const k of [...near]) for (const n of neighborsOf(k)) near.add(n);
+    assert.ok([...near].some((k) => k !== key && hasShop(k)), `${key} 兩步內要有商店地圖`);
+  }
+  for (const key of Object.keys(SHOP_EXCEPTIONS)) assert.ok(MAPS[key], `例外 ${key} 不是有效地圖`);
+});
+
+test('補給商店：森林 / 廢墟 / 碧濤港的商人單價隨等級遞增、商品有效、不與傳送門 / 其他 NPC 重疊', () => {
+  const shopOf = (k) => MAPS[k].npcs.find((n) => n.shop);
+  const unit = (k, potion) => { const it = shopOf(k).shop.items.find((x) => x.key === potion); return it.cost / it.qty; };
+  const town = 30;   // 晨曦鎮 HP 藥水單價（DEFAULT_SHOP：3 個 90）
+  for (const key of ['henesys', 'ruins', 'harbor']) {
+    const npc = shopOf(key);
+    assert.ok(npc.npcId && npc.dialog.length >= 1 && npc.name, `${key} 商人要有 npcId / 名稱 / 對話`);
+    for (const it of npc.shop.items) assert.ok(POTIONS[it.key] && it.qty >= 1 && it.cost > 0, `${key} 商品 ${it.key}`);
+    assert.ok(NPC_ASSETS.some((a) => a.key === npc.id && a.status === 'used'), `${npc.id} 圖已登記`);
+    for (const other of MAPS[key].npcs) if (other !== npc) assert.ok(Math.abs(other.x - npc.x) >= 150, `${key} NPC 間距`);
+    for (const p of MAPS[key].portals) assert.ok(Math.abs(p.x - npc.x) >= 150 || p.y < 400, `${key} 商人不擋傳送門`);
+  }
+  assert.ok(unit('henesys', 'A') >= town && unit('henesys', 'A') <= unit('ruins', 'A'), '森林小瓶藥水單價不低於晨曦鎮、不高於廢墟');
+  assert.ok(unit('ruins', 'A') <= unit('harbor', 'A'), '單價隨區域遞增');
+  assert.ok(shopOf('henesys').shop.items.every((it) => it.key === 'A'), '森林只賣小瓶 HP 藥水');
+  assert.ok(shopOf('ruins').shop.items.some((it) => it.key === 'D'), '廢墟開始賣 MP 藥水');
+  assert.ok(['S', 'R'].every((k) => shopOf('harbor').shop.items.some((it) => it.key === k)), '碧濤港賣強效藥水');
+  assert.ok(unit('harbor', 'S') > 75 && unit('harbor', 'S') <= unit('desert', 'S'), '強效藥水單價介於晨曦鎮與黃沙遺跡之間');
+});

@@ -43,4 +43,16 @@
 | `balance.cjs` | 技能平衡實測：每個職業、每個技能對靜止靶的傷害 / MP，並斷言設計意圖（見 `docs/SKILLS_DESIGN.md` 第八節） |
 | `trial.cjs` | 影之試煉守衛的戰鬥時間：Lv10 盜賊三種打法（穩健 / 只用普攻 / 莽撞）各打數次，回報擊殺時間與血量；`GHP` / `GATK` 環境變數可覆寫守衛數值來調參 |
 
-> 這些腳本不在 `npm test` 裡（單元測試是 `npm test`，約 269 項）。要不要把它們串進 CI 之後再決定。
+> 這些腳本不在 `npm test` 裡（單元測試是 `npm test`，約 292 項）。要不要把它們串進 CI 之後再決定。
+
+## 穩定性筆記（機器忙時要知道的事）
+
+- 無頭瀏覽器只有約 8~10 FPS（機器忙時更低），Phaser 的 `JustDown` 一幀才讀一次鍵盤。固定 160 ms 的按鍵偶爾落在兩幀之間而沒被讀到。`e2e-jobs.cjs` 與 `e2e-skills2.cjs` 的按鍵改成「按住到遊戲跑過 2 幀」，並對延遲出手的招式輪詢結果。
+- 讓怪物不動的方法：不要把 `m.update` 換成空函式（擊退 / 擊飛計時與煙霧偵測都在 `Monster.update` 裡）。改成 `m.speed = 0; m._detectionRangeSq = 0; m._chaseExtendedSq = 0; m._attackRangeSq = 0; m.jumpCooldown = 1e9; m._steerJumpCd = 1e9`。
+- 同一隻靶跨段重用時，要把上一段加在實例上的函式樁（例如 `applyKnockback = () => {}`）刪掉，否則後一段的擊飛 / 擊退永遠不生效（`e2e-jobs.cjs` 的 `prep` 現在會 `delete`）。
+- `player.isInvincible` 只是受擊後 800 ms 的無敵幀，不是無敵開關；腳本想要「不會死」要持續補血（見 `world/s3.cjs`），否則怪物 / 守護者 / 熔岩地面會把角色打死，死亡換場景後讀場景物件就會丟「Cannot read properties of undefined」。
+- 連擊（彎刀橫斬）視窗是 900 ms，機器忙時兩下之間會超過；`e2e-jobs.cjs` 在第 2、3 下前把連擊時間戳更新到現在，只驗「第 3 下擊飛」，視窗本身由單元測試（`comboStep`）涵蓋。
+- `e2e.cjs` 的匯出步驟收不到檔案下載時印 `SKIP`（不算失敗）；存檔代碼上線後要換成代碼的檢查。
+- 新增 `world/shops.cjs`：三個補給商人可開啟、購買增加庫存。
+- `ai.cjs` 全跑約 10~20 分鐘（機器忙時更久），外層 timeout 要設 1500 秒以上。
+- `world/s1.cjs` 與 `world/s3.cjs` 都用「整段補血」避免角色被打死後換場景；`balance.cjs` 在基準版本就會在量測中途崩潰（靶的 `body` 消失），尚未修。
