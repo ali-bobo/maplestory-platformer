@@ -8,3 +8,10 @@ export function poseKey(job, pose, exists) {
   if (!exists || exists(own)) return own;
   return exists(base) ? base : null;
 }
+
+// 待機呼吸：站著不動時每 IDLE_PERIOD_MS 在 idle / idle_2 之間切換；缺第二格就固定第一格
+export const IDLE_PERIOD_MS = 600;
+export function idleFrameKey(now, idleKey, idle2Key, period = IDLE_PERIOD_MS) {
+  if (!idle2Key || idle2Key === idleKey) return idleKey;
+  return Math.floor(now / period) % 2 === 1 ? idle2Key : idleKey;
+}

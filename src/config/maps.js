@@ -204,7 +204,7 @@ const SHRINE_WIDTH = 1280;
 const SHRINE_PLATFORMS = [
   ground(0, GROUND_Y, SHRINE_WIDTH, 'stone'),
 
-  // 兩個低矮的白石露台，只做裝飾與站位（TODO(art)：換 platform_shrine 專屬跳台）
+  // 兩個低矮的白石露台，只做裝飾與站位（跳台圖用 platform_shrine）
   plat(120,  450, 300, 'stone'),
   plat(860,  450, 300, 'stone'),
 ];

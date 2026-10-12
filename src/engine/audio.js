@@ -47,9 +47,28 @@ export class AudioSynth {
   }
 
   // ─── SFX ─────────────────────────────────────────────────────
+  // 玩家被打到：低沉的「咚」+ 短促下滑音；同一次受擊不會連發（Player 有 800ms 無敵）
   playHit() {
-    this._tone(220, 0.08, 'square', 0.12);
-    setTimeout(() => this._tone(180, 0.06, 'square', 0.08), 40);
+    const now = performance.now();
+    if (this._lastHitAt && now - this._lastHitAt < 120) return;
+    this._lastHitAt = now;
+    this._tone(170, 0.12, 'sawtooth', 0.12);
+    setTimeout(() => this._tone(110, 0.12, 'square', 0.08), 45);
+  }
+
+  // 跳躍：短促上揚的氣音，比技能音小聲，二段跳也用同一個
+  playJump() {
+    this._tone(360, 0.06, 'sine', 0.07);
+    setTimeout(() => this._tone(540, 0.05, 'sine', 0.06), 35);
+  }
+
+  // 怪物被擊殺：輕快的「啵」；範圍技一次殺多隻時 50ms 節流，免得糊成一團
+  playKill() {
+    const now = performance.now();
+    if (this._lastKillAt && now - this._lastKillAt < 50) return;
+    this._lastKillAt = now;
+    this._tone(300, 0.07, 'triangle', 0.09);
+    setTimeout(() => this._tone(200, 0.09, 'triangle', 0.07), 40);
   }
 
   // 技能命中音：短促高頻「喀」+ 暴擊時加一聲低頻重擊；40ms 節流避免多段命中糊成一團
