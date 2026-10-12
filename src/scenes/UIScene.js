@@ -172,6 +172,19 @@ export class UIScene extends Phaser.Scene {
     this._pauseOverlayObjs = [];
     this._onUiEscKey = () => this._onEscKeyDown();
     this.input.keyboard.on('keydown-ESC', this._onUiEscKey);
+
+    // ESC 只關最上層的東西：BaseMapScene 的 ESC 處理器（關 NPC 對話）可能比這裡先跑，
+    // 等這裡跑到時對話已經關了，就會誤以為「沒有東西可關」而開暫停選單。
+    // 所以在原始按鍵事件（capture，早於 Phaser 的鍵盤處理）當下記下對話是否開著。
+    this._escSnap = { t: 0, dialog: false };
+    this._onWinEsc = (e) => {
+      if (e.repeat || (e.key !== 'Escape' && e.keyCode !== 27)) return;
+      const key = this._getCurrentMapSceneKey();
+      const ms = key ? this.scene.manager.getScene(key) : null;
+      this._escSnap.t = performance.now();
+      this._escSnap.dialog = !!(ms && ms._npcDialog);
+    };
+    window.addEventListener('keydown', this._onWinEsc, true);
   }
 
   // 每秒讀一次 actualFps，連續低/高於門檻才調整品質（避免抖動跳檔）
@@ -935,6 +948,7 @@ export class UIScene extends Phaser.Scene {
     this._timers = [];
 
     // Phase 15：清除 ESC 暫停選單
+    if (this._onWinEsc) { window.removeEventListener('keydown', this._onWinEsc, true); this._onWinEsc = null; }
     if (this._onUiEscKey) {
       this.input.keyboard.off('keydown-ESC', this._onUiEscKey);
       this.input.off('pointermove', this._onDragMove, this);
@@ -1041,7 +1055,12 @@ export class UIScene extends Phaser.Scene {
   _onEscKeyDown() {
     if (this.registry.get('helpOpen')) return;   // 操作說明浮層開著：Esc 只用來關閉說明
     if (this.time.now - this._bornAt < 600) return;
+    // 這次 ESC 在按下當下是不是正在關閉 NPC 對話 / 商店（地圖場景自己會關），是的話本次不再做別的事
+    const snap = this._escSnap;
+    const closedDialog = !!snap && snap.dialog && performance.now() - snap.t < 500;
+    if (snap) snap.dialog = false;
     if (this._worldMap && this._worldMap.isOpen) { this._worldMap.close(); return; }   // Esc 先關世界地圖
+    if (this._popup && !this._isPaused) { this._closePopup(); return; }   // 道具 / 裝備 / 技能 / 設定視窗
     // 暫停中：被暫停的地圖場景不再是 active，必須先處理關閉，否則 ESC 只能開不能關
     if (this._isPaused) {
       this._closePauseMenu();
@@ -1050,9 +1069,9 @@ export class UIScene extends Phaser.Scene {
     const mapSceneKey = this._getCurrentMapSceneKey();
     if (!mapSceneKey) return;
 
-    // 若 NPC 對話開啟中，讓 BaseMapScene 的 ESC 處理器優先
+    // NPC 對話開啟中（或剛被同一次 ESC 關掉）：只關對話，不開暫停
     const mapScene = this.scene.manager.getScene(mapSceneKey);
-    if (mapScene?._npcDialog) return;
+    if (closedDialog || mapScene?._npcDialog) return;
 
     this._openPauseMenu();
   }
