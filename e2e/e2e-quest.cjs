@@ -84,9 +84,11 @@ async function flow(browser, choice) {   // choice: 'assassin' | 'bandit'
     if (prog >= 5 || prog === 99) break;
     await ev(() => {
       const sc = window.__game.scene.getScene('MapleIslandScene'); const p = sc.player; p.isInvincible = true;
+      const gsx = window.__game.registry.get('gameState'); gsx.hp = gsx.maxHp;   // isInvincible 只有 800 ms 無敵幀，怪物新攻擊會打死 Lv10，所以持續補血
       const pk = sc.pickups.getChildren().find((k) => k.pickupType === 'quest');
       if (pk) p.setPosition(pk.x, pk.y - 5);
-      const m = p.enemies.getChildren().find((e) => e.active && !e.isDead);
+      // 只打離地圖兩端夠遠的怪：掉落物在傳送門旁時，瞬移上去會踩到傳送門而換地圖
+      const m = p.enemies.getChildren().find((e) => e.active && !e.isDead && e.x > 300 && e.x < 2250);
       if (m) m.takeDamage(999999, false);
     });
     await page.waitForTimeout(1000);
