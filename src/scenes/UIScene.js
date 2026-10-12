@@ -207,19 +207,20 @@ export class UIScene extends Phaser.Scene {
     this._onUiEscKey = () => this._onEscKeyDown();
     this.input.keyboard.on('keydown-ESC', this._onUiEscKey);
 
-    // ESC 只關最上層的東西：BaseMapScene 的 ESC 處理器（關 NPC 對話）可能比這裡先跑，
+    // ESC 只關最上層的東西：BaseMapScene 的 ESC 處理器（關 NPC 對話）可能比這裡先跑（Phaser 的按鍵事件是同步送出的），
     // 等這裡跑到時對話已經關了，就會誤以為「沒有東西可關」而開暫停選單。
-    // 所以在原始按鍵事件（capture，早於 Phaser 的鍵盤處理）當下記下對話是否開著。
-    this._escSnap = { t: 0, dialog: false };
+    // 所以每一幀開始時記下「這一幀開始時對話是不是開著」，ESC 處理時用它判斷這次按鍵是不是剛關掉對話。
+    // （不靠原始 DOM 事件的 capture：觸控暫停鈕是直接送到 window 的合成事件，capture 與 Phaser 的監聽順序不保證。）
+    this._mapDialogOpen = false;
+    this.events.on(Phaser.Scenes.Events.PRE_UPDATE, this._onPreUpdate, this);
+
     this._setupTextScaling();
-    this._onWinEsc = (e) => {
-      if (e.repeat || (e.key !== 'Escape' && e.keyCode !== 27)) return;
-      const key = this._getCurrentMapSceneKey();
-      const ms = key ? this.scene.manager.getScene(key) : null;
-      this._escSnap.t = performance.now();
-      this._escSnap.dialog = !!(ms && ms._npcDialog);
-    };
-    window.addEventListener('keydown', this._onWinEsc, true);
+  }
+
+  _onPreUpdate() {
+    const key = this._getCurrentMapSceneKey();
+    const ms = key ? this.scene.manager.getScene(key) : null;
+    this._mapDialogOpen = !!(ms && ms._npcDialog);
   }
 
   // 每秒讀一次 actualFps，連續低/高於門檻才調整品質（避免抖動跳檔）
@@ -540,7 +541,7 @@ export class UIScene extends Phaser.Scene {
       }).setDepth(55).setScrollFactor(0);
       // 技能名稱（格子下方）
       const nameText = this.add.text(sx + slot / 2, sy + slot + 3, this._skillLabel(skillId, gsNow), labelStyle)
-        .setOrigin(0.5, 0).setDepth(53).setScrollFactor(0).setData('maxMul', 1.2);   // 格距只有 56px，名字不能放太大
+        .setOrigin(0.5, 0).setDepth(53).setScrollFactor(0).setData('maxMul', 1.25);   // 格距只有 56px，名字不能放太大
 
       // 技能等級（右下角）
       const lvText = this.add.text(sx + slot - 5, sy + slot - 4, '', {
@@ -1128,7 +1129,7 @@ export class UIScene extends Phaser.Scene {
     this._timers = [];
 
     // Phase 15：清除 ESC 暫停選單
-    if (this._onWinEsc) { window.removeEventListener('keydown', this._onWinEsc, true); this._onWinEsc = null; }
+    this.events.off(Phaser.Scenes.Events.PRE_UPDATE, this._onPreUpdate, this);
     if (this._onUiEscKey) {
       this.input.keyboard.off('keydown-ESC', this._onUiEscKey);
       this.input.off('pointermove', this._onDragMove, this);
@@ -1311,9 +1312,8 @@ export class UIScene extends Phaser.Scene {
     if (this.registry.get('helpOpen')) return;   // 操作說明浮層開著：Esc 只用來關閉說明
     if (this.time.now - this._bornAt < 600) return;
     // 這次 ESC 在按下當下是不是正在關閉 NPC 對話 / 商店（地圖場景自己會關），是的話本次不再做別的事
-    const snap = this._escSnap;
-    const closedDialog = !!snap && snap.dialog && performance.now() - snap.t < 500;
-    if (snap) snap.dialog = false;
+    const wasDialogOpen = this._mapDialogOpen;
+    this._mapDialogOpen = false;
     if (this._worldMap && this._worldMap.isOpen) { this._worldMap.close(); return; }   // Esc 先關世界地圖
     if (this._popup && !this._isPaused) { this._closePopup(); return; }   // 道具 / 裝備 / 技能 / 設定視窗
     // 暫停中：被暫停的地圖場景不再是 active，必須先處理關閉，否則 ESC 只能開不能關
@@ -1326,7 +1326,7 @@ export class UIScene extends Phaser.Scene {
 
     // NPC 對話開啟中（或剛被同一次 ESC 關掉）：只關對話，不開暫停
     const mapScene = this.scene.manager.getScene(mapSceneKey);
-    if (closedDialog || mapScene?._npcDialog) return;
+    if (mapScene?._npcDialog || wasDialogOpen) return;   // wasDialogOpen：這一幀開始時對話還開著，現在已被地圖場景的 ESC 處理器關掉
 
     this._openPauseMenu();
   }

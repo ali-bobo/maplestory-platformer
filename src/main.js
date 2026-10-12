@@ -113,6 +113,8 @@ if (typeof window !== 'undefined' && new URLSearchParams(window.location.search)
   window.__setFps = (target, useTimeout = true) => setGameFps(game, target, useTimeout);
   window.__hpBarMode = (mode) => setHpBarMode(mode);
   window.__game = game;   // 供自動化測試取得遊戲實例
+  window.__settings = settings;   // 設定倉庫（e2e/ux.cjs 檢查設定是否生效）
+  window.__audio = audio;         // 音訊單例（檢查音量節點）
   window.__QUESTS = QUESTS;   // 測試可調整任務參數（例如把試煉之證掉落率拉到 100%）
   // 直接設定職業與等級（跳過轉職任務）：__setJob('assassin', 24)；'thief' 可切回盜賊。回傳是否成功
   window.__setJob = (job, level) => {

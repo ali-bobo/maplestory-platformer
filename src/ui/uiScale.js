@@ -37,7 +37,7 @@ export function scaledFontPx(base, ctx, maxMul = MAX_MUL) {
 
 /**
  * 彈窗（道具 / 裝備 / 技能 / 地圖）整體放大的倍數：以 12px 字為基準套 scaledFontPx。
- * fitH / fitW 是窗格原尺寸，限制放大後不超出可用空間（availH / availW）。
+ * size = { w, h, availW, availH }：窗格原尺寸與可用空間，限制放大後不超出。
  */
 export function popupScale(ctx, size = {}) {
   let k = scaledFontPx(12, ctx) / 12;
