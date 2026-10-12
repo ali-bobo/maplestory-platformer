@@ -9,6 +9,7 @@ import { VFX_TEX } from '../engine/vfxTextures.js';
 import { getQuality } from '../engine/quality.js';
 import { getVisualCenterPoint, ALIGNMENT_PROFILES, applyAlignmentProfile } from '../config/alignment.js';
 import { M } from '../config/skillModel.js';
+import { idleFrameKey } from '../config/poses.js';
 import { skillDamageScale, BASIC_ATTACK_DEF, effectiveCritMulti, effectiveCritRate, jobOf, jobPassive } from '../config/constants.js';
 
 export function getEntityEffectPoint(entity) {
@@ -35,7 +36,7 @@ export function spawnAfterimage(scene, sprite, options = {}) {
     depthOffset = -1,
   } = options;
 
-  const ghost = scene.add.image(sprite.x, sprite.y, sprite.texture.key);
+  const ghost = scene.add.image(sprite.x, sprite.y, sprite.texture.key, sprite.frame ? sprite.frame.name : undefined);
   ghost.setOrigin(sprite.originX, sprite.originY);
   ghost.setDisplaySize(sprite.displayWidth, sprite.displayHeight);
   ghost.setFlipX(sprite.flipX);
@@ -408,15 +409,28 @@ export function launchShuriken(scene, player, enemies, opts) {
   const gs = player.gameState;
   const dir = opts.vx >= 0 ? 1 : -1;
   const scale = opts.scale ?? 1;
-  const shuriken = scene.physics.add.sprite(opts.x, opts.y, VFX_TEX.SHURIKEN);
+  // 有 fx_shuriken（4 格 32x32 旋轉圖）就用動畫，沒有退回程式畫的飛鏢 + 角速度旋轉；兩者的判定框世界大小相同
+  const art = scene.textures.exists('fx_shuriken');
+  const shuriken = scene.physics.add.sprite(opts.x, opts.y, art ? 'fx_shuriken' : VFX_TEX.SHURIKEN);
   shuriken.setDepth(20);
-  shuriken.setScale(0.85 * scale);
   shuriken.setAlpha(opts.alpha ?? 1);
   if (opts.tint) shuriken.setTint(opts.tint);
   shuriken.body.setAllowGravity(false);
-  shuriken.body.setCircle(14, 10, 10);
+  if (art) {
+    // 48px 圖 * 0.85 的顯示尺寸 = 32px 圖 * 1.275；判定圓半徑 14 * 0.85 = 11.9 世界像素
+    shuriken.setScale(1.275 * scale);
+    shuriken.body.setCircle(9.33, 6.67, 6.67);
+    shuriken.setFlipX(dir < 0);
+    if (!scene.anims.exists('fx_shuriken_spin')) {
+      scene.anims.create({ key: 'fx_shuriken_spin', frames: scene.anims.generateFrameNumbers('fx_shuriken'), frameRate: 20, repeat: -1 });
+    }
+    shuriken.play('fx_shuriken_spin');
+  } else {
+    shuriken.setScale(0.85 * scale);
+    shuriken.body.setCircle(14, 10, 10);
+    shuriken.setAngularVelocity(dir * 1440);
+  }
   shuriken.setVelocity(opts.vx, opts.vy ?? 0);
-  shuriken.setAngularVelocity(dir * 1440);
 
   const trail = scene.add.particles(0, 0, 'particle-dot', {
     follow: shuriken,
@@ -677,11 +691,8 @@ export function castDash(scene, player, enemies) {
 }
 
 export function castAssassinate(scene, player, enemies) {
-  audio.playSkill('C');
   const gs = player.gameState;
   const playerCenter = getEntityEffectPoint(player);
-  screenDarken(scene, 350, 0.35);
-  scene.cameras.main.flash(100, 255, 255, 255);
 
   let nearest = null;
   let minDist = 400;
@@ -697,7 +708,12 @@ export function castAssassinate(scene, player, enemies) {
     });
   }
 
-  if (!nearest || !nearest.active) return;
+  // 回傳 false 讓 Player.castSkill 退還 MP 與冷卻（沒有目標就不演出，也不播音效）
+  if (!nearest || !nearest.active) return false;
+
+  audio.playSkill('C');
+  screenDarken(scene, 350, 0.35);
+  scene.cameras.main.flash(100, 255, 255, 255);
 
   player.isDashing = false;
   player.setAlpha(1);
@@ -866,7 +882,7 @@ export function castAssassinate(scene, player, enemies) {
         },
       });
     }
-  });
+  });  return true;
 }
 
 export function castVortex(scene, player, enemies) {
@@ -905,6 +921,9 @@ export function castVortex(scene, player, enemies) {
       .setTint(0xe0b8ff).setBlendMode(Phaser.BlendModes.ADD).setScale(0.05).setAlpha(0.8).setFlipX(true);
     const core = scene.add.image(cx, cy, VFX_TEX.VORTEX_CORE).setDepth(46).setScale(0.1);
     const outerScale = (radius * 0.85) / 128;
+    // 手繪漩渦動畫（6 格，約 1.3 秒播完，剛好蓋住牽引時間）疊在程式螺旋上
+    const vortexArt = playFx(scene, 'fx_vortex', cx, cy, { scale: 0.4, frameRate: 4.5, depth: 47 });
+    if (vortexArt) scene.tweens.add({ targets: vortexArt, scale: (radius * 2) / 192, duration: 260, ease: 'Back.easeOut' });
     scene.tweens.add({ targets: [outer, under], scale: outerScale, duration: 260, ease: 'Back.easeOut' });
     scene.tweens.add({ targets: inner, scale: outerScale * 0.55, duration: 260, ease: 'Back.easeOut' });
     scene.tweens.add({ targets: core, scale: 0.9, duration: 260, ease: 'Back.easeOut' });
@@ -1172,7 +1191,7 @@ export function castClone(scene, player, enemies) {
     if (time < poseLockUntil && poseLockKey) key = poseLockKey;
     else if (!onGround) key = player.pose(clone.body.velocity.y > 40 ? 'fall' : 'jump');
     else if (Math.abs(clone.body.velocity.x) > 10) key = player.walkPoseKey(time);
-    else key = player.pose('idle');
+    else key = idleFrameKey(time, player.pose('idle'), player.pose('idle_2'));
     if (key && clone.texture.key !== key) {
       clone.setTexture(key);
       aura.setTexture(key);

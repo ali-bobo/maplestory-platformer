@@ -125,7 +125,7 @@ export const CHARACTER_ASSETS = [
     kind: 'character',
     key: 'player_die',
     path: 'dist/assets/player_die.png',
-    status: 'unused',
+    status: 'used',
   },
   {
     assetId: 'CHR-PLY-017',
@@ -149,6 +149,14 @@ export const CHARACTER_ASSETS = [
     kind: 'character',
     key: 'player_cast',
     path: 'dist/assets/player_cast.png',
+    status: 'used',
+  },
+  {
+    assetId: 'CHR-PLY-020',
+    groupId: 'CHR-PLY',
+    kind: 'character',
+    key: 'player_idle_2',
+    path: 'dist/assets/player_idle_2.png',
     status: 'used',
   },
   {
@@ -1000,7 +1008,7 @@ export const JOB_POSES = {
 };
 // 目前程式實際用到的姿勢；其餘先預載備用（status: 'unused'）
 const JOB_POSES_USED = new Set([
-  'idle', 'walk_1', 'walk_2', 'walk_3', 'walk_4', 'jump', 'fall', 'hurt', 'down', 'slash_1', 'slash_2', 'slash_3',
+  'idle', 'idle_2', 'die', 'walk_1', 'walk_2', 'walk_3', 'walk_4', 'jump', 'fall', 'hurt', 'down', 'slash_1', 'slash_2', 'slash_3',
   'cast', 'dash', 'throw_1', 'throw_2', 'crouch_low', 'backstab', 'spin_1', 'spin_2',
 ]);
 export const JOB_CHARACTER_ASSETS = [
@@ -1082,8 +1090,8 @@ export const PLATFORM_THEMES = {
   kerning: { key: 'platform_city',    surfaceTop: 11 },
   taipei:  { key: 'platform_city',    surfaceTop: 11 },
   town:    { key: 'platform_town',    surfaceTop: 1 },
-  // TODO(art): 影之殿堂專屬跳台 platform_shrine.png（白石 + 金邊）還沒有，先借用晨曦鎮的跳台
-  shrine:  { key: 'platform_town',    surfaceTop: 1 },
+  // platform_shrine 也是 246×30 的細條，同樣縱向拉厚
+  shrine:  { key: 'platform_shrine',  surfaceTop: 2, stretchH: 36 },
   harbor:  { key: 'platform_harbor',  surfaceTop: 3 },
   // 四張新圖的跳台圖是 246×21～22 的細長條：stretchH 把它縱向拉到和其他跳台差不多的厚度
   desert:  { key: 'platform_desert',  surfaceTop: 2, stretchH: 36 },
@@ -1107,7 +1115,7 @@ export const ASSET_SCOPES = ['boot', 'core', 'job', 'map', 'lazy'];
 
 const JOB_FX = { assassin: ['fx_slash_assassin', 'fx_backstab', 'fx_poison', 'fx_mark'], bandit: ['fx_slash_bandit', 'fx_whirl', 'fx_smoke'] };
 const CORE_KEYS = new Set(['fx_hit', 'fx_job_change', 'fx_star_restore', 'ui_world_map']);
-const LAZY_KEYS = new Set(['fx_shuriken', 'fx_vortex', 'fx_boss_aura']);
+const LAZY_KEYS = new Set(['fx_boss_aura']);   // fx_shuriken / fx_vortex 是盜賊技能特效，走 core
 // 地圖專屬的怪物 / 圖：key → 額外地圖（BossScene 的援軍是暗影史萊姆，怪物資料裡沒有 boss 地圖）
 const EXTRA_MAPS = { monster_slime: ['boss'] };
 

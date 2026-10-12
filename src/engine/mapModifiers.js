@@ -172,6 +172,8 @@ class LavaModifier extends BaseModifier {
 }
 
 // ── 暗黑視野：整張圖罩一層暗角（單張預先畫好的漸層圖，跟著玩家移動），燭台周圍加一圈暖光 ────────────────
+const DARK_RADIUS_BOOST = 1.45;
+const DARK_ALPHA_CAP = 0.72;
 class DarkModifier extends BaseModifier {
   constructor(scene, cfg) {
     super(scene, cfg);
@@ -179,8 +181,9 @@ class DarkModifier extends BaseModifier {
     // dark-vignette 貼圖（ProceduralAssets）：中心 0.14 半徑內全透明、到 0.22 半徑漸變成全黑；
     // 縮放到「全透明圈 = cfg.radius」，貼圖邊緣之外仍是整片黑，足以蓋住整個畫面
     const tex = scene.textures.get('dark-vignette').getSourceImage();
-    const scale = cfg.radius / (0.14 * tex.width / 2);
-    this._veil = this.add(scene.add.image(0, 0, 'dark-vignette').setScale(scale).setAlpha(cfg.alpha ?? 0.88).setDepth(50));
+    // 試玩回報太暗：亮圈放大 DARK_RADIUS_BOOST 倍、最暗處不超過 DARK_ALPHA_CAP（地圖設定值仍是基準）
+    const scale = (cfg.radius * DARK_RADIUS_BOOST) / (0.14 * tex.width / 2);
+    this._veil = this.add(scene.add.image(0, 0, 'dark-vignette').setScale(scale).setAlpha(Math.min(cfg.alpha ?? 0.88, DARK_ALPHA_CAP)).setDepth(50));
     scene.events.on('postupdate', this._follow, this);   // 玩家位置在物理步進後才同步，這裡跟隨才不會慢一幀
     this._player = null;
     // 燭台：底座（在暗角下面，遠處看不到）+ 暖光（在暗角上面，遠處也看得到光點）

@@ -240,10 +240,13 @@ export class Monster extends Phaser.Physics.Arcade.Sprite {
     // Rectangle 走 SpriteWebGLRenderer 批次渲染，多隻怪物可共享 1 個 draw call；
     // Graphics 即使內容沒變，每幀也會被 GraphicsWebGLRenderer 掃過渲染。
     // 小王 / 守衛的血條比一般怪寬，遠看也看得出打到哪個階段
-    this._hpBarW = this.config.spawnRole === 'miniboss'
-      ? Phaser.Math.Clamp(Math.round(this.displayWidth * 0.8), 72, 110)
+    // 寬度取碰撞體寬（displayWidth 含圖片留白，150-230px 的守衛會被算得太寬或太窄）
+    const isBoss = this.config.spawnRole === 'miniboss';
+    const bodyW = (this.body && this.body.width) || this.displayWidth;
+    this._hpBarW = isBoss
+      ? Phaser.Math.Clamp(Math.round(bodyW * 1.1), 60, 140)
       : Phaser.Math.Clamp(Math.round(this.displayWidth * 0.62), 32, 64);
-    this._hpBarH = this.config.spawnRole === 'miniboss' ? 5 : 4;
+    this._hpBarH = isBoss ? 8 : 4;
     // Phase 10.3 PoC：依模式選 Rectangle(Shape) 或 Image(白塊 texture)
     this._isImageBar = (HP_BAR_MODE === 'image');
     if (this._isImageBar) {
@@ -260,10 +263,11 @@ export class Monster extends Phaser.Physics.Arcade.Sprite {
         .setOrigin(0, 0).setDepth(11);
       this._hpBar = this.scene.add.rectangle(0, 0, this._hpBarW, this._hpBarH, 0x44ff44)
         .setOrigin(0, 0).setDepth(12);
+      if (isBoss) this._hpBg.setFillStyle(0x000000, 0.85).setStrokeStyle(1.5, 0xffe9a8, 0.95);   // 金邊深底：遠看也找得到
     }
     this._lastHpRatio = -1;
-    this._lastBarX = NaN;
-    this._lastBarY = NaN;
+    this._lastBarX = -Infinity;   // 用 NaN 的話 Math.abs(NaN) >= 2 永遠為 false，血條就永遠停在 (0,0)
+    this._lastBarY = -Infinity;
     this._updateHpBar();
   }
 
@@ -273,7 +277,7 @@ export class Monster extends Phaser.Physics.Arcade.Sprite {
     const bx = this.x - this._hpBarW / 2;
     const by = getVisualTopY(this) - 8;
     // 位置快取：差距 < 2px 不更新（怪物速度低，2px 粒度無視覺差異，減少 setPosition 調用次數）
-    if (Math.abs(bx - this._lastBarX) >= 2 || Math.abs(by - this._lastBarY) >= 2) {
+    if (!(Math.abs(bx - this._lastBarX) < 2 && Math.abs(by - this._lastBarY) < 2)) {
       this._lastBarX = bx;
       this._lastBarY = by;
       this._hpBg.setPosition(bx, by);
@@ -453,7 +457,7 @@ export class Monster extends Phaser.Physics.Arcade.Sprite {
     this.brain.killMinions();
     if (this.body) this.body.setAllowGravity(true);
 
-    audio.playDeath();
+    audio.playKill();
     const center = getVisualCenterPoint(this);
     particles.spawnDeath(this.scene, center.x, center.y, 0xff4444);
 

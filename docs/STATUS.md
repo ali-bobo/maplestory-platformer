@@ -299,3 +299,27 @@
 
 ### 驗證
 `npm test`（269 項）；`e2e/ai.cjs`：Boss 8 種站位無抖動、上下樓層 3 類怪不呆站、每種招式出手並造成傷害 / 投射物、守衛 / Boss 階段切換、機器人玩家難度抽樣（見 e2e/README.md）。
+
+## 已有美術接線與小 bug 修正（Phase 25）
+
+- NPC 任務標記（`ui_quest_mark / ing / done`）、殿堂專屬跳台、飛鏢旋轉動畫、漩渦動畫、三職業待機呼吸（影分身同）、死亡倒地姿勢都已接上；`item_boots.png` 本來就已登錄。`fx_shuriken` / `fx_vortex` 改走 `core` 範圍（原本標 lazy 沒人載入）。
+- 修正：暗殺無目標退款；跳躍專用音效、受擊音效、擊殺音效；守護者血條加大；遠處怪物血條在 (0,0)（`NaN` 快取初值 + 畫面外不更新）；魔君王城亮圈放大。
+- 新增測試 `test/artwiring.test.js`（任務標記狀態、待機選格、素材範圍）。
+
+## 玩家體驗系統（UX 審查 U-01 ~ U-15 的一部分）
+
+依 `docs/design/ux-onboarding.md` 實作的玩家面向系統；e2e 在 `e2e/ux.cjs`，單元測試 `test/saveCode.test.js`、`settings.test.js`、`danger.test.js`、`objective.test.js`、`uiScale.test.js`。
+
+- **ESC 順序（U-01）**：世界地圖 → 道具 / 裝備 / 技能 / 設定 / 任務視窗 → NPC 對話 / 商店 → 才開暫停選單。Phaser 的按鍵事件是同步送出的，地圖場景的 ESC 處理器可能先關掉對話，所以 UIScene 每幀開始時記下「對話是否開著」（`_mapDialogOpen`），ESC 當下對話剛被關就不再開暫停。觸控暫停鈕送的合成 ESC 同樣適用。
+- **存檔代碼（U-09 ~ U-11）**：`TL1:<檢查碼>:<base64url(JSON)>`（`saveManager.encodeSaveCode / decodeSaveCode`，解碼後一律走 `parseSave → sanitizeState`，另補了任務 id 的 `hasOwnProperty` 檢查擋 `__proto__` 之類）。DOM 視窗在 `src/ui/saveDialog.js`（複製、剪貼簿被拒時全選提示、貼上匯入、視窗內覆蓋確認，沒有 `confirm()` / `alert()`）。`createSaveStore(storage, { memory: true })`：儲存不可用或寫入失敗時最新存檔留在記憶體，`getSaveStatus().unsaved` 讓 HUD / 主選單常駐「未存檔」。檔案下載保留，`exportSaveFile()` 改回 `'started' | 'blocked' | 'failed' | 'nosave'`，不再假報成功（在 iframe / 沙箱頁面直接回 `'blocked'`）。
+- **設定（U-04、U-18 部分）**：`src/engine/settings.js`（獨立 key `thief-legend-settings`、不進存檔；`settings.get()`、`settings.shake(camera, …)`、`settings.flash(camera, …)`、`shakeAllowed() / flashAllowed() / motionAllowed()`）。視窗在 `src/ui/settingsWindow.js`。音量：`audio.js` 只動音量管線（音樂走獨立主音量節點、音效在 `_tone` 乘係數、音樂音量 0 時不排程）。
+- **別人檔案裡的震動 / 閃光 / 傷害數字**：不改 Skill.js / Player.js / Monster.js，`src/engine/settingsHooks.js` 在 `main.js` 開機時包住 `Camera.prototype.shake / flash` 與 `Monster.prototype._showDamageNumber`，所有現有呼叫端自動遵守設定。**還包不到**：`vfx.js` 的 `screenFlash(...)`（滿版白色矩形，不是相機效果）：呼叫端 `BaseMapScene.js:501`、`Skill.js` 約 566 / 850 / 961 / 1076 / 1218 行；UIScene 升級那次已接。建議直接在 `screenFlash` 開頭加 `if (!settings.flashAllowed()) return;`。
+- **死亡警告（U-07 部分）**：`src/engine/danger.js`；HP < 25% 紅色邊緣暈影（呼吸，減少動態時固定亮度），首次 HP < 30% 且身上有裝備時提醒一次（`gs.deathWarned`，隨存檔，死亡重生後保留）。懲罰規則沒動。
+- **目標列與任務日誌（U-02、U-03 部分、U-06）**：`src/engine/objective.js`（`getObjective(gs)`、`questLog(gs)`，地點全由 maps / quests / monsters / dungeons 推出）；UIScene 上方置中的目標列、J 鍵 / HUD「任務」鈕開 `src/ui/questLogWindow.js`。
+- **手機（U-05、U-13、U-15）**：`src/ui/uiScale.js`（觸控且畫布縮放 < 0.8 時 HUD 文字自動放大，上限 1.6 倍）；道具 / 裝備 / 技能 / 地圖彈窗用 Container 以右下角為基準整體放大；視窗 / 暫停 / 對話 / 世界地圖開著時 `registry.uiModal` → `touchControls.setModal()` 收起移動與動作鈕；技能鈕冷卻掃描（CSS conic-gradient，`touchControls.setCooldown`）與 MP 不足變灰；Phaser `pixelArt: false, antialias: true` 並把 canvas CSS 的 `image-rendering` 改回 `auto`（肉眼檢查：精靈沒有明顯糊邊或接縫）。
+
+## 補給商店與 e2e 穩定化（2026-10）
+
+- 補給斷層（經濟審查 P6）：森林獵場「行商阿福」（只賣 HP 藥水 5 個 150、10 個 290，單價 30 / 29）、古代廢墟「遺跡商販老莫」（HP / MP 藥水各 5 個 155）、碧濤港「船具商阿海」（HP / MP 5 個 160、強效 HP / MP 3 個 240、萬靈藥 1 個 140）。圖沿用 `npc_merchant` / `npc_townsfolk` 加色調，單價比晨曦鎮（30 / 75 / 130）略高並隨區域上升，強效藥水 80 介於晨曦鎮 75 與黃沙遺跡 90 之間。`test/content.test.js` 的「補給商店」兩項檢查 Lv9 以上每張地圖都有商店（例外：暗巷城、台北都會、神秘之境、決戰場，皆在商店地圖一步或兩步內）。實測截圖與購買流程見 `e2e/world/shops.cjs`。
+- 真實 bug：`engine/assetLoader.js` 的 `releaseExcept` 現在釋放紋理前會先銷毀仍使用它們的場上物件。以前換職業（只有除錯 `__setJob` 或轉職時）會讓還在場上的斷命印記圖示讀到空的 glTexture，渲染丟例外、遊戲迴圈整個停住。
+- e2e 腳本診斷結果與已知偶發項目見 `e2e/README.md` 的「穩定性筆記」。單元測試 292 項。

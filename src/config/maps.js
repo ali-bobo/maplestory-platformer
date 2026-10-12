@@ -204,7 +204,7 @@ const SHRINE_WIDTH = 1280;
 const SHRINE_PLATFORMS = [
   ground(0, GROUND_Y, SHRINE_WIDTH, 'stone'),
 
-  // 兩個低矮的白石露台，只做裝飾與站位（TODO(art)：換 platform_shrine 專屬跳台）
+  // 兩個低矮的白石露台，只做裝飾與站位（跳台圖用 platform_shrine）
   plat(120,  450, 300, 'stone'),
   plat(860,  450, 300, 'stone'),
 ];
@@ -268,6 +268,11 @@ export const MAPS = {
       { x: 300, y: GROUND_Y - 60, id: 'npc_new_0', name: '獵人協會員',
         questIds: ['mushroom_hunt', 'stump_clear'],
         dialog: ['歡迎來到森林獵場！', '這裡是中級練功地點。', '小心那些野豬，衝刺速度非常快！', '右上角的跳台上有金色傳送門通往神秘之境（按 F 進入），地面往右是古代廢墟。'] },
+      // 補給斷層：晨曦鎮之後到 Lv20 沒有商店，三張中段地圖各補一位商人（沿用區域商人格式，單價 30~32 起、隨等級加大包裝）
+      { x: 720, y: GROUND_Y - 60, id: 'npc_merchant', npcId: 'forest_peddler', name: '行商阿福', tint: 0xc8ffc0,
+        shop: { title: '林間小攤', items: [
+          { key: 'A', qty: 5, cost: 150 }, { key: 'A', qty: 10, cost: 290 } ] },
+        dialog: ['打獵打到一半沒藥水？來我這裡補貨。', '小瓶藥水便宜賣，買多還有優惠！'] },
     ],
     spawnX: 150,
   },
@@ -299,6 +304,11 @@ export const MAPS = {
       { x: 720, y: GROUND_Y - 60, id: 'npc_sailor', npcId: 'old_sailor', name: '老水手',
         questIds: ['harbor_captain'],
         dialog: ['我在這片海上跑了四十年。', '那艘幽靈船的船長，把整座碼頭都嚇壞了。', '想挑戰他就先備好藥水，他的鐵鉤可不輕。'] },
+      { x: 1100, y: GROUND_Y - 60, id: 'npc_merchant', npcId: 'harbor_chandler', name: '船具商阿海', tint: 0xa8d4ff,
+        shop: { title: '碼頭雜貨', items: [
+          { key: 'A', qty: 5, cost: 160 }, { key: 'D', qty: 5, cost: 160 },
+          { key: 'S', qty: 3, cost: 240 }, { key: 'R', qty: 3, cost: 240 }, { key: 'G', qty: 1, cost: 140 } ] },
+        dialog: ['船長那一鉤不是鬧著玩的，大瓶藥水我這裡有。', '出海前先把藥水備齊，這是老規矩。'] },
     ],
     spawnX: 150,
   },
@@ -327,6 +337,10 @@ export const MAPS = {
       { x: 300, y: GROUND_Y - 60, id: 'npc_new_3', name: '廢墟探險家',
         questIds: ['reach_ruins', 'skeleton_purge'],
         dialog: ['古代廢墟充滿了危險。', '需要補給品嗎？', '小心那些骷髏戰士，他們很狡猾！'] },
+      { x: 720, y: GROUND_Y - 60, id: 'npc_townsfolk', npcId: 'ruins_trader', name: '遺跡商販老莫', tint: 0xffd9a0,
+        shop: { title: '遺跡補給站', items: [
+          { key: 'A', qty: 5, cost: 155 }, { key: 'D', qty: 5, cost: 155 } ] },
+        dialog: ['這裡離鎮上太遠，我乾脆把攤子搬進廢墟。', '血藥魔藥都有，別硬撐到見底才來。'] },
     ],
     spawnX: 150,
   },

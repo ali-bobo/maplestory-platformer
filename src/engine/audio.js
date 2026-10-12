@@ -2,6 +2,7 @@
 
 // BGM 的作曲資料與合成引擎在 ./music/（柔和音色、和弦進行、殘響）；本檔保留音效（SFX）與對外介面。
 import { MusicPlayer } from './music/synth.js';
+import { settings } from './settings.js';
 
 const MAX_LIVE_TONES = 28;
 
@@ -13,6 +14,18 @@ export class AudioSynth {
     } catch (e) {
       this.ctx = null;
     }
+    // 音量設定（設定視窗的兩條滑桿，0–100）：音樂走獨立的主音量節點，音效在 _tone 乘上係數
+    this._musicGain = null;
+    this._sfxScale = settings.get().sfxVolume / 100;
+    if (this.ctx) {
+      try {
+        this._musicGain = this.ctx.createGain();
+        this._musicGain.gain.value = settings.get().musicVolume / 100;
+        this._musicGain.connect(this.ctx.destination);
+      } catch (_) { this._musicGain = null; }
+    }
+    this._lastMusicVolume = settings.get().musicVolume;
+    settings.subscribe(() => this.applyVolumes());
     // BGM 播放器（懶建立：第一次 playBgm 才需要）
     this._music = null;
     this._lastMap = null;
@@ -23,7 +36,7 @@ export class AudioSynth {
 
   // ─── 內部：即時播放單音（SFX 用）────────────────────────────
   _tone(freq, duration, type = 'square', volume = 0.15) {
-    if (!this.ctx || this._muted) return;
+    if (!this.ctx || this._muted || this._sfxScale <= 0) return;
     // 同時發聲的音數設上限：連發技能時音效不會無限堆疊（手機音訊執行緒會爆音 / 卡頓）
     if (this._liveTones >= MAX_LIVE_TONES) return;
     try {
@@ -33,7 +46,7 @@ export class AudioSynth {
       gain.connect(this.ctx.destination);
       osc.type = type;
       osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
-      gain.gain.setValueAtTime(volume, this.ctx.currentTime);
+      gain.gain.setValueAtTime(volume * this._sfxScale, this.ctx.currentTime);
       gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
       osc.start(this.ctx.currentTime);
       osc.stop(this.ctx.currentTime + duration);
@@ -47,9 +60,28 @@ export class AudioSynth {
   }
 
   // ─── SFX ─────────────────────────────────────────────────────
+  // 玩家被打到：低沉的「咚」+ 短促下滑音；同一次受擊不會連發（Player 有 800ms 無敵）
   playHit() {
-    this._tone(220, 0.08, 'square', 0.12);
-    setTimeout(() => this._tone(180, 0.06, 'square', 0.08), 40);
+    const now = performance.now();
+    if (this._lastHitAt && now - this._lastHitAt < 120) return;
+    this._lastHitAt = now;
+    this._tone(170, 0.12, 'sawtooth', 0.12);
+    setTimeout(() => this._tone(110, 0.12, 'square', 0.08), 45);
+  }
+
+  // 跳躍：短促上揚的氣音，比技能音小聲，二段跳也用同一個
+  playJump() {
+    this._tone(360, 0.06, 'sine', 0.07);
+    setTimeout(() => this._tone(540, 0.05, 'sine', 0.06), 35);
+  }
+
+  // 怪物被擊殺：輕快的「啵」；範圍技一次殺多隻時 50ms 節流，免得糊成一團
+  playKill() {
+    const now = performance.now();
+    if (this._lastKillAt && now - this._lastKillAt < 50) return;
+    this._lastKillAt = now;
+    this._tone(300, 0.07, 'triangle', 0.09);
+    setTimeout(() => this._tone(200, 0.09, 'triangle', 0.07), 40);
   }
 
   // 技能命中音：短促高頻「喀」+ 暴擊時加一聲低頻重擊；40ms 節流避免多段命中糊成一團
@@ -104,7 +136,8 @@ export class AudioSynth {
     this._lastMap = mapKey;
     if (!this.ctx || this._muted) return;
     if (typeof location !== 'undefined' && /[?&]bgm=0(&|$)/.test(location.search)) return;   // 效能 A/B 測試用
-    if (!this._music) this._music = new MusicPlayer(this.ctx);
+    if (settings.get().musicVolume <= 0) return;   // 音樂音量 0：不排程音符，省 CPU（調高時 applyVolumes 會接回）
+    if (!this._music) this._music = new MusicPlayer(this.ctx, this._musicGain || undefined);
     this.resumeContext();
     this._music.setQuality(this._musicQuality || 'high');
     this._music.play(mapKey);
@@ -115,6 +148,18 @@ export class AudioSynth {
   }
 
   isMuted() { return this._muted; }
+
+  // 設定改變時套用音量：音樂主音量節點、音效係數；音樂從 0 調高時從目前地圖的曲子接回，調到 0 時停掉
+  applyVolumes() {
+    const { musicVolume, sfxVolume } = settings.get();
+    this._sfxScale = sfxVolume / 100;
+    if (this._musicGain && this.ctx) {
+      try { this._musicGain.gain.setTargetAtTime(musicVolume / 100, this.ctx.currentTime, 0.03); } catch (_) { /* 靜默 */ }
+    }
+    if (musicVolume <= 0 && this._lastMusicVolume > 0) this.stopBgm();
+    else if (musicVolume > 0 && this._lastMusicVolume <= 0 && this._lastMap && !this._muted) this.playBgm(this._lastMap);
+    this._lastMusicVolume = musicVolume;
+  }
 
   // 靜音開關：音樂與音效一起。靜音時音樂立刻淡出；取消靜音時從目前地圖的曲子重新開始。
   setMuted(muted) {

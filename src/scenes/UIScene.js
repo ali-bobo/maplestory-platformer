@@ -8,12 +8,21 @@ import { screenFlash } from '../engine/vfx.js';
 import { POTION_ICON_KEYS } from '../config/assetCatalog.js';
 import { ensureSkillIcons, skillIconKey } from '../assets/skillIcons.js';
 import { addParchmentPanel, addWoodButton } from '../engine/woodUi.js';
-import { saveGame } from '../engine/saveGame.js';
+import { saveGame, getSaveStatus } from '../engine/saveGame.js';
+import { openSaveDialog, closeSaveDialog, isSaveDialogOpen } from '../ui/saveDialog.js';
 import { SHARD_COUNT, SHARD_IDS, SHARD_TEXTURE } from '../config/shards.js';
 import { hasShard, shardCount } from '../engine/shards.js';
 import { audio } from '../engine/audio.js';
 import { addSoundButton } from '../engine/soundButton.js';
 import { WorldMapOverlay } from '../ui/WorldMapOverlay.js';
+import { buildSettingsWindow } from '../ui/settingsWindow.js';
+import { buildQuestLogWindow } from '../ui/questLogWindow.js';
+import { getObjective } from '../engine/objective.js';
+import { settings } from '../engine/settings.js';
+import { countEquipment } from '../engine/death.js';
+import { keyHint, isTouchDevice } from '../engine/device.js';
+import { scaledFontPx, uiScaleFactor, popupScale } from '../ui/uiScale.js';
+import { shouldWarnDeath, isLowHp } from '../engine/danger.js';
 
 // HUD 場景（平行運行）— 橫向捲軸風格底部狀態列
 // 盜賊技能在技能欄的簡稱（格子寬度有限）；其他技能直接用全名
@@ -28,6 +37,10 @@ export class UIScene extends Phaser.Scene {
     this._gs = null;
     this._popup = null;
     this._timers = [];
+    this._lowHp = false;
+    this._vignette = null;
+    this._lowHpTween = null;
+    this._deathNotice = null;
     const { width, height } = this.cameras.main;
 
     // ── 底部狀態列面板（木質底板：角色資訊 + 技能/藥水 + 功能按鈕）──────────
@@ -133,9 +146,13 @@ export class UIScene extends Phaser.Scene {
       callback: () => {
         _uiTick++;
         this._refreshCooldowns();                            // 100ms：冷卻遮罩 + 地圖名稱
+        if (this._objectiveDirty()) this._refreshObjective(); // 100ms：任務 / 地圖 / 等級有變就立刻更新目標列
+        this._syncModal();                                   // 100ms：視窗開關 → 觸控按鈕讓開
         if (_uiTick % 2  === 0) this._refreshPotionSlots(); // 200ms：藥水數量
         if (_uiTick % 2  === 0) this._updateMinimap();      // 200ms：小地圖動態點
         if (_uiTick % 5  === 0) this._refreshQuestPanel();  // 500ms：任務面板
+        if (_uiTick % 5  === 0) this._refreshSaveIndicator(); // 500ms：「未存檔」提示
+        if (_uiTick % 5  === 0) this._refreshObjective();     // 500ms：常駐目標列
         if (_uiTick % 10 === 0) this._monitorFps();         // 1000ms：FPS 品質監測
       },
     }));
@@ -159,12 +176,29 @@ export class UIScene extends Phaser.Scene {
     // 聲音開關（右上、小地圖左側）：手機與電腦都能點
     this._soundBtn = addSoundButton(this, width - 196, 28, { depth: 120, size: 40 });
 
+    // 「未存檔」提示：存不進 localStorage（隱私模式、內嵌頁面）時常駐顯示，點它開存檔代碼
+    this._unsavedBtn = this.add.text(width / 2, 40, '未存檔　點此複製存檔代碼', {
+      fontSize: this._fs(14), color: '#ffffff', fontFamily: 'Arial', fontStyle: 'bold',
+      backgroundColor: '#a63a2a', padding: { x: 10, y: 4 },
+    }).setOrigin(0.5, 0).setDepth(125).setScrollFactor(0).setVisible(false)
+      .setInteractive({ useHandCursor: true });
+    this._unsavedBtn.on('pointerdown', () => this._openSaveCode());
+    this._refreshSaveIndicator();
+
+    // 常駐目標列（上方置中）：永遠顯示「下一步該做什麼」，點它開任務日誌
+    this._setupObjectiveStrip(width);
+
+    // 設定改變（減少動態）時，低血量暈影立刻跟著換成脈動 / 固定
+    this._unsubSettings = settings.subscribe(() => { if (this._lowHp) this._applyLowHpVisual(); });
+
     // 世界地圖：右上角「地圖」鈕（聲音鈕左邊，不蓋到小地圖與任務面板），按 M 也能開關
     this._worldMap = new WorldMapOverlay(this);
     this._worldMapBtn = addWoodButton(this, width - 262, 28, 66, 42, '地圖', () => this._worldMap.toggle(),
       { depth: 120, fontSize: 15 });
     this._onUiMapKey = () => { if (!this._isPaused && !this.registry.get('helpOpen')) this._worldMap.toggle(); };
     this.input.keyboard.on('keydown-M', this._onUiMapKey);
+    this._onUiQuestKey = () => this._toggleQuestLog();
+    this.input.keyboard.on('keydown-J', this._onUiQuestKey);
 
     // Phase 15：ESC 暫停選單
     this._isPaused = false;
@@ -172,6 +206,21 @@ export class UIScene extends Phaser.Scene {
     this._pauseOverlayObjs = [];
     this._onUiEscKey = () => this._onEscKeyDown();
     this.input.keyboard.on('keydown-ESC', this._onUiEscKey);
+
+    // ESC 只關最上層的東西：BaseMapScene 的 ESC 處理器（關 NPC 對話）可能比這裡先跑（Phaser 的按鍵事件是同步送出的），
+    // 等這裡跑到時對話已經關了，就會誤以為「沒有東西可關」而開暫停選單。
+    // 所以每一幀開始時記下「這一幀開始時對話是不是開著」，ESC 處理時用它判斷這次按鍵是不是剛關掉對話。
+    // （不靠原始 DOM 事件的 capture：觸控暫停鈕是直接送到 window 的合成事件，capture 與 Phaser 的監聽順序不保證。）
+    this._mapDialogOpen = false;
+    this.events.on(Phaser.Scenes.Events.PRE_UPDATE, this._onPreUpdate, this);
+
+    this._setupTextScaling();
+  }
+
+  _onPreUpdate() {
+    const key = this._getCurrentMapSceneKey();
+    const ms = key ? this.scene.manager.getScene(key) : null;
+    this._mapDialogOpen = !!(ms && ms._npcDialog);
   }
 
   // 每秒讀一次 actualFps，連續低/高於門檻才調整品質（避免抖動跳檔）
@@ -305,17 +354,18 @@ export class UIScene extends Phaser.Scene {
       { label: '道具', type: 'items'    },
       { label: '裝備', type: 'equip'    },
       { label: '技能', type: 'skills'   },
+      { label: '任務', type: 'quests'   },
       { label: '地圖', type: 'map'      },
       { label: '設定', type: 'settings' },
     ];
-    // 羊皮紙按鈕，兩列：3 + 2
+    // 羊皮紙按鈕，兩列：3 + 3
     const btnW = 72, btnH = 30, gap = 5;
     const startX = width - (3 * btnW + 2 * gap) - 14;
 
     btnData.forEach((btn, i) => {
-      const col = i < 3 ? i : i - 3;
+      const col = i % 3;
       const row = i < 3 ? 0 : 1;
-      const bx = startX + col * (btnW + gap) + (row === 1 ? (btnW + gap) / 2 : 0);
+      const bx = startX + col * (btnW + gap);
       const by = barPanelY + 18 + row * (btnH + 8);
       addWoodButton(this, bx + btnW / 2, by + btnH / 2, btnW, btnH, btn.label, () => {
         if (btn.type === 'map') { this._closePopup(); this._worldMap.toggle(); return; }   // 「地圖」開世界地圖浮層
@@ -491,7 +541,7 @@ export class UIScene extends Phaser.Scene {
       }).setDepth(55).setScrollFactor(0);
       // 技能名稱（格子下方）
       const nameText = this.add.text(sx + slot / 2, sy + slot + 3, this._skillLabel(skillId, gsNow), labelStyle)
-        .setOrigin(0.5, 0).setDepth(53).setScrollFactor(0);
+        .setOrigin(0.5, 0).setDepth(53).setScrollFactor(0).setData('maxMul', 1.25);   // 格距只有 56px，名字不能放太大
 
       // 技能等級（右下角）
       const lvText = this.add.text(sx + slot - 5, sy + slot - 4, '', {
@@ -645,7 +695,7 @@ export class UIScene extends Phaser.Scene {
     if (this._hudNotice && this._hudNotice.active) this._hudNotice.destroy();
     const { width, height } = this.cameras.main;
     const t = this.add.text(width / 2, height - 150, text, {
-      fontSize: '16px', color: '#fff4dc', fontFamily: 'Arial', fontStyle: 'bold',
+      fontSize: this._fs(16, 1.3), color: '#fff4dc', fontFamily: 'Arial', fontStyle: 'bold',
       backgroundColor: '#3a2410cc', padding: { x: 12, y: 6 }, stroke: '#1a0e06', strokeThickness: 3,
     }).setOrigin(0.5).setDepth(210).setScrollFactor(0);
     this._hudNotice = t;
@@ -911,10 +961,154 @@ export class UIScene extends Phaser.Scene {
     this._dungeonResultObjs = objs;
   }
 
+  // ── 常駐目標列 ────────────────────────────────────────────────────────────
+  // 上方置中、最寬 700px（左邊讓給觸控的暫停鈕，右邊讓給「地圖」鈕、聲音鈕與小地圖）。
+  _setupObjectiveStrip(width) {
+    this._objBg = this.add.rectangle(width / 2, 6, 120, 28, 0x000000, 0.58)
+      .setOrigin(0.5, 0).setDepth(60).setScrollFactor(0).setVisible(false)
+      .setInteractive({ useHandCursor: true });
+    this._objBg.on('pointerdown', () => this._toggleQuestLog());
+    this._objText = this.add.text(width / 2, 20, '', {
+      fontSize: this._fs(16, 1.3), color: '#ffe9b0', fontFamily: 'Arial', fontStyle: 'bold',
+      stroke: '#1a0e06', strokeThickness: 3,
+    }).setOrigin(0.5, 0.5).setDepth(61).setScrollFactor(0).setVisible(false);
+    this._lastObjText = null;
+    this._refreshObjective();
+  }
+
+  // 目標列依賴的欄位有沒有變（不配置新物件，100ms 檢查一次）
+  _objectiveDirty() {
+    const gs = this.registry.get('gameState');
+    const qs = gs && gs.quests;
+    if (!qs) return false;
+    let sum = 0;
+    for (const q of qs.active) sum += q.progress + 1;
+    const sig = this._objSig || (this._objSig = { map: null, level: -1, sum: -1, done: -1, shards: -1, boss: null });
+    const shards = gs.shards ? gs.shards.length : 0;
+    if (sig.map === gs.currentMap && sig.level === gs.level && sig.sum === sum && sig.done === qs.completed.length
+        && sig.shards === shards && sig.boss === gs.bossUnlocked) return false;
+    sig.map = gs.currentMap; sig.level = gs.level; sig.sum = sum; sig.done = qs.completed.length;
+    sig.shards = shards; sig.boss = gs.bossUnlocked;
+    return true;
+  }
+
+  _refreshObjective() {
+    if (!this._objText || !this._objText.active) return;
+    const gs = this.registry.get('gameState');
+    const obj = getObjective(gs);
+    let label = obj && obj.text ? `◆ ${obj.text}` : '';
+    if (obj && obj.more > 0) label += `（另有 ${obj.more} 個任務，按 J）`;
+    // 副本有自己的倒數 HUD（同一個位置），這時不顯示
+    if (this._dungeonInfoText && this._dungeonInfoText.visible) label = '';
+    if (label === this._lastObjText) return;
+    this._lastObjText = label;
+    if (!label) { this._objText.setVisible(false); this._objBg.setVisible(false); return; }
+    this._objText.setText(label).setScale(1).setVisible(true);
+    const maxW = 680;
+    if (this._objText.width > maxW) this._objText.setScale(maxW / this._objText.width);   // 太長就整行縮小，不換行
+    this._objBg.setSize(Math.ceil(this._objText.displayWidth) + 28, 28).setVisible(true);
+  }
+
+  // ── 文字縮放（手機 / 介面大小設定）──────────────────────────────────────────
+  // 畫布固定 1280x720 再縮進視窗；手機橫放約 0.54 倍，原本 12px 的字只剩約 6.5 CSS px。
+  // HUD 的文字在 create 結束時登記一次（記下設計字級），之後依「介面大小」設定與畫布縮放比重算。
+  // 之後才建立的文字（提示、目標列…）用 this._fs(base) 取字級；彈窗用整體放大（見 _openPopup）。
+  _uiCtx() {
+    const c = this._uiCtxObj || (this._uiCtxObj = { factor: 1, canvasScale: 1, touch: false });
+    const gw = this.scale.width || 1280;
+    const dw = this.scale.displaySize.width || gw;
+    c.factor = uiScaleFactor(settings.get().uiScale);
+    c.canvasScale = dw / gw;
+    c.touch = isTouchDevice();
+    return c;
+  }
+
+  _fs(base, maxMul) {
+    return `${scaledFontPx(base, this._uiCtx(), maxMul)}px`;
+  }
+
+  _setupTextScaling() {
+    this._hudTexts = [];
+    for (const o of this.children.list) {
+      if (!(o instanceof Phaser.GameObjects.Text) || o.depth >= 300) continue;   // 世界地圖浮層自己排版
+      this._hudTexts.push({ t: o, base: parseFloat(o.style.fontSize) || 12, maxMul: o.getData('maxMul') || undefined, cur: -1 });
+    }
+    this._onTextScaleChange = () => this._applyTextScale();
+    this._unsubScale = settings.subscribe(this._onTextScaleChange);
+    this.scale.on('resize', this._onTextScaleChange);
+    this._applyTextScale();
+  }
+
+  _applyTextScale() {
+    if (!this._hudTexts) return;
+    const ctx = this._uiCtx();
+    for (const rec of this._hudTexts) {
+      if (!rec.t.active) continue;
+      const px = scaledFontPx(rec.base, ctx, rec.maxMul);
+      if (px !== rec.cur) { rec.cur = px; rec.t.setFontSize(px); }
+    }
+    // 目標列等動態文字也跟著重排
+    this._lastObjText = null;
+    this._refreshObjective();
+  }
+
+  // 有視窗 / 暫停 / 對話 / 世界地圖開著時，觸控的移動與動作按鈕要讓開（才點得到視窗上的按鈕）
+  _syncModal() {
+    let modal = !!this._popup || this._isPaused || isSaveDialogOpen() || !!this.registry.get('helpOpen')
+      || !!(this._worldMap && this._worldMap.isOpen);
+    if (!modal) {
+      const key = this._getCurrentMapSceneKey();
+      const ms = key ? this.scene.manager.getScene(key) : null;
+      modal = !!(ms && ms._npcDialog);
+    }
+    if (modal !== this._modal) {
+      this._modal = modal;
+      this.registry.set('uiModal', modal);
+    }
+  }
+
+  _refreshSaveIndicator() {
+    if (!this._unsavedBtn || !this._unsavedBtn.active) return;
+    const unsaved = getSaveStatus().unsaved;
+    if (unsaved !== this._unsavedBtn.visible) this._unsavedBtn.setVisible(unsaved);
+  }
+
+  // 存檔代碼視窗（DOM）：開著時暫停地圖場景，免得玩家在複製的時候被怪打
+  _openSaveCode() {
+    if (isSaveDialogOpen()) return;
+    let resumeKey = null;
+    if (!this._isPaused) {
+      resumeKey = this._getCurrentMapSceneKey();
+      if (resumeKey) this.scene.pause(resumeKey);
+    }
+    // 先把目前進度寫進存檔（副本 / Boss 中 saveGame 會略過，代碼本身仍會依規則回退到安全地圖）
+    const gs = this.registry.get('gameState');
+    saveGame(gs);
+    openSaveDialog({
+      mode: 'export',
+      gs,
+      onClose: () => { if (resumeKey && !this._isPaused) this.scene.resume(resumeKey); },
+    });
+  }
+
   _onShutdown() {
+    if (this._unsubSettings) { this._unsubSettings(); this._unsubSettings = null; }
+    if (this._unsubScale) { this._unsubScale(); this._unsubScale = null; }
+    if (this._onTextScaleChange) { this.scale.off('resize', this._onTextScaleChange); this._onTextScaleChange = null; }
+    this._hudTexts = null;
+    if (this._modal) { this._modal = false; this.registry.set('uiModal', false); }
+    this._lowHpTween = null;
+    this._vignette = null;
+    this._lowHp = false;
+    closeSaveDialog();
     this._closePopup();
     if (this._worldMap) this._worldMap.destroy();
     if (this._onUiMapKey) { this.input.keyboard.off('keydown-M', this._onUiMapKey); this._onUiMapKey = null; }
+    if (this._onUiQuestKey) { this.input.keyboard.off('keydown-J', this._onUiQuestKey); this._onUiQuestKey = null; }
+    this._objBg = null;
+    this._objText = null;
+    this._lastObjText = null;
+    this._objSig = null;
     this.registry.events.off('changedata-hp',        this._onHpChange,    this);
     this.registry.events.off('changedata-mp',        this._onMpChange,    this);
     this.registry.events.off('changedata-exp',       this._onExpChange,   this);
@@ -935,6 +1129,7 @@ export class UIScene extends Phaser.Scene {
     this._timers = [];
 
     // Phase 15：清除 ESC 暫停選單
+    this.events.off(Phaser.Scenes.Events.PRE_UPDATE, this._onPreUpdate, this);
     if (this._onUiEscKey) {
       this.input.keyboard.off('keydown-ESC', this._onUiEscKey);
       this.input.off('pointermove', this._onDragMove, this);
@@ -964,6 +1159,7 @@ export class UIScene extends Phaser.Scene {
     this._spText.setText(`SP: ${gs.skillPoints || 0}`);
     this._mesoText.setText(`💰 ${gs.meso}`);
     this._onShardChange();
+    this._updateDanger(gs, gs.hp);
   }
 
   _updateBar(barObj, current, max) {
@@ -979,6 +1175,75 @@ export class UIScene extends Phaser.Scene {
     const gs = this.registry.get('gameState');
     this._updateBar(this._hpBar, value, gs.maxHp);
     this._hpNum.setText(`${Math.ceil(value)}/${gs.maxHp}`);
+    this._updateDanger(gs, value);
+  }
+
+  // ── 危險狀態：HP 低於 25% 的紅色邊緣暈影（呼吸），首次 HP 低於 30% 提醒「倒下會失去裝備」 ──
+  _updateDanger(gs, hp) {
+    const low = isLowHp(hp, gs.maxHp);
+    if (low !== this._lowHp) {
+      this._lowHp = low;
+      this._applyLowHpVisual();
+    }
+    if (shouldWarnDeath(gs, hp, countEquipment(gs))) {
+      gs.deathWarned = true;     // 每個存檔只提醒一次（寫進存檔）
+      saveGame(gs);
+      this._showDeathNotice();
+    }
+  }
+
+  _ensureVignette() {
+    if (this._vignette && this._vignette.active) return this._vignette;
+    const key = 'hud_lowhp_vignette';
+    if (!this.textures.exists(key)) {
+      const w = 640, h = 360;
+      const tex = this.textures.createCanvas(key, w, h);
+      const ctx = tex.getContext();
+      ctx.translate(w / 2, h / 2);
+      ctx.scale(1, h / w);   // 把圓形漸層壓成橢圓，四邊都會紅
+      const g = ctx.createRadialGradient(0, 0, w * 0.3, 0, 0, w * 0.62);
+      g.addColorStop(0, 'rgba(190,0,0,0)');
+      g.addColorStop(1, 'rgba(190,0,0,0.85)');
+      ctx.fillStyle = g;
+      ctx.fillRect(-w / 2, -w / 2, w, w);
+      tex.refresh();
+    }
+    const { width, height } = this.cameras.main;
+    this._vignette = this.add.image(0, 0, key).setOrigin(0, 0).setDisplaySize(width, height)
+      .setDepth(45).setScrollFactor(0).setVisible(false);
+    return this._vignette;
+  }
+
+  _applyLowHpVisual() {
+    if (!this._lowHp) {
+      if (this._lowHpTween) { this._lowHpTween.remove(); this._lowHpTween = null; }
+      if (this._vignette && this._vignette.active) this._vignette.setVisible(false);
+      return;
+    }
+    const v = this._ensureVignette();
+    v.setVisible(true);
+    if (!settings.motionAllowed()) {   // 減少動態：不脈動，固定亮度
+      if (this._lowHpTween) { this._lowHpTween.remove(); this._lowHpTween = null; }
+      v.setAlpha(0.7);
+    } else if (!this._lowHpTween) {
+      v.setAlpha(0.45);
+      this._lowHpTween = this.tweens.add({
+        targets: v, alpha: 0.95, duration: 600, yoyo: true, repeat: -1, ease: 'Sine.easeInOut',
+      });
+    }
+  }
+
+  _showDeathNotice() {
+    if (this._deathNotice && this._deathNotice.active) this._deathNotice.destroy();
+    const { width } = this.cameras.main;
+    const tip = keyHint('快喝藥水（A / S）', '點下方藥水格喝藥水');
+    const t = this.add.text(width / 2, 74, `HP 偏低！倒下會失去身上所有裝備。${tip}`, {
+      fontSize: this._fs(18, 1.3), color: '#fff4dc', fontFamily: 'Arial', fontStyle: 'bold',
+      backgroundColor: '#8a1d12e6', padding: { x: 14, y: 8 }, stroke: '#1a0e06', strokeThickness: 3,
+      align: 'center', wordWrap: { width: 760 },
+    }).setOrigin(0.5, 0).setDepth(210).setScrollFactor(0);
+    this._deathNotice = t;
+    this.tweens.add({ targets: t, alpha: 0, delay: 4500, duration: 500, onComplete: () => t.destroy() });
   }
 
   _onMpChange(parent, value) {
@@ -1005,14 +1270,19 @@ export class UIScene extends Phaser.Scene {
 
   _onLevelUp(parent, level) {
     const { width, height } = this.cameras.main;
-    // 全屏白閃
-    screenFlash(this, 400, 0.55);
+    // 全屏白閃（設定可關；減少動態時一併關閉）
+    if (settings.flashAllowed()) screenFlash(this, 400, 0.55);
     // 升級文字：從 scale 0 彈出，再上飄淡出
     const txt = this.add.text(width / 2, height / 2 - 80, `🎉 Level Up!  Lv.${level}`, {
       fontSize: '40px', color: '#ffff00', fontFamily: 'Arial',
       stroke: '#aa6600', strokeThickness: 6,
-    }).setOrigin(0.5, 0.5).setDepth(200).setScrollFactor(0).setScale(0);
+    }).setOrigin(0.5, 0.5).setDepth(200).setScrollFactor(0).setScale(settings.motionAllowed() ? 0 : 1);
 
+    // 減少動態：不彈跳、不上飄，原地停留後淡出
+    if (!settings.motionAllowed()) {
+      this.tweens.add({ targets: txt, alpha: 0, delay: 1500, duration: 500, onComplete: () => txt.destroy() });
+      return;
+    }
     this.tweens.add({
       targets: txt,
       scaleX: 1, scaleY: 1,
@@ -1041,7 +1311,11 @@ export class UIScene extends Phaser.Scene {
   _onEscKeyDown() {
     if (this.registry.get('helpOpen')) return;   // 操作說明浮層開著：Esc 只用來關閉說明
     if (this.time.now - this._bornAt < 600) return;
+    // 這次 ESC 在按下當下是不是正在關閉 NPC 對話 / 商店（地圖場景自己會關），是的話本次不再做別的事
+    const wasDialogOpen = this._mapDialogOpen;
+    this._mapDialogOpen = false;
     if (this._worldMap && this._worldMap.isOpen) { this._worldMap.close(); return; }   // Esc 先關世界地圖
+    if (this._popup && !this._isPaused) { this._closePopup(); return; }   // 道具 / 裝備 / 技能 / 設定視窗
     // 暫停中：被暫停的地圖場景不再是 active，必須先處理關閉，否則 ESC 只能開不能關
     if (this._isPaused) {
       this._closePauseMenu();
@@ -1050,9 +1324,9 @@ export class UIScene extends Phaser.Scene {
     const mapSceneKey = this._getCurrentMapSceneKey();
     if (!mapSceneKey) return;
 
-    // 若 NPC 對話開啟中，讓 BaseMapScene 的 ESC 處理器優先
+    // NPC 對話開啟中（或剛被同一次 ESC 關掉）：只關對話，不開暫停
     const mapScene = this.scene.manager.getScene(mapSceneKey);
-    if (mapScene?._npcDialog) return;
+    if (mapScene?._npcDialog || wasDialogOpen) return;   // wasDialogOpen：這一幀開始時對話還開著，現在已被地圖場景的 ESC 處理器關掉
 
     this._openPauseMenu();
   }
@@ -1074,7 +1348,7 @@ export class UIScene extends Phaser.Scene {
     push(this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.6)
       .setDepth(190).setScrollFactor(0));
 
-    push(addParchmentPanel(this, width / 2 - 150, height / 2 - 120, 300, 362, { depth: 192 }));
+    push(addParchmentPanel(this, width / 2 - 150, height / 2 - 120, 300, 418, { depth: 192 }));
 
     // 標題
     push(this.add.text(width / 2, height / 2 - 72, '遊戲暫停', {
@@ -1099,7 +1373,10 @@ export class UIScene extends Phaser.Scene {
       this.scene.launch('TutorialScene', { mode: 'overlay' });
     }, { depth: 195, fontSize: 18 }).objects.forEach(push);
 
-    addWoodButton(this, width / 2, height / 2 + 172, 190, 42, '存檔並回主選單', () => {
+    addWoodButton(this, width / 2, height / 2 + 172, 190, 42, '存檔代碼', () => this._openSaveCode(),
+      { depth: 195, fontSize: 18 }).objects.forEach(push);
+
+    addWoodButton(this, width / 2, height / 2 + 228, 190, 42, '存檔並回主選單', () => {
       saveGame(this.registry.get('gameState'));
       this._isPaused = false;
       for (const obj of this._pauseOverlayObjs) { if (obj?.active) obj.destroy(); }
@@ -1143,6 +1420,8 @@ export class UIScene extends Phaser.Scene {
   // ── 彈出選單系統 ──────────────────────────────────────────────────────────
   _openPopup(type) {
     this._closePopup();
+    if (type === 'settings') { this._openSettingsWindow(); return; }
+    if (type === 'quests') { this._openQuestLog(); return; }
     const { width, height } = this.cameras.main;
     const barPanelH = height - WORLD_HEIGHT;
     const barPanelY = WORLD_HEIGHT;
@@ -1151,7 +1430,7 @@ export class UIScene extends Phaser.Scene {
     const skillRows = type === 'skills' ? jobOf(this.registry.get('gameState')).pool.length : 0;
     const popW = 340;
     const popH = type === 'skills'
-      ? 318 + (skillRows - 5) * 44 + (jobOf(this.registry.get('gameState')).passive ? 18 : 0)
+      ? 340 + (skillRows - 5) * 44 + (jobOf(this.registry.get('gameState')).passive ? 18 : 0)
       : 280;
     const popX = width - popW - 10;
     const popY = barPanelY - popH - 10;
@@ -1169,8 +1448,8 @@ export class UIScene extends Phaser.Scene {
     }).setDepth(151).setScrollFactor(0));
 
     // 關閉按鈕 ×
-    const closeZone = push(this.add.zone(popX + popW - 40, popY + 12, 24, 24)
-      .setOrigin(0, 0).setInteractive().setDepth(155).setScrollFactor(0));
+    const closeZone = push(this.add.zone(popX + popW - 46, popY + 6, 36, 36)   // 命中區比圖示大，手指好點
+      .setOrigin(0, 0).setInteractive({ useHandCursor: true }).setDepth(155).setScrollFactor(0));
     const closeG = push(this.add.graphics().setDepth(154).setScrollFactor(0));
     const drawClose = (hover) => {
       closeG.clear();
@@ -1202,19 +1481,55 @@ export class UIScene extends Phaser.Scene {
       this._buildSkillsPopup(push, popX, contentY, popW);
     } else if (type === 'map') {
       this._buildMapPopup(push, popX, contentY, popW);
-    } else if (type === 'settings') {
-      this._buildSettingsPopup(push, popX, contentY, popW);
     }
 
-    this._popup = { type, objects: objs };
+    // 觸控裝置畫布縮得小（或介面大小設為「大」）時，整個彈窗以右下角為基準放大：
+    // 版面、字、按鈕命中區一起放大，不用重排每一列。
+    const k = popupScale(this._uiCtx(), { w: popW, h: popH, availW: width - 20, availH: barPanelY - 14 });
+    let container = null;
+    if (k > 1) {
+      container = this.add.container((popX + popW) * (1 - k), (popY + popH) * (1 - k))
+        .setScale(k).setDepth(150).setScrollFactor(0);
+      container.add(objs);
+    }
+    this._popup = { type, objects: objs, container };
   }
 
   _closePopup() {
     if (!this._popup) return;
-    for (const obj of this._popup.objects) {
+    const popup = this._popup;
+    this._popup = null;
+    if (popup.destroy) { popup.destroy(); return; }   // 自帶清理的視窗（設定）
+    for (const obj of popup.objects) {
       if (obj && obj.destroy) obj.destroy();
     }
-    this._popup = null;
+    if (popup.container && popup.container.active) popup.container.destroy();
+  }
+
+  // 任務日誌（J 或 HUD「任務」鈕）：進行中 / 可接取 / 已完成（見 src/ui/questLogWindow.js）
+  _openQuestLog() {
+    const win = buildQuestLogWindow(this, this.registry.get('gameState'), {
+      depth: 150,
+      onClose: () => this._closePopup(),
+    });
+    this._popup = { type: 'quests', objects: win.objects, destroy: () => win.destroy() };
+  }
+
+  _toggleQuestLog() {
+    if (this._isPaused || this.registry.get('helpOpen') || (this._worldMap && this._worldMap.isOpen)) return;
+    if (isSaveDialogOpen()) return;
+    if (this._popup && this._popup.type === 'quests') this._closePopup();
+    else this._openPopup('quests');
+  }
+
+  // 設定視窗：音量滑桿、效果開關、介面大小、操作說明（見 src/ui/settingsWindow.js）
+  _openSettingsWindow() {
+    const win = buildSettingsWindow(this, {
+      depth: 150,
+      onClose: () => this._closePopup(),
+      onOpenSaveCode: () => this._openSaveCode(),
+    });
+    this._popup = { type: 'settings', objects: win.objects, destroy: () => win.destroy() };
   }
 
   // ── 道具欄彈出 ──────────────────────────────────────────────────────────
@@ -1232,16 +1547,16 @@ export class UIScene extends Phaser.Scene {
       const rowY = contentY + i * 40;
       const qty = potions[row.key] || 0;
       push(this.add.text(popX + 14, rowY + 2, `[${row.key}]`, {
-        fontSize: '12px', color: '#aaccff', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2,
+        fontSize: '13px', color: '#aaccff', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2,
       }).setDepth(152).setScrollFactor(0));
       push(this.add.text(popX + 44, rowY + 2, row.label, {
-        fontSize: '12px', color: row.color, fontFamily: 'Arial', stroke: '#000', strokeThickness: 2,
+        fontSize: '13px', color: row.color, fontFamily: 'Arial', stroke: '#000', strokeThickness: 2,
       }).setDepth(152).setScrollFactor(0));
       push(this.add.text(popX + 44, rowY + 17, row.desc, {
-        fontSize: '9px', color: '#aaaaaa', fontFamily: 'Arial',
+        fontSize: '11px', color: '#cfc2a4', fontFamily: 'Arial',
       }).setDepth(152).setScrollFactor(0));
       push(this.add.text(popX + popW - 14, rowY + 10, `×${qty}`, {
-        fontSize: '13px', color: qty > 0 ? '#ffff88' : '#555555', fontFamily: 'Arial',
+        fontSize: '14px', color: qty > 0 ? '#ffff88' : '#9a8f78', fontFamily: 'Arial',
         stroke: '#000', strokeThickness: 2,
       }).setOrigin(1, 0.5).setDepth(152).setScrollFactor(0));
     });
@@ -1262,23 +1577,23 @@ export class UIScene extends Phaser.Scene {
       const rowY = contentY + i * 44;
       const equip = equipment[slot.key];
       push(this.add.text(popX + 14, rowY, slot.label, {
-        fontSize: '12px', color: '#aaddff', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2,
+        fontSize: '13px', color: '#aaddff', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2,
       }).setDepth(152).setScrollFactor(0));
 
       if (equip) {
         push(this.add.text(popX + 60, rowY, equip.displayName || equip.name, {
-          fontSize: '12px', color: '#ffdd88', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2,
+          fontSize: '13px', color: '#ffdd88', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2,
         }).setDepth(152).setScrollFactor(0));
         const stats = [];
         if (equip.atk)   stats.push(`ATK+${equip.atk}`);
         if (equip.hp)    stats.push(`HP+${equip.hp}`);
         if (equip.speed) stats.push(`SPD+${equip.speed}`);
         push(this.add.text(popX + 60, rowY + 16, stats.join(' '), {
-          fontSize: '9px', color: '#88ff88', fontFamily: 'Arial',
+          fontSize: '11px', color: '#88ff88', fontFamily: 'Arial',
         }).setDepth(152).setScrollFactor(0));
       } else {
         push(this.add.text(popX + 60, rowY + 8, '（未裝備）', {
-          fontSize: '11px', color: '#555555', fontFamily: 'Arial',
+          fontSize: '12px', color: '#9a8f78', fontFamily: 'Arial',
         }).setDepth(152).setScrollFactor(0));
       }
     });
@@ -1300,16 +1615,16 @@ export class UIScene extends Phaser.Scene {
       const slotIdx = gs && Array.isArray(gs.skillSlots) ? gs.skillSlots.indexOf(key) : -1;
       const keyLabel = slotIdx >= 0 ? `${SKILL_SLOT_KEYS[slotIdx]} 欄` : '未裝備';
       push(this.add.text(popX + 14, rowY, `[${keyLabel}] ${def.name}`, {
-        fontSize: '12px', color: unlocked ? '#88ffcc' : '#666666', fontFamily: 'Arial',
+        fontSize: '13px', color: unlocked ? '#88ffcc' : '#9a8f78', fontFamily: 'Arial',
         stroke: '#000', strokeThickness: 2,
       }).setDepth(152).setScrollFactor(0));
       if (unlocked) {
         push(this.add.text(popX + 152, rowY, `Lv.${lv}/${maxLv}`, {
-          fontSize: '11px', color: '#ffdd66', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2,
+          fontSize: '12px', color: '#ffdd66', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2,
         }).setDepth(152).setScrollFactor(0));
       }
       push(this.add.text(popX + 14, rowY + 16, `解鎖Lv.${def.unlockLevel}  CD:${def.cooldown}s  MP:${def.mpCost}`, {
-        fontSize: '9px', color: '#888888', fontFamily: 'Arial',
+        fontSize: '11px', color: '#cfc2a4', fontFamily: 'Arial',
       }).setDepth(152).setScrollFactor(0));
 
       // 沒裝備的技能：可換入指定欄位（5 個技能全部解鎖後才開放）
@@ -1327,7 +1642,7 @@ export class UIScene extends Phaser.Scene {
         };
         drawEq(false);
         push(this.add.text(eqX + eqW / 2, eqY + eqH / 2, '換入', {
-          fontSize: '11px', color: '#ffffff', fontFamily: 'Arial',
+          fontSize: '12px', color: '#ffffff', fontFamily: 'Arial',
         }).setOrigin(0.5).setDepth(153).setScrollFactor(0));
         const eqZone = push(this.add.zone(eqX, eqY, eqW, eqH).setOrigin(0, 0).setInteractive({ useHandCursor: true }).setDepth(154).setScrollFactor(0));
         eqZone.on('pointerover', () => drawEq(true));
@@ -1338,11 +1653,11 @@ export class UIScene extends Phaser.Scene {
       // 右側：升級按鈕 / 狀態
       if (!unlocked) {
         push(this.add.text(popX + popW - 14, rowY + 8, `需要 Lv.${def.unlockLevel}`, {
-          fontSize: '10px', color: '#ff8844', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2,
+          fontSize: '12px', color: '#ff8844', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2,
         }).setOrigin(1, 0.5).setDepth(152).setScrollFactor(0));
       } else if (lv >= maxLv) {
         push(this.add.text(popX + popW - 14, rowY + 8, '已滿級', {
-          fontSize: '10px', color: '#44ff88', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2,
+          fontSize: '12px', color: '#44ff88', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2,
         }).setOrigin(1, 0.5).setDepth(152).setScrollFactor(0));
       } else {
         const canUp = (gs ? (gs.skillPoints || 0) : 0) > 0;
@@ -1359,7 +1674,7 @@ export class UIScene extends Phaser.Scene {
         };
         drawBtn(false);
         push(this.add.text(btnX + btnW / 2, btnY + btnH / 2, '+', {
-          fontSize: '16px', color: canUp ? '#ffffff' : '#666666', fontFamily: 'Arial',
+          fontSize: '17px', color: canUp ? '#ffffff' : '#9a8f78', fontFamily: 'Arial',
         }).setOrigin(0.5, 0.5).setDepth(153).setScrollFactor(0));
         if (canUp) {
           const zone = push(this.add.zone(btnX, btnY, btnW, btnH)
@@ -1377,7 +1692,7 @@ export class UIScene extends Phaser.Scene {
     if (pick) {
       // 選擇要換掉哪一欄
       push(this.add.text(popX + 14, footY + 29, `把 ${job.skills[pick].name} 換進：`, {
-        fontSize: '10px', color: '#ffd27a', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2,
+        fontSize: '12px', color: '#ffd27a', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2,
       }).setOrigin(0, 0.5).setDepth(152).setScrollFactor(0));
       SKILL_SLOT_KEYS.forEach((slotKey, i) => {
         const bw = 52, bh = 20;
@@ -1391,7 +1706,7 @@ export class UIScene extends Phaser.Scene {
         };
         draw(false);
         push(this.add.text(bx + bw / 2, by + bh / 2, `${slotKey} ${job.skills[skillForSlot(gs, slotKey)].name.slice(0, 2)}`, {
-          fontSize: '10px', color: '#ffffff', fontFamily: 'Arial',
+          fontSize: '12px', color: '#ffffff', fontFamily: 'Arial',
         }).setOrigin(0.5).setDepth(153).setScrollFactor(0));
         const z = push(this.add.zone(bx, by, bw, bh).setOrigin(0, 0).setInteractive({ useHandCursor: true }).setDepth(154).setScrollFactor(0));
         z.on('pointerover', () => draw(true));
@@ -1401,15 +1716,15 @@ export class UIScene extends Phaser.Scene {
     } else push(this.add.text(popX + 14, footY + 14, canReorderSkills(gs)
       ? '拖曳畫面下方的技能圖示可互換；沒裝備的技能按「換入」'
       : `技能解鎖超過 4 個後，可自由挑 4 個放進技能欄`, {
-      fontSize: '9px', color: '#aaccff', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2,
+      fontSize: '11px', color: '#aaccff', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2,
     }).setDepth(152).setScrollFactor(0));
     push(this.add.text(popX + 14, footY, `可用 SP：${sp}　點 [+] 花 1 點提升技能傷害`, {
-      fontSize: '10px', color: sp > 0 ? '#ffff44' : '#888855', fontFamily: 'Arial',
+      fontSize: '12px', color: sp > 0 ? '#ffff44' : '#bdb27a', fontFamily: 'Arial',
       stroke: '#000', strokeThickness: 2,
     }).setDepth(152).setScrollFactor(0));
     if (job.passive) {
       push(this.add.text(popX + 14, footY + 46, `被動：${job.passive.name}　${job.passive.desc}`, {
-        fontSize: '10px', color: '#ffcf8a', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2,
+        fontSize: '12px', color: '#ffcf8a', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2,
       }).setDepth(152).setScrollFactor(0));
     }
   }
@@ -1436,43 +1751,21 @@ export class UIScene extends Phaser.Scene {
     const currentMap = gs ? gs.currentMap : '';
     const map = MAPS[currentMap];
     push(this.add.text(popX + 14, contentY, `目前地圖：${map ? map.name : '未知'}${map && map.levelBand ? `（Lv.${map.levelBand[0]}-${map.levelBand[1]}）` : ''}`, {
-      fontSize: '13px', color: '#aaddff', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2,
+      fontSize: '14px', color: '#aaddff', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2,
     }).setDepth(152).setScrollFactor(0));
     push(this.add.text(popX + 14, contentY + 28, '傳送門：', {
-      fontSize: '12px', color: '#ffee88', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2,
+      fontSize: '13px', color: '#ffee88', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2,
     }).setDepth(152).setScrollFactor(0));
     // 由地圖資料產生（不另外維護一份文字，避免和實際傳送門脫節）
     const portals = map ? map.portals.map((p) => `${p.label}${p.requireBoss ? '（5/5 碎片後開啟）' : ''}`) : [];
     if (currentMap === 'boss') portals.push('擊敗暗影魔君即可獲勝');
     (portals.length ? portals : ['暫無傳送門資訊']).slice(0, 5).forEach((p, i) => {
       push(this.add.text(popX + 24, contentY + 50 + i * 22, p, {
-        fontSize: '11px', color: '#88ccff', fontFamily: 'Arial',
+        fontSize: '12px', color: '#88ccff', fontFamily: 'Arial',
       }).setDepth(152).setScrollFactor(0));
     });
     push(this.add.text(popX + 14, contentY + 168, `星光碎片：${gs ? shardCount(gs) : 0} / ${SHARD_COUNT}　擊殺數：${gs ? (gs.killCount || 0) : 0}`, {
-      fontSize: '11px', color: '#ffee88', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2,
+      fontSize: '12px', color: '#ffee88', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2,
     }).setDepth(152).setScrollFactor(0));
-  }
-
-  // ── 設定彈出 ────────────────────────────────────────────────────────────
-  _buildSettingsPopup(push, popX, contentY, popW) {
-    const lines = [
-      { label: '移動',           key: '← →' },
-      { label: '跳躍（可雙跳）',  key: 'Alt / ↑' },
-      { label: '落下/穿越平台',   key: '↓' },
-      { label: '技能',           key: 'Z X C V B' },
-      { label: '藥水',           key: 'A S D R G' },
-      { label: 'NPC 對話',       key: 'F' },
-      { label: '關閉選單',       key: 'ESC' },
-    ];
-    lines.forEach((line, i) => {
-      const rowY = contentY + i * 32;
-      push(this.add.text(popX + 14, rowY, line.label, {
-        fontSize: '11px', color: '#aaddee', fontFamily: 'Arial',
-      }).setDepth(152).setScrollFactor(0));
-      push(this.add.text(popX + popW - 14, rowY, line.key, {
-        fontSize: '11px', color: '#ffee44', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2,
-      }).setOrigin(1, 0).setDepth(152).setScrollFactor(0));
-    });
   }
 }

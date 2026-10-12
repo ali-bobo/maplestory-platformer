@@ -109,6 +109,16 @@ function removeAnimsOf(scene, key) {
   for (const k of stale) scene.anims.remove(k);
 }
 
+// 還掛著被移除紋理的物件（例如刺客斷命印記的循環圖示）下一幀渲染會讀到空的 glTexture 而丟例外，
+// 整個遊戲迴圈就停了；先把它們銷毀（換職業時舊職業特效可能還活著）
+function destroyUsersOf(scene, keys) {
+  const list = scene.children && scene.children.list;
+  if (!list || !keys.size) return;
+  for (const o of list.slice()) {
+    if (o.texture && keys.has(o.texture.key) && o.active !== false) o.destroy();
+  }
+}
+
 function removeTexture(scene, key) {
   if (!scene.textures.exists(key)) return false;
   removeAnimsOf(scene, key);   // 動畫的影格參照著舊的 Frame；紋理之後重載時動畫要重建
@@ -118,12 +128,14 @@ function removeTexture(scene, key) {
 
 // 移除所有 map / job 範圍、已載入、且不在 keep 內的素材。回傳移除的 key 數量
 export function releaseExcept(scene, keep) {
-  let n = 0;
+  const keys = new Set();
   for (const a of ALL_ASSETS) {
     if (!releasable(a) || keep.has(a.key)) continue;
-    if (removeTexture(scene, a.key)) n++;
-    if (removeTexture(scene, a.key + SOLID_SUFFIX)) n++;
-    if (a.kind === 'platform') for (const s of PLATFORM_SLICES) if (removeTexture(scene, a.key + s)) n++;
+    keys.add(a.key); keys.add(a.key + SOLID_SUFFIX);
+    if (a.kind === 'platform') for (const s of PLATFORM_SLICES) keys.add(a.key + s);
   }
+  destroyUsersOf(scene, new Set([...keys].filter((k) => scene.textures.exists(k))));
+  let n = 0;
+  for (const k of keys) if (removeTexture(scene, k)) n++;
   return n;
 }
