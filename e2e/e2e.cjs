@@ -60,31 +60,50 @@ const check = (name, cond, extra='') => { log((cond ? 'PASS' : 'FAIL') + ' - ' +
   check('藥水與任務進度保留', data.state.potions.A === 9 && data.state.quests.active[0].progress === 3);
   await page.screenshot({ path: SP + '/game-ruins.png' });
 
-  // 3. 匯出（以進行中的存檔重新回到選單）
+  // 3. 匯出：改成存檔代碼視窗（可複製的文字）；本機下載是次要按鈕
   await seed(JSON.stringify(seeded));
+  await page.mouse.click(550, 676);   // 匯出存檔
+  await page.waitForSelector('.sd-text', { timeout: 5000 });
+  const code = await page.inputValue('.sd-text');
+  const decodeCode = (c) => { const parts = c.split(':'); return JSON.parse(Buffer.from(parts[2], 'base64url').toString('utf8')); };
+  const exported = decodeCode(code);
+  check('匯出的存檔代碼可解碼、內容與存檔一致', code.startsWith('TL1:') && exported.format === 'thief-legend-save' && exported.state.level === 12 && exported.state.currentMap === 'ruins', code.slice(0, 24));
+  await page.screenshot({ path: SP + '/menu-export-code.png' });
   const [dl] = await Promise.all([
     page.waitForEvent('download', { timeout: 5000 }),
-    page.mouse.click(550, 676),   // 匯出存檔
+    page.click('text=下載檔案'),
   ]);
   const dlPath = SP + '/exported.json';
   await dl.saveAs(dlPath);
-  const exported = JSON.parse(fs.readFileSync(dlPath, 'utf8'));
-  check('匯出檔案為合法存檔且內容一致', exported.format === 'thief-legend-save' && exported.state.level === 12 && exported.state.currentMap === 'ruins', dl.suggestedFilename());
+  const exportedFile = JSON.parse(fs.readFileSync(dlPath, 'utf8'));
+  check('可以下載的環境：下載檔案仍是合法存檔', exportedFile.format === 'thief-legend-save' && exportedFile.state.level === 12, dl.suggestedFilename());
+  await page.click('text=關閉');
+  check('關閉後視窗消失', (await page.$('.sd-backdrop')) === null);
 
-  // 4. 匯入惡意 / 壞檔 → 拒絕且不覆蓋原存檔；匯入好檔 → 覆蓋
+  // 4. 匯入惡意 / 壞檔 → 拒絕且不覆蓋原存檔；匯入好檔 → 確認覆蓋後覆蓋
   const before = await readSave();
+  const importFile = async (file) => {
+    await page.mouse.click(730, 676);   // 匯入存檔
+    await page.waitForSelector('.sd-text', { timeout: 5000 });
+    const [fc] = await Promise.all([page.waitForEvent('filechooser', { timeout: 8000 }), page.click('text=選擇檔案')]);
+    await fc.setFiles(file);
+    await page.waitForTimeout(700);
+  };
   fs.writeFileSync(SP + '/bad.json', '{"hello":"world"}');
-  let [fc] = await Promise.all([page.waitForEvent('filechooser', { timeout: 8000 }), (async () => { await page.mouse.move(730, 676); await page.waitForTimeout(400); await page.mouse.click(730, 676); })()]);
-  await fc.setFiles(SP + '/bad.json');
-  await page.waitForTimeout(800);
+  await importFile(SP + '/bad.json');
   await page.screenshot({ path: SP + '/menu-import-bad.png' });
-  check('壞檔匯入被拒絕、原存檔不變', (await readSave()) === before);
+  check('壞檔匯入被拒絕並顯示原因', /匯入失敗/.test(await page.textContent('.sd-status')));
+  check('壞檔匯入後原存檔不變', (await readSave()) === before);
+  await page.click('text=取消');
 
   const evil = { format: 'thief-legend-save', version: 1, state: { level: 9999, meso: -5, currentMap: 'boss', maxHp: 'x',
     equipment: { weapon: { slot: 'boots', rarity: 'godlike', atk: 1e12 } }, __proto__: { polluted: 1 } } };
   fs.writeFileSync(SP + '/evil.json', JSON.stringify(evil));
-  [fc] = await Promise.all([page.waitForEvent('filechooser'), (async () => { await page.mouse.move(730, 676); await page.waitForTimeout(400); await page.mouse.click(730, 676); })()]);
-  await fc.setFiles(SP + '/evil.json');
+  await importFile(SP + '/evil.json');
+  check('已有存檔時匯入會先要求覆蓋確認（顯示新舊摘要）', /覆蓋/.test(await page.textContent('.sd-title')) && /Lv\.12/.test(await page.inputValue('.sd-text')));
+  check('確認前存檔還沒被動到', (await readSave()) === before);
+  await page.screenshot({ path: SP + '/menu-import-confirm.png' });
+  await page.click('text=確定覆蓋');
   await page.waitForTimeout(1500);
   data = JSON.parse(await readSave());
   check('惡意數值匯入後被修正', data.state.level === 50 && data.state.meso === 0 && data.state.currentMap === 'castle'

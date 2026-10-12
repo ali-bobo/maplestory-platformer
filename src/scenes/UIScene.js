@@ -8,7 +8,8 @@ import { screenFlash } from '../engine/vfx.js';
 import { POTION_ICON_KEYS } from '../config/assetCatalog.js';
 import { ensureSkillIcons, skillIconKey } from '../assets/skillIcons.js';
 import { addParchmentPanel, addWoodButton } from '../engine/woodUi.js';
-import { saveGame } from '../engine/saveGame.js';
+import { saveGame, getSaveStatus } from '../engine/saveGame.js';
+import { openSaveDialog, closeSaveDialog, isSaveDialogOpen } from '../ui/saveDialog.js';
 import { SHARD_COUNT, SHARD_IDS, SHARD_TEXTURE } from '../config/shards.js';
 import { hasShard, shardCount } from '../engine/shards.js';
 import { audio } from '../engine/audio.js';
@@ -136,6 +137,7 @@ export class UIScene extends Phaser.Scene {
         if (_uiTick % 2  === 0) this._refreshPotionSlots(); // 200ms：藥水數量
         if (_uiTick % 2  === 0) this._updateMinimap();      // 200ms：小地圖動態點
         if (_uiTick % 5  === 0) this._refreshQuestPanel();  // 500ms：任務面板
+        if (_uiTick % 5  === 0) this._refreshSaveIndicator(); // 500ms：「未存檔」提示
         if (_uiTick % 10 === 0) this._monitorFps();         // 1000ms：FPS 品質監測
       },
     }));
@@ -158,6 +160,15 @@ export class UIScene extends Phaser.Scene {
 
     // 聲音開關（右上、小地圖左側）：手機與電腦都能點
     this._soundBtn = addSoundButton(this, width - 196, 28, { depth: 120, size: 40 });
+
+    // 「未存檔」提示：存不進 localStorage（隱私模式、內嵌頁面）時常駐顯示，點它開存檔代碼
+    this._unsavedBtn = this.add.text(width / 2, 40, '未存檔　點此複製存檔代碼', {
+      fontSize: '14px', color: '#ffffff', fontFamily: 'Arial', fontStyle: 'bold',
+      backgroundColor: '#a63a2a', padding: { x: 10, y: 4 },
+    }).setOrigin(0.5, 0).setDepth(125).setScrollFactor(0).setVisible(false)
+      .setInteractive({ useHandCursor: true });
+    this._unsavedBtn.on('pointerdown', () => this._openSaveCode());
+    this._refreshSaveIndicator();
 
     // 世界地圖：右上角「地圖」鈕（聲音鈕左邊，不蓋到小地圖與任務面板），按 M 也能開關
     this._worldMap = new WorldMapOverlay(this);
@@ -924,7 +935,32 @@ export class UIScene extends Phaser.Scene {
     this._dungeonResultObjs = objs;
   }
 
+  _refreshSaveIndicator() {
+    if (!this._unsavedBtn || !this._unsavedBtn.active) return;
+    const unsaved = getSaveStatus().unsaved;
+    if (unsaved !== this._unsavedBtn.visible) this._unsavedBtn.setVisible(unsaved);
+  }
+
+  // 存檔代碼視窗（DOM）：開著時暫停地圖場景，免得玩家在複製的時候被怪打
+  _openSaveCode() {
+    if (isSaveDialogOpen()) return;
+    let resumeKey = null;
+    if (!this._isPaused) {
+      resumeKey = this._getCurrentMapSceneKey();
+      if (resumeKey) this.scene.pause(resumeKey);
+    }
+    // 先把目前進度寫進存檔（副本 / Boss 中 saveGame 會略過，代碼本身仍會依規則回退到安全地圖）
+    const gs = this.registry.get('gameState');
+    saveGame(gs);
+    openSaveDialog({
+      mode: 'export',
+      gs,
+      onClose: () => { if (resumeKey && !this._isPaused) this.scene.resume(resumeKey); },
+    });
+  }
+
   _onShutdown() {
+    closeSaveDialog();
     this._closePopup();
     if (this._worldMap) this._worldMap.destroy();
     if (this._onUiMapKey) { this.input.keyboard.off('keydown-M', this._onUiMapKey); this._onUiMapKey = null; }
@@ -1093,7 +1129,7 @@ export class UIScene extends Phaser.Scene {
     push(this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.6)
       .setDepth(190).setScrollFactor(0));
 
-    push(addParchmentPanel(this, width / 2 - 150, height / 2 - 120, 300, 362, { depth: 192 }));
+    push(addParchmentPanel(this, width / 2 - 150, height / 2 - 120, 300, 418, { depth: 192 }));
 
     // 標題
     push(this.add.text(width / 2, height / 2 - 72, '遊戲暫停', {
@@ -1118,7 +1154,10 @@ export class UIScene extends Phaser.Scene {
       this.scene.launch('TutorialScene', { mode: 'overlay' });
     }, { depth: 195, fontSize: 18 }).objects.forEach(push);
 
-    addWoodButton(this, width / 2, height / 2 + 172, 190, 42, '存檔並回主選單', () => {
+    addWoodButton(this, width / 2, height / 2 + 172, 190, 42, '存檔代碼', () => this._openSaveCode(),
+      { depth: 195, fontSize: 18 }).objects.forEach(push);
+
+    addWoodButton(this, width / 2, height / 2 + 228, 190, 42, '存檔並回主選單', () => {
       saveGame(this.registry.get('gameState'));
       this._isPaused = false;
       for (const obj of this._pauseOverlayObjs) { if (obj?.active) obj.destroy(); }

@@ -18,7 +18,7 @@ import {
 import { SHARD_IDS } from '../config/shards.js';
 import { MAPS } from '../config/maps.js';
 import { EQUIPMENT_SLOTS, EQUIPMENT_BASES, RARITIES } from '../config/equipment.js';
-import { getQuestDef } from '../config/quests.js';
+import { getQuestDef, QUESTS } from '../config/quests.js';
 import { pathBetween } from './worldGraph.js';
 
 export const SAVE_FORMAT = 'thief-legend-save';
@@ -98,13 +98,18 @@ function sanitizeVisited(raw, currentMap) {
   return Object.keys(MAPS).filter((k) => out.has(k));   // 依地圖表順序，輸出穩定
 }
 
+// 任務 id 必須是 QUESTS 自己的鍵（'__proto__'、'constructor' 之類沿原型鏈取得的東西不算）
+function knownQuest(id) {
+  return typeof id === 'string' && Object.prototype.hasOwnProperty.call(QUESTS, id) ? getQuestDef(id) : null;
+}
+
 function sanitizeQuests(raw) {
   const out = { active: [], completed: [] };
   if (!isPlainObject(raw)) return out;
   const seen = new Set();
   if (Array.isArray(raw.completed)) {
     for (const id of raw.completed) {
-      if (typeof id === 'string' && getQuestDef(id) && !seen.has(id)) {
+      if (knownQuest(id) && !seen.has(id)) {
         seen.add(id);
         out.completed.push(id);
       }
@@ -113,7 +118,7 @@ function sanitizeQuests(raw) {
   if (Array.isArray(raw.active)) {
     for (const q of raw.active) {
       if (!isPlainObject(q) || typeof q.id !== 'string') continue;
-      const def = getQuestDef(q.id);
+      const def = knownQuest(q.id);
       if (!def || seen.has(q.id)) continue;
       seen.add(q.id);
       out.active.push({ id: q.id, progress: int(q.progress, 0, def.type === 'reach' ? 1 : (def.count || 9999), 0) });
@@ -194,6 +199,9 @@ export function sanitizeState(raw) {
   // 解鎖的技能還沒多過欄位數時不允許自訂（避免拿舊檔 / 改檔提前調整）
   gs.skillSlots = validSlots && unlocked.size > SKILL_SLOT_KEYS.length ? [...slots] : [...job.defaultSlots];
 
+  // 死亡警告看過了沒（每個存檔只提示一次）；不屬於 createInitialGameState，只有為 true 時才存在
+  if (raw.deathWarned === true) gs.deathWarned = true;
+
   gs.currentMap = sanitizeMap(raw.currentMap);
   gs.spawnX = MAPS[gs.currentMap].spawnX ?? gs.spawnX;
   gs.visitedMaps = sanitizeVisited(raw.visitedMaps, gs.currentMap);
@@ -251,19 +259,37 @@ export function getBrowserStorage() {
 }
 
 // 以注入的 storage（具 getItem / setItem / removeItem）建立存檔操作。
-export function createSaveStore(storage) {
+// options.memory = true：storage 不可用（隱私模式、iframe 沙箱）或寫入失敗時，把最新存檔留在記憶體裡，
+// 同一個分頁內「繼續遊戲」、匯出存檔代碼仍然有效；但 save() 仍回傳 false、status().unsaved 為 true，
+// 讓畫面能誠實顯示「未存檔」。
+export function createSaveStore(storage, options = {}) {
+  const useMemory = options.memory === true;
+  let memory = null;      // 最新一次寫入的文字（只在 useMemory 時保留）
+  let lastWriteOk = true; // 最近一次寫入 storage 是否成功
+  const fromMemory = () => useMemory && (!storage || !lastWriteOk) && memory !== null;
   return {
     available: !!storage,
+    // 目前存檔是否真的寫進持久儲存：沒有 storage，或最近一次寫入失敗，都算「未存檔」
+    status() {
+      const persistent = !!storage;
+      return { persistent, ok: persistent && lastWriteOk, unsaved: !persistent || !lastWriteOk };
+    },
     save(gs, now) {
+      let text;
+      try { text = serializeSave(gs, now); } catch (_) { return false; }
+      if (useMemory) memory = text;
       if (!storage) return false;
       try {
-        storage.setItem(SAVE_KEY, serializeSave(gs, now));
+        storage.setItem(SAVE_KEY, text);
+        lastWriteOk = true;
         return true;
       } catch (_) {
+        lastWriteOk = false;
         return false;   // 容量滿或被封鎖：靜默失敗，不中斷遊戲
       }
     },
     load() {
+      if (fromMemory()) return parseSave(memory);
       if (!storage) return { ok: false, error: '瀏覽器不支援本機存檔' };
       let text;
       try {
@@ -275,6 +301,7 @@ export function createSaveStore(storage) {
       return parseSave(text);
     },
     has() {
+      if (fromMemory()) return true;
       if (!storage) return false;
       try {
         return storage.getItem(SAVE_KEY) !== null;
@@ -283,8 +310,128 @@ export function createSaveStore(storage) {
       }
     },
     clear() {
+      memory = null;
       if (!storage) return;
       try { storage.removeItem(SAVE_KEY); } catch (_) { /* 靜默 */ }
     },
   };
+}
+
+// ── 存檔代碼（可複製貼上的文字，取代檔案下載）────────────────────────────────────
+// 格式：TL1:<8 位 16 進位檢查碼>:<base64url(UTF-8 JSON)>。檢查碼只防手滑（少複製一截、貼錯），不是防作弊。
+// 內容就是存檔 JSON（裝備只留稀有度與數值以縮短長度），解碼後一律走 parseSave → sanitizeState，
+// 與匯入檔案同一套驗證，所以代碼內容同樣視為不可信輸入。
+export const CODE_PREFIX = 'TL1';
+// 解碼後的 JSON 不得超過 MAX_SAVE_BYTES；base64 約膨脹 4/3，再留一點前綴空間
+export const MAX_CODE_CHARS = Math.ceil((MAX_SAVE_BYTES * 4) / 3) + 64;
+
+const B64_URL = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
+const B64_INDEX = (() => {
+  const t = new Int16Array(128).fill(-1);
+  for (let i = 0; i < B64_URL.length; i++) t[B64_URL.charCodeAt(i)] = i;
+  return t;
+})();
+
+export function bytesToBase64Url(bytes) {
+  let out = '';
+  for (let i = 0; i < bytes.length; i += 3) {
+    const b0 = bytes[i];
+    const b1 = i + 1 < bytes.length ? bytes[i + 1] : 0;
+    const b2 = i + 2 < bytes.length ? bytes[i + 2] : 0;
+    out += B64_URL[b0 >> 2] + B64_URL[((b0 & 3) << 4) | (b1 >> 4)];
+    if (i + 1 < bytes.length) out += B64_URL[((b1 & 15) << 2) | (b2 >> 6)];
+    if (i + 2 < bytes.length) out += B64_URL[b2 & 63];
+  }
+  return out;
+}
+
+// 解 base64url（不含填充 =）；格式不對回傳 null
+export function base64UrlToBytes(str) {
+  if (typeof str !== 'string' || str.length === 0 || str.length % 4 === 1) return null;
+  const vals = new Array(str.length);
+  for (let i = 0; i < str.length; i++) {
+    const c = str.charCodeAt(i);
+    const v = c < 128 ? B64_INDEX[c] : -1;
+    if (v < 0) return null;
+    vals[i] = v;
+  }
+  const out = new Uint8Array(Math.floor((str.length * 3) / 4));
+  let o = 0;
+  for (let i = 0; i < vals.length; i += 4) {
+    const v0 = vals[i];
+    const v1 = vals[i + 1];
+    const v2 = i + 2 < vals.length ? vals[i + 2] : 0;
+    const v3 = i + 3 < vals.length ? vals[i + 3] : 0;
+    out[o++] = (v0 << 2) | (v1 >> 4);
+    if (i + 2 < vals.length) out[o++] = ((v1 & 15) << 4) | (v2 >> 2);
+    if (i + 3 < vals.length) out[o++] = ((v2 & 3) << 6) | v3;
+  }
+  return out;
+}
+
+// FNV-1a 32 位元，輸出 8 位小寫 16 進位
+export function codeChecksum(str) {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  return h.toString(16).padStart(8, '0');
+}
+
+// 代碼裡的裝備只留稀有度與四項數值（名稱、圖示等衍生欄位讀入時由 sanitizeEquipment 重建）
+function compactStateForCode(state) {
+  const out = { ...state, equipment: {} };
+  for (const slot of EQUIPMENT_SLOTS) {
+    const e = state.equipment && state.equipment[slot];
+    out.equipment[slot] = e ? { rarity: e.rarity, atk: e.atk, hp: e.hp, mp: e.mp, speed: e.speed } : null;
+  }
+  return out;
+}
+
+export function encodeSaveCode(gs, now = Date.now()) {
+  const state = compactStateForCode(sanitizeState(gs));
+  const json = JSON.stringify({ format: SAVE_FORMAT, version: SAVE_VERSION, savedAt: now, state });
+  const payload = bytesToBase64Url(new TextEncoder().encode(json));
+  return `${CODE_PREFIX}:${codeChecksum(payload)}:${payload}`;
+}
+
+// 解碼存檔代碼。成功回傳 { ok: true, state, savedAt }，失敗 { ok: false, error }。
+// 也接受直接貼上存檔檔案的 JSON 內容（以 { 開頭）。
+export function decodeSaveCode(input) {
+  if (typeof input !== 'string') return { ok: false, error: '請貼上存檔代碼' };
+  if (input.length > MAX_CODE_CHARS + 4096) return { ok: false, error: '存檔代碼過長，不是本遊戲的存檔' };
+  // 貼上時常夾帶換行、空白、全形空白、零寬字元、前後引號
+  let text = input.replace(/[\s​-‍﻿　]+/g, '');
+  text = text.replace(/^["'「『`]+|["'」』`]+$/g, '');
+  if (text.length === 0) return { ok: false, error: '請貼上存檔代碼' };
+  if (text.startsWith('{')) return parseSave(input.trim());
+  if (text.length > MAX_CODE_CHARS) return { ok: false, error: '存檔代碼過長，不是本遊戲的存檔' };
+  const parts = text.split(':');
+  if (parts.length !== 3) return { ok: false, error: '存檔代碼格式不對（應為 TL1:檢查碼:內容）' };
+  const [prefix, sum, payload] = parts;
+  if (prefix !== CODE_PREFIX) {
+    return { ok: false, error: /^TL\d+$/.test(prefix) ? '存檔代碼版本不符，請更新遊戲後再試' : '不是本遊戲的存檔代碼' };
+  }
+  if (codeChecksum(payload) !== sum.toLowerCase()) {
+    return { ok: false, error: '檢查碼不符：代碼可能少複製了一段或被改過' };
+  }
+  const bytes = base64UrlToBytes(payload);
+  if (!bytes) return { ok: false, error: '存檔代碼含有無法辨識的字元' };
+  if (bytes.length > MAX_SAVE_BYTES) return { ok: false, error: '存檔內容過大' };
+  let json;
+  try {
+    json = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+  } catch (_) {
+    return { ok: false, error: '存檔代碼內容損毀' };
+  }
+  return parseSave(json);
+}
+
+// 一行存檔摘要（匯入覆蓋確認用）：「Lv.20 · 晨曦鎮 · 擊殺 120」
+export function describeSave(state) {
+  if (!state) return '';
+  const mapName = (MAPS[state.currentMap] && MAPS[state.currentMap].name) || '晨曦鎮';
+  const job = JOBS[state.job] && state.job !== DEFAULT_JOB ? `${JOBS[state.job].name} ` : '';
+  return `${job}Lv.${state.level} · ${mapName} · 擊殺 ${state.killCount || 0}`;
 }
