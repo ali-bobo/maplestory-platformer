@@ -17,6 +17,9 @@ import { addSoundButton } from '../engine/soundButton.js';
 import { WorldMapOverlay } from '../ui/WorldMapOverlay.js';
 import { buildSettingsWindow } from '../ui/settingsWindow.js';
 import { settings } from '../engine/settings.js';
+import { countEquipment } from '../engine/death.js';
+import { keyHint } from '../engine/device.js';
+import { shouldWarnDeath, isLowHp } from '../engine/danger.js';
 
 // HUD 場景（平行運行）— 橫向捲軸風格底部狀態列
 // 盜賊技能在技能欄的簡稱（格子寬度有限）；其他技能直接用全名
@@ -31,6 +34,10 @@ export class UIScene extends Phaser.Scene {
     this._gs = null;
     this._popup = null;
     this._timers = [];
+    this._lowHp = false;
+    this._vignette = null;
+    this._lowHpTween = null;
+    this._deathNotice = null;
     const { width, height } = this.cameras.main;
 
     // ── 底部狀態列面板（木質底板：角色資訊 + 技能/藥水 + 功能按鈕）──────────
@@ -171,6 +178,9 @@ export class UIScene extends Phaser.Scene {
       .setInteractive({ useHandCursor: true });
     this._unsavedBtn.on('pointerdown', () => this._openSaveCode());
     this._refreshSaveIndicator();
+
+    // 設定改變（減少動態）時，低血量暈影立刻跟著換成脈動 / 固定
+    this._unsubSettings = settings.subscribe(() => { if (this._lowHp) this._applyLowHpVisual(); });
 
     // 世界地圖：右上角「地圖」鈕（聲音鈕左邊，不蓋到小地圖與任務面板），按 M 也能開關
     this._worldMap = new WorldMapOverlay(this);
@@ -962,6 +972,10 @@ export class UIScene extends Phaser.Scene {
   }
 
   _onShutdown() {
+    if (this._unsubSettings) { this._unsubSettings(); this._unsubSettings = null; }
+    this._lowHpTween = null;
+    this._vignette = null;
+    this._lowHp = false;
     closeSaveDialog();
     this._closePopup();
     if (this._worldMap) this._worldMap.destroy();
@@ -1016,6 +1030,7 @@ export class UIScene extends Phaser.Scene {
     this._spText.setText(`SP: ${gs.skillPoints || 0}`);
     this._mesoText.setText(`💰 ${gs.meso}`);
     this._onShardChange();
+    this._updateDanger(gs, gs.hp);
   }
 
   _updateBar(barObj, current, max) {
@@ -1031,6 +1046,75 @@ export class UIScene extends Phaser.Scene {
     const gs = this.registry.get('gameState');
     this._updateBar(this._hpBar, value, gs.maxHp);
     this._hpNum.setText(`${Math.ceil(value)}/${gs.maxHp}`);
+    this._updateDanger(gs, value);
+  }
+
+  // ── 危險狀態：HP 低於 25% 的紅色邊緣暈影（呼吸），首次 HP 低於 30% 提醒「倒下會失去裝備」 ──
+  _updateDanger(gs, hp) {
+    const low = isLowHp(hp, gs.maxHp);
+    if (low !== this._lowHp) {
+      this._lowHp = low;
+      this._applyLowHpVisual();
+    }
+    if (shouldWarnDeath(gs, hp, countEquipment(gs))) {
+      gs.deathWarned = true;     // 每個存檔只提醒一次（寫進存檔）
+      saveGame(gs);
+      this._showDeathNotice();
+    }
+  }
+
+  _ensureVignette() {
+    if (this._vignette && this._vignette.active) return this._vignette;
+    const key = 'hud_lowhp_vignette';
+    if (!this.textures.exists(key)) {
+      const w = 640, h = 360;
+      const tex = this.textures.createCanvas(key, w, h);
+      const ctx = tex.getContext();
+      ctx.translate(w / 2, h / 2);
+      ctx.scale(1, h / w);   // 把圓形漸層壓成橢圓，四邊都會紅
+      const g = ctx.createRadialGradient(0, 0, w * 0.3, 0, 0, w * 0.62);
+      g.addColorStop(0, 'rgba(190,0,0,0)');
+      g.addColorStop(1, 'rgba(190,0,0,0.85)');
+      ctx.fillStyle = g;
+      ctx.fillRect(-w / 2, -w / 2, w, w);
+      tex.refresh();
+    }
+    const { width, height } = this.cameras.main;
+    this._vignette = this.add.image(0, 0, key).setOrigin(0, 0).setDisplaySize(width, height)
+      .setDepth(45).setScrollFactor(0).setVisible(false);
+    return this._vignette;
+  }
+
+  _applyLowHpVisual() {
+    if (!this._lowHp) {
+      if (this._lowHpTween) { this._lowHpTween.remove(); this._lowHpTween = null; }
+      if (this._vignette && this._vignette.active) this._vignette.setVisible(false);
+      return;
+    }
+    const v = this._ensureVignette();
+    v.setVisible(true);
+    if (!settings.motionAllowed()) {   // 減少動態：不脈動，固定亮度
+      if (this._lowHpTween) { this._lowHpTween.remove(); this._lowHpTween = null; }
+      v.setAlpha(0.7);
+    } else if (!this._lowHpTween) {
+      v.setAlpha(0.45);
+      this._lowHpTween = this.tweens.add({
+        targets: v, alpha: 0.95, duration: 600, yoyo: true, repeat: -1, ease: 'Sine.easeInOut',
+      });
+    }
+  }
+
+  _showDeathNotice() {
+    if (this._deathNotice && this._deathNotice.active) this._deathNotice.destroy();
+    const { width } = this.cameras.main;
+    const tip = keyHint('快喝藥水（A / S）', '點下方藥水格喝藥水');
+    const t = this.add.text(width / 2, 74, `HP 偏低！倒下會失去身上所有裝備。${tip}`, {
+      fontSize: '18px', color: '#fff4dc', fontFamily: 'Arial', fontStyle: 'bold',
+      backgroundColor: '#8a1d12e6', padding: { x: 14, y: 8 }, stroke: '#1a0e06', strokeThickness: 3,
+      align: 'center', wordWrap: { width: 760 },
+    }).setOrigin(0.5, 0).setDepth(210).setScrollFactor(0);
+    this._deathNotice = t;
+    this.tweens.add({ targets: t, alpha: 0, delay: 4500, duration: 500, onComplete: () => t.destroy() });
   }
 
   _onMpChange(parent, value) {
