@@ -8,6 +8,7 @@ import { settings, UI_SCALES, UI_SCALE_LABELS } from '../engine/settings.js';
 import { audio } from '../engine/audio.js';
 import { addParchmentPanel, addWoodButton } from '../engine/woodUi.js';
 import { KEY_CHART, KEY_CHART_NOTES } from './keyChart.js';
+import { cjkWrap } from './textWrap.js';
 
 export const SETTINGS_WINDOW = { w: 760, h: 572, y: 14 };
 
@@ -152,7 +153,7 @@ export function buildSettingsWindow(scene, options = {}) {
   });
   KEY_CHART_NOTES.forEach((note, i) => {
     text(keyX, y0 + 108 + KEY_CHART.length * 31 + 8 + i * 40, note, 13, '#b9a98a',
-      { strokeThickness: 2, fontStyle: 'normal', wordWrap: { width: keyR - keyX, useAdvancedWrap: true } });
+      { strokeThickness: 2, fontStyle: 'normal', wordWrap: { callback: cjkWrap(keyR - keyX), callbackScope: null } });
   });
 
   // ── 底部按鈕 ────────────────────────────────────────────────────────────

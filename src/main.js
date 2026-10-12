@@ -28,7 +28,7 @@ import { isTouchDevice } from './engine/device.js';
 import { mountTouchControls } from './engine/touchControls.js';
 import { audio } from './engine/audio.js';
 import { installContextGuard } from './engine/contextGuard.js';
-import { SKILL_SLOT_KEYS, skillForSlot } from './config/constants.js';
+import { SKILL_SLOT_KEYS, BASIC_ATTACK, skillForSlot, jobOf } from './config/constants.js';
 import { TutorialScene } from './scenes/TutorialScene.js';
 import { debugSetJob } from './engine/jobChange.js';
 import { QUESTS } from './config/quests.js';
@@ -51,9 +51,10 @@ const config = {
   // 禁用右鍵選單，避免遊戲中誤觸瀏覽器選單
   disableContextMenu: true,
   render: {
-    antialias: false,
+    // 手繪美術：縮放時用平滑取樣（pixelArt: true 會用最近鄰，縮小後鋸齒明顯）。roundPixels 保留，文字與 UI 邊緣仍貼齊像素
+    antialias: true,
     antialiasGL: false,
-    pixelArt: true,
+    pixelArt: false,
     roundPixels: true,
     powerPreference: 'high-performance',
     // 背景明確不透明後關閉預乘 alpha，省一次 shader 運算
@@ -184,4 +185,23 @@ if (isTouchDevice()) {
     }
   }, 250);
   game.scale.on('resize', () => controls.layout());
+
+  // 視窗 / 暫停 / 對話開著時，移動區與動作區讓出畫面（UIScene 設定 registry 的 uiModal）
+  game.registry.events.on('changedata-uiModal', (parent, value) => controls.setModal(!!value));
+
+  // 技能鈕冷卻：每 100ms 把冷卻比例與 MP 是否足夠同步到按鈕（只在操作層顯示時做事）
+  const CD_BUTTONS = [['SPACE', BASIC_ATTACK], ...SKILL_SLOT_KEYS.map((k) => [k, k])];
+  setInterval(() => {
+    if (controls.root.classList.contains('tc-hidden')) return;
+    const gs = game.registry.get('gameState');
+    if (!gs || !gs.skillCooldowns) return;
+    const job = jobOf(gs);
+    for (const [btn, slot] of CD_BUTTONS) {
+      const id = skillForSlot(gs, slot);
+      const def = job.skills[id] || job.basic;
+      const cd = gs.skillCooldowns[id] || 0;
+      const max = def && def.cooldown > 0 ? def.cooldown : 1;
+      controls.setCooldown(btn, cd / max, cd, !!def && (def.mpCost || 0) > gs.mp);
+    }
+  }, 100);
 }

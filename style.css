@@ -33,7 +33,7 @@ body {
   justify-content: center;
 }
 #game-container canvas {
-  image-rendering: pixelated;
+  image-rendering: auto;   /* 手繪美術縮小時用平滑取樣；pixelated 會出現鋸齒 */
   touch-action: none;
 }
 
@@ -298,3 +298,39 @@ body {
   .sd-text { height: 64px; }
   .sd-btn { min-height: 40px; }
 }
+
+/* ── 觸控技能鈕的冷卻顯示（由 touchControls.js 更新 --tc-done）────────────────
+   .tc-cd 是圓形掃描遮罩：已過的比例保持亮，剩餘冷卻蓋暗色，順時針收起；.tc-cdnum 是剩餘秒數。 */
+#touch-controls .tc-label,
+#touch-controls .tc-cd,
+#touch-controls .tc-cdnum { pointer-events: none; }
+#touch-controls .tc-label { position: relative; z-index: 1; }
+#touch-controls .tc-cd {
+  display: none;
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  border-radius: 50%;
+  background: conic-gradient(transparent 0 var(--tc-done, 0%), rgba(14, 8, 2, 0.74) var(--tc-done, 0%) 100%);
+}
+#touch-controls .tc-cdnum {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(var(--tc-unit) * 0.44);
+  color: #ffffff;
+  text-shadow: 0 0 4px #000, 0 1px 3px #000;
+}
+#touch-controls .tc-cooling .tc-label { opacity: 0.5; }
+#touch-controls .tc-cooling .tc-cd { display: block; }
+#touch-controls .tc-btn.tc-nomp { filter: grayscale(1) brightness(0.65); }
+
+/* 有視窗 / 暫停 / 對話開著：移動區與動作區讓路（暫停、全螢幕、左右互換留著） */
+#touch-controls.tc-modal .tc-group-moves,
+#touch-controls.tc-modal .tc-group-actions { display: none; }
+
+#touch-controls.tc-modal .tc-fullscreen,
+#touch-controls.tc-modal .tc-swap { display: none; }

@@ -5,6 +5,7 @@
 
 import { addParchmentPanel, addWoodButton } from '../engine/woodUi.js';
 import { questLog, getObjective } from '../engine/objective.js';
+import { cjkWrap } from './textWrap.js';
 
 export const QUEST_LOG_WINDOW = { w: 760, h: 572, y: 14 };
 const PAGE_TOP = 78;       // 內容區起點（相對視窗上緣）
@@ -51,7 +52,7 @@ export function buildQuestLogWindow(scene, gs, options = {}) {
     const items = [];
     let y = 0;
     const line = (str, size, color, extra = {}) => {
-      const t = text(x0 + 36, 0, str, size, color, { wordWrap: { width: innerW, useAdvancedWrap: true }, ...extra });
+      const t = text(x0 + 36, 0, str, size, color, { wordWrap: { callback: cjkWrap(innerW), callbackScope: null }, ...extra });
       items.push({ t, dy: y });
       y += t.height + (extra.gap ?? 4);
       return t;

@@ -110,11 +110,27 @@ export function mountTouchControls({ canvasProvider, hudBottomRatio = 120 / 720 
   root.classList.toggle('tc-moves-left', readHand() === 'left');
 
   const buttonEls = {};
+  const labelEls = {};
+  const cdEls = {};   // 有冷卻的鈕（普攻與四個技能欄）：{ sweep, num, q, label }
   // ── 一般按鈕 ───────────────────────────────────────────────────────────────
   for (const [cls, label, keyName, title, group] of BUTTONS) {
     const btn = document.createElement('div');
     btn.className = `tc-btn ${cls}`;
-    btn.textContent = label;
+    // 文字放在自己的 span（技能鈕的字會被換掉，不能用 btn.textContent，否則冷卻覆蓋層會被洗掉）
+    const labelEl = document.createElement('span');
+    labelEl.className = 'tc-label';
+    labelEl.textContent = label;
+    btn.appendChild(labelEl);
+    labelEls[keyName] = labelEl;
+    if (cls.includes('tc-skill') || cls.includes('tc-attack')) {
+      // 冷卻：圓形掃描遮罩（conic-gradient，剩餘部分變暗，順時針收起）+ 剩餘秒數
+      const sweep = document.createElement('div');
+      sweep.className = 'tc-cd';
+      const num = document.createElement('span');
+      num.className = 'tc-cdnum';
+      btn.append(sweep, num);
+      cdEls[keyName] = { sweep, num, q: -1, label: '' };
+    }
     btn.title = title;
     const release = (e) => {
       keys.release(keyName);
@@ -269,9 +285,35 @@ export function mountTouchControls({ canvasProvider, hudBottomRatio = 120 / 720 
       for (const k of ['Z', 'X', 'C', 'V']) {
         const el = buttonEls[k];
         if (!el) continue;
-        if (labels[k] && el.textContent !== labels[k]) el.textContent = labels[k];
+        const lab = labelEls[k];
+        if (labels[k] && lab && lab.textContent !== labels[k]) lab.textContent = labels[k];
         el.classList.toggle('tc-locked', !!(locked && locked[k]));
       }
+    },
+    // 冷卻顯示：keyName 是 'SPACE'（普攻）或 'Z' 'X' 'C' 'V'；ratio = 剩餘 / 總冷卻（0–1），secs = 剩餘秒數；
+    // noMp = MP 不夠這個技能。只在量化後的值改變時才碰 DOM。
+    setCooldown(keyName, ratio, secs, noMp) {
+      const el = buttonEls[keyName];
+      const cd = cdEls[keyName];
+      if (!el || !cd) return;
+      const r = ratio > 0 ? Math.min(1, ratio) : 0;
+      const q = Math.round(r * 100);
+      const label = secs >= 1 ? String(Math.ceil(secs)) : (r > 0 ? '1' : '');
+      if (q !== cd.q) {
+        cd.q = q;
+        // --tc-done = 已經過的比例（亮的部分），其餘（剩餘冷卻）蓋暗色
+        cd.sweep.style.setProperty('--tc-done', `${100 - q}%`);
+        el.classList.toggle('tc-cooling', q > 0);
+      }
+      if (label !== cd.label) { cd.label = label; cd.num.textContent = label; }
+      el.classList.toggle('tc-nomp', !!noMp);
+    },
+    // 視窗 / 暫停 / 對話開著時讓出畫面：隱藏移動區與動作區（暫停、全螢幕、左右互換仍在）
+    setModal(flag) {
+      const on = !!flag;
+      if (root.classList.contains('tc-modal') === on) return;
+      root.classList.toggle('tc-modal', on);
+      if (on) releaseAll();
     },
     setVisible(visible) {
       const hidden = !visible;

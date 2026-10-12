@@ -20,7 +20,8 @@ import { buildQuestLogWindow } from '../ui/questLogWindow.js';
 import { getObjective } from '../engine/objective.js';
 import { settings } from '../engine/settings.js';
 import { countEquipment } from '../engine/death.js';
-import { keyHint } from '../engine/device.js';
+import { keyHint, isTouchDevice } from '../engine/device.js';
+import { scaledFontPx, uiScaleFactor, popupScale } from '../ui/uiScale.js';
 import { shouldWarnDeath, isLowHp } from '../engine/danger.js';
 
 // HUD 場景（平行運行）— 橫向捲軸風格底部狀態列
@@ -146,6 +147,7 @@ export class UIScene extends Phaser.Scene {
         _uiTick++;
         this._refreshCooldowns();                            // 100ms：冷卻遮罩 + 地圖名稱
         if (this._objectiveDirty()) this._refreshObjective(); // 100ms：任務 / 地圖 / 等級有變就立刻更新目標列
+        this._syncModal();                                   // 100ms：視窗開關 → 觸控按鈕讓開
         if (_uiTick % 2  === 0) this._refreshPotionSlots(); // 200ms：藥水數量
         if (_uiTick % 2  === 0) this._updateMinimap();      // 200ms：小地圖動態點
         if (_uiTick % 5  === 0) this._refreshQuestPanel();  // 500ms：任務面板
@@ -176,7 +178,7 @@ export class UIScene extends Phaser.Scene {
 
     // 「未存檔」提示：存不進 localStorage（隱私模式、內嵌頁面）時常駐顯示，點它開存檔代碼
     this._unsavedBtn = this.add.text(width / 2, 40, '未存檔　點此複製存檔代碼', {
-      fontSize: '14px', color: '#ffffff', fontFamily: 'Arial', fontStyle: 'bold',
+      fontSize: this._fs(14), color: '#ffffff', fontFamily: 'Arial', fontStyle: 'bold',
       backgroundColor: '#a63a2a', padding: { x: 10, y: 4 },
     }).setOrigin(0.5, 0).setDepth(125).setScrollFactor(0).setVisible(false)
       .setInteractive({ useHandCursor: true });
@@ -209,6 +211,7 @@ export class UIScene extends Phaser.Scene {
     // 等這裡跑到時對話已經關了，就會誤以為「沒有東西可關」而開暫停選單。
     // 所以在原始按鍵事件（capture，早於 Phaser 的鍵盤處理）當下記下對話是否開著。
     this._escSnap = { t: 0, dialog: false };
+    this._setupTextScaling();
     this._onWinEsc = (e) => {
       if (e.repeat || (e.key !== 'Escape' && e.keyCode !== 27)) return;
       const key = this._getCurrentMapSceneKey();
@@ -537,7 +540,7 @@ export class UIScene extends Phaser.Scene {
       }).setDepth(55).setScrollFactor(0);
       // 技能名稱（格子下方）
       const nameText = this.add.text(sx + slot / 2, sy + slot + 3, this._skillLabel(skillId, gsNow), labelStyle)
-        .setOrigin(0.5, 0).setDepth(53).setScrollFactor(0);
+        .setOrigin(0.5, 0).setDepth(53).setScrollFactor(0).setData('maxMul', 1.2);   // 格距只有 56px，名字不能放太大
 
       // 技能等級（右下角）
       const lvText = this.add.text(sx + slot - 5, sy + slot - 4, '', {
@@ -691,7 +694,7 @@ export class UIScene extends Phaser.Scene {
     if (this._hudNotice && this._hudNotice.active) this._hudNotice.destroy();
     const { width, height } = this.cameras.main;
     const t = this.add.text(width / 2, height - 150, text, {
-      fontSize: '16px', color: '#fff4dc', fontFamily: 'Arial', fontStyle: 'bold',
+      fontSize: this._fs(16, 1.3), color: '#fff4dc', fontFamily: 'Arial', fontStyle: 'bold',
       backgroundColor: '#3a2410cc', padding: { x: 12, y: 6 }, stroke: '#1a0e06', strokeThickness: 3,
     }).setOrigin(0.5).setDepth(210).setScrollFactor(0);
     this._hudNotice = t;
@@ -965,7 +968,7 @@ export class UIScene extends Phaser.Scene {
       .setInteractive({ useHandCursor: true });
     this._objBg.on('pointerdown', () => this._toggleQuestLog());
     this._objText = this.add.text(width / 2, 20, '', {
-      fontSize: '16px', color: '#ffe9b0', fontFamily: 'Arial', fontStyle: 'bold',
+      fontSize: this._fs(16, 1.3), color: '#ffe9b0', fontFamily: 'Arial', fontStyle: 'bold',
       stroke: '#1a0e06', strokeThickness: 3,
     }).setOrigin(0.5, 0.5).setDepth(61).setScrollFactor(0).setVisible(false);
     this._lastObjText = null;
@@ -1005,6 +1008,64 @@ export class UIScene extends Phaser.Scene {
     this._objBg.setSize(Math.ceil(this._objText.displayWidth) + 28, 28).setVisible(true);
   }
 
+  // ── 文字縮放（手機 / 介面大小設定）──────────────────────────────────────────
+  // 畫布固定 1280x720 再縮進視窗；手機橫放約 0.54 倍，原本 12px 的字只剩約 6.5 CSS px。
+  // HUD 的文字在 create 結束時登記一次（記下設計字級），之後依「介面大小」設定與畫布縮放比重算。
+  // 之後才建立的文字（提示、目標列…）用 this._fs(base) 取字級；彈窗用整體放大（見 _openPopup）。
+  _uiCtx() {
+    const c = this._uiCtxObj || (this._uiCtxObj = { factor: 1, canvasScale: 1, touch: false });
+    const gw = this.scale.width || 1280;
+    const dw = this.scale.displaySize.width || gw;
+    c.factor = uiScaleFactor(settings.get().uiScale);
+    c.canvasScale = dw / gw;
+    c.touch = isTouchDevice();
+    return c;
+  }
+
+  _fs(base, maxMul) {
+    return `${scaledFontPx(base, this._uiCtx(), maxMul)}px`;
+  }
+
+  _setupTextScaling() {
+    this._hudTexts = [];
+    for (const o of this.children.list) {
+      if (!(o instanceof Phaser.GameObjects.Text) || o.depth >= 300) continue;   // 世界地圖浮層自己排版
+      this._hudTexts.push({ t: o, base: parseFloat(o.style.fontSize) || 12, maxMul: o.getData('maxMul') || undefined, cur: -1 });
+    }
+    this._onTextScaleChange = () => this._applyTextScale();
+    this._unsubScale = settings.subscribe(this._onTextScaleChange);
+    this.scale.on('resize', this._onTextScaleChange);
+    this._applyTextScale();
+  }
+
+  _applyTextScale() {
+    if (!this._hudTexts) return;
+    const ctx = this._uiCtx();
+    for (const rec of this._hudTexts) {
+      if (!rec.t.active) continue;
+      const px = scaledFontPx(rec.base, ctx, rec.maxMul);
+      if (px !== rec.cur) { rec.cur = px; rec.t.setFontSize(px); }
+    }
+    // 目標列等動態文字也跟著重排
+    this._lastObjText = null;
+    this._refreshObjective();
+  }
+
+  // 有視窗 / 暫停 / 對話 / 世界地圖開著時，觸控的移動與動作按鈕要讓開（才點得到視窗上的按鈕）
+  _syncModal() {
+    let modal = !!this._popup || this._isPaused || isSaveDialogOpen() || !!this.registry.get('helpOpen')
+      || !!(this._worldMap && this._worldMap.isOpen);
+    if (!modal) {
+      const key = this._getCurrentMapSceneKey();
+      const ms = key ? this.scene.manager.getScene(key) : null;
+      modal = !!(ms && ms._npcDialog);
+    }
+    if (modal !== this._modal) {
+      this._modal = modal;
+      this.registry.set('uiModal', modal);
+    }
+  }
+
   _refreshSaveIndicator() {
     if (!this._unsavedBtn || !this._unsavedBtn.active) return;
     const unsaved = getSaveStatus().unsaved;
@@ -1031,6 +1092,10 @@ export class UIScene extends Phaser.Scene {
 
   _onShutdown() {
     if (this._unsubSettings) { this._unsubSettings(); this._unsubSettings = null; }
+    if (this._unsubScale) { this._unsubScale(); this._unsubScale = null; }
+    if (this._onTextScaleChange) { this.scale.off('resize', this._onTextScaleChange); this._onTextScaleChange = null; }
+    this._hudTexts = null;
+    if (this._modal) { this._modal = false; this.registry.set('uiModal', false); }
     this._lowHpTween = null;
     this._vignette = null;
     this._lowHp = false;
@@ -1172,7 +1237,7 @@ export class UIScene extends Phaser.Scene {
     const { width } = this.cameras.main;
     const tip = keyHint('快喝藥水（A / S）', '點下方藥水格喝藥水');
     const t = this.add.text(width / 2, 74, `HP 偏低！倒下會失去身上所有裝備。${tip}`, {
-      fontSize: '18px', color: '#fff4dc', fontFamily: 'Arial', fontStyle: 'bold',
+      fontSize: this._fs(18, 1.3), color: '#fff4dc', fontFamily: 'Arial', fontStyle: 'bold',
       backgroundColor: '#8a1d12e6', padding: { x: 14, y: 8 }, stroke: '#1a0e06', strokeThickness: 3,
       align: 'center', wordWrap: { width: 760 },
     }).setOrigin(0.5, 0).setDepth(210).setScrollFactor(0);
@@ -1365,7 +1430,7 @@ export class UIScene extends Phaser.Scene {
     const skillRows = type === 'skills' ? jobOf(this.registry.get('gameState')).pool.length : 0;
     const popW = 340;
     const popH = type === 'skills'
-      ? 318 + (skillRows - 5) * 44 + (jobOf(this.registry.get('gameState')).passive ? 18 : 0)
+      ? 340 + (skillRows - 5) * 44 + (jobOf(this.registry.get('gameState')).passive ? 18 : 0)
       : 280;
     const popX = width - popW - 10;
     const popY = barPanelY - popH - 10;
@@ -1383,8 +1448,8 @@ export class UIScene extends Phaser.Scene {
     }).setDepth(151).setScrollFactor(0));
 
     // 關閉按鈕 ×
-    const closeZone = push(this.add.zone(popX + popW - 40, popY + 12, 24, 24)
-      .setOrigin(0, 0).setInteractive().setDepth(155).setScrollFactor(0));
+    const closeZone = push(this.add.zone(popX + popW - 46, popY + 6, 36, 36)   // 命中區比圖示大，手指好點
+      .setOrigin(0, 0).setInteractive({ useHandCursor: true }).setDepth(155).setScrollFactor(0));
     const closeG = push(this.add.graphics().setDepth(154).setScrollFactor(0));
     const drawClose = (hover) => {
       closeG.clear();
@@ -1418,7 +1483,16 @@ export class UIScene extends Phaser.Scene {
       this._buildMapPopup(push, popX, contentY, popW);
     }
 
-    this._popup = { type, objects: objs };
+    // 觸控裝置畫布縮得小（或介面大小設為「大」）時，整個彈窗以右下角為基準放大：
+    // 版面、字、按鈕命中區一起放大，不用重排每一列。
+    const k = popupScale(this._uiCtx(), { w: popW, h: popH, availW: width - 20, availH: barPanelY - 14 });
+    let container = null;
+    if (k > 1) {
+      container = this.add.container((popX + popW) * (1 - k), (popY + popH) * (1 - k))
+        .setScale(k).setDepth(150).setScrollFactor(0);
+      container.add(objs);
+    }
+    this._popup = { type, objects: objs, container };
   }
 
   _closePopup() {
@@ -1429,6 +1503,7 @@ export class UIScene extends Phaser.Scene {
     for (const obj of popup.objects) {
       if (obj && obj.destroy) obj.destroy();
     }
+    if (popup.container && popup.container.active) popup.container.destroy();
   }
 
   // 任務日誌（J 或 HUD「任務」鈕）：進行中 / 可接取 / 已完成（見 src/ui/questLogWindow.js）
@@ -1472,16 +1547,16 @@ export class UIScene extends Phaser.Scene {
       const rowY = contentY + i * 40;
       const qty = potions[row.key] || 0;
       push(this.add.text(popX + 14, rowY + 2, `[${row.key}]`, {
-        fontSize: '12px', color: '#aaccff', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2,
+        fontSize: '13px', color: '#aaccff', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2,
       }).setDepth(152).setScrollFactor(0));
       push(this.add.text(popX + 44, rowY + 2, row.label, {
-        fontSize: '12px', color: row.color, fontFamily: 'Arial', stroke: '#000', strokeThickness: 2,
+        fontSize: '13px', color: row.color, fontFamily: 'Arial', stroke: '#000', strokeThickness: 2,
       }).setDepth(152).setScrollFactor(0));
       push(this.add.text(popX + 44, rowY + 17, row.desc, {
-        fontSize: '9px', color: '#aaaaaa', fontFamily: 'Arial',
+        fontSize: '11px', color: '#cfc2a4', fontFamily: 'Arial',
       }).setDepth(152).setScrollFactor(0));
       push(this.add.text(popX + popW - 14, rowY + 10, `×${qty}`, {
-        fontSize: '13px', color: qty > 0 ? '#ffff88' : '#555555', fontFamily: 'Arial',
+        fontSize: '14px', color: qty > 0 ? '#ffff88' : '#9a8f78', fontFamily: 'Arial',
         stroke: '#000', strokeThickness: 2,
       }).setOrigin(1, 0.5).setDepth(152).setScrollFactor(0));
     });
@@ -1502,23 +1577,23 @@ export class UIScene extends Phaser.Scene {
       const rowY = contentY + i * 44;
       const equip = equipment[slot.key];
       push(this.add.text(popX + 14, rowY, slot.label, {
-        fontSize: '12px', color: '#aaddff', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2,
+        fontSize: '13px', color: '#aaddff', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2,
       }).setDepth(152).setScrollFactor(0));
 
       if (equip) {
         push(this.add.text(popX + 60, rowY, equip.displayName || equip.name, {
-          fontSize: '12px', color: '#ffdd88', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2,
+          fontSize: '13px', color: '#ffdd88', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2,
         }).setDepth(152).setScrollFactor(0));
         const stats = [];
         if (equip.atk)   stats.push(`ATK+${equip.atk}`);
         if (equip.hp)    stats.push(`HP+${equip.hp}`);
         if (equip.speed) stats.push(`SPD+${equip.speed}`);
         push(this.add.text(popX + 60, rowY + 16, stats.join(' '), {
-          fontSize: '9px', color: '#88ff88', fontFamily: 'Arial',
+          fontSize: '11px', color: '#88ff88', fontFamily: 'Arial',
         }).setDepth(152).setScrollFactor(0));
       } else {
         push(this.add.text(popX + 60, rowY + 8, '（未裝備）', {
-          fontSize: '11px', color: '#555555', fontFamily: 'Arial',
+          fontSize: '12px', color: '#9a8f78', fontFamily: 'Arial',
         }).setDepth(152).setScrollFactor(0));
       }
     });
@@ -1540,16 +1615,16 @@ export class UIScene extends Phaser.Scene {
       const slotIdx = gs && Array.isArray(gs.skillSlots) ? gs.skillSlots.indexOf(key) : -1;
       const keyLabel = slotIdx >= 0 ? `${SKILL_SLOT_KEYS[slotIdx]} 欄` : '未裝備';
       push(this.add.text(popX + 14, rowY, `[${keyLabel}] ${def.name}`, {
-        fontSize: '12px', color: unlocked ? '#88ffcc' : '#666666', fontFamily: 'Arial',
+        fontSize: '13px', color: unlocked ? '#88ffcc' : '#9a8f78', fontFamily: 'Arial',
         stroke: '#000', strokeThickness: 2,
       }).setDepth(152).setScrollFactor(0));
       if (unlocked) {
         push(this.add.text(popX + 152, rowY, `Lv.${lv}/${maxLv}`, {
-          fontSize: '11px', color: '#ffdd66', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2,
+          fontSize: '12px', color: '#ffdd66', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2,
         }).setDepth(152).setScrollFactor(0));
       }
       push(this.add.text(popX + 14, rowY + 16, `解鎖Lv.${def.unlockLevel}  CD:${def.cooldown}s  MP:${def.mpCost}`, {
-        fontSize: '9px', color: '#888888', fontFamily: 'Arial',
+        fontSize: '11px', color: '#cfc2a4', fontFamily: 'Arial',
       }).setDepth(152).setScrollFactor(0));
 
       // 沒裝備的技能：可換入指定欄位（5 個技能全部解鎖後才開放）
@@ -1567,7 +1642,7 @@ export class UIScene extends Phaser.Scene {
         };
         drawEq(false);
         push(this.add.text(eqX + eqW / 2, eqY + eqH / 2, '換入', {
-          fontSize: '11px', color: '#ffffff', fontFamily: 'Arial',
+          fontSize: '12px', color: '#ffffff', fontFamily: 'Arial',
         }).setOrigin(0.5).setDepth(153).setScrollFactor(0));
         const eqZone = push(this.add.zone(eqX, eqY, eqW, eqH).setOrigin(0, 0).setInteractive({ useHandCursor: true }).setDepth(154).setScrollFactor(0));
         eqZone.on('pointerover', () => drawEq(true));
@@ -1578,11 +1653,11 @@ export class UIScene extends Phaser.Scene {
       // 右側：升級按鈕 / 狀態
       if (!unlocked) {
         push(this.add.text(popX + popW - 14, rowY + 8, `需要 Lv.${def.unlockLevel}`, {
-          fontSize: '10px', color: '#ff8844', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2,
+          fontSize: '12px', color: '#ff8844', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2,
         }).setOrigin(1, 0.5).setDepth(152).setScrollFactor(0));
       } else if (lv >= maxLv) {
         push(this.add.text(popX + popW - 14, rowY + 8, '已滿級', {
-          fontSize: '10px', color: '#44ff88', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2,
+          fontSize: '12px', color: '#44ff88', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2,
         }).setOrigin(1, 0.5).setDepth(152).setScrollFactor(0));
       } else {
         const canUp = (gs ? (gs.skillPoints || 0) : 0) > 0;
@@ -1599,7 +1674,7 @@ export class UIScene extends Phaser.Scene {
         };
         drawBtn(false);
         push(this.add.text(btnX + btnW / 2, btnY + btnH / 2, '+', {
-          fontSize: '16px', color: canUp ? '#ffffff' : '#666666', fontFamily: 'Arial',
+          fontSize: '17px', color: canUp ? '#ffffff' : '#9a8f78', fontFamily: 'Arial',
         }).setOrigin(0.5, 0.5).setDepth(153).setScrollFactor(0));
         if (canUp) {
           const zone = push(this.add.zone(btnX, btnY, btnW, btnH)
@@ -1617,7 +1692,7 @@ export class UIScene extends Phaser.Scene {
     if (pick) {
       // 選擇要換掉哪一欄
       push(this.add.text(popX + 14, footY + 29, `把 ${job.skills[pick].name} 換進：`, {
-        fontSize: '10px', color: '#ffd27a', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2,
+        fontSize: '12px', color: '#ffd27a', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2,
       }).setOrigin(0, 0.5).setDepth(152).setScrollFactor(0));
       SKILL_SLOT_KEYS.forEach((slotKey, i) => {
         const bw = 52, bh = 20;
@@ -1631,7 +1706,7 @@ export class UIScene extends Phaser.Scene {
         };
         draw(false);
         push(this.add.text(bx + bw / 2, by + bh / 2, `${slotKey} ${job.skills[skillForSlot(gs, slotKey)].name.slice(0, 2)}`, {
-          fontSize: '10px', color: '#ffffff', fontFamily: 'Arial',
+          fontSize: '12px', color: '#ffffff', fontFamily: 'Arial',
         }).setOrigin(0.5).setDepth(153).setScrollFactor(0));
         const z = push(this.add.zone(bx, by, bw, bh).setOrigin(0, 0).setInteractive({ useHandCursor: true }).setDepth(154).setScrollFactor(0));
         z.on('pointerover', () => draw(true));
@@ -1641,15 +1716,15 @@ export class UIScene extends Phaser.Scene {
     } else push(this.add.text(popX + 14, footY + 14, canReorderSkills(gs)
       ? '拖曳畫面下方的技能圖示可互換；沒裝備的技能按「換入」'
       : `技能解鎖超過 4 個後，可自由挑 4 個放進技能欄`, {
-      fontSize: '9px', color: '#aaccff', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2,
+      fontSize: '11px', color: '#aaccff', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2,
     }).setDepth(152).setScrollFactor(0));
     push(this.add.text(popX + 14, footY, `可用 SP：${sp}　點 [+] 花 1 點提升技能傷害`, {
-      fontSize: '10px', color: sp > 0 ? '#ffff44' : '#888855', fontFamily: 'Arial',
+      fontSize: '12px', color: sp > 0 ? '#ffff44' : '#bdb27a', fontFamily: 'Arial',
       stroke: '#000', strokeThickness: 2,
     }).setDepth(152).setScrollFactor(0));
     if (job.passive) {
       push(this.add.text(popX + 14, footY + 46, `被動：${job.passive.name}　${job.passive.desc}`, {
-        fontSize: '10px', color: '#ffcf8a', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2,
+        fontSize: '12px', color: '#ffcf8a', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2,
       }).setDepth(152).setScrollFactor(0));
     }
   }
@@ -1676,21 +1751,21 @@ export class UIScene extends Phaser.Scene {
     const currentMap = gs ? gs.currentMap : '';
     const map = MAPS[currentMap];
     push(this.add.text(popX + 14, contentY, `目前地圖：${map ? map.name : '未知'}${map && map.levelBand ? `（Lv.${map.levelBand[0]}-${map.levelBand[1]}）` : ''}`, {
-      fontSize: '13px', color: '#aaddff', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2,
+      fontSize: '14px', color: '#aaddff', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2,
     }).setDepth(152).setScrollFactor(0));
     push(this.add.text(popX + 14, contentY + 28, '傳送門：', {
-      fontSize: '12px', color: '#ffee88', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2,
+      fontSize: '13px', color: '#ffee88', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2,
     }).setDepth(152).setScrollFactor(0));
     // 由地圖資料產生（不另外維護一份文字，避免和實際傳送門脫節）
     const portals = map ? map.portals.map((p) => `${p.label}${p.requireBoss ? '（5/5 碎片後開啟）' : ''}`) : [];
     if (currentMap === 'boss') portals.push('擊敗暗影魔君即可獲勝');
     (portals.length ? portals : ['暫無傳送門資訊']).slice(0, 5).forEach((p, i) => {
       push(this.add.text(popX + 24, contentY + 50 + i * 22, p, {
-        fontSize: '11px', color: '#88ccff', fontFamily: 'Arial',
+        fontSize: '12px', color: '#88ccff', fontFamily: 'Arial',
       }).setDepth(152).setScrollFactor(0));
     });
     push(this.add.text(popX + 14, contentY + 168, `星光碎片：${gs ? shardCount(gs) : 0} / ${SHARD_COUNT}　擊殺數：${gs ? (gs.killCount || 0) : 0}`, {
-      fontSize: '11px', color: '#ffee88', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2,
+      fontSize: '12px', color: '#ffee88', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2,
     }).setDepth(152).setScrollFactor(0));
   }
 }
