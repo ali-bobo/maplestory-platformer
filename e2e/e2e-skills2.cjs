@@ -16,11 +16,19 @@ const check = (n, c, x = '') => { console.log((c ? 'PASS' : 'FAIL') + ' - ' + n 
     return { cd: { ...gs.skillCooldowns }, mp: gs.mp, maxMp: gs.maxMp, slots: gs.skillSlots, vy: p.body.velocity.y, onGround: p.body.blocked.down, level: gs.level }; });
 
   // 1. 空白鍵 = 近戰普攻：不耗 MP、進入 ATK 冷卻、命中面前敵人
-  await page.evaluate(() => { const g = window.__game; const sc = g.scene.getScene('MapleIslandScene'); const p = sc.player; const m = p.enemies.getChildren()[0]; window.__m = m; m.setPosition(p.x + 50, p.y); m.body && m.body.setVelocity(0, 0); m.hp = m.maxHp = 99999; });
+  await page.evaluate(() => { const g = window.__game; const sc = g.scene.getScene('MapleIslandScene'); const p = sc.player; const m = p.enemies.getChildren()[0]; window.__m = m; m.setPosition(p.x + 50, p.y); m.body && m.body.setVelocity(0, 0); m.hp = m.maxHp = 99999;
+    // 讓靶站著不動、不出手（新怪物 AI 會追擊 / 後退 / 衝撞，離開普攻範圍）；保留 Monster.update 本體
+    m.speed = 0; m._detectionRangeSq = 0; m._chaseExtendedSq = 0; m._attackRangeSq = 0; m.jumpCooldown = 1e9; m._steerJumpCd = 1e9; });
   await page.waitForTimeout(200);
   const hp0 = await page.evaluate(() => window.__m.hp);
   const s0 = await gsInfo();
-  await page.keyboard.down('Space'); await page.waitForTimeout(250); const s1 = await gsInfo(); await page.keyboard.up('Space');
+  // 普攻的判定在按下後 80 ms（遊戲時間）才出手；無頭瀏覽器只有約 8~10 FPS，固定等 250 ms 偶爾讀在判定之前，
+  // 所以按住到遊戲跑過 2 幀再放開，並輪詢最多 2 秒等命中
+  await page.keyboard.down('Space');
+  const f0 = await page.evaluate(() => window.__game.loop.frame);
+  await page.waitForFunction((f0) => window.__game.loop.frame >= f0 + 2, f0, { polling: 20, timeout: 3000 });
+  const s1 = await gsInfo(); await page.keyboard.up('Space');
+  await page.waitForFunction((hp0) => window.__m.hp < hp0, hp0, { polling: 30, timeout: 2000 }).catch(() => {});
   const hp1 = await page.evaluate(() => window.__m.hp);
   check('空白鍵施放普通攻擊（ATK 冷卻開始）', s1.cd.ATK > 0, 'cdATK=' + s1.cd.ATK);
   check('普通攻擊不耗 MP', s1.mp >= s0.mp, `mp ${s0.mp} → ${s1.mp}`);
@@ -30,7 +38,7 @@ const check = (n, c, x = '') => { console.log((c ? 'PASS' : 'FAIL') + ' - ' + n 
   await page.waitForTimeout(600);
   await page.evaluate(() => { const p = window.__game.scene.getScene('MapleIslandScene').player; window.__m.setPosition(p.x - 80, p.y); });
   const hp2 = await page.evaluate(() => window.__m.hp);
-  await page.keyboard.down('Space'); await page.waitForTimeout(250); await page.keyboard.up('Space');
+  await page.keyboard.down('Space'); await page.waitForTimeout(250); await page.keyboard.up('Space'); await page.waitForTimeout(600);   // 多等一下，確定那一下的判定已經過了
   check('身後的怪不會被打到', (await page.evaluate(() => window.__m.hp)) === hp2);
 
   // 2. Z = 三連飛鏢技能：耗 MP 10
