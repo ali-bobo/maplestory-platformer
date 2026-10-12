@@ -2,9 +2,8 @@ import Phaser from 'phaser';
 import { createInitialGameState, MAP_SCENE_KEYS } from '../config/constants.js';
 import { MAPS } from '../config/maps.js';
 import { addWoodButton } from '../engine/woodUi.js';
-import {
-  getSaveSummary, loadGame, canSave, exportSaveFile, importSaveFile,
-} from '../engine/saveGame.js';
+import { getSaveSummary, loadGame, getSaveStatus } from '../engine/saveGame.js';
+import { openSaveDialog, closeSaveDialog } from '../ui/saveDialog.js';
 import { addSoundButton } from '../engine/soundButton.js';
 import { hasSeenTutorial } from './TutorialScene.js';
 
@@ -70,20 +69,26 @@ export class MenuScene extends Phaser.Scene {
     // 聲音開關（右上角）
     this._soundBtn = addSoundButton(this, width - 44, 44, { depth: 50, size: 44 });
 
-    // 匯出 / 匯入存檔（換瀏覽器、換裝置時使用）
+    // 匯出 / 匯入存檔代碼（換瀏覽器、換裝置，或這個環境存不了檔時使用）
     const linkY = 676;
     if (summary) {
-      this._makeLink(width / 2 - 90, linkY, '匯出存檔', () => {
-        if (!exportSaveFile()) this._toast('匯出失敗');
-      });
+      this._makeLink(width / 2 - 90, linkY, '匯出存檔', () => this._openSaveCode('export'));
     }
-    this._makeLink(width / 2 + (summary ? 90 : 0), linkY, '匯入存檔', () => this._importSave());
+    this._makeLink(width / 2 + (summary ? 90 : 0), linkY, '匯入存檔', () => this._openSaveCode('import'));
 
     this._toastText = this.add.text(width / 2, 646, '', {
       fontSize: '18px', color: '#ffd0c0', fontFamily: 'Arial', fontStyle: 'bold',
       stroke: '#3a1008', strokeThickness: 4,
     }).setOrigin(0.5, 0.5);
-    if (!canSave()) this._toast('此瀏覽器無法使用本機存檔（隱私模式？），進度將不會保留', 5000);
+    // 存不了檔（隱私模式、內嵌頁面）：常駐紅色「未存檔」，並提醒用存檔代碼備份
+    this._unsavedBadge = null;
+    if (getSaveStatus().unsaved) {
+      this._unsavedBadge = this.add.text(16, 16, '未存檔　此環境無法保存進度，請用「匯出存檔」複製代碼', {
+        fontSize: '16px', color: '#ffffff', fontFamily: 'Arial', fontStyle: 'bold',
+        backgroundColor: '#a63a2a', padding: { x: 10, y: 6 },
+      }).setOrigin(0, 0).setDepth(60);
+    }
+    this.events.once('shutdown', () => closeSaveDialog());
   }
 
   _makeLink(x, y, label, onClick) {
@@ -105,12 +110,12 @@ export class MenuScene extends Phaser.Scene {
     });
   }
 
-  async _importSave() {
+  _openSaveCode(mode) {
     if (this._starting) return;
-    const res = await importSaveFile();
-    if (res.cancelled) return;
-    if (!res.ok) { this._toast(`匯入失敗：${res.error}`, 4000); return; }
-    this.scene.restart();
+    openSaveDialog({
+      mode,
+      onImported: () => this.scene.restart(),
+    });
   }
 
   _continueGame() {

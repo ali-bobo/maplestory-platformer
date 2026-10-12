@@ -33,7 +33,7 @@ body {
   justify-content: center;
 }
 #game-container canvas {
-  image-rendering: pixelated;
+  image-rendering: auto;   /* 手繪美術縮小時用平滑取樣；pixelated 會出現鋸齒 */
   touch-action: none;
 }
 
@@ -227,3 +227,110 @@ body {
   #rotate-hint.rh-enabled { display: flex; }
   #touch-controls { display: none; }
 }
+
+/* ── 存檔代碼視窗（由 src/ui/saveDialog.js 建立）──────────────────────────────
+   DOM 疊層：要能選取、複製、貼上文字。字級固定 px，手機上不縮小。 */
+.sd-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+  background: rgba(10, 8, 20, 0.78);
+  font-family: "Microsoft JhengHei", "Noto Sans TC", sans-serif;
+  touch-action: auto;
+}
+.sd-panel {
+  width: min(560px, 100%);
+  max-height: 100%;
+  overflow: auto;
+  padding: 16px 18px;
+  color: #f5e6c0;
+  background: #3a2410;
+  border: 3px solid #d9a441;
+  border-radius: 10px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.6);
+}
+.sd-title { margin: 0 0 6px; font-size: 20px; color: #ffe27a; }
+.sd-help { margin: 0 0 10px; font-size: 14px; line-height: 1.5; color: #e8d3a8; }
+.sd-text {
+  display: block;
+  width: 100%;
+  height: 120px;
+  padding: 8px;
+  resize: none;
+  font: 13px/1.35 ui-monospace, Menlo, Consolas, monospace;
+  color: #2a1808;
+  background: #fff4dc;
+  border: 2px solid #8a5a20;
+  border-radius: 6px;
+  word-break: break-all;
+  -webkit-user-select: text;
+  user-select: text;
+  touch-action: auto;
+}
+.sd-status { min-height: 1.5em; margin: 8px 0 4px; font-size: 14px; line-height: 1.4; color: #e8d3a8; }
+.sd-status.sd-ok { color: #9ff0c8; }
+.sd-status.sd-warn { color: #ffb08a; }
+.sd-status.sd-info { color: #ffe27a; }
+.sd-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+.sd-btn {
+  flex: 1 1 110px;
+  min-height: 44px;
+  padding: 8px 14px;
+  font: bold 16px "Microsoft JhengHei", "Noto Sans TC", sans-serif;
+  color: #3a2410;
+  background: #e6d6bc;
+  border: 2px solid #8a5a20;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.sd-btn:hover:not(:disabled), .sd-btn:focus-visible { background: #fff0d0; outline: 2px solid #ffe27a; }
+.sd-btn:disabled { opacity: 0.5; cursor: default; }
+.sd-btn.sd-primary { background: #f2cf7a; }
+.sd-btn.sd-danger { color: #fff4dc; background: #a63a2a; border-color: #5a1a10; }
+.sd-btn.sd-dim { opacity: 0.6; }
+@media (max-height: 460px) {
+  .sd-panel { padding: 10px 14px; }
+  .sd-help { font-size: 13px; margin-bottom: 6px; }
+  .sd-text { height: 64px; }
+  .sd-btn { min-height: 40px; }
+}
+
+/* ── 觸控技能鈕的冷卻顯示（由 touchControls.js 更新 --tc-done）────────────────
+   .tc-cd 是圓形掃描遮罩：已過的比例保持亮，剩餘冷卻蓋暗色，順時針收起；.tc-cdnum 是剩餘秒數。 */
+#touch-controls .tc-label,
+#touch-controls .tc-cd,
+#touch-controls .tc-cdnum { pointer-events: none; }
+#touch-controls .tc-label { position: relative; z-index: 1; }
+#touch-controls .tc-cd {
+  display: none;
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  border-radius: 50%;
+  background: conic-gradient(transparent 0 var(--tc-done, 0%), rgba(14, 8, 2, 0.74) var(--tc-done, 0%) 100%);
+}
+#touch-controls .tc-cdnum {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(var(--tc-unit) * 0.44);
+  color: #ffffff;
+  text-shadow: 0 0 4px #000, 0 1px 3px #000;
+}
+#touch-controls .tc-cooling .tc-label { opacity: 0.5; }
+#touch-controls .tc-cooling .tc-cd { display: block; }
+#touch-controls .tc-btn.tc-nomp { filter: grayscale(1) brightness(0.65); }
+
+/* 有視窗 / 暫停 / 對話開著：移動區與動作區讓路（暫停、全螢幕、左右互換留著） */
+#touch-controls.tc-modal .tc-group-moves,
+#touch-controls.tc-modal .tc-group-actions { display: none; }
+
+#touch-controls.tc-modal .tc-fullscreen,
+#touch-controls.tc-modal .tc-swap { display: none; }

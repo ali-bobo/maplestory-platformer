@@ -20,13 +20,15 @@ import { DungeonScene } from './scenes/DungeonScene.js';
 import { UIScene } from './scenes/UIScene.js';
 import { GameOverScene } from './scenes/GameOverScene.js';
 import { setGameFps } from './engine/fpsControl.js';
-import { setHpBarMode } from './entities/Monster.js';
+import { setHpBarMode, Monster } from './entities/Monster.js';
+import { settings } from './engine/settings.js';
+import { installSettingsHooks } from './engine/settingsHooks.js';
 import { saveOnExit } from './engine/saveGame.js';
 import { isTouchDevice } from './engine/device.js';
 import { mountTouchControls } from './engine/touchControls.js';
 import { audio } from './engine/audio.js';
 import { installContextGuard } from './engine/contextGuard.js';
-import { SKILL_SLOT_KEYS, skillForSlot } from './config/constants.js';
+import { SKILL_SLOT_KEYS, BASIC_ATTACK, skillForSlot, jobOf } from './config/constants.js';
 import { TutorialScene } from './scenes/TutorialScene.js';
 import { debugSetJob } from './engine/jobChange.js';
 import { QUESTS } from './config/quests.js';
@@ -49,9 +51,10 @@ const config = {
   // 禁用右鍵選單，避免遊戲中誤觸瀏覽器選單
   disableContextMenu: true,
   render: {
-    antialias: false,
+    // 手繪美術：縮放時用平滑取樣（pixelArt: true 會用最近鄰，縮小後鋸齒明顯）。roundPixels 保留，文字與 UI 邊緣仍貼齊像素
+    antialias: true,
     antialiasGL: false,
-    pixelArt: true,
+    pixelArt: false,
     roundPixels: true,
     powerPreference: 'high-performance',
     // 背景明確不透明後關閉預乘 alpha，省一次 shader 運算
@@ -97,6 +100,9 @@ const config = {
   ],
 };
 
+// 設定開關（震動 / 閃光 / 傷害數字 / 減少動態）對全部呼叫端生效：包住 Camera.shake / flash 與 Monster 的飄字
+installSettingsHooks({ CameraClass: Phaser.Cameras.Scene2D.Camera, MonsterClass: Monster, settings });
+
 export const game = new Phaser.Game(config);
 
 // Phase 8 PoC 測試入口：在 console 呼叫 __setFps(30) 驗證鎖 FPS 是否安全有效
@@ -107,6 +113,8 @@ if (typeof window !== 'undefined' && new URLSearchParams(window.location.search)
   window.__setFps = (target, useTimeout = true) => setGameFps(game, target, useTimeout);
   window.__hpBarMode = (mode) => setHpBarMode(mode);
   window.__game = game;   // 供自動化測試取得遊戲實例
+  window.__settings = settings;   // 設定倉庫（e2e/ux.cjs 檢查設定是否生效）
+  window.__audio = audio;         // 音訊單例（檢查音量節點）
   window.__QUESTS = QUESTS;   // 測試可調整任務參數（例如把試煉之證掉落率拉到 100%）
   // 直接設定職業與等級（跳過轉職任務）：__setJob('assassin', 24)；'thief' 可切回盜賊。回傳是否成功
   window.__setJob = (job, level) => {
@@ -179,4 +187,23 @@ if (isTouchDevice()) {
     }
   }, 250);
   game.scale.on('resize', () => controls.layout());
+
+  // 視窗 / 暫停 / 對話開著時，移動區與動作區讓出畫面（UIScene 設定 registry 的 uiModal）
+  game.registry.events.on('changedata-uiModal', (parent, value) => controls.setModal(!!value));
+
+  // 技能鈕冷卻：每 100ms 把冷卻比例與 MP 是否足夠同步到按鈕（只在操作層顯示時做事）
+  const CD_BUTTONS = [['SPACE', BASIC_ATTACK], ...SKILL_SLOT_KEYS.map((k) => [k, k])];
+  setInterval(() => {
+    if (controls.root.classList.contains('tc-hidden')) return;
+    const gs = game.registry.get('gameState');
+    if (!gs || !gs.skillCooldowns) return;
+    const job = jobOf(gs);
+    for (const [btn, slot] of CD_BUTTONS) {
+      const id = skillForSlot(gs, slot);
+      const def = job.skills[id] || job.basic;
+      const cd = gs.skillCooldowns[id] || 0;
+      const max = def && def.cooldown > 0 ? def.cooldown : 1;
+      controls.setCooldown(btn, cd / max, cd, !!def && (def.mpCost || 0) > gs.mp);
+    }
+  }, 100);
 }
