@@ -16,6 +16,8 @@ import { audio } from '../engine/audio.js';
 import { addSoundButton } from '../engine/soundButton.js';
 import { WorldMapOverlay } from '../ui/WorldMapOverlay.js';
 import { buildSettingsWindow } from '../ui/settingsWindow.js';
+import { buildQuestLogWindow } from '../ui/questLogWindow.js';
+import { getObjective } from '../engine/objective.js';
 import { settings } from '../engine/settings.js';
 import { countEquipment } from '../engine/death.js';
 import { keyHint } from '../engine/device.js';
@@ -143,10 +145,12 @@ export class UIScene extends Phaser.Scene {
       callback: () => {
         _uiTick++;
         this._refreshCooldowns();                            // 100ms：冷卻遮罩 + 地圖名稱
+        if (this._objectiveDirty()) this._refreshObjective(); // 100ms：任務 / 地圖 / 等級有變就立刻更新目標列
         if (_uiTick % 2  === 0) this._refreshPotionSlots(); // 200ms：藥水數量
         if (_uiTick % 2  === 0) this._updateMinimap();      // 200ms：小地圖動態點
         if (_uiTick % 5  === 0) this._refreshQuestPanel();  // 500ms：任務面板
         if (_uiTick % 5  === 0) this._refreshSaveIndicator(); // 500ms：「未存檔」提示
+        if (_uiTick % 5  === 0) this._refreshObjective();     // 500ms：常駐目標列
         if (_uiTick % 10 === 0) this._monitorFps();         // 1000ms：FPS 品質監測
       },
     }));
@@ -179,6 +183,9 @@ export class UIScene extends Phaser.Scene {
     this._unsavedBtn.on('pointerdown', () => this._openSaveCode());
     this._refreshSaveIndicator();
 
+    // 常駐目標列（上方置中）：永遠顯示「下一步該做什麼」，點它開任務日誌
+    this._setupObjectiveStrip(width);
+
     // 設定改變（減少動態）時，低血量暈影立刻跟著換成脈動 / 固定
     this._unsubSettings = settings.subscribe(() => { if (this._lowHp) this._applyLowHpVisual(); });
 
@@ -188,6 +195,8 @@ export class UIScene extends Phaser.Scene {
       { depth: 120, fontSize: 15 });
     this._onUiMapKey = () => { if (!this._isPaused && !this.registry.get('helpOpen')) this._worldMap.toggle(); };
     this.input.keyboard.on('keydown-M', this._onUiMapKey);
+    this._onUiQuestKey = () => this._toggleQuestLog();
+    this.input.keyboard.on('keydown-J', this._onUiQuestKey);
 
     // Phase 15：ESC 暫停選單
     this._isPaused = false;
@@ -341,17 +350,18 @@ export class UIScene extends Phaser.Scene {
       { label: '道具', type: 'items'    },
       { label: '裝備', type: 'equip'    },
       { label: '技能', type: 'skills'   },
+      { label: '任務', type: 'quests'   },
       { label: '地圖', type: 'map'      },
       { label: '設定', type: 'settings' },
     ];
-    // 羊皮紙按鈕，兩列：3 + 2
+    // 羊皮紙按鈕，兩列：3 + 3
     const btnW = 72, btnH = 30, gap = 5;
     const startX = width - (3 * btnW + 2 * gap) - 14;
 
     btnData.forEach((btn, i) => {
-      const col = i < 3 ? i : i - 3;
+      const col = i % 3;
       const row = i < 3 ? 0 : 1;
-      const bx = startX + col * (btnW + gap) + (row === 1 ? (btnW + gap) / 2 : 0);
+      const bx = startX + col * (btnW + gap);
       const by = barPanelY + 18 + row * (btnH + 8);
       addWoodButton(this, bx + btnW / 2, by + btnH / 2, btnW, btnH, btn.label, () => {
         if (btn.type === 'map') { this._closePopup(); this._worldMap.toggle(); return; }   // 「地圖」開世界地圖浮層
@@ -947,6 +957,54 @@ export class UIScene extends Phaser.Scene {
     this._dungeonResultObjs = objs;
   }
 
+  // ── 常駐目標列 ────────────────────────────────────────────────────────────
+  // 上方置中、最寬 700px（左邊讓給觸控的暫停鈕，右邊讓給「地圖」鈕、聲音鈕與小地圖）。
+  _setupObjectiveStrip(width) {
+    this._objBg = this.add.rectangle(width / 2, 6, 120, 28, 0x000000, 0.58)
+      .setOrigin(0.5, 0).setDepth(60).setScrollFactor(0).setVisible(false)
+      .setInteractive({ useHandCursor: true });
+    this._objBg.on('pointerdown', () => this._toggleQuestLog());
+    this._objText = this.add.text(width / 2, 20, '', {
+      fontSize: '16px', color: '#ffe9b0', fontFamily: 'Arial', fontStyle: 'bold',
+      stroke: '#1a0e06', strokeThickness: 3,
+    }).setOrigin(0.5, 0.5).setDepth(61).setScrollFactor(0).setVisible(false);
+    this._lastObjText = null;
+    this._refreshObjective();
+  }
+
+  // 目標列依賴的欄位有沒有變（不配置新物件，100ms 檢查一次）
+  _objectiveDirty() {
+    const gs = this.registry.get('gameState');
+    const qs = gs && gs.quests;
+    if (!qs) return false;
+    let sum = 0;
+    for (const q of qs.active) sum += q.progress + 1;
+    const sig = this._objSig || (this._objSig = { map: null, level: -1, sum: -1, done: -1, shards: -1, boss: null });
+    const shards = gs.shards ? gs.shards.length : 0;
+    if (sig.map === gs.currentMap && sig.level === gs.level && sig.sum === sum && sig.done === qs.completed.length
+        && sig.shards === shards && sig.boss === gs.bossUnlocked) return false;
+    sig.map = gs.currentMap; sig.level = gs.level; sig.sum = sum; sig.done = qs.completed.length;
+    sig.shards = shards; sig.boss = gs.bossUnlocked;
+    return true;
+  }
+
+  _refreshObjective() {
+    if (!this._objText || !this._objText.active) return;
+    const gs = this.registry.get('gameState');
+    const obj = getObjective(gs);
+    let label = obj && obj.text ? `◆ ${obj.text}` : '';
+    if (obj && obj.more > 0) label += `（另有 ${obj.more} 個任務，按 J）`;
+    // 副本有自己的倒數 HUD（同一個位置），這時不顯示
+    if (this._dungeonInfoText && this._dungeonInfoText.visible) label = '';
+    if (label === this._lastObjText) return;
+    this._lastObjText = label;
+    if (!label) { this._objText.setVisible(false); this._objBg.setVisible(false); return; }
+    this._objText.setText(label).setScale(1).setVisible(true);
+    const maxW = 680;
+    if (this._objText.width > maxW) this._objText.setScale(maxW / this._objText.width);   // 太長就整行縮小，不換行
+    this._objBg.setSize(Math.ceil(this._objText.displayWidth) + 28, 28).setVisible(true);
+  }
+
   _refreshSaveIndicator() {
     if (!this._unsavedBtn || !this._unsavedBtn.active) return;
     const unsaved = getSaveStatus().unsaved;
@@ -980,6 +1038,11 @@ export class UIScene extends Phaser.Scene {
     this._closePopup();
     if (this._worldMap) this._worldMap.destroy();
     if (this._onUiMapKey) { this.input.keyboard.off('keydown-M', this._onUiMapKey); this._onUiMapKey = null; }
+    if (this._onUiQuestKey) { this.input.keyboard.off('keydown-J', this._onUiQuestKey); this._onUiQuestKey = null; }
+    this._objBg = null;
+    this._objText = null;
+    this._lastObjText = null;
+    this._objSig = null;
     this.registry.events.off('changedata-hp',        this._onHpChange,    this);
     this.registry.events.off('changedata-mp',        this._onMpChange,    this);
     this.registry.events.off('changedata-exp',       this._onExpChange,   this);
@@ -1293,6 +1356,7 @@ export class UIScene extends Phaser.Scene {
   _openPopup(type) {
     this._closePopup();
     if (type === 'settings') { this._openSettingsWindow(); return; }
+    if (type === 'quests') { this._openQuestLog(); return; }
     const { width, height } = this.cameras.main;
     const barPanelH = height - WORLD_HEIGHT;
     const barPanelY = WORLD_HEIGHT;
@@ -1365,6 +1429,22 @@ export class UIScene extends Phaser.Scene {
     for (const obj of popup.objects) {
       if (obj && obj.destroy) obj.destroy();
     }
+  }
+
+  // 任務日誌（J 或 HUD「任務」鈕）：進行中 / 可接取 / 已完成（見 src/ui/questLogWindow.js）
+  _openQuestLog() {
+    const win = buildQuestLogWindow(this, this.registry.get('gameState'), {
+      depth: 150,
+      onClose: () => this._closePopup(),
+    });
+    this._popup = { type: 'quests', objects: win.objects, destroy: () => win.destroy() };
+  }
+
+  _toggleQuestLog() {
+    if (this._isPaused || this.registry.get('helpOpen') || (this._worldMap && this._worldMap.isOpen)) return;
+    if (isSaveDialogOpen()) return;
+    if (this._popup && this._popup.type === 'quests') this._closePopup();
+    else this._openPopup('quests');
   }
 
   // 設定視窗：音量滑桿、效果開關、介面大小、操作說明（見 src/ui/settingsWindow.js）
