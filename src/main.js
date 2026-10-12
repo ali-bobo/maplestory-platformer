@@ -20,7 +20,9 @@ import { DungeonScene } from './scenes/DungeonScene.js';
 import { UIScene } from './scenes/UIScene.js';
 import { GameOverScene } from './scenes/GameOverScene.js';
 import { setGameFps } from './engine/fpsControl.js';
-import { setHpBarMode } from './entities/Monster.js';
+import { setHpBarMode, Monster } from './entities/Monster.js';
+import { settings } from './engine/settings.js';
+import { installSettingsHooks } from './engine/settingsHooks.js';
 import { saveOnExit } from './engine/saveGame.js';
 import { isTouchDevice } from './engine/device.js';
 import { mountTouchControls } from './engine/touchControls.js';
@@ -96,6 +98,9 @@ const config = {
     TutorialScene,
   ],
 };
+
+// 設定開關（震動 / 閃光 / 傷害數字 / 減少動態）對全部呼叫端生效：包住 Camera.shake / flash 與 Monster 的飄字
+installSettingsHooks({ CameraClass: Phaser.Cameras.Scene2D.Camera, MonsterClass: Monster, settings });
 
 export const game = new Phaser.Game(config);
 

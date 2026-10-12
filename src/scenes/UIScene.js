@@ -15,6 +15,8 @@ import { hasShard, shardCount } from '../engine/shards.js';
 import { audio } from '../engine/audio.js';
 import { addSoundButton } from '../engine/soundButton.js';
 import { WorldMapOverlay } from '../ui/WorldMapOverlay.js';
+import { buildSettingsWindow } from '../ui/settingsWindow.js';
+import { settings } from '../engine/settings.js';
 
 // HUD 場景（平行運行）— 橫向捲軸風格底部狀態列
 // 盜賊技能在技能欄的簡稱（格子寬度有限）；其他技能直接用全名
@@ -1055,14 +1057,19 @@ export class UIScene extends Phaser.Scene {
 
   _onLevelUp(parent, level) {
     const { width, height } = this.cameras.main;
-    // 全屏白閃
-    screenFlash(this, 400, 0.55);
+    // 全屏白閃（設定可關；減少動態時一併關閉）
+    if (settings.flashAllowed()) screenFlash(this, 400, 0.55);
     // 升級文字：從 scale 0 彈出，再上飄淡出
     const txt = this.add.text(width / 2, height / 2 - 80, `🎉 Level Up!  Lv.${level}`, {
       fontSize: '40px', color: '#ffff00', fontFamily: 'Arial',
       stroke: '#aa6600', strokeThickness: 6,
-    }).setOrigin(0.5, 0.5).setDepth(200).setScrollFactor(0).setScale(0);
+    }).setOrigin(0.5, 0.5).setDepth(200).setScrollFactor(0).setScale(settings.motionAllowed() ? 0 : 1);
 
+    // 減少動態：不彈跳、不上飄，原地停留後淡出
+    if (!settings.motionAllowed()) {
+      this.tweens.add({ targets: txt, alpha: 0, delay: 1500, duration: 500, onComplete: () => txt.destroy() });
+      return;
+    }
     this.tweens.add({
       targets: txt,
       scaleX: 1, scaleY: 1,
@@ -1201,6 +1208,7 @@ export class UIScene extends Phaser.Scene {
   // ── 彈出選單系統 ──────────────────────────────────────────────────────────
   _openPopup(type) {
     this._closePopup();
+    if (type === 'settings') { this._openSettingsWindow(); return; }
     const { width, height } = this.cameras.main;
     const barPanelH = height - WORLD_HEIGHT;
     const barPanelY = WORLD_HEIGHT;
@@ -1260,8 +1268,6 @@ export class UIScene extends Phaser.Scene {
       this._buildSkillsPopup(push, popX, contentY, popW);
     } else if (type === 'map') {
       this._buildMapPopup(push, popX, contentY, popW);
-    } else if (type === 'settings') {
-      this._buildSettingsPopup(push, popX, contentY, popW);
     }
 
     this._popup = { type, objects: objs };
@@ -1269,10 +1275,22 @@ export class UIScene extends Phaser.Scene {
 
   _closePopup() {
     if (!this._popup) return;
-    for (const obj of this._popup.objects) {
+    const popup = this._popup;
+    this._popup = null;
+    if (popup.destroy) { popup.destroy(); return; }   // 自帶清理的視窗（設定）
+    for (const obj of popup.objects) {
       if (obj && obj.destroy) obj.destroy();
     }
-    this._popup = null;
+  }
+
+  // 設定視窗：音量滑桿、效果開關、介面大小、操作說明（見 src/ui/settingsWindow.js）
+  _openSettingsWindow() {
+    const win = buildSettingsWindow(this, {
+      depth: 150,
+      onClose: () => this._closePopup(),
+      onOpenSaveCode: () => this._openSaveCode(),
+    });
+    this._popup = { type: 'settings', objects: win.objects, destroy: () => win.destroy() };
   }
 
   // ── 道具欄彈出 ──────────────────────────────────────────────────────────
@@ -1510,27 +1528,5 @@ export class UIScene extends Phaser.Scene {
     push(this.add.text(popX + 14, contentY + 168, `星光碎片：${gs ? shardCount(gs) : 0} / ${SHARD_COUNT}　擊殺數：${gs ? (gs.killCount || 0) : 0}`, {
       fontSize: '11px', color: '#ffee88', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2,
     }).setDepth(152).setScrollFactor(0));
-  }
-
-  // ── 設定彈出 ────────────────────────────────────────────────────────────
-  _buildSettingsPopup(push, popX, contentY, popW) {
-    const lines = [
-      { label: '移動',           key: '← →' },
-      { label: '跳躍（可雙跳）',  key: 'Alt / ↑' },
-      { label: '落下/穿越平台',   key: '↓' },
-      { label: '技能',           key: 'Z X C V B' },
-      { label: '藥水',           key: 'A S D R G' },
-      { label: 'NPC 對話',       key: 'F' },
-      { label: '關閉選單',       key: 'ESC' },
-    ];
-    lines.forEach((line, i) => {
-      const rowY = contentY + i * 32;
-      push(this.add.text(popX + 14, rowY, line.label, {
-        fontSize: '11px', color: '#aaddee', fontFamily: 'Arial',
-      }).setDepth(152).setScrollFactor(0));
-      push(this.add.text(popX + popW - 14, rowY, line.key, {
-        fontSize: '11px', color: '#ffee44', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2,
-      }).setOrigin(1, 0).setDepth(152).setScrollFactor(0));
-    });
   }
 }
