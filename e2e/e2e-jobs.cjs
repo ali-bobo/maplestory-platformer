@@ -195,11 +195,11 @@ const BASE = `http://127.0.0.1:${PORT}/index.html?debug=1`;
   await ev(() => { window.__game.registry.get('gameState').skillCooldowns = { ATK: 0 }; });
   st0 = await state();
   await ev(() => { window.__maxDx = 0; const x0 = window.__m.x; window.__dxIv = setInterval(() => { window.__maxDx = Math.max(window.__maxDx, Math.abs(window.__m.x - x0)); }, 20); });
-  const texW = sampleTex(900); await equip('Z', 'whirl'); await press('z'); const tw = await texW;
+  const texW = sampleTex(900); await equip('Z', 'whirl'); await press('z'); const afterCast = await state(); const tw = await texW;   // MP 在施放當下取，之後的等待會自然回魔
   await page.waitForTimeout(1200);   // 三圈的最後一圈才擊退；慢速無頭環境要多等
   await ev(() => clearInterval(window.__dxIv)); const maxDx = await ev(() => window.__maxDx);
   s = await state();
-  check('赤月迴旋：MP -40、冷卻、敵人受傷（三圈）並被擊退', (st0.mp - s.mp) > 20 && (st0.mp - s.mp) < 41 && s.cd.whirl > 0 && st0.hp - s.hp > 600 && maxDx > 5, `mp ${st0.mp}->${s.mp} hp ${st0.hp}->${s.hp} maxDx ${maxDx}`);
+  check('赤月迴旋：MP -40、冷卻、敵人受傷（三圈）並被擊退', (st0.mp - afterCast.mp) > 20 && (st0.mp - afterCast.mp) < 41 && s.cd.whirl > 0 && st0.hp - s.hp > 600 && maxDx > 5, `mp ${st0.mp}->${afterCast.mp} hp ${st0.hp}->${s.hp} maxDx ${maxDx}`);
   check('赤月迴旋：旋轉動作 spin_1 / spin_2', tw.includes('player_bandit_spin_1') && tw.includes('player_bandit_spin_2'), JSON.stringify(tw));
   await shot('job-bandit-whirl');
   await prep(-80);

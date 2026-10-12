@@ -56,6 +56,8 @@ const OUT = __dirname + '/shots';
   // 4. 碧濤港：海盜船長掉星光碎片
   await A.ev(() => { window.__setJob('thief', 22); });
   await A.tp(300); await page.waitForTimeout(500);
+  // isInvincible 只是受擊後 800 ms 的無敵幀；船長與小怪可能把角色打死，死亡換場景後下面讀 sc.pickups 會丟 entries 錯誤，所以這一段持續補血
+  await A.ev(() => { clearInterval(window.__keep); window.__keep = setInterval(() => { const gs = window.__game.registry.get('gameState'); if (gs && gs.hp > 0) gs.hp = gs.maxHp; }, 80); });
   const boss = () => A.ev(() => { const sc = window.__game.scene.getScene('HarborScene'); const m = sc.player.enemies.getChildren().find((e) => e.active && !e.isDead && e.config.id === 'pirate_captain'); return m ? { x: m.x, y: m.y, hp: m.hp, maxHp: m.maxHp, lvl: m.config.level } : null; });
   const b0 = await boss();
   await A.ev(() => { const sc = window.__game.scene.getScene('HarborScene'); const m = sc.player.enemies.getChildren().find((e) => e.config.id === 'pirate_captain'); window.__cap = m._respawnDef; });
@@ -82,6 +84,7 @@ const OUT = __dirname + '/shots';
   check('第二次擊殺不再掉碎片', shards === 0, String(shards));
   gs = await A.gs();
   check('shards 仍只有 1 塊', gs.shards.length === 1);
+  await A.ev(() => clearInterval(window.__keep));
 
   // 5. 星光之塔：1/5 → 5/5 點亮
   await A.go('TownScene', 300);
