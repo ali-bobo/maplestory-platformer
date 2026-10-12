@@ -28,7 +28,11 @@ const BASE = `http://127.0.0.1:${PORT}/index.html?debug=1`;
     const m = ms[0];
     for (const o of ms.slice(1)) o.destroy();
     m.setPosition(p.x + dx, p.y); m.body.setVelocity(0, 0); m.hp = m.maxHp = 999999; m.hurtTimer = 0; m._mark = null; m._poison = null;
-    window.__m = m; m.update = () => {};   // 只測技能：停掉怪物 AI（衝撞 / 後退會讓它離開目標位置）
+    window.__m = m;
+    delete m.applyKnockback; delete m.takeDamage;   // 刺客段把這隻怪的擊退 / 受傷函式換成了計數樁（實例屬性）；之後每段都用同一隻，必須還原，否則俠盜的擊飛與擊退永遠不生效
+    // 只測技能：讓怪物「原地不動、不出手」，但保留 Monster.update（擊退 / 擊飛計時、煙霧偵測都在裡面；
+    // 早先把 update 換成空函式，擊退與擊飛就永遠不會生效）。速度 0 = 巡邏 / 追擊都不位移；偵測與攻擊範圍 0 = 不追、不放招、不平 A；跳躍冷卻拉滿
+    m.speed = 0; m._detectionRangeSq = 0; m._chaseExtendedSq = 0; m._attackRangeSq = 0; m.jumpCooldown = 1e9; m._steerJumpCd = 1e9;
     gs.mp = gs.maxMp = 999; gs.hp = gs.maxHp = 9999; p.isInvincible = true;
     gs.skillCooldowns = { ATK: 0 };
     p.facingRight = true; p.setFlipX(false);
@@ -44,7 +48,17 @@ const BASE = `http://127.0.0.1:${PORT}/index.html?debug=1`;
     while (performance.now() - t0 < ms) { set.add(sc.player.texture.key); await new Promise((r) => setTimeout(r, 25)); }
     return [...set];
   }, ms);
-  const press = async (key, holdMs = 160) => { await page.keyboard.down(key); await page.waitForTimeout(holdMs); await page.keyboard.up(key); };
+  // 按住到遊戲至少跑過 2 幀才放開：無頭瀏覽器只有約 8~10 FPS（機器忙時更低），固定 160 ms 的按鍵偶爾落在兩幀之間而沒被讀到
+  const press = async (key, holdMs = 160) => {
+    await page.keyboard.down(key);
+    const f0 = await ev(() => window.__game.loop.frame);
+    const t0 = Date.now();
+    while (Date.now() - t0 < 2500) {
+      await page.waitForTimeout(40);
+      if (Date.now() - t0 >= holdMs && (await ev(() => window.__game.loop.frame)) >= f0 + 2) break;
+    }
+    await page.keyboard.up(key);
+  };
   const equip = (slot, id) => ev(({ slot, id }) => { window.__game.scene.getScene('UIScene')._equipToSlot(slot, id); }, { slot, id });
   const setJob = (job, lv) => ev(({ job, lv }) => window.__setJob(job, lv), { job, lv });
   const shot = (name) => page.screenshot({ path: `${SPDIR}/${name}.png` });
@@ -141,15 +155,37 @@ const BASE = `http://127.0.0.1:${PORT}/index.html?debug=1`;
   // 彎刀橫斬：連打第 3 下擊飛
   await prep(70);
   await ev(() => { window.__game.registry.get('gameState').skillCooldowns = { ATK: 0 }; });
-  const ups = [];
-  for (let i = 0; i < 3; i++) {
-    await ev(() => { const m = window.__m; const p = window.__game.scene.getScene('MapleIslandScene').player; m.setPosition(p.x + 70, p.y); m.body.setVelocity(0, 0); });
-    await page.waitForTimeout(150);
-    const y0 = (await state()).my;
-    const sampler = ev(async () => { let minVy = 0; const t0 = performance.now(); while (performance.now() - t0 < 1200) { minVy = Math.min(minVy, window.__m.body.velocity.y); await new Promise((r) => setTimeout(r, 20)); } return minVy; });
-    await press('Space'); ups.push(await sampler);
-    await page.waitForTimeout(100);
+  // 無頭瀏覽器只有約 8~10 FPS，一次按鍵偶爾沒被那一幀讀到，
+  // 所以每一下都「按到揮刀計數前進為止」（最多重按 6 次），整組 1-2-3 若因視窗過期被重置就整組重打（最多 3 組）。
+  // 擊飛速度用頁面內的 20 ms 取樣器記錄每一下之後的最小垂直速度
+  await ev(() => { window.__minVy = 0; clearInterval(window.__vyIv); window.__vyIv = setInterval(() => { window.__minVy = Math.min(window.__minVy, window.__m.body.velocity.y); }, 20); });
+  const swing = async (keepCombo) => {
+    for (let k = 0; k < 6; k++) {
+      // 機器忙時兩下之間常超過 900 ms；視窗本身由單元測試（comboStep）涵蓋，這裡把上一下的時間戳更新到現在，只驗「第 3 下擊飛」
+      if (keepCombo) await ev(() => { const sc = window.__game.scene.getScene('MapleIslandScene'); if (sc.player._combo) sc.player._combo.last = sc.time.now; });
+      const before = await ev(() => window.__game.scene.getScene('MapleIslandScene').player._combo?.last ?? 0);
+      await press('Space');
+      await page.waitForTimeout(120);
+      const after = await ev(() => window.__game.scene.getScene('MapleIslandScene').player._combo?.last ?? 0);
+      if (after !== before) return ev(() => window.__game.scene.getScene('MapleIslandScene').player._combo.count);
+      await page.waitForTimeout(350);   // ATK 冷卻
+    }
+    return -1;
+  };
+  let ups = [], counts = [];
+  for (let round = 0; round < 3; round++) {
+    ups = []; counts = [];
+    await page.waitForTimeout(1100);   // 讓上一組的連擊視窗過期，從第 1 下開始
+    for (let i = 0; i < 3; i++) {
+      await ev(() => { const m = window.__m; const p = window.__game.scene.getScene('MapleIslandScene').player; m.setPosition(p.x + 70, p.y); m.body.setVelocity(0, 0); m.hurtTimer = 0; window.__minVy = 0; });
+      counts.push(await swing(i > 0));
+      await page.waitForTimeout(i < 2 ? 100 : 900);
+      ups.push(await ev(() => window.__minVy));
+    }
+    if (counts.join() === '1,2,3') break;
   }
+  await ev(() => clearInterval(window.__vyIv));
+  check('彎刀橫斬：連擊計數 1-2-3', counts.join() === '1,2,3', JSON.stringify(counts));
   check('彎刀橫斬：前兩下不擊飛、第 3 下擊飛', ups[0] > -60 && ups[1] > -60 && ups[2] < -200, JSON.stringify(ups));
   await shot('job-bandit-slash');
 
@@ -160,6 +196,7 @@ const BASE = `http://127.0.0.1:${PORT}/index.html?debug=1`;
   st0 = await state();
   await ev(() => { window.__maxDx = 0; const x0 = window.__m.x; window.__dxIv = setInterval(() => { window.__maxDx = Math.max(window.__maxDx, Math.abs(window.__m.x - x0)); }, 20); });
   const texW = sampleTex(900); await equip('Z', 'whirl'); await press('z'); const tw = await texW;
+  await page.waitForTimeout(1200);   // 三圈的最後一圈才擊退；慢速無頭環境要多等
   await ev(() => clearInterval(window.__dxIv)); const maxDx = await ev(() => window.__maxDx);
   s = await state();
   check('赤月迴旋：MP -40、冷卻、敵人受傷（三圈）並被擊退', (st0.mp - s.mp) > 20 && (st0.mp - s.mp) < 41 && s.cd.whirl > 0 && st0.hp - s.hp > 600 && maxDx > 5, `mp ${st0.mp}->${s.mp} hp ${st0.hp}->${s.hp} maxDx ${maxDx}`);
@@ -210,6 +247,7 @@ const BASE = `http://127.0.0.1:${PORT}/index.html?debug=1`;
   });
   check('迷煙彈：煙霧內敵人傷害為 40%', sm.normal > 0 && Math.abs(sm.smoked - sm.normal * 0.4) <= 1, JSON.stringify(sm));
   await page.waitForTimeout(500);
+  await ev(() => { window.__m._smoked = false; });   // 清掉上面手動設的旗標，改由 Monster.update 的煙霧偵測自己判定
   const flag = await ev(() => { const sc = window.__game.scene.getScene('MapleIslandScene'); const p = sc.player; const m = window.__m; const z = p.smokeZones[0]; m.setPosition(z.x + 30, p.y); m.body.setVelocity(0, 0); return null; });
   await page.waitForTimeout(500);
   check('迷煙彈：煙霧內的敵人被標記為 smoked（AI 不追擊）', (await state()).smoked === true);
