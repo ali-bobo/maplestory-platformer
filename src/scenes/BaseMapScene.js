@@ -19,6 +19,7 @@ import { VFX_TEX } from '../engine/vfxTextures.js';
 import { saveGame, isSavableMap } from '../engine/saveGame.js';
 import { onMonsterKilled, onMapEntered, acceptQuest, isQuestActive, isQuestCompleted, onNpcTalked, onItemCollected, questItemDrop, chooseJobPath } from '../engine/questManager.js';
 import { buildNpcDialog } from '../engine/npcDialog.js';
+import { npcQuestMarker } from '../engine/questMarkers.js';
 import { getQuestDef, TRIAL_ITEM_NAME } from '../config/quests.js';
 import { canEnterDungeon, getRemainingEntries } from '../engine/dungeonRecord.js';
 import { getDungeonDef } from '../config/dungeons.js';
@@ -465,8 +466,33 @@ export class BaseMapScene extends Phaser.Scene {
       }).setDepth(9).setOrigin(0.5, 1).setAlpha(0);
 
       npc._hint = hint;
-      this._npcEntries.push({ npc, hint, label: lbl, data: npcDef });
+      // 任務標記：貼在名稱標籤上方，輕輕上下浮動；沒有任務時隱藏
+      let marker = null;
+      if (npcDef.questIds || npcDef.npcId) {
+        const baseY = footY - npcH - 30;
+        marker = this.add.image(placement.x, baseY, 'ui_quest_mark').setOrigin(0.5, 1).setDepth(10).setVisible(false);
+        marker._tween = this.tweens.add({ targets: marker, y: baseY - 5, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+      }
+      this._npcEntries.push({ npc, hint, label: lbl, data: npcDef, marker });
       if (npcDef.role === 'starTower') this._createTowerGlow(npc, npcH);
+    }
+    this._refreshQuestMarkers();
+    // 任務事件即時更新，另以低頻輪詢補上升級解鎖等沒有事件的變化
+    this._markerEvents = ['quest-accepted', 'quest-progress', 'quest-completed', 'job-changed'];
+    this._onQuestChanged = () => this._refreshQuestMarkers();
+    for (const ev of this._markerEvents) this.events.on(ev, this._onQuestChanged);
+    this._markerTimer = this.time.addEvent({ delay: 1000, loop: true, callback: this._onQuestChanged });
+  }
+
+  _refreshQuestMarkers() {
+    const gs = this.registry.get('gameState');
+    for (const entry of this._npcEntries) {
+      const m = entry.marker;
+      if (!m || !m.scene) continue;
+      const key = npcQuestMarker(gs, entry.data);
+      if (!key) { if (m.visible) m.setVisible(false); continue; }
+      if (m.texture.key !== key) m.setTexture(key);
+      if (!m.visible) m.setVisible(true);
     }
   }
 
@@ -959,7 +985,11 @@ export class BaseMapScene extends Phaser.Scene {
       if (!this.player?.active) break;  // player 若於迴圈中被銷毀，停止傳入怪物 update
       if (!monster.active || monster.isDead) continue;
       const dx = monster.x - px, dy = monster.y - py;
-      if (dx * dx + dy * dy > cullSq) continue;  // 畫面外，跳過 AI update
+      if (dx * dx + dy * dy > cullSq) {   // 畫面外，跳過 AI update
+        // 物理仍會讓它落地，血條要跟著走，否則血條停在出生點（甚至 (0,0)），玩家靠近時才跳過去
+        monster._updateHpBar();
+        continue;
+      }
       monster.update(this.player, delta);
     }
 
@@ -1027,7 +1057,13 @@ export class BaseMapScene extends Phaser.Scene {
     }
 
     this._closeNpcDialog();
+    if (this._onQuestChanged) {
+      for (const ev of this._markerEvents) this.events.off(ev, this._onQuestChanged);
+      this._onQuestChanged = null;
+    }
+    if (this._markerTimer) { this._markerTimer.remove(false); this._markerTimer = null; }
     for (const entry of this._npcEntries) {
+      if (entry?.marker) { if (entry.marker._tween) entry.marker._tween.stop(); entry.marker.destroy(); }
       if (entry?.hint) entry.hint.destroy();
       if (entry?.label) entry.label.destroy();
     }

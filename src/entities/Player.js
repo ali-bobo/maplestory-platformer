@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { poseKey } from '../config/poses.js';
+import { poseKey, idleFrameKey } from '../config/poses.js';
 import { jobOf, jobIdOf, skillDefOf, expNeeded, MAX_LEVEL, MAP_SCENE_KEYS, POTIONS, createInitialGameState, BASIC_ATTACK, skillForSlot, jobPassive } from '../config/constants.js';
 import { saveGame } from '../engine/saveGame.js';
 import { castSlash, castShuriken, castDash, castAssassinate, castVortex, castClone } from './Skill.js';
@@ -138,7 +138,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       if (this.jumpsLeft > 0) {
         this.setVelocityY(-520);
         this.jumpsLeft--;
-        audio.playSkill('Z');
+        audio.playJump();
       }
     }
 
@@ -208,7 +208,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     } else if (this.cursors.down.isDown) {
       this._setPose(this.pose('down'));
     } else {
-      this._setPose(this.pose('idle'));
+      this._setPose(idleFrameKey(now, this.pose('idle'), this.pose('idle_2')));
     }
   }
 
@@ -350,7 +350,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     switch (key) {
       case 'Z': castShuriken(this.scene, this, enemies);    break;
       case 'X': castDash(this.scene, this, enemies);        break;
-      case 'C': castAssassinate(this.scene, this, enemies); break;
+      case 'C': ok = castAssassinate(this.scene, this, enemies); break;
       case 'V': castVortex(this.scene, this, enemies);      break;
       case 'B': castClone(this.scene, this, enemies);       break;
       case 'backstab': ok = castBackstab(this.scene, this, enemies); break;
@@ -391,6 +391,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.scene.registry.set('gameState', gs);
     this.scene.registry.events.emit('changedata-hp', null, gs.hp);
 
+    audio.playHit();
     // 傷害閃紅 + 受傷動作
     this._lockPose(this.pose('hurt'), 300);
     this.setTint(0xff4444);
@@ -506,7 +507,11 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.setAlpha(1);
     this.body.setAllowGravity(true);
     this.setVelocity(0, -200);
-    this.setTint(0xff0000);
+    audio.playDeath();
+    // 有倒地姿勢就用它（不再染全紅，免得蓋掉圖）；缺圖才維持舊的紅色
+    const dieKey = this.pose('die');
+    if (dieKey && this.scene.textures.exists(dieKey)) { this._setPose(dieKey); this.setTint(0xffbbbb); }
+    else this.setTint(0xff0000);
     this.scene.time.delayedCall(1500, () => {
       this.scene.scene.stop('UIScene');
       this.scene.scene.start('GameOverScene', { victory: false, gameState: this.gameState, deathX: this.x });

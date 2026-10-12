@@ -8,13 +8,13 @@
 
 | 項目 | 檔案 | 要做什麼 |
 |------|------|----------|
-| NPC 頭上任務標記 | `ui_quest_mark.png`（可接）、`ui_quest_ing.png`（進行中）、`ui_quest_done.png`（可交付） | 在有任務的 NPC 頭上顯示並隨任務狀態切換（`BaseMapScene` 的 NPC 建立處） |
-| 靴子裝備圖示 | `item_boots.png`（28×28） | 目前靴子欄用程式畫的暫代圖，換成 PNG 並登錄到裝備圖示群組 |
-| 影之殿堂平台 | `platform_shrine.png`（246×30） | `maps.js` 殿堂地圖仍借用 `platform_town`（有 TODO 註解），改用專屬平台 |
-| 飛鏢旋轉 | `fx_shuriken.png`（4 格 32×32） | 目前用程式畫的飛鏢，換成旋轉動畫 |
-| 暗影漩渦動畫 | `fx_vortex.png`（6 格 192×192） | V 技能目前用程式畫的漩渦，可疊加或換成此動畫 |
-| 待機呼吸動畫 | `player_idle_2.png`、`player_assassin_idle_2.png`、`player_bandit_idle_2.png` | 站立時約每 0.6 秒在兩格間切換（`Player.js` 的 `_updatePose`） |
-| 其他已切好的職業動作 | 刺客：`guard`、`lunge`、`slash_alt_1/2`；俠盜：`guard`、`slash_alt`、`crouch_sabre`；盜賊：`die`、`down`（已接）、`cast` | 防禦、前衝刺擊等動作還沒有對應的技能或動作，可配合戰鬥手感提案使用；`die` 可接到死亡畫面 |
+| ~~NPC 頭上任務標記~~ | **已完成**：`engine/questMarkers.js` 判斷狀態，`BaseMapScene._createNPCs` 畫標記（任務事件 + 每秒更新） | — |
+| ~~靴子裝備圖示~~ | **已完成**（早已由 `ICON_ASSETS` 登錄，載入後程式暫代圖會跳過；掉落物用的就是 PNG。裝備視窗本身沒有圖示欄） | — |
+| ~~影之殿堂平台~~ | **已完成**：`PLATFORM_THEMES.shrine` 改用 `platform_shrine`（stretchH 36） | — |
+| ~~飛鏢旋轉~~ | **已完成**：`launchShuriken` 用 `fx_shuriken` 循環動畫（判定框不變；缺圖退回程式飛鏢） | — |
+| ~~暗影漩渦動畫~~ | **已完成**：`castVortex` 以 `playFx` 疊加 `fx_vortex`（ADD），時間與傷害不變 | — |
+| ~~待機呼吸動畫~~ | **已完成**：`poses.js` 的 `idleFrameKey`（600ms 交替），玩家與影分身都用；缺第二格退回單格 | — |
+| 其他已切好的職業動作 | 刺客：`guard`、`lunge`、`slash_alt_1/2`；俠盜：`guard`、`slash_alt`、`crouch_sabre`；盜賊：`die`、`down`（已接）、`cast` | 防禦、前衝刺擊等動作還沒有對應的技能或動作，可配合戰鬥手感提案使用；`die` **已接到死亡畫面**（`Player._die`） |
 | 技能導師、星光碎片圖示、技能書圖示 | `npc_skill_mentor.png`（已接）、`item_star_shard.png`（已接）、`item_skill_book.png`（未用） | 技能書可用於技能重置或轉職獎勵 |
 | 備用圖 | `hisoka.jpg` | 與遊戲無關；疑似其他作品角色，儲存庫公開前需處理（見 `NEXT.md` 第四節） |
 
@@ -40,12 +40,12 @@
 | e2e `e2e-skills2.cjs` | 「普通攻擊命中面前的怪」偶發失敗（基準版本就有） |
 | e2e `e2e.cjs` | 匯出存檔的下載步驟在無頭瀏覽器失敗（基準版本就有） |
 | 守護者與最終 Boss 難度 | 已依模擬數字調整，但沒有真人實測；最終 Boss 血量已由 10,000 提高到 28,000，審查建議更高（約 29 萬），需實測後定 |
-| 守護者血條 | 寬度上限 64 像素、高 5 像素，在大型守護者身上太小（`Monster.js` 約 201 行附近；修法見本檔下方） |
-| 魔君王城暗黑視野 | 偏暗，可能需要加大亮圈 |
-| 離玩家 1600 像素外的怪物血條 | 跑到畫面左上角（早就存在） |
-| 暗殺沒有目標時 | 技能平衡工作已處理退款，需實測確認 |
+| ~~守護者血條~~ | **已修**：依碰撞體寬 ×1.1、夾在 60–140 px，高 8 px，深底金邊 |
+| ~~魔君王城暗黑視野~~ | **已調**：亮圈 ×1.45、最暗透明度上限 0.72（`mapModifiers.js` 的 `DARK_RADIUS_BOOST` / `DARK_ALPHA_CAP`） |
+| ~~離玩家 1600 像素外的怪物血條~~ | **已修**：根因有二，位置快取初值是 `NaN`（`Math.abs(NaN) >= 2` 永遠 false，血條從不設位置），加上畫面外怪物跳過 `update` 但物理仍讓它落地，血條停在出生點；現在初值改 `-Infinity`，且被略過的怪物仍每幀同步血條位置 |
+| ~~暗殺沒有目標時~~ | **已修並實測**：`castAssassinate` 無目標回傳 `false`（且不播演出 / 音效），`Player.castSkill` 接住回傳值退款 |
 | ESC 同時關閉對話並開暫停選單 | 尚未處理 |
-| 跳躍音效、受擊音效 | 尚未處理（跳躍播放飛鏢聲、`playHit` 沒人呼叫） |
+| ~~跳躍音效、受擊音效~~ | **已完成**：`audio.playJump`、`playHit`（受傷時呼叫）、`playKill`（怪物死亡，取代原本用的長和弦）；皆走 28 音上限 |
 | 存檔代碼（取代檔案匯出） | 尚未做；試玩頁面裡的「匯出存檔」按鈕無效 |
 | 設定視窗 | 仍只是按鍵表；音量滑桿、震動 / 閃光開關、介面大小等尚未做 |
 | 死亡警告與預設懲罰 | 死亡仍清空裝備且事前沒有警告 |
