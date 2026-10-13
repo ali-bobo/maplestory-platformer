@@ -24,6 +24,7 @@ import { getQuestDef, TRIAL_ITEM_NAME } from '../config/quests.js';
 import { canEnterDungeon, getRemainingEntries } from '../engine/dungeonRecord.js';
 import { getDungeonDef } from '../config/dungeons.js';
 import { keyHint } from '../engine/device.js';
+import { sceneUiCtx, dialogScale, touchTargetPx, readableFontPx } from '../ui/uiScale.js';
 import { getQualityLevel } from '../engine/quality.js';
 import { SHARD_COUNT, SHARD_TEXTURE } from '../config/shards.js';
 import { grantShard, lightTower, shardCount } from '../engine/shards.js';
@@ -643,48 +644,74 @@ export class BaseMapScene extends Phaser.Scene {
 
     const cam = this.cameras.main;
     const cx = cam.scrollX + cam.width / 2;
-    const cy = cam.scrollY + cam.height * 0.65;
 
     // 內容依任務進度而變（影之長老）；有 choices 時多一排選項按鈕
     const { lines: dialogLines, choices } = buildNpcDialog(this.registry.get('gameState'), npcDef);
-    // 行數多（星光之塔的碎片清單）時面板加高、往上長，免得蓋到底下的 HUD
-    const extra = Math.max(0, dialogLines.length - 4) * 20;
-    const panelH = (choices ? 214 : 170) + extra;
-    const top = cy - 84 - extra;
+    // 整體倍率 k：桌機標準 = 1（外觀不變）；手機（畫布縮小的觸控裝置）放大到字級 >= 12 CSS px，
+    // 依實際量到的文字高度排版（行數多的星光之塔不會蓋到關閉鈕），按鈕觸控區 >= 44 CSS px。
+    const ui = sceneUiCtx(this);
+    const designH = (choices ? 214 : 170) + Math.max(0, dialogLines.length - 4) * 20;
+    const k = dialogScale(ui, { w: 480, h: designH, availW: cam.width - 24, availH: WORLD_HEIGHT - 16 });
+    const fs = (n) => `${Math.round(n * k)}px`;
+    const sw = (n) => Math.max(1, Math.round(n * k));
+    const panelW = Math.round(480 * k);
 
-    const bg = addParchmentPanel(this, cx - 240, top, 480, panelH, { depth: 100, world: true });
-
-    const title = this.add.text(cx, top + 26, npcDef.name || 'NPC', {
-      fontSize: '16px', color: '#ffe27a', fontFamily: 'Arial', fontStyle: 'bold',
-      stroke: '#1a0e06', strokeThickness: 4,
+    const title = this.add.text(cx, 0, npcDef.name || 'NPC', {
+      fontSize: fs(16), color: '#ffe27a', fontFamily: 'Arial', fontStyle: 'bold',
+      stroke: '#1a0e06', strokeThickness: sw(4),
     }).setOrigin(0.5, 0).setDepth(101);
 
-    const msgText = this.add.text(cx, top + 60, dialogLines.join('\n'), {
-      fontSize: '14px', color: '#fff3dc', fontFamily: 'Arial',
-      stroke: '#1a0e06', strokeThickness: 2,
-      wordWrap: { width: 400 }, lineSpacing: 4,
+    const msgText = this.add.text(cx, 0, dialogLines.join('\n'), {
+      fontSize: fs(14), color: '#fff3dc', fontFamily: 'Arial',
+      stroke: '#1a0e06', strokeThickness: sw(2),
+      wordWrap: { width: Math.round(400 * k) }, lineSpacing: sw(4),
     }).setOrigin(0.5, 0).setDepth(101);
 
-    const close = this.add.text(cx, top + (choices ? 196 : 144) + extra, keyHint('[ 按 F 或 ESC 關閉 ]', '[ 點此關閉 ]'), {
-      fontSize: '12px', color: '#e8d3a8', fontFamily: 'Arial', stroke: '#1a0e06', strokeThickness: 3,
-    }).setOrigin(0.5, 0.5).setDepth(101)
-      .setInteractive({ useHandCursor: true })
-      .on('pointerdown', () => this._closeNpcDialog())
-      .on('pointerover', () => close.setColor('#ffe27a'))
-      .on('pointerout',  () => close.setColor('#e8d3a8'));
+    // 由上而下排版（遊戲座標）
+    const bh = touchTargetPx(Math.round(34 * k), ui);          // 選項按鈕高
+    const closeH = touchTargetPx(Math.round(24 * k), ui);      // 關閉鈕高（桌機是一行字）
+    const msgTop = Math.round(60 * k);
+    const choiceTop = msgTop + Math.max(msgText.height, Math.round(84 * k)) + sw(10);
+    const closeTop = choices ? choiceTop + bh + sw(10) : choiceTop;
+    const panelH = closeTop + closeH + sw(14);
+    // 底邊固定在原本的位置（畫面 77% 高處），太高就整體下移；下緣不超過 HUD 列（WORLD_HEIGHT）
+    const bottom = Math.min(cam.scrollY + WORLD_HEIGHT - 8, Math.max(cam.scrollY + cam.height * 0.65 + 86, cam.scrollY + 8 + panelH));
+    const top = bottom - panelH;
 
+    const bg = addParchmentPanel(this, cx - panelW / 2, top, panelW, panelH, { depth: 100, world: true });
+    title.setY(top + sw(26));
+    msgText.setY(top + msgTop);
+
+    const closeLabel = keyHint('[ 按 F 或 ESC 關閉 ]', '[ 點此關閉 ]');
     const extras = [];
+    let close;
+    if (ui.touch) {
+      // 觸控：實體按鈕（整個按鈕都可點），不是一行小字
+      const btn = addWoodButton(this, cx, top + closeTop + closeH / 2, Math.max(Math.round(200 * k), 160), closeH, '關閉',
+        () => this._closeNpcDialog(), { depth: 101, world: true, fontSize: Math.round(16 * k) });
+      close = btn.plate;
+      extras.push(btn.label);
+    } else {
+      close = this.add.text(cx, top + closeTop + closeH / 2, closeLabel, {
+        fontSize: fs(12), color: '#e8d3a8', fontFamily: 'Arial', stroke: '#1a0e06', strokeThickness: sw(3),
+      }).setOrigin(0.5, 0.5).setDepth(101)
+        .setInteractive({ useHandCursor: true })
+        .on('pointerdown', () => this._closeNpcDialog())
+        .on('pointerover', () => close.setColor('#ffe27a'))
+        .on('pointerout',  () => close.setColor('#e8d3a8'));
+    }
+
     const keyHandlers = [];
     if (choices) {
-      const bw = 214, bh = 34, gap = 12;
+      const bw = Math.round(214 * k), gap = sw(12);
       const startX = cx - (choices.length * bw + (choices.length - 1) * gap) / 2;
       choices.forEach((choice, i) => {
         const bx = startX + i * (bw + gap);
-        const by = top + 144;
+        const by = top + choiceTop;
         const btn = this.add.rectangle(bx + bw / 2, by + bh / 2, bw, bh, 0x6b3f1a, 0.95)
           .setStrokeStyle(2, 0xe0b04a, 0.9).setDepth(101).setInteractive({ useHandCursor: true });
         const label = this.add.text(bx + bw / 2, by + bh / 2, `${keyHint(`${i + 1}　`, '')}${choice.label}`, {
-          fontSize: '14px', color: '#fff3dc', fontFamily: 'Arial', fontStyle: 'bold', stroke: '#1a0e06', strokeThickness: 3,
+          fontSize: fs(14), color: '#fff3dc', fontFamily: 'Arial', fontStyle: 'bold', stroke: '#1a0e06', strokeThickness: sw(3),
         }).setOrigin(0.5).setDepth(102);
         btn.on('pointerover', () => btn.setFillStyle(0x9a5a22, 0.98));
         btn.on('pointerout', () => btn.setFillStyle(0x6b3f1a, 0.95));
@@ -736,40 +763,62 @@ export class BaseMapScene extends Phaser.Scene {
     const shop = shopOf(npcDef);
 
     const { width } = this.cameras.main;
-    const panelW = 480, panelH = 142 + shop.items.length * 50 + 20;
+    const ui = sceneUiCtx(this);
+    // 字級各自取「手機 >= 12 CSS px」，寬度用整體倍率 kw；高度由字級與觸控區由上而下累加（5 列商品也放得進 720 高）
+    const kw = dialogScale(ui, { baseFont: 15, w: 480, availW: width - 24 });
+    const fT = readableFontPx(19, ui), fH = readableFontPx(12, ui), fM = readableFontPx(14, ui), fB = readableFontPx(15, ui);
+    const sw = (n) => Math.max(1, Math.round(n * kw));
+    const btnH = touchTargetPx(38, ui);
+    const gap = ui.touch ? 6 : 12;
+    const rowH = btnH + gap;
+    const closeH = touchTargetPx(24, ui);
+    const titleCy = Math.round(14 + fT * 1.05);
+    let showHint = !!(npcDef.dialog && npcDef.dialog[0]);
+    const layoutY = () => {
+      const hintCy = showHint ? Math.round(titleCy + fT * 0.55 + fH * 0.9) : titleCy;
+      const mesoCy = Math.round(hintCy + (showHint ? fH * 0.5 : fT * 0.55) + fM * (showHint ? 1 : 0.9));
+      const rowsTop = Math.round(mesoCy + fM * 0.5 + 4);
+      // 觸控：關閉鈕放右上角，省下一列高度（5 列商品要放進 HUD 列以上的 600 高）
+      const closeTop = rowsTop + shop.items.length * rowH - gap + (ui.touch ? 0 : 20);
+      return { hintCy, mesoCy, rowsTop, closeTop, panelH: ui.touch ? closeTop + 24 : closeTop + closeH + 30 };
+    };
+    let Y = layoutY();
+    if (ui.touch && showHint && Y.panelH + 8 > WORLD_HEIGHT) { showHint = false; Y = layoutY(); }   // 放不下就省掉招呼語那一行
+    const { hintCy, mesoCy, rowsTop, closeTop, panelH } = Y;
+    const panelW = Math.round(480 * kw);
     const panelX = (width - panelW) / 2;
-    const panelY = 70;
+    const panelY = Math.max(8, Math.min(70, WORLD_HEIGHT - panelH - 8));
     const objs = [];
     const push = (obj) => { objs.push(obj); return obj; };
 
     push(addParchmentPanel(this, panelX, panelY, panelW, panelH, { depth: 150 }));
 
-    push(this.add.text(panelX + panelW / 2, panelY + 34, `🏪 ${npcDef.name || '商人'}的${shop.title}`, {
-      fontSize: '19px', color: '#ffe27a', fontFamily: 'Arial', fontStyle: 'bold', stroke: '#1a0e06', strokeThickness: 4,
+    push(this.add.text(panelX + panelW / 2, panelY + titleCy, `🏪 ${npcDef.name || '商人'}的${shop.title}`, {
+      fontSize: `${fT}px`, color: '#ffe27a', fontFamily: 'Arial', fontStyle: 'bold', stroke: '#1a0e06', strokeThickness: sw(4),
     }).setOrigin(0.5, 0.5).setScrollFactor(0).setDepth(151));
 
-    if (npcDef.dialog && npcDef.dialog[0]) {
-      push(this.add.text(panelX + panelW / 2, panelY + 56, npcDef.dialog[0], {
-        fontSize: '12px', color: '#e8d3a8', fontFamily: 'Arial', stroke: '#1a0e06', strokeThickness: 2,
+    if (showHint) {
+      push(this.add.text(panelX + panelW / 2, panelY + hintCy, npcDef.dialog[0], {
+        fontSize: `${fH}px`, color: '#e8d3a8', fontFamily: 'Arial', stroke: '#1a0e06', strokeThickness: sw(2),
       }).setOrigin(0.5, 0.5).setScrollFactor(0).setDepth(151));
     }
     const gs = this.registry.get('gameState');
-    const mesoText = push(this.add.text(panelX + panelW / 2, panelY + 76, `持有金幣：${gs.meso}`, {
-      fontSize: '14px', color: '#fff3c8', fontFamily: 'Arial', stroke: '#1a0e06', strokeThickness: 3,
+    const mesoText = push(this.add.text(panelX + panelW / 2, panelY + mesoCy, `持有金幣：${gs.meso}`, {
+      fontSize: `${fM}px`, color: '#fff3c8', fontFamily: 'Arial', stroke: '#1a0e06', strokeThickness: sw(3),
     }).setOrigin(0.5, 0.5).setScrollFactor(0).setDepth(151));
 
     // 商品：購買後補進藥水庫存（gs.potions），HUD 藥水欄會自動刷新
     const items = shop.items.map((it) => ({ ...it, name: shopItemLabel(it), cost: it.cost }));
 
     items.forEach((item, i) => {
-      const rowY = panelY + 106 + i * 50;
+      const rowY = panelY + rowsTop + i * rowH + btnH / 2;
       const iconKey = POTION_ICON_KEYS[item.key];
       if (iconKey && this.textures.exists(iconKey)) {
-        const icon = push(this.add.image(panelX + 70, rowY, iconKey).setScrollFactor(0).setDepth(152));
-        icon.setScale(32 / icon.height);
+        const icon = push(this.add.image(panelX + Math.round(70 * kw), rowY, iconKey).setScrollFactor(0).setDepth(152));
+        icon.setScale(Math.min(Math.round(32 * kw), btnH - 6) / icon.height);
       }
       const label = `${item.name}  —  ${item.cost} 金幣`;
-      const btn = addWoodButton(this, panelX + panelW / 2 + 20, rowY, 300, 38, label, () => {
+      const btn = addWoodButton(this, panelX + panelW / 2 + Math.round(20 * kw), rowY, Math.round(300 * kw), btnH, label, () => {
         const state = this.registry.get('gameState');
         if (buyShopItem(state, item) === 'ok') {
           this.registry.set('gameState', state);
@@ -781,16 +830,24 @@ export class BaseMapScene extends Phaser.Scene {
           btn.label.setText(`${item.name}  — 金幣不足`);
         }
         this.time.delayedCall(900, () => { if (btn.label.active) btn.label.setText(label); });
-      }, { depth: 151, fontSize: 15 });
+      }, { depth: 151, fontSize: fB });
       btn.objects.forEach(push);
     });
 
-    // 觸控裝置沒有鍵盤：關閉字樣本身可點擊
-    push(this.add.text(panelX + panelW / 2, panelY + panelH - 30, keyHint('[ 按 F 或 ESC 關閉 ]', '[ 點此關閉 ]'), {
-      fontSize: '12px', color: '#e8d3a8', fontFamily: 'Arial', stroke: '#1a0e06', strokeThickness: 3,
-    }).setOrigin(0.5, 0.5).setScrollFactor(0).setDepth(151)
-      .setInteractive({ useHandCursor: true })
-      .on('pointerdown', () => this._closeNpcDialog()));
+    // 關閉：桌機是一行字（F / ESC 也可關）；觸控裝置是實體按鈕
+    const closeY = panelY + closeTop + closeH / 2;
+    if (ui.touch) {
+      const cw = touchTargetPx(50, ui), ch = touchTargetPx(44, ui);
+      const cb = addWoodButton(this, panelX + panelW - 14 - cw / 2, panelY + 14 + ch / 2, cw, ch, '關閉',
+        () => this._closeNpcDialog(), { depth: 151, fontSize: Math.max(fB, Math.round(ch * 0.3)) });
+      cb.objects.forEach(push);
+    } else {
+      push(this.add.text(panelX + panelW / 2, closeY, keyHint('[ 按 F 或 ESC 關閉 ]', '[ 點此關閉 ]'), {
+        fontSize: `${fH}px`, color: '#e8d3a8', fontFamily: 'Arial', stroke: '#1a0e06', strokeThickness: sw(3),
+      }).setOrigin(0.5, 0.5).setScrollFactor(0).setDepth(151)
+        .setInteractive({ useHandCursor: true })
+        .on('pointerdown', () => this._closeNpcDialog()));
+    }
 
     this._npcDialog = { _shop: true, objects: objs };
   }
