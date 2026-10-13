@@ -1,13 +1,23 @@
 # 產圖使用步驟
 
-這個資料夾配合 [`../ASSET_GAPS.md`](../ASSET_GAPS.md) 使用：總表與每個缺口的提示詞都在那裡，這裡只放**參考圖**（`ref/`）和**操作步驟**。
+這個資料夾配合 [`../ASSET_GAPS.md`](../ASSET_GAPS.md) 使用：缺口總表在那裡；**可直接複製的提示詞在 [`PROMPTS.md`](PROMPTS.md)**；這裡另有**參考圖**（`ref/`，選配）和**操作步驟**。
+
+## 0. 新版用法（2026-10 改版，先看這裡）
+
+你用**免費版 Gemini**：它**沒有過去對話脈絡**、預設也**沒有參考圖**，也不保證輸出像素尺寸或真透明背景。所以提示詞已全部重寫成「**單獨、完整、自足**」：
+
+- 可直接複製的版本在 **[`PROMPTS.md`](PROMPTS.md)**：每個缺口（G-01～G-20）一個區塊，整段貼到**全新對話**即可，不依賴前一段、不依賴上傳的圖。
+- 每段都完整重述：美術風格（楓之谷風手繪、細輪廓、2～3 階賽璐珞、2.5～3 頭身、光源左上）、綠底 `#00FF00` / 黑底規則、角色或物件的**文字特徵清單**（髮色、服裝、武器、色碼）、尺寸比例、禁止文字與地面陰影。
+- 相依多步的項目（Boss 三姿勢、劇情 2→4、二轉設定圖→動作表）每一步仍自足，以文字特徵清單保持一致；每區塊另有「**可選加強**」：產出後把前一張一起上傳。
+- 每區塊都附：輸出規格與建議張數、**若 Gemini 支援上傳圖片請附哪些 `ref/` 檔**（沒有圖也可只靠文字）、失敗時常見問題與**可直接貼的修正句**。
+- `PROMPTS.md` 最上方有一段「通用前導」，可先貼一次；**不貼也行**。
+- [`../ASSET_GAPS.md`](../ASSET_GAPS.md) 第 4 節是同一份內容；兩處不一致時以 `PROMPTS.md` 為準。
 
 ## 1. 準備
 
 1. 打開 [`../ASSET_GAPS.md`](../ASSET_GAPS.md) 第 2 節的缺口總表，挑一項（建議照「建議順序」，先 G-03、G-04，再 G-01、G-02）。
-2. 找到該項在第 4 節的提示詞段落。段落開頭的 **「順序」** 會說明：先產哪一張、後面哪些圖要附哪張當參考。
-3. 把段落裡的程式碼區塊整段貼給圖像 AI（每段都能獨立使用）。
-4. 提示詞若寫 **「附 `ref_xxx.png`」**，就把 [`ref/`](ref/) 內同名檔案一起上傳當參考圖（image reference）。
+2. 到 [`PROMPTS.md`](PROMPTS.md) 找同編號的區塊，把區塊內**程式碼區塊整段**貼給 Gemini（新對話即可）。
+3. 區塊會標明建議附哪些參考圖（[`ref/`](ref/) 內同名檔案）。**支援上傳就附，不支援就只貼文字**，兩種都能用。
    - 參考圖都是**複本**，`dist/assets/` 與 `docs/asset_src/` 的原檔沒動。
    - Boss 參考圖是透明底；若你的工具把透明處顯示成黑 / 白、影響判斷，改用同名的 `_green_x3` 版本（已經合成在綠底上放大 3 倍）。
    - 背景 / 劇情參考圖（`ref_bg_boss_room.png`、`ref_story_1.png`、`ref_story_3.png`）是由 WebP 轉成的 PNG（無損轉檔，內容相同）。
@@ -19,7 +29,7 @@
 - 特效 / 傳送門：**純黑底**（遊戲用加亮疊色，我不需要去背）。
 - 背景與劇情插畫：照尺寸出完整場景圖，不去背。
 - 需要 **「分開輸出」** 的（劇情插畫 2 與 4、Boss 三個姿勢）請每張各產一次，不要拼成一張。
-- 每段提示詞的 `OUTPUT:` 行有建議尺寸（通常是遊戲尺寸的 2～4 倍）；產不到就產最大的，**比例要對**即可，縮放由我處理。
+- 每段提示詞的 `OUTPUT:` 行有建議尺寸（通常是遊戲尺寸的 2～4 倍）；免費版 Gemini 常只出固定比例（如 1:1、16:9），產不到就產最大的，**比例盡量對**、主體置中並留足綠邊或黑邊，裁切與縮放由我處理。
 - 圖中不要有文字、浮水印、UI 邊框（徽章的緞帶也要空白）。
 - 檔案格式一律用 **PNG**（綠底圖不要用 JPG，JPG 的綠邊會有雜訊）；整張場景圖可用 PNG 或 WebP。
 
@@ -36,9 +46,9 @@
 | G-06 / G-07 普攻圖示 | `skill_icon_ATK_assassin.png`、`skill_icon_ATK_bandit.png`（綠底原圖，可放多個版本：`..._v2.png`） |
 | G-08 / G-13 傳送門 | `portal_blue.png`、`portal_gold.png`（黑底，4 格橫排） |
 | G-09 金幣 | `item_meso.png`（綠底原圖） |
-| G-10 補給商 | `npc_shops_sheet.png`（三人一張）或 `npc_peddler.png` `npc_chandler.png` `npc_trader.png` |
+| G-10 補給商（三人各產一次） | `npc_peddler.png` `npc_chandler.png` `npc_trader.png`（綠底原圖） |
 | G-11 影子史萊姆 | `monster_shadow_slime.png` |
-| G-12 二轉 | 每職業：`<job>_design.png`、`<job>_sheet_a.png`、`<job>_sheet_b.png`、`<job>_sheet_c.png`（`<job>` = `shadowkiller` / `nightlord` / `bandit_king` / `shadowranger`） |
+| G-12a～d 二轉 | 每職業：`<job>_design.png`、`<job>_sheet_a.png`、`<job>_sheet_b.png`、`<job>_sheet_c.png`、`<job>_portrait.png`（選配）（`<job>` = `shadowkiller` / `nightlord` / `bandit_king` / `shadowranger`） |
 | G-14 ～ G-20（劇情新圖） | 依 ASSET_GAPS 該項的檔名，例如 `prop_tablet.png`、`prop_chest.png`、`item_night_letter.png`、`ending_1.png`、`ending_2.png` |
 
 放好後告訴我（例如「G-03、G-04 放好了」），我會接手。
