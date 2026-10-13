@@ -16,7 +16,7 @@
 | C. 輸入緩衝＋土狼時間 | src/engine/inputBuffer.js（新）、Player.js | 進行中 | 窗口：輸入緩衝約120ms、土狼約100ms；純函式＋單元測試 |
 
 | D. 素材缺口盤點＋提示詞 | docs/ASSET_GAPS.md、docs/asset-requests/（含 ref/ 參考圖複本） | **完成並合併** | 缺口表 docs/ASSET_GAPS.md（G-01~G-21）、參考圖 asset-requests/ref/（26 張）；使用者產圖放 asset-requests/incoming/ 後由 AI 去背接線 |
-| E. 提示詞改寫為自足版 | docs/asset-requests/PROMPTS.md、ASSET_GAPS.md | 進行中 | 使用者用免費 Gemini：無上下文、預設無參考圖。每段提示詞必須完整重述風格＋角色文字描述，參考圖僅為可選加強 |
+| E. 提示詞改寫為自足版 | docs/asset-requests/PROMPTS.md、ASSET_GAPS.md | **完成並合併** | 可複製版在 docs/asset-requests/PROMPTS.md；待使用者確認的外觀描述見該檔與日誌。使用者用免費 Gemini：無上下文、預設無參考圖。每段提示詞必須完整重述風格＋角色文字描述，參考圖僅為可選加強 |
 
 子代理規則：不提交 `dist/bundle.js`（由主線統一重建）；不 push、不開 PR；中文 commit。
 
@@ -36,3 +36,4 @@ Boss 狂暴姿勢與背景、劇情插畫 2 與 4、標題徽章、刺客／俠�
 - 2026-10-13：素材盤點完成並合併（ASSET_GAPS.md）。發現 story_1/3 在 TutorialScene 尚未接線（補完 2、4 後一起接）；ATK_assassin/bandit 圖示目前與 ATK 同檔。
 - 2026-10-13：使用者回饋提示詞必須單獨完整（Gemini 無上下文／無參考圖）；派出子代理 E 改寫。之後所有新提示詞都照此規則。
 - 2026-10-13：子代理 B（手機版 UI）合併；單元測試 354 項。
+- 2026-10-13：子代理 E 完成，PROMPTS.md 合併（每段自足）。待使用者確認：魔君外觀色碼、G-03 魔君造型、長老與三位商人造型、影子史萊姆葉芽、Gemini 做不出的長寬比改產單格。
