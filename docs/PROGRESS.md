@@ -15,7 +15,7 @@
 | B. 手機對話視窗與世界地圖 | uiScale、WorldMapOverlay、NPC 對話 UI、e2e/ux.cjs | 進行中 | 目標：字級≥約12px、觸控區≥44px，844x390 實測 |
 | C. 輸入緩衝＋土狼時間 | src/engine/inputBuffer.js（新）、Player.js | 進行中 | 窗口：輸入緩衝約120ms、土狼約100ms；純函式＋單元測試 |
 
-| D. 素材缺口盤點＋提示詞 | docs/ASSET_GAPS.md、docs/asset-requests/（含 ref/ 參考圖複本） | 進行中 | 沿用 ASSET_REQUEST.md 格式；需調整的既有圖要複製到 asset-requests/ref/ 並在提示詞標明附圖 |
+| D. 素材缺口盤點＋提示詞 | docs/ASSET_GAPS.md、docs/asset-requests/（含 ref/ 參考圖複本） | **完成並合併** | 缺口表 docs/ASSET_GAPS.md（G-01~G-21）、參考圖 asset-requests/ref/（26 張）；使用者產圖放 asset-requests/incoming/ 後由 AI 去背接線 |
 
 子代理規則：不提交 `dist/bundle.js`（由主線統一重建）；不 push、不開 PR；中文 commit。
 
@@ -32,3 +32,4 @@ Boss 狂暴姿勢與背景、劇情插畫 2 與 4、標題徽章、刺客／俠�
 
 ## 日誌
 - 2026-10-13：PR #24 合併、試玩頁面更新至版本 9；加回程門與閃光設定；派出子代理 A/B/C。
+- 2026-10-13：素材盤點完成並合併（ASSET_GAPS.md）。發現 story_1/3 在 TutorialScene 尚未接線（補完 2、4 後一起接）；ATK_assassin/bandit 圖示目前與 ATK 同檔。
