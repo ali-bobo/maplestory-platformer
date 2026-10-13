@@ -43,3 +43,4 @@ Boss 狂暴姿勢與背景、劇情插畫 2 與 4、標題徽章、刺客／俠�
 - 2026-10-13：使用者回饋提示詞太長；派出子代理 F 壓縮。**之後所有新提示詞：≤ 700 字元、自足、一段可貼。**
 - 2026-10-13：Boss 狂暴三姿勢（待機／移動／攻擊）已入庫並接線（assetCatalog、Boss.js `_rage`＋`_poseKey`，第 3 階段起使用；狂暴時不疊紅染色）。e2e/boss-rage.cjs 全過。G-01 完成；G-02（狂暴背景）仍缺。下次發布試玩頁面要多附 boss_rage_*.png 三個檔。
 - 2026-10-13：子代理 A 合併（balance.cjs 修好並新增普攻 DPS 斷言）。A～F 全部完成。下一步：機器空閒時整份重跑 e2e（ux、jobs、skills2、quest）、重建並重發試玩頁面（多附 boss_rage_*.png），再決定是否開 PR 併 main。
+- 2026-10-13：合併後整份 e2e 在空閒機器通過：e2e、tutorial、skills2、death、mobile、music、jobs、feel、ux、quest、world/s4、world/shops、boss-rage（單元測試 364）。開發分支比 main 多：回程門、閃光設定、手機版 UI、輸入緩衝、Boss 狂暴姿勢、balance 修復、提示詞文件。**尚未開 PR／併 main／重發試玩頁面**（等使用者指示；重發需附 boss_rage_*.png）。
