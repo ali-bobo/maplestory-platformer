@@ -11,7 +11,7 @@
 ## 進行中的子代理（各在獨立 git worktree，分支名稱完成後回報）
 | 任務 | 範圍 | 狀態 | 若中斷，從哪裡續做 |
 |------|------|------|--------------------|
-| A. 修 `e2e/balance.cjs` | e2e/balance.cjs、README、TODO | 進行中 | 先重現 'setVelocity' of undefined；多半是靶被打死／銷毀後仍重用，見 e2e/README 穩定性筆記 |
+| A. 修 `e2e/balance.cjs` | e2e/balance.cjs、README、TODO | **完成並合併**（連跑 3 次全 PASS；根因是位移技能把玩家帶進傳送門換場景，非遊戲 bug） | 先重現 'setVelocity' of undefined；多半是靶被打死／銷毀後仍重用，見 e2e/README 穩定性筆記 |
 | B. 手機對話視窗與世界地圖 | uiScale、WorldMapOverlay、NPC 對話 UI、e2e/ux.cjs | **完成並合併**（354 測試過） | 剩安全區域與其餘按鈕微調（U-14）；完整 e2e/ux.cjs 需在空閒機器再跑一次（桌機 2 項計時檢查在高負載偶發失敗） |
 | C. 輸入緩衝＋土狼時間 | src/engine/inputBuffer.js（新）、Player.js | **完成並合併**（364 測試、e2e-feel 全過） | 我移除了「離邊後少一跳」的削弱，維持離邊仍有兩段跳；未做 P2 按住連發、P4 可變跳高。e2e-jobs/skills2 在高負載偶發計時失敗，空閒時再整份重跑 |
 
@@ -42,3 +42,4 @@ Boss 狂暴姿勢與背景、劇情插畫 2 與 4、標題徽章、刺客／俠�
 - 2026-10-13：使用者提供調整後的狂暴待機圖（深紫膚）。已去背縮放成 docs/asset-requests/incoming/boss_rage_idle.png（460x220，角色高 199，置中貼底，與 boss_idle 同基準；原圖留存為 boss_rage_idle_src.jpg）。**尚未接線**：等移動、攻擊兩張到齊後，再一起加進 assetCatalog（scope boss）並在 BossScene 狂暴階段切換貼圖，避免只換待機造成外觀不連貫。下一步：使用者產 G-01 移動／攻擊（附這張當參考）。
 - 2026-10-13：使用者回饋提示詞太長；派出子代理 F 壓縮。**之後所有新提示詞：≤ 700 字元、自足、一段可貼。**
 - 2026-10-13：Boss 狂暴三姿勢（待機／移動／攻擊）已入庫並接線（assetCatalog、Boss.js `_rage`＋`_poseKey`，第 3 階段起使用；狂暴時不疊紅染色）。e2e/boss-rage.cjs 全過。G-01 完成；G-02（狂暴背景）仍缺。下次發布試玩頁面要多附 boss_rage_*.png 三個檔。
+- 2026-10-13：子代理 A 合併（balance.cjs 修好並新增普攻 DPS 斷言）。A～F 全部完成。下一步：機器空閒時整份重跑 e2e（ux、jobs、skills2、quest）、重建並重發試玩頁面（多附 boss_rage_*.png），再決定是否開 PR 併 main。
