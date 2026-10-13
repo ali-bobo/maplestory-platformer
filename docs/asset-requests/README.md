@@ -1,0 +1,67 @@
+# 產圖使用步驟
+
+這個資料夾配合 [`../ASSET_GAPS.md`](../ASSET_GAPS.md) 使用：總表與每個缺口的提示詞都在那裡，這裡只放**參考圖**（`ref/`）和**操作步驟**。
+
+## 1. 準備
+
+1. 打開 [`../ASSET_GAPS.md`](../ASSET_GAPS.md) 第 2 節的缺口總表，挑一項（建議照「建議順序」，先 G-03、G-04，再 G-01、G-02）。
+2. 找到該項在第 4 節的提示詞段落。段落開頭的 **「順序」** 會說明：先產哪一張、後面哪些圖要附哪張當參考。
+3. 把段落裡的程式碼區塊整段貼給圖像 AI（每段都能獨立使用）。
+4. 提示詞若寫 **「附 `ref_xxx.png`」**，就把 [`ref/`](ref/) 內同名檔案一起上傳當參考圖（image reference）。
+   - 參考圖都是**複本**，`dist/assets/` 與 `docs/asset_src/` 的原檔沒動。
+   - Boss 參考圖是透明底；若你的工具把透明處顯示成黑 / 白、影響判斷，改用同名的 `_green_x3` 版本（已經合成在綠底上放大 3 倍）。
+   - 背景 / 劇情參考圖（`ref_bg_boss_room.png`、`ref_story_1.png`、`ref_story_3.png`）是由 WebP 轉成的 PNG（無損轉檔，內容相同）。
+
+## 2. 生成時
+
+- 一個提示詞**多生成 2～4 個版本**，挑最好的一張就好。
+- 角色 / 怪物 / NPC / 圖示 / 道具：**綠底 #00FF00、不要背景、不要地面陰影**，主體上不要用綠色。
+- 特效 / 傳送門：**純黑底**（遊戲用加亮疊色，我不需要去背）。
+- 背景與劇情插畫：照尺寸出完整場景圖，不去背。
+- 需要 **「分開輸出」** 的（劇情插畫 2 與 4、Boss 三個姿勢）請每張各產一次，不要拼成一張。
+- 每段提示詞的 `OUTPUT:` 行有建議尺寸（通常是遊戲尺寸的 2～4 倍）；產不到就產最大的，**比例要對**即可，縮放由我處理。
+- 圖中不要有文字、浮水印、UI 邊框（徽章的緞帶也要空白）。
+- 檔案格式一律用 **PNG**（綠底圖不要用 JPG，JPG 的綠邊會有雜訊）；整張場景圖可用 PNG 或 WebP。
+
+## 3. 命名與放哪
+
+把挑好的圖放進 **`docs/asset-requests/incoming/`**（沒有這個資料夾就自己建），檔名照下表。**不用縮尺寸、不用去背**，原檔直接放。
+
+| 缺口 | 放進 `incoming/` 的檔名 |
+|------|------------------------|
+| G-01 Boss 狂暴 | `boss_rage_idle.png`、`boss_rage_move.png`、`boss_rage_attack.png`（綠底原圖） |
+| G-02 Boss 狂暴背景 | `bg_boss_room_rage.png`（或 `.webp`） |
+| G-03 / G-04 劇情插畫 | `story_2.png`、`story_4.png` |
+| G-05 標題徽章 | `ui_title_badge.png`（綠底原圖） |
+| G-06 / G-07 普攻圖示 | `skill_icon_ATK_assassin.png`、`skill_icon_ATK_bandit.png`（綠底原圖，可放多個版本：`..._v2.png`） |
+| G-08 / G-13 傳送門 | `portal_blue.png`、`portal_gold.png`（黑底，4 格橫排） |
+| G-09 金幣 | `item_meso.png`（綠底原圖） |
+| G-10 補給商 | `npc_shops_sheet.png`（三人一張）或 `npc_peddler.png` `npc_chandler.png` `npc_trader.png` |
+| G-11 影子史萊姆 | `monster_shadow_slime.png` |
+| G-12 二轉 | 每職業：`<job>_design.png`、`<job>_sheet_a.png`、`<job>_sheet_b.png`、`<job>_sheet_c.png`（`<job>` = `shadowkiller` / `nightlord` / `bandit_king` / `shadowranger`） |
+| G-14 ～ G-20（劇情新圖） | 依 ASSET_GAPS 該項的檔名，例如 `prop_tablet.png`、`prop_chest.png`、`item_night_letter.png`、`ending_1.png`、`ending_2.png` |
+
+放好後告訴我（例如「G-03、G-04 放好了」），我會接手。
+
+## 4. 我（AI）會處理的
+
+| 步驟 | 內容 |
+|------|------|
+| 檢查 | 比例、角色一致性（臉 / 配色 / 姿勢是否與參考相符）、有沒有多餘特效、肢體黏連、綠色殘留 |
+| 去背 | 綠底圖去背並清除綠邊（深色背景上檢查殘邊）；黑底特效保留黑底，遊戲裡用加亮疊色 |
+| 切圖 | 多姿勢動作表、橫排影格、三人 NPC 合照依姿勢 / 影格切開 |
+| 縮放與對齊 | Lanczos 縮到遊戲尺寸（見 ASSET_GAPS 總表「遊戲內尺寸」）、腳底貼底邊、水平置中、同組動作畫布一致；保留 x4 原圖放進 `docs/asset_src/` |
+| 轉檔與命名 | 命名為最終檔名放入 `dist/assets/`（背景與插畫轉 WebP）；`G-06` / `G-07` 是**覆蓋**現有複本檔 |
+| 接線 | 登錄到 `src/config/assetCatalog.js`，並改程式：Boss 第三階段換姿勢與背景、教學頁換成 4 張插畫、標題加徽章、傳送門改動畫、金幣圖示、NPC / 怪物移除 `tint`、二轉姿勢清單等 |
+| 驗證 | `npm test`（檢查每個檔案存在、引用沒接錯）＋ 實際開遊戲看過 |
+
+**你不需要做的事**：不用自己縮圖、去背、切圖、改檔名到 `dist/assets/`、改程式。
+**你需要做的事**：產圖、挑圖、放進 `incoming/`、決定「取決於劇情」那幾項（G-14 ～ G-20）要不要做、二轉（G-12）的外觀方向是否採用。
+
+## 5. 常見問題
+
+- **AI 把角色畫進背景裡（Boss 上次就是這樣）**：在提示詞加強 `perfectly flat solid pure green #00FF00 background, no throne room, no scenery`，並改附 `_green_x3` 的參考圖；仍不行就先產一張只有角色的、再用「保持角色與姿勢，只換背景為純綠」的方式修。
+- **角色臉或配色飄掉**：每次都附同一組參考圖，且只改動作描述，不要改其他文字。
+- **只出得來單張、不能一次多姿勢**：每個姿勢各產一次，仍附同一組參考圖與同一段風格文字，我會統一縮放對齊。
+- **不確定要不要做某項**：ASSET_GAPS 總表標 P0 的先做，標「取決於劇情」的先等你的決定。
+- `dist/assets/hisoka.jpg` 與遊戲無關（疑似其他作品角色），不在清單、也沒有複製到 `ref/`。
