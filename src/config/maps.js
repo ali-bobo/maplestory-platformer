@@ -544,6 +544,8 @@ export const MAPS = {
       { x: 30,             y: GROUND_Y - 48, width: 40, height: 72, target: 'lava', label: '←熔岩巢穴', spawnX: MAP_WIDTH - 200 },
       // 主線終點：星光之塔點亮（5/5 碎片）後才出現
       { x: MAP_WIDTH - 50, y: GROUND_Y - 48, width: 40, height: 72, target: 'boss', label: '⚠ Boss 決戰', spawnX: 200, requireBoss: true },
+      // 回程：站上王城右上層平台按 F，直接回晨曦鎮（不必走回熔岩）
+      { x: 1780, y: 240 - 48, width: 40, height: 72, target: 'town', label: '→ 回晨曦鎮', spawnX: 1300, interact: true },
     ],
     npcs: [
       { x: 330, y: GROUND_Y - 60, id: 'npc_prisoner', npcId: 'prisoner', name: '被囚的騎士',

@@ -5,6 +5,7 @@ import GlowFilterPostFxPipeline from 'phaser3-rex-plugins/plugins/shaders/glowfi
 import ShockwavePostFxPipeline from 'phaser3-rex-plugins/plugins/shaders/shockwave/ShockwavePostFxPipeline.js';
 import { VFX_TEX } from './vfxTextures.js';
 import { getQuality } from './quality.js';
+import { settings } from './settings.js';
 
 /**
  * 對遊戲物件施加短暫的發光效果
@@ -79,6 +80,7 @@ export function cameraShockwave(scene, worldX, worldY, duration = 400) {
  * @param {number} alpha    — 最大透明度
  */
 export function screenFlash(scene, duration = 120, alpha = 0.35) {
+  if (!settings.flashAllowed()) return;
   try {
     // 滿版白閃：物件設 scrollFactor(0) 固定貼螢幕，因此座標必須用「螢幕座標」
     // （相機尺寸中心），不可加 scrollX/scrollY，否則相機捲動後矩形會偏移、露出垂直邊界。

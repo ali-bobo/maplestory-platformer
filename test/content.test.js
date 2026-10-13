@@ -157,6 +157,7 @@ test('傳送門成對：A 能走到 B，B 也有一條能回 A（Boss 房除外�
   for (const [key, map] of Object.entries(MAPS)) {
     for (const p of map.portals) {
       if (p.target === 'dungeon' || p.target === 'boss') continue;
+      if (key === 'castle' && p.target === 'town') continue;   // 王城的單向回程門（互動門），晨曦鎮不通往王城
       assert.ok(MAPS[p.target].portals.some((q) => q.target === key), `${key} → ${p.target} 沒有回程`);
     }
   }
