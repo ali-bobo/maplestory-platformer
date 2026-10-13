@@ -4,6 +4,13 @@
 
 > 「已有素材」代表圖已在 `dist/assets/` 並登錄，但程式還沒接上；「缺素材」代表要先產圖（提示詞見 `ASSET_REQUEST.md`、`JOB_PROMPTS.md`、`design/content-narrative.md` 第 8 節）。
 
+### 戰鬥手感（combat-feel.md）進度
+
+| 項目 | 狀態 |
+|------|------|
+| ~~P1 輸入緩衝 120 ms~~、~~P3 土狼時間 100 ms + 跳躍緩衝 120 ms~~ | **已完成**：`engine/inputBuffer.js`（純函式）+ `Player.update`；`test/inputBuffer.test.js`、`e2e/e2e-feel.cjs`。離邊超過 100 ms 後不再保有「地面那一跳」（只剩一次空中跳）。 |
+| P2 按住連發、P4 可變跳高、P5 衝刺無敵、P6 分級停頓等 | 未做 |
+
 ### A. 已有素材、程式還沒接上
 
 | 項目 | 檔案 | 要做什麼 |
