@@ -134,9 +134,9 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     }
 
     // ─── 跳躍 / 下落穿越 ────────────────────────────────────────────────────
-    // 土狼時間：走離平台邊緣後 100ms 內仍算站在地上；超過後不再保有「地面那一跳」（剩 1 次空中跳）
+    // 兩段跳：走離平台邊緣後仍保有完整兩跳（維持舊手感，不因土狼時間而削弱）；
+    // 土狼窗（COYOTE_MS）只保證離邊瞬間按跳必定算地面跳。
     if (onGround) this.jumpsLeft = 2;
-    else if (this.jumpsLeft > 1 && !canCoyoteJump(this._coyote, false, now, coyoteMs)) this.jumpsLeft = 1;
 
     // ↓ 鍵觸發薄平台下穿：按住 DOWN 持續穿越所有薄平台，鬆開後停在下一個平台
     if (down && onGround && !this.dropThrough) {

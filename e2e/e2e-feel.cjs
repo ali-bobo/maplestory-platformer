@@ -66,7 +66,7 @@ const check = (n, c, x = '') => { console.log((c ? 'PASS' : 'FAIL') + ' - ' + n 
     const r = { jl: p.jumpsLeft, vy: p.body.velocity.y };
     T.restore(); return r;
   });
-  check('離邊 200 ms 後按跳：地面那一跳已失效（只剩空中跳，起跳後 0 次）', late.jl === 0 && late.vy < -300, JSON.stringify(late));
+  check('離邊 200 ms 後按跳：仍保有完整兩跳（起跳後剩 1 次）', late.jl === 1 && late.vy < -300, JSON.stringify(late));
 
   const noInf = await T(() => {
     const T = window.__T; const { p } = T; T.reset();
