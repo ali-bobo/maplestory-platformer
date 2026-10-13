@@ -15,6 +15,8 @@
 | B. 手機對話視窗與世界地圖 | uiScale、WorldMapOverlay、NPC 對話 UI、e2e/ux.cjs | 進行中 | 目標：字級≥約12px、觸控區≥44px，844x390 實測 |
 | C. 輸入緩衝＋土狼時間 | src/engine/inputBuffer.js（新）、Player.js | 進行中 | 窗口：輸入緩衝約120ms、土狼約100ms；純函式＋單元測試 |
 
+| D. 素材缺口盤點＋提示詞 | docs/ASSET_GAPS.md、docs/asset-requests/（含 ref/ 參考圖複本） | 進行中 | 沿用 ASSET_REQUEST.md 格式；需調整的既有圖要複製到 asset-requests/ref/ 並在提示詞標明附圖 |
+
 子代理規則：不提交 `dist/bundle.js`（由主線統一重建）；不 push、不開 PR；中文 commit。
 
 ## 合併流程（子代理完成後）
