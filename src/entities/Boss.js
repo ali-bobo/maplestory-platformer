@@ -48,6 +48,7 @@ export class Boss extends Monster {
 
     // 姿勢動畫狀態
     this._currentPose = 'boss_idle';
+    this._rage = false;   // 第 3 階段起換用狂暴姿勢（boss_rage_*）
     this._attackPoseUntil = 0;
 
     // Boss 名稱文字
@@ -89,18 +90,30 @@ export class Boss extends Monster {
     this.setTexture(poseKey);
   }
 
+  // 姿勢貼圖鍵：狂暴階段用 boss_rage_*（缺圖時退回一般姿勢）
+  _poseKey(pose) {
+    const k = this._rage ? `boss_rage_${pose}` : `boss_${pose}`;
+    return this.scene.textures.exists(k) ? k : `boss_${pose}`;
+  }
+
+  // 狂暴貼圖本身已是紅紫配色：不再疊第 3 階段的紅色染色（_baseTint 數值保留，供 AI 測試與其他邏輯讀取）
+  _restoreTint() {
+    if (this._rage && this.scene.textures.exists('boss_rage_idle')) this.clearTint();
+    else super._restoreTint();
+  }
+
   // 依移動狀態切換待機 / 移動姿勢（攻擊與死亡姿勢另外鎖定）
   _updatePose() {
     if (this.isDead) return;
     if (this.scene.time.now < this._attackPoseUntil) return;
     const moving = this.body && Math.abs(this.body.velocity.x) > 8;
-    this._setPose(moving ? 'boss_move' : 'boss_idle');
+    this._setPose(this._poseKey(moving ? 'move' : 'idle'));
   }
 
   // 觸發攻擊姿勢，並鎖定一小段時間不被移動姿勢覆蓋
   _triggerAttackPose() {
     if (this.isDead) return;
-    this._setPose('boss_attack');
+    this._setPose(this._poseKey('attack'));
     this._attackPoseUntil = this.scene.time.now + 450;
   }
 
@@ -125,6 +138,7 @@ export class Boss extends Monster {
     const scene = this.scene;
     const cam = scene.cameras.main;
     scene._aiPool?.clear();
+    if (newPhase >= 3) this._rage = true;
 
     const flash = scene.add.graphics();
     flash.fillStyle(newPhase >= 3 ? 0xff3333 : 0xffffff, 0.8);

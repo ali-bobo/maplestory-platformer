@@ -17,7 +17,7 @@
 
 | D. 素材缺口盤點＋提示詞 | docs/ASSET_GAPS.md、docs/asset-requests/（含 ref/ 參考圖複本） | **完成並合併** | 缺口表 docs/ASSET_GAPS.md（G-01~G-21）、參考圖 asset-requests/ref/（26 張）；使用者產圖放 asset-requests/incoming/ 後由 AI 去背接線 |
 | E. 提示詞改寫為自足版 | docs/asset-requests/PROMPTS.md、ASSET_GAPS.md | **完成並合併** | 可複製版在 docs/asset-requests/PROMPTS.md；待使用者確認的外觀描述見該檔與日誌。使用者用免費 Gemini：無上下文、預設無參考圖。每段提示詞必須完整重述風格＋角色文字描述，參考圖僅為可選加強 |
-| F. 提示詞壓縮為短版 | PROMPTS.md、ASSET_GAPS.md 第4節、asset-requests/README.md | 進行中 | 使用者回饋：太長，免費 Gemini 不能用。規則：『貼這段』每個 ≤ 700 英文字元，仍自足 |
+| F. 提示詞壓縮為短版 | PROMPTS.md、ASSET_GAPS.md 第4節、asset-requests/README.md | **完成並合併**（72 段皆 ≤700 字元） | 使用者回饋：太長，免費 Gemini 不能用。規則：『貼這段』每個 ≤ 700 英文字元，仍自足 |
 
 子代理規則：不提交 `dist/bundle.js`（由主線統一重建）；不 push、不開 PR；中文 commit。
 
@@ -41,3 +41,4 @@ Boss 狂暴姿勢與背景、劇情插畫 2 與 4、標題徽章、刺客／俠�
 - 2026-10-13：子代理 C 合併（保留兩段跳不削弱）。使用者傳來狂暴 Boss 待機圖（綠底 1504x704，紅眼紅符文、灰紫膚、紫焰黑球），待存入 asset-requests/incoming/boss_rage_idle.png 後去背接線；移動／攻擊兩張仍待產。
 - 2026-10-13：使用者提供調整後的狂暴待機圖（深紫膚）。已去背縮放成 docs/asset-requests/incoming/boss_rage_idle.png（460x220，角色高 199，置中貼底，與 boss_idle 同基準；原圖留存為 boss_rage_idle_src.jpg）。**尚未接線**：等移動、攻擊兩張到齊後，再一起加進 assetCatalog（scope boss）並在 BossScene 狂暴階段切換貼圖，避免只換待機造成外觀不連貫。下一步：使用者產 G-01 移動／攻擊（附這張當參考）。
 - 2026-10-13：使用者回饋提示詞太長；派出子代理 F 壓縮。**之後所有新提示詞：≤ 700 字元、自足、一段可貼。**
+- 2026-10-13：Boss 狂暴三姿勢（待機／移動／攻擊）已入庫並接線（assetCatalog、Boss.js `_rage`＋`_poseKey`，第 3 階段起使用；狂暴時不疊紅染色）。e2e/boss-rage.cjs 全過。G-01 完成；G-02（狂暴背景）仍缺。下次發布試玩頁面要多附 boss_rage_*.png 三個檔。
