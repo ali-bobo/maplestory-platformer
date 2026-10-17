@@ -30,7 +30,7 @@ import { shouldWarnDeath, isLowHp } from '../engine/danger.js';
 const SHORT_LABELS = { Z: '三連飛鏢', X: '影步伐', C: '暗殺', V: '漩渦', B: '影分身' };
 
 // 技能視窗底部的技能說明區高度
-const SKILL_DESC_H = 96;
+const SKILL_DESC_H = 112;
 
 // 中文逐字折行（Phaser 只會在空白處斷行，中英混排時會切得很怪）
 let _wrapCtx = null;
@@ -1768,8 +1768,9 @@ export class UIScene extends Phaser.Scene {
     const showDesc = (key) => {
       const lv = (gs && gs.skillLevels && gs.skillLevels[key]) || 0;
       descTitle.setText(`${job.skills[key].name}${lv > 0 ? `　Lv.${lv}` : '　（未學）'}`);
-      descDmg.setText(skillDamageText(key, skillDamageScale(Math.max(1, lv))));
+      descDmg.setText(wrapCjk(skillDamageText(key, skillDamageScale(Math.max(1, lv))), 12, popW - 36));
       descBody.setText(wrapCjk(SKILL_DESC[key] || '', 12, popW - 36));
+      descBody.setY(descDmg.y + descDmg.height + 2);   // 傷害可能折成兩行
     };
     this._skillDescKey = keys.includes(this._skillDescKey) ? this._skillDescKey : keys[0];
     showDesc(this._skillDescKey);

@@ -99,35 +99,44 @@ const BASE = `http://127.0.0.1:${PORT}/index.html?debug=1`;
   st0 = await state(); await press('z'); await page.waitForTimeout(200); s = await state();
   check('瞬影連刺：範圍內沒目標 → 不扣 MP、不進冷卻', s.mp >= st0.mp - 1 && !(s.cd.backstab > 0), `mp ${st0.mp} -> ${s.mp} cd=${s.cd.backstab}`);
 
-  // 蝕心毒鏢：命中中毒、疊到 3 層
+  // 蝕心毒鏢：兩支毒鏢各上 1 層、會跳毒；第二次施放疊滿 3 層 → 毒爆
   await prep(160);
   st0 = await state();
-  await equip('Z', 'poison'); await press('z'); await page.waitForTimeout(700);
+  await equip('Z', 'poison'); await press('z'); await page.waitForTimeout(800);
   s = await state();
   check('蝕心毒鏢：MP -30、冷卻開始', (st0.mp - s.mp) > 20 && (st0.mp - s.mp) < 31 && s.cd.poison > 0, `mp ${st0.mp} -> ${s.mp}`);
-  check('蝕心毒鏢：命中並中毒 1 層', s.hp < st0.hp && s.poison === 1, `hp ${st0.hp} -> ${s.hp} stacks=${s.poison}`);
+  check('蝕心毒鏢：兩支都命中，中毒 2 層', s.hp < st0.hp && s.poison === 2, `hp ${st0.hp} -> ${s.hp} stacks=${s.poison}`);
   const hpAfterHit = s.hp;
   await page.waitForTimeout(2300);
   s = await state();
   check('蝕心毒鏢：持續傷害（毒跳）', s.hp < hpAfterHit, `${hpAfterHit} -> ${s.hp}`);
-  for (let i = 0; i < 3; i++) { await ev(() => { const g = window.__game; g.registry.get('gameState').skillCooldowns.poison = 0; window.__game.scene.getScene('MapleIslandScene').player.setPosition(window.__m.x - 160, window.__game.scene.getScene('MapleIslandScene').player.y); window.__game.scene.getScene('MapleIslandScene').player.facingRight = true; }); await press('z'); await page.waitForTimeout(650); }
+  const hpBeforeBurst = s.hp;
+  await ev(() => { const g = window.__game; g.registry.get('gameState').skillCooldowns.poison = 0; const p = g.scene.getScene('MapleIslandScene').player; p.setPosition(window.__m.x - 160, p.y); p.facingRight = true; });
+  await press('z'); await page.waitForTimeout(800);
   s = await state();
-  check('蝕心毒鏢：疊層上限 3', s.poison === 3, 'stacks=' + s.poison);
+  const bursts = await ev(() => window.__m._poisonBursts || 0);
+  check('蝕心毒鏢：疊滿 3 層毒爆（毒清掉後第二支重新上 1 層）', bursts === 1 && s.poison <= 1 && hpBeforeBurst - s.hp > 0, `bursts=${bursts} stacks=${s.poison} dmg=${hpBeforeBurst - s.hp}`);
   await shot('job-assassin-poison');
 
-  // 斷命印記：標記後下一擊必暴擊 +30%
+  // 斷命印記：落印一斬；印記期間每擊必暴擊並存下 25%；結束時斷命
   await prep(200);
   st0 = await state();
-  await equip('Z', 'mark'); await press('z'); await page.waitForTimeout(400);
+  await equip('Z', 'mark'); await press('z'); await page.waitForTimeout(600);
   s = await state();
-  check('斷命印記：MP -50、冷卻開始、敵人被標記', (st0.mp - s.mp) > 40 && (st0.mp - s.mp) < 51 && s.cd.mark > 0 && s.mark, `mp ${st0.mp} -> ${s.mp} mark=${s.mark}`);
+  check('斷命印記：MP -50、冷卻開始、落印一斬、敵人被標記', (st0.mp - s.mp) > 40 && (st0.mp - s.mp) < 51 && s.cd.mark > 0 && s.mark && s.hp < st0.hp, `mp ${st0.mp} -> ${s.mp} mark=${s.mark} hp ${st0.hp} -> ${s.hp}`);
   await shot('job-assassin-mark');
   const dmg = await ev(() => {
     const m = window.__m; const gs = window.__game.registry.get('gameState');
     const h0 = m.hp; m.takeDamage(1000, false); const h1 = m.hp; m.takeDamage(1000, false); const h2 = m.hp;
-    return { first: h0 - h1, second: h1 - h2, expect: Math.floor(1000 * (gs.critMulti + 0.4) * 1.2), mark: !!m._mark };
+    return { first: h0 - h1, second: h1 - h2, expect: Math.floor(1000 * (gs.critMulti + 0.4)), stored: m._mark ? m._mark.stored : -1 };
   });
-  check('斷命印記：印記期間每一擊都必暴擊且 +20%，印記不會被打掉', dmg.first === dmg.expect && dmg.second === dmg.expect && dmg.mark, JSON.stringify(dmg));
+  check('斷命印記：印記期間每一擊都必暴擊並存下 25%，印記不會被打掉',
+    dmg.first === dmg.expect && dmg.second === dmg.expect && dmg.stored === 2 * Math.floor(dmg.expect * 0.25), JSON.stringify(dmg));
+  const hpBeforeFinale = await ev(() => { const m = window.__m; const h = m.hp; m._mark.until = 0; m.takeDamage(1, false); return h; });
+  await page.waitForTimeout(900);
+  s = await state();
+  check('斷命印記：時間到斷命，傷害 ≥ 存下的傷害', !s.mark && hpBeforeFinale - s.hp > dmg.stored, `finale ${hpBeforeFinale - s.hp} stored ${dmg.stored}`);
+  await shot('job-assassin-mark-finale');
 
   // 繼承技能（三連飛鏢 / 暗影步伐 / 暗殺）在刺客身上仍可施放，且用刺客的動作圖
   for (const [id, cost] of [['Z', 10], ['X', 30], ['C', 50]]) {

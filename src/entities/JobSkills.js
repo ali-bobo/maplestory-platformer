@@ -5,7 +5,7 @@
 
 import Phaser from 'phaser';
 import { audio } from '../engine/audio.js';
-import { spawnSlashWave, cameraShockwave, spawnLightRays, energyBurstRing } from '../engine/vfx.js';
+import { spawnSlashWave, cameraShockwave, spawnLightRays, energyBurstRing, screenFlash } from '../engine/vfx.js';
 import { VFX_TEX } from '../engine/vfxTextures.js';
 import {
   skillDamageScale, effectiveCritMulti, effectiveCritRate, jobOf, jobPassive,
@@ -16,7 +16,8 @@ import {
   hitStop, findNearestEnemy, launchShuriken, resolveAssassinateWarpPoint,
 } from './Skill.js';
 import {
-  setMark, clearMark, addPoison, tickPoison, POISON_TICK_MULT, MARK_DURATION_MS,
+  setMark, clearMark, addPoison, tickPoison, detonatePoison, POISON_TICK_MULT, POISON_MAX_STACKS, POISON_DARTS, POISON_PIERCE,
+  POISON_BURST_MULT, POISON_BURST_RADIUS, MARK_DURATION_MS, MARK_FINISH_RADIUS,
   pruneSmoke, SMOKE_DURATION_MS, SMOKE_RADIUS, SMOKE_TICK_MULT, SMOKE_BLAST_MULT, SMOKE_FINALE_MULT, STEAL_MP_REFUND, rollSteal, comboStep,
 } from '../engine/statusEffects.js';
 
@@ -185,29 +186,90 @@ export function castBackstab(scene, player, enemies) {
   return true;
 }
 
-// ── 蝕心毒鏢（刺客）：1.2 倍飛鏢，命中後中毒 6 秒（每秒 0.65 倍，最多 3 層）─────
-export function applyPoison(scene, player, enemy) {
+// ── 蝕心毒鏢（刺客）：連丟 2 支穿透毒鏢，每支上 1 層毒（6 秒、每層每秒 0.4 倍）；疊滿 3 層毒爆 ─────
+const POISON_GREEN = 0x8cff4a;
+const POISON_DARK = 0x2f8f1c;
+
+// 綠色毒泡：從 (x, y) 往上冒、慢慢散開
+function spawnBubbles(scene, x, y, count, spread) {
+  for (let i = 0; i < count; i++) {
+    const b = scene.add.image(x + (Math.random() - 0.5) * spread, y + (Math.random() - 0.5) * spread * 0.5, VFX_TEX.SOFT_GLOW)
+      .setDepth(58).setTint(Math.random() < 0.6 ? POISON_GREEN : 0xd8ff9a).setBlendMode(Phaser.BlendModes.ADD)
+      .setScale(0.1 + Math.random() * 0.16);
+    scene.tweens.add({
+      targets: b, y: b.y - 30 - Math.random() * 50, x: b.x + (Math.random() - 0.5) * 30, alpha: 0, scale: 0.03,
+      duration: 500 + Math.random() * 500, ease: 'Sine.easeOut', onComplete: () => b.destroy(),
+    });
+  }
+}
+
+function stopPoison(enemy) {
+  const st = enemy._poison;
+  if (st?.timer) { st.timer.remove(); st.timer = null; }
+  enemy._poison = null;
+}
+
+// 毒爆：剩下的毒傷一次打完 + 2.2 倍可暴擊的爆炸，並讓周圍其他敵人中毒 1 層（可能連鎖毒爆）
+function poisonBurst(scene, player, enemies, enemy) {
+  const gs = player.gameState;
+  const rest = detonatePoison(enemy._poison);
+  stopPoison(enemy);
+  const c = getEntityEffectPoint(enemy);
+  const { damage, isCrit } = calcDamage(
+    gs.atk, effectiveCritRate(gs), effectiveCritMulti(gs), POISON_BURST_MULT * skillDamageScale(gs.skillLevels.poison),
+  );
+  enemy.takeDamage(damage + rest, isCrit);
+  enemy._poisonBursts = (enemy._poisonBursts || 0) + 1;
+
+  const flash = scene.add.image(c.x, c.y, VFX_TEX.SOFT_GLOW).setDepth(57).setTint(POISON_GREEN)
+    .setBlendMode(Phaser.BlendModes.ADD).setScale(0.8);
+  scene.tweens.add({ targets: flash, scale: POISON_BURST_RADIUS / 16, alpha: 0, duration: 380, ease: 'Quad.easeOut', onComplete: () => flash.destroy() });
+  energyBurstRing(scene, c.x, c.y, POISON_GREEN, POISON_BURST_RADIUS);
+  spawnShockCircle(scene, c.x, c.y, { startRadius: 12, endRadius: POISON_BURST_RADIUS, duration: 340, color: POISON_DARK, alpha: 0.9, lineWidth: 5 });
+  spawnLightRays(scene, c.x, c.y, { count: 12, length: 110, color: POISON_GREEN, alpha: 0.5, duration: 320 });
+  playFx(scene, 'fx_poison', c.x, c.y, { scale: 1.5, frameRate: 18, normal: true });
+  spawnBubbles(scene, c.x, c.y, 18, 70);
+  floatText(scene, c.x, c.y - 40, '毒爆！', '#b8ff6a');
+  scene.cameras.main.shake(140, 0.012);
+  hitStop(scene, 60);
+  audio.playImpact(true);
+
+  // 擴散：稍微延遲，連鎖毒爆看得出先後
+  later(scene, player, 160, () => {
+    enemies?.getChildren?.().forEach((other) => {
+      if (other === enemy || !alive(other)) return;
+      const o = getEntityEffectPoint(other);
+      if (Phaser.Math.Distance.Between(c.x, c.y, o.x, o.y) > POISON_BURST_RADIUS + (other.body ? other.body.halfWidth : 0)) return;
+      applyPoison(scene, player, other, enemies);
+    });
+  });
+}
+
+export function applyPoison(scene, player, enemy, enemies) {
   if (!alive(enemy)) return;
   const gs = player.gameState;
   const perTick = Math.floor(gs.atk * POISON_TICK_MULT * skillDamageScale(gs.skillLevels.poison));
   const st = addPoison(enemy, perTick);
   const c = getEntityEffectPoint(enemy);
-  playFx(scene, 'fx_poison', c.x, c.y - 6, { scale: 0.6, frameRate: 14, normal: true });
+  playFx(scene, 'fx_poison', c.x, c.y - 6, { scale: 0.7, frameRate: 14, normal: true });
+  spawnBubbles(scene, c.x, c.y, 5, 30);
+  if (st.stacks >= POISON_MAX_STACKS) { poisonBurst(scene, player, enemies, enemy); return; }
   floatText(scene, c.x, c.y - 30, `毒 x${st.stacks}`, '#8cff66');
   if (st.timer) return;   // 已有跳毒計時器：只刷新層數與持續時間
   st.timer = scene.time.addEvent({
     delay: 1000, loop: true,
     callback: () => {
-      if (!enemy.active || enemy.isDead || !scene.sys.isActive()) { st.timer.remove(); st.timer = null; enemy._poison = null; return; }
+      if (!enemy.active || enemy.isDead || !scene.sys.isActive() || enemy._poison !== st) { st.timer?.remove(); st.timer = null; if (enemy._poison === st) enemy._poison = null; return; }
       const dmg = tickPoison(st);
       if (dmg > 0) {
         enemy.takeDamage(dmg, false, { dot: true });
         if (!enemy.isDead) {
           const p = getEntityEffectPoint(enemy);
           playFx(scene, 'fx_poison', p.x, p.y - 4, { scale: 0.38, frameRate: 18, normal: true });
+          spawnBubbles(scene, p.x, p.y, 2 + st.stacks * 2, 30);
         }
       }
-      if (st.ticksLeft <= 0) { st.timer.remove(); st.timer = null; enemy._poison = null; }
+      if (st.ticksLeft <= 0) stopPoison(enemy);
     },
   });
 }
@@ -215,54 +277,139 @@ export function applyPoison(scene, player, enemy) {
 export function castPoison(scene, player, enemies) {
   audio.playSkill('Z');
   const dir = player.facingRight ? 1 : -1;
-  player.playThrowAnimation?.(220);
-  later(scene, player, 60, () => {
-    const origin = getEntityEffectPoint(player);
-    launchShuriken(scene, player, enemies, {
-      x: player.x + dir * 24, y: origin.y - 6, vx: dir * 700, vy: 0,
-      multiplier: M.POISON_DART, skillKey: 'poison', tint: 0x9dff6a, scale: 1.1,
-      trailTint: [0xc8ff9a, 0x6edc3c, 0x2f8f1c],
-      onHit: (enemy) => applyPoison(scene, player, enemy),
+  player.playThrowAnimation?.(300);
+  for (let i = 0; i < POISON_DARTS; i++) {
+    later(scene, player, 60 + i * 130, () => {
+      const origin = getEntityEffectPoint(player);
+      const hx = player.x + dir * 24;
+      const hy = origin.y - 10 + i * 8;
+      // 出手的綠光
+      const glow = scene.add.image(hx, hy, VFX_TEX.SOFT_GLOW).setDepth(41).setTint(POISON_GREEN)
+        .setBlendMode(Phaser.BlendModes.ADD).setScale(0.5);
+      scene.tweens.add({ targets: glow, scale: 1.1, alpha: 0, duration: 200, onComplete: () => glow.destroy() });
+      launchShuriken(scene, player, enemies, {
+        x: hx, y: hy, vx: dir * 760, vy: 0, pierce: POISON_PIERCE, lifetime: 700,
+        multiplier: M.POISON_DART, skillKey: 'poison', tint: 0x9dff6a, scale: 1.25,
+        trailTint: [0xc8ff9a, 0x6edc3c, POISON_DARK],
+        onHit: (enemy) => applyPoison(scene, player, enemy, enemies),
+      });
+    });
+  }
+}
+
+// ── 斷命印記（刺客）：血印落下斬一刀；7 秒內打它必暴擊並存下 25%；時間到或目標死亡時「斷命」───
+const MARK_RED = 0xff3a4a;
+
+// 斷命：先一道紅線預告，接著從天而降的重斬，範圍內所有敵人吃 2.5 倍必暴擊 + 印記存下的傷害
+function markFinale(scene, player, enemies, x, y, stored) {
+  const cam = scene.cameras.main;
+  const top = cam.worldView.y - 20;
+  const h = y - top + 30;
+  const warn = scene.add.rectangle(x, top + h / 2, 4, h, 0xc0102a, 0.0).setDepth(63);
+  scene.tweens.add({ targets: warn, fillAlpha: 0.8, duration: 220 });
+  later(scene, player, 260, () => {
+    warn.destroy();
+    const gs = player.gameState;
+    // 重斬：紅色外光 + 白色刃芯，由上往下砸
+    const blade = scene.add.rectangle(x, top + h / 2, 34, h, 0xc0102a, 0.9).setDepth(63);
+    const core = scene.add.rectangle(x, top + h / 2, 10, h, 0xffffff, 1).setDepth(64).setBlendMode(Phaser.BlendModes.ADD);
+    scene.tweens.add({ targets: [blade, core], scaleX: 0, alpha: 0, duration: 320, ease: 'Quad.easeIn', onComplete: () => { blade.destroy(); core.destroy(); } });
+    playFx(scene, 'fx_mark', x, y, { scale: 1.8, frameRate: 24 });
+    energyBurstRing(scene, x, y, MARK_RED, MARK_FINISH_RADIUS);
+    spawnShockCircle(scene, x, y, { startRadius: 14, endRadius: MARK_FINISH_RADIUS * 1.1, duration: 360, color: MARK_RED, alpha: 0.9, lineWidth: 6 });
+    spawnLightRays(scene, x, y, { count: 14, length: 150, color: MARK_RED, alpha: 0.6, duration: 360 });
+    spawnSlashWave(scene, x, y, true, { radius: 90, color: 0xff8a8a, duration: 260, scale: 2 });
+    spawnSlashWave(scene, x, y, false, { radius: 90, color: 0xff8a8a, duration: 260, scale: 2 });
+    cameraShockwave(scene, x, y, 380);
+    screenFlash(scene, 140, 0.22);
+    cam.shake(260, 0.02);
+    hitStop(scene, 90);
+    floatText(scene, x, y - 60, '斷命！', '#ff6a6a').setFontSize(24);
+    audio.playImpact(true);
+    const mult = M.MARK_FINISH * skillDamageScale(gs.skillLevels.mark);
+    enemies?.getChildren?.().forEach((enemy) => {
+      if (!alive(enemy)) return;
+      const c = getEntityEffectPoint(enemy);
+      if (Phaser.Math.Distance.Between(x, y, c.x, c.y) > MARK_FINISH_RADIUS + (enemy.body ? enemy.body.halfWidth : 0)) return;
+      const { damage } = calcDamage(gs.atk, 1, effectiveCritMulti(gs), mult);
+      enemy.takeDamage(damage + stored, true);
+      enemy.applyKnockback?.((c.x >= x ? 1 : -1) * 240, 240, -200);
+      spawnImpactSpark(scene, c.x, c.y, 0xffdd66, 1.5);
     });
   });
 }
 
-// ── 斷命印記（刺客）：標記最近敵人 7 秒，期間每次受擊（毒除外）必暴擊並 +20% 傷害 ───
 export function castMark(scene, player, enemies) {
   const origin = getEntityEffectPoint(player);
   const target = findNearestEnemy(enemies, origin.x, origin.y, 460);
   if (!target) return false;
   audio.playSkill('V');
   player._lockPose(player.pose('cast'), 450);
-  const c = getEntityEffectPoint(target);
-  playFx(scene, 'fx_mark', c.x, c.y, { scale: 1.1, frameRate: 10 });
-  spawnShockCircle(scene, c.x, c.y, { startRadius: 10, endRadius: 56, duration: 300, color: 0xff6a6a, alpha: 0.7, lineWidth: 2 });
+  const gs = player.gameState;
 
-  const mark = setMark(target, scene.time.now, MARK_DURATION_MS);
-  // 印記圖示跟著敵人（一個 update 監聽，印記消失就移除）
-  const icon = loopFx(scene, 'fx_mark', c.x, c.y - 50, { scale: 0.42, frameRate: 6, alpha: 0.95 });
-  const follow = () => {
-    if (!icon?.active || !target.active) return;
-    const p = getEntityEffectPoint(target);
-    icon.setPosition(p.x, (target.body ? target.body.top : p.y - 30) - 18);
-  };
-  scene.events.on('update', follow);
-  const timer = scene.time.delayedCall(MARK_DURATION_MS, () => { if (target._mark === mark) clearMark(target, 'expired'); });
-  // 第一擊演出「斷命」；之後每一擊只閃一下印記，避免多段攻擊洗版
-  mark.onHit = (n) => {
-    if (!target.active) return;
-    const p = getEntityEffectPoint(target);
-    if (n === 1) {
-      playFx(scene, 'fx_mark', p.x, p.y, { scale: 1.4, frameRate: 24 });
-      floatText(scene, p.x, p.y - 34, '斷命！', '#ff8a8a');
-      spawnLightRays(scene, p.x, p.y, { count: 10, length: 90, color: 0xff6a6a, alpha: 0.5, duration: 280 });
-    }
-  };
-  mark.onClear = () => {
-    scene.events.off('update', follow);
-    timer.remove();
-    if (icon?.active) icon.destroy();
-  };
+  // 血印飛向目標
+  const t0 = getEntityEffectPoint(target);
+  const orb = scene.add.image(origin.x, origin.y - 10, VFX_TEX.MAGIC_CIRCLE).setDepth(62).setTint(MARK_RED)
+    .setBlendMode(Phaser.BlendModes.ADD).setScale(0.18);
+  scene.tweens.add({
+    targets: orb, x: t0.x, y: t0.y, angle: 540, duration: 200, ease: 'Quad.easeIn',
+    onUpdate: () => spawnAfterimage(scene, orb, { alpha: 0.4, duration: 160, tint: MARK_RED }),
+    onComplete: () => orb.destroy(),
+  });
+
+  later(scene, player, 200, () => {
+    if (!alive(target)) return;
+    const c = getEntityEffectPoint(target);
+    // 落印一斬（必暴擊）：紅色 X 斬 + 衝擊圈
+    const { damage } = calcDamage(gs.atk, 1, effectiveCritMulti(gs), M.MARK_HIT * skillDamageScale(gs.skillLevels.mark));
+    target.takeDamage(damage, true);
+    spawnSlashWave(scene, c.x, c.y, true, { radius: 60, color: MARK_RED, duration: 220, scale: 1.6 });
+    spawnSlashWave(scene, c.x, c.y, false, { radius: 60, color: MARK_RED, duration: 220, scale: 1.6 });
+    playFx(scene, 'fx_mark', c.x, c.y, { scale: 1.1, frameRate: 14 });
+    spawnShockCircle(scene, c.x, c.y, { startRadius: 10, endRadius: 70, duration: 300, color: MARK_RED, alpha: 0.8, lineWidth: 3 });
+    scene.cameras.main.shake(90, 0.008);
+    audio.playImpact(true);
+    if (!alive(target)) return;
+
+    const mark = setMark(target, scene.time.now, MARK_DURATION_MS);
+    floatText(scene, c.x, c.y - 44, '斷命印記', '#ff8a8a');
+    // 頭上的印記 + 存下的傷害數字 + 腳下的紅色符文圈，都跟著敵人
+    const icon = loopFx(scene, 'fx_mark', c.x, c.y - 50, { scale: 0.48, frameRate: 6, alpha: 0.95 });
+    const label = scene.add.text(c.x, c.y - 30, '', {
+      fontSize: '13px', color: '#ff9a9a', fontFamily: 'Arial', fontStyle: 'bold', stroke: '#000', strokeThickness: 3,
+    }).setOrigin(0.5, 0).setDepth(90);
+    const rune = scene.add.image(c.x, c.y, VFX_TEX.MAGIC_CIRCLE).setDepth(11).setTint(MARK_RED)
+      .setBlendMode(Phaser.BlendModes.ADD).setAlpha(0.6).setScale(0.6, 0.2);
+    const spin = scene.tweens.add({ targets: rune, angle: 360, duration: 2400, repeat: -1 });
+    const follow = () => {
+      if (!target.active) return;
+      const p = getEntityEffectPoint(target);
+      const headY = (target.body ? target.body.top : p.y - 30) - 18;
+      icon?.setPosition(p.x, headY);
+      label.setPosition(p.x, headY + 14);
+      rune.setPosition(p.x, target.body ? target.body.bottom - 2 : p.y + 30);
+    };
+    scene.events.on('update', follow);
+    const timer = scene.time.delayedCall(MARK_DURATION_MS, () => { if (target._mark === mark) clearMark(target, 'expired'); });
+    mark.onHit = (n, stored) => {
+      label.setText(`斷命 +${stored}`);
+      if (icon?.active) {
+        scene.tweens.killTweensOf(icon);
+        icon.setScale(0.7);
+        scene.tweens.add({ targets: icon, scale: 0.48, duration: 160 });
+      }
+    };
+    mark.onClear = (reason, stored) => {
+      scene.events.off('update', follow);
+      timer.remove();
+      spin.remove();
+      const p = getEntityEffectPoint(target);
+      if (icon?.active) icon.destroy();
+      label.destroy();
+      rune.destroy();
+      if (reason !== 'replaced' && scene.sys.isActive()) markFinale(scene, player, enemies, p.x, p.y, stored);
+    };
+  });
   return true;
 }
 

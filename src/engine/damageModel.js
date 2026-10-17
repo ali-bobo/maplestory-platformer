@@ -56,10 +56,10 @@ export function skillProfile(jobId, skillId, skillLevel = 1) {
     expected += base * (part.crit ? multi : part.dot ? 1 : normal);
   }
   if (model.amplify) {
-    // 斷命印記：印記期間，後續普通攻擊每一擊改為「必暴擊 × bonus」；價值 = 增加的那部分
+    // 斷命印記：自身傷害 + 印記期間後續普通攻擊每一擊改為「必暴擊 × bonus」增加的那部分
     const b = basicProfile(jobId);
     const f = critFactor(critStats(jobId, job.basic.critBonus || 0).rate, multi);
-    expected = model.amplify.duration * b.dps * ((multi * model.amplify.bonus) / f - 1);
+    expected += model.amplify.duration * b.dps * ((multi * model.amplify.bonus) / f - 1);
   }
   const cd = def.cooldown;
   const netMp = Math.max(1, def.mpCost - (model.mpRefund || 0));

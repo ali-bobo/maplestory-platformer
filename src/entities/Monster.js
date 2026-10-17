@@ -5,7 +5,7 @@ import { rollEquipmentDrop } from '../config/equipment.js';
 import { MONSTER_ASSETS } from '../config/assetCatalog.js';
 import { ALIGNMENT_PROFILES, applyAlignmentProfile, getVisualCenterPoint, getVisualCenterY, getVisualTopY } from '../config/alignment.js';
 import { VFX_TEX } from '../engine/vfxTextures.js';
-import { consumeMark, inSmoke, SMOKE_DAMAGE_FACTOR } from '../engine/statusEffects.js';
+import { consumeMark, clearMark, inSmoke, SMOKE_DAMAGE_FACTOR } from '../engine/statusEffects.js';
 import { effectiveCritMulti, jobPassive } from '../config/constants.js';
 import { SHARD_TEXTURE } from '../config/shards.js';
 import { shardToDrop } from '../engine/shards.js';
@@ -328,6 +328,7 @@ export class Monster extends Phaser.Physics.Arcade.Sprite {
     });
 
     if (this.hp <= 0) {
+      if (this._mark) clearMark(this, 'died');   // 帶著斷命印記死亡 → 當場斷命（打周圍的敵人）
       this.die();
     } else {
       this._checkPhase();
