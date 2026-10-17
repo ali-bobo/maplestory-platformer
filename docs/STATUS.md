@@ -323,3 +323,12 @@
 - 補給斷層（經濟審查 P6）：森林獵場「行商阿福」（只賣 HP 藥水 5 個 150、10 個 290，單價 30 / 29）、古代廢墟「遺跡商販老莫」（HP / MP 藥水各 5 個 155）、碧濤港「船具商阿海」（HP / MP 5 個 160、強效 HP / MP 3 個 240、萬靈藥 1 個 140）。圖沿用 `npc_merchant` / `npc_townsfolk` 加色調，單價比晨曦鎮（30 / 75 / 130）略高並隨區域上升，強效藥水 80 介於晨曦鎮 75 與黃沙遺跡 90 之間。`test/content.test.js` 的「補給商店」兩項檢查 Lv9 以上每張地圖都有商店（例外：暗巷城、台北都會、神秘之境、決戰場，皆在商店地圖一步或兩步內）。實測截圖與購買流程見 `e2e/world/shops.cjs`。
 - 真實 bug：`engine/assetLoader.js` 的 `releaseExcept` 現在釋放紋理前會先銷毀仍使用它們的場上物件。以前換職業（只有除錯 `__setJob` 或轉職時）會讓還在場上的斷命印記圖示讀到空的 glTexture，渲染丟例外、遊戲迴圈整個停住。
 - e2e 腳本診斷結果與已知偶發項目見 `e2e/README.md` 的「穩定性筆記」。單元測試 292 項。
+
+## 手把與按鍵設定
+
+- **按鍵設定**：`src/engine/keyBindings.js`（純邏輯：動作表與預設鍵位、允許的按鍵表、`rebind` 衝突時互換、保留鍵 ESC / M / J / 1 / 2 拒絕、`sanitizeBindings` 讀回清理）。鍵位存在設定的 `keys` 欄位（`thief-legend-settings`，不進存檔；「重設設定」也會一併回預設）。預設和以前完全相同（← → ↑ ↓、Alt / ↑ 跳、空白鍵普攻、Z X C V 技能欄、A S D R G 藥水、F 互動）。
+- **面板**：設定視窗右上「按鍵設定」鈕開 `src/ui/keyBindPanel.js`（點按鍵格 → 按鍵；等待時按鍵在 window capture 階段攔下，ESC 只取消；「恢復預設」要按兩次）。
+- **生效**：`Player._bindKeys` 依鍵位建 Key（屬性名稱沿用 `cursors` / `keySpace` / `keyZ` / `keyAlt` / `keyPotA`…，e2e 腳本照舊可用），設定改了下一幀重綁；互動鍵在 `BaseMapScene` 改聽通用 `keydown` 比對鍵位；HUD 技能欄 / 藥水格角落字樣、技能視窗「X 欄」、道具欄、低血量提示、NPC / 傳送門提示、設定視窗操作說明、教學按鍵頁都跟著鍵位。觸控鈕送「目前綁定的鍵」（`createKeyState(emit, resolve)`）。
+- **手把**：`src/engine/gamepad.js`，每步（`game.events` 的 `prestep`）讀 `navigator.getGamepads()`，按下 / 放開時送「目前綁定的鍵」的合成鍵盤事件，所以 ESC 順序、對話、主選單都沿用鍵盤邏輯。標準配置：搖桿 / 十字鍵左右移動、下 = 下穿、上 = 互動、A 跳、X 普攻、Y / B / LB / RB 技能欄 1–4、LT / RT 藥水 1 / 2、Start = ESC。選單 / 教學 / 結算畫面 A 當 Enter、左右固定送方向鍵。接上 / 拔掉時畫面上方短暫顯示「已連接手把」/「手把已中斷連線」（DOM 提示）。沒有用 Phaser 的 gamepad 外掛，遊戲設定不用改。
+- **驗證**：`test/controls.test.js`；`e2e/controls.cjs`（假造 `navigator.getGamepads`：接上提示、主選單按 A、移動 / 跳 / 普攻 / 技能 / Start 暫停；設定面板改鍵、互換、拒絕、ESC 取消、HUD 字樣、改鍵後實際施放、重新載入保留、恢復預設）。
+- **未做**：手把在設定 / 商店等視窗裡沒有游標導覽（用滑鼠或觸控點）；手把按鈕本身不能自訂；世界地圖 M、任務日誌 J、暫停 ESC 固定不能改。

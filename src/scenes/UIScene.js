@@ -19,6 +19,7 @@ import { buildSettingsWindow } from '../ui/settingsWindow.js';
 import { buildQuestLogWindow } from '../ui/questLogWindow.js';
 import { getObjective } from '../engine/objective.js';
 import { settings } from '../engine/settings.js';
+import { SLOT_ACTIONS, POTION_ACTIONS, hudKeyLabel, slotKeyLabel, potionKeyLabel } from '../engine/keyBindings.js';
 import { countEquipment } from '../engine/death.js';
 import { keyHint, isTouchDevice } from '../engine/device.js';
 import { scaledFontPx, uiScaleFactor, popupScale } from '../ui/uiScale.js';
@@ -511,6 +512,8 @@ export class UIScene extends Phaser.Scene {
     ensureSkillIcons(this);
     const skillKeys   = [BASIC_ATTACK, ...SKILL_SLOT_KEYS];
     const potionKeys  = ['A', 'S', 'D', 'R', 'G'];
+    this._hudKeyTexts = [];   // [{ text, action }]：技能欄 / 藥水格角落的按鍵字樣
+    this._hudKeysRef = null;
     const gsNow = this.registry.get('gameState');
     this._hudJob = jobIdOf(gsNow);
 
@@ -536,9 +539,11 @@ export class UIScene extends Phaser.Scene {
         .setDepth(52).setScrollFactor(0);
 
       // 快捷鍵（左上角）
-      this.add.text(sx + 5, sy + 3, key === BASIC_ATTACK ? 'SPACE' : key, {
+      // 快捷鍵（左上角）跟著按鍵設定；_refreshKeyLabels 在鍵位改變時更新
+      const keyText = this.add.text(sx + 5, sy + 3, '', {
         fontSize: key === BASIC_ATTACK ? '9px' : '12px', color: '#ffffff', fontFamily: 'Arial', fontStyle: 'bold', stroke: '#000', strokeThickness: 3,
       }).setDepth(55).setScrollFactor(0);
+      this._hudKeyTexts.push({ text: keyText, action: key === BASIC_ATTACK ? 'attack' : SLOT_ACTIONS[key] });
       // 技能名稱（格子下方）
       const nameText = this.add.text(sx + slot / 2, sy + slot + 3, this._skillLabel(skillId, gsNow), labelStyle)
         .setOrigin(0.5, 0).setDepth(53).setScrollFactor(0).setData('maxMul', 1.25);   // 格距只有 56px，名字不能放太大
@@ -589,9 +594,10 @@ export class UIScene extends Phaser.Scene {
         icon = this.add.circle(px + pot / 2, py + pot / 2, 9, POTIONS[key].color).setDepth(52).setScrollFactor(0);
       }
 
-      this.add.text(px + 4, py + 2, key, {
+      const potKeyText = this.add.text(px + 4, py + 2, '', {
         fontSize: '10px', color: '#ffffff', fontFamily: 'Arial', fontStyle: 'bold', stroke: '#000', strokeThickness: 3,
       }).setDepth(54).setScrollFactor(0);
+      this._hudKeyTexts.push({ text: potKeyText, action: POTION_ACTIONS[key], small: true });
 
       const qtyText = this.add.text(px + pot - 3, py + pot - 2, '', {
         fontSize: '11px', color: '#fff3a0', fontFamily: 'Arial', fontStyle: 'bold', stroke: '#000', strokeThickness: 3,
@@ -605,6 +611,21 @@ export class UIScene extends Phaser.Scene {
         .setInteractive({ useHandCursor: true })
         .on('pointerdown', () => this._usePotionFromHud(key));
     });
+    this._refreshKeyLabels();
+  }
+
+  // 技能欄 / 藥水格角落的按鍵字樣跟著目前的按鍵設定（鍵位表參照沒變就不動）
+  _refreshKeyLabels() {
+    const kb = settings.get().keys;
+    if (!this._hudKeyTexts || kb === this._hudKeysRef) return;
+    this._hudKeysRef = kb;
+    for (const { text, action, small } of this._hudKeyTexts) {
+      if (!text.active) continue;
+      const label = hudKeyLabel(kb[action]);
+      text.setText(label);
+      // 字級交給介面縮放（_applyTextScale）管；名稱長的（SPACE、Shift…）在小格子裡整體縮小
+      text.setScale(label.length > 2 && action !== 'attack' ? 0.72 : 1);
+    }
   }
 
   // 技能欄下方的名稱：盜賊沿用舊的簡稱，轉職技能用全名；普通攻擊欄顯示該職業普攻名
@@ -666,7 +687,7 @@ export class UIScene extends Phaser.Scene {
     gs.skillSlots = equipSkill(gs.skillSlots || [], slotKey, skillId, jobOf(gs).pool);
     this.registry.set('gameState', gs);
     saveGame(gs);
-    this._flashHudNotice(`${this._skillLabel(skillId, gs)} → ${slotKey} 欄`);
+    this._flashHudNotice(`${this._skillLabel(skillId, gs)} → ${slotKeyLabel(settings.get().keys, slotKey)} 欄`);
   }
 
   _onDragMove(pointer) {
@@ -703,6 +724,7 @@ export class UIScene extends Phaser.Scene {
   }
 
   _refreshCooldowns() {
+    this._refreshKeyLabels();
     const gs = this.registry.get('gameState');
     if (!gs) return;
     // 地圖名稱也加 dirty flag：值沒變就跳過 setText
@@ -1236,7 +1258,8 @@ export class UIScene extends Phaser.Scene {
   _showDeathNotice() {
     if (this._deathNotice && this._deathNotice.active) this._deathNotice.destroy();
     const { width } = this.cameras.main;
-    const tip = keyHint('快喝藥水（A / S）', '點下方藥水格喝藥水');
+    const kb = settings.get().keys;
+    const tip = keyHint(`快喝藥水（${potionKeyLabel(kb, 'A')} / ${potionKeyLabel(kb, 'S')}）`, '點下方藥水格喝藥水');
     const t = this.add.text(width / 2, 74, `HP 偏低！倒下會失去身上所有裝備。${tip}`, {
       fontSize: this._fs(18, 1.3), color: '#fff4dc', fontFamily: 'Arial', fontStyle: 'bold',
       backgroundColor: '#8a1d12e6', padding: { x: 14, y: 8 }, stroke: '#1a0e06', strokeThickness: 3,
@@ -1546,7 +1569,7 @@ export class UIScene extends Phaser.Scene {
     rows.forEach((row, i) => {
       const rowY = contentY + i * 40;
       const qty = potions[row.key] || 0;
-      push(this.add.text(popX + 14, rowY + 2, `[${row.key}]`, {
+      push(this.add.text(popX + 14, rowY + 2, `[${potionKeyLabel(settings.get().keys, row.key)}]`, {
         fontSize: '13px', color: '#aaccff', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2,
       }).setDepth(152).setScrollFactor(0));
       push(this.add.text(popX + 44, rowY + 2, row.label, {
@@ -1613,7 +1636,7 @@ export class UIScene extends Phaser.Scene {
       const maxLv = def.maxLevel || 10;
 
       const slotIdx = gs && Array.isArray(gs.skillSlots) ? gs.skillSlots.indexOf(key) : -1;
-      const keyLabel = slotIdx >= 0 ? `${SKILL_SLOT_KEYS[slotIdx]} 欄` : '未裝備';
+      const keyLabel = slotIdx >= 0 ? `${slotKeyLabel(settings.get().keys, SKILL_SLOT_KEYS[slotIdx])} 欄` : '未裝備';
       push(this.add.text(popX + 14, rowY, `[${keyLabel}] ${def.name}`, {
         fontSize: '13px', color: unlocked ? '#88ffcc' : '#9a8f78', fontFamily: 'Arial',
         stroke: '#000', strokeThickness: 2,
@@ -1705,7 +1728,7 @@ export class UIScene extends Phaser.Scene {
           g.fillRoundedRect(bx, by, bw, bh, 4);
         };
         draw(false);
-        push(this.add.text(bx + bw / 2, by + bh / 2, `${slotKey} ${job.skills[skillForSlot(gs, slotKey)].name.slice(0, 2)}`, {
+        push(this.add.text(bx + bw / 2, by + bh / 2, `${slotKeyLabel(settings.get().keys, slotKey)} ${job.skills[skillForSlot(gs, slotKey)].name.slice(0, 2)}`, {
           fontSize: '12px', color: '#ffffff', fontFamily: 'Arial',
         }).setOrigin(0.5).setDepth(153).setScrollFactor(0));
         const z = push(this.add.zone(bx, by, bw, bh).setOrigin(0, 0).setInteractive({ useHandCursor: true }).setDepth(154).setScrollFactor(0));

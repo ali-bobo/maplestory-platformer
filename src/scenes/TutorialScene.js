@@ -4,6 +4,8 @@ import { addParchmentPanel, addWoodButton } from '../engine/woodUi.js';
 import { isTouchDevice } from '../engine/device.js';
 import { addSoundButton } from '../engine/soundButton.js';
 import { audio } from '../engine/audio.js';
+import { settings } from '../engine/settings.js';
+import { DEFAULT_BINDINGS, keyLabel } from '../engine/keyBindings.js';
 
 export const TUTORIAL_SEEN_KEY = 'thief-legend-tutorial-seen';
 
@@ -17,7 +19,9 @@ function markTutorialSeen() {
 
 // ── 頁面內容 ─────────────────────────────────────────────────────────────────────
 // kind: 'story'（故事）| 'keys'（按鍵）| 'text'（一般說明）| 'final'
-export function buildPages(touch) {
+// bindings：目前的按鍵設定（電腦版按鍵頁顯示玩家改過的鍵）
+export function buildPages(touch, bindings = DEFAULT_BINDINGS) {
+  const k = (action) => keyLabel(bindings[action]);
   const story = [
     {
       kind: 'story', title: '晨曦大陸的傳說', art: '🌟',
@@ -66,13 +70,13 @@ export function buildPages(touch) {
     : {
       kind: 'keys', title: '操作按鍵（電腦版）',
       rows: [
-        { keys: ['←', '→'], text: '左右移動' },
-        { keys: ['↑'], text: '跳躍（也可用 Alt），空中可再跳一次' },
-        { keys: ['↓'], text: '站在薄平台上按住：穿過平台往下走' },
-        { keys: ['SPACE'], text: '普通攻擊（近戰揮刀，不耗 MP，隨時可用）' },
-        { keys: ['Z', 'X', 'C', 'V'], text: '四個技能欄位（耗 MP；Z 預設是三連飛鏢）' },
-        { keys: ['A', 'S', 'D', 'R', 'G'], text: '藥水（也可以直接用滑鼠點畫面下方的藥水槽）' },
-        { keys: ['F'], text: '與 NPC 對話、開商店、接任務' },
+        { keys: [k('left'), k('right')], text: '左右移動' },
+        { keys: [k('up')], text: `跳躍（也可用 ${k('jump')}），空中可再跳一次` },
+        { keys: [k('down')], text: '站在薄平台上按住：穿過平台往下走' },
+        { keys: [bindings.attack === 'SPACE' ? 'SPACE' : k('attack')], text: '普通攻擊（近戰揮刀，不耗 MP，隨時可用）' },
+        { keys: [k('skill1'), k('skill2'), k('skill3'), k('skill4')], text: `四個技能欄位（耗 MP；${k('skill1')} 預設是三連飛鏢）` },
+        { keys: [k('potA'), k('potS'), k('potD'), k('potR'), k('potG')], text: '藥水（也可以直接用滑鼠點畫面下方的藥水槽）' },
+        { keys: [k('interact')], text: '與 NPC 對話、開商店、接任務' },
         { keys: ['ESC'], text: '暫停選單（可存檔回主選單、開關聲音）／關閉視窗' },
         { keys: ['Enter'], text: '確認、繼續' },
       ],
@@ -83,14 +87,14 @@ export function buildPages(touch) {
       kind: 'text', title: '技能與欄位',
       body: [
         '升級會得到技能點（SP），打開畫面右下的「技能」視窗，按「＋」提升技能傷害。',
-        '一開始就有「三連飛鏢」（Z）；Lv.5 / 10 / 15 / 20 依序解鎖「影步伐」「暗殺」「暗影漩渦」「影分身」。空白鍵的普通攻擊不耗 MP，永遠在最左邊。',
+        `一開始就有「三連飛鏢」（${k('skill1')}）；Lv.5 / 10 / 15 / 20 依序解鎖「影步伐」「暗殺」「暗影漩渦」「影分身」。${k('attack')}的普通攻擊不耗 MP，永遠在最左邊。`,
         '技能欄只有 4 格，但技能有 5 個。全部解鎖（Lv.20）之後，可拖曳畫面下方的技能圖示互換位置，也可在技能視窗按「換入」，自己挑要帶哪 4 個。',
       ],
     },
     {
       kind: 'text', title: '任務系統',
       body: [
-        '每張地圖都有 NPC，頭上有名字。走近他們，按 F（手機點「互動」）對話，就會接到那張地圖的任務。',
+        `每張地圖都有 NPC，頭上有名字。走近他們，按 ${k('interact')}（手機點「互動」）對話，就會接到那張地圖的任務。`,
         '任務有「擊敗幾隻指定怪物」「抵達某張地圖」等。進度會顯示在畫面右上角、小地圖下方的任務追蹤面板。',
         '完成後自動領取經驗值與金幣。每位 NPC 一次只給一個任務，完成後再找他對話可以接下一個。',
       ],
@@ -127,7 +131,7 @@ export class TutorialScene extends Phaser.Scene {
   create() {
     const { width, height } = this.cameras.main;
     this._touch = isTouchDevice();
-    this._pages = buildPages(this._touch);
+    this._pages = buildPages(this._touch, settings.get().keys);
     this._index = 0;
     this._pageObjs = [];
     this._bornAt = this.time.now;
