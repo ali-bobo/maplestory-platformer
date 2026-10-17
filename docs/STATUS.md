@@ -339,3 +339,12 @@
 - 收集獎勵各發一次：10 枚 2,000 金幣；20 枚 4,000 金幣 + 永久暴擊率 +2%；30 枚 8,000 金幣 + 永久暴擊傷害 +10%。暴擊不在死亡重算的屬性內，所以死亡不會洗掉加成。
 - 進度顯示：任務日誌標題列「盜賊徽章 n/30」、最後一段列出去過的地圖各自的收集數與獎勵狀態；世界地圖右上角總數、資訊列「徽章 n/m」；HUD 資訊彈窗也有總數。
 - 測試：`test/badges.test.js`（用 `maps.js` 的平台資料與 `platformGraph` 檢查每枚都在平台 / 地面上方 20～115px、在地圖內、不卡進平台、從地面用跑跳 / 二段跳到得了、離傳送門 100px 以上；存檔驗證、獎勵只發一次、死亡保留）；e2e `e2e/badges.cjs`。
+
+## 手把與按鍵設定
+
+- **按鍵設定**：`src/engine/keyBindings.js`（純邏輯：動作表與預設鍵位、允許的按鍵表、`rebind` 衝突時互換、保留鍵 ESC / M / J / 1 / 2 拒絕、`sanitizeBindings` 讀回清理）。鍵位存在設定的 `keys` 欄位（`thief-legend-settings`，不進存檔；「重設設定」也會一併回預設）。預設和以前完全相同（← → ↑ ↓、Alt / ↑ 跳、空白鍵普攻、Z X C V 技能欄、A S D R G 藥水、F 互動）。
+- **面板**：設定視窗右上「按鍵設定」鈕開 `src/ui/keyBindPanel.js`（點按鍵格 → 按鍵；等待時按鍵在 window capture 階段攔下，ESC 只取消；「恢復預設」要按兩次）。
+- **生效**：`Player._bindKeys` 依鍵位建 Key（屬性名稱沿用 `cursors` / `keySpace` / `keyZ` / `keyAlt` / `keyPotA`…，e2e 腳本照舊可用），設定改了下一幀重綁；互動鍵在 `BaseMapScene` 改聽通用 `keydown` 比對鍵位；HUD 技能欄 / 藥水格角落字樣、技能視窗「X 欄」、道具欄、低血量提示、NPC / 傳送門提示、設定視窗操作說明、教學按鍵頁都跟著鍵位。觸控鈕送「目前綁定的鍵」（`createKeyState(emit, resolve)`）。
+- **手把**：`src/engine/gamepad.js`，每步（`game.events` 的 `prestep`）讀 `navigator.getGamepads()`，按下 / 放開時送「目前綁定的鍵」的合成鍵盤事件，所以 ESC 順序、對話、主選單都沿用鍵盤邏輯。標準配置：搖桿 / 十字鍵左右移動、下 = 下穿、上 = 互動、A 跳、X 普攻、Y / B / LB / RB 技能欄 1–4、LT / RT 藥水 1 / 2、Start = ESC。選單 / 教學 / 結算畫面 A 當 Enter、左右固定送方向鍵。接上 / 拔掉時畫面上方短暫顯示「已連接手把」/「手把已中斷連線」（DOM 提示）。沒有用 Phaser 的 gamepad 外掛，遊戲設定不用改。
+- **驗證**：`test/controls.test.js`；`e2e/controls.cjs`（假造 `navigator.getGamepads`：接上提示、主選單按 A、移動 / 跳 / 普攻 / 技能 / Start 暫停；設定面板改鍵、互換、拒絕、ESC 取消、HUD 字樣、改鍵後實際施放、重新載入保留、恢復預設）。
+- **未做**：手把在設定 / 商店等視窗裡沒有游標導覽（用滑鼠或觸控點）；手把按鈕本身不能自訂；世界地圖 M、任務日誌 J、暫停 ESC 固定不能改。

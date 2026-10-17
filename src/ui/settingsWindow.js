@@ -7,7 +7,8 @@
 import { settings, UI_SCALES, UI_SCALE_LABELS } from '../engine/settings.js';
 import { audio } from '../engine/audio.js';
 import { addParchmentPanel, addWoodButton } from '../engine/woodUi.js';
-import { KEY_CHART, KEY_CHART_NOTES } from './keyChart.js';
+import { KEY_CHART, KEY_CHART_NOTES, keyChartFor } from './keyChart.js';
+import { buildKeyBindPanel } from './keyBindPanel.js';
 import { cjkWrap } from './textWrap.js';
 import { addVersionInfo } from './versionInfo.js';
 
@@ -150,10 +151,21 @@ export function buildSettingsWindow(scene, options = {}) {
   const keyX = x0 + 436;
   const keyR = x0 + W - 34;
   text(keyX, y0 + 76, '操作說明', 17, '#ffd27a');
-  KEY_CHART.forEach((line, i) => {
+  // 按鍵設定（疊在設定視窗上的面板，見 keyBindPanel.js）；表格的按鍵跟著目前的鍵位
+  let keyPanel = null;
+  const closeKeyPanel = () => { if (keyPanel) { keyPanel.destroy(); keyPanel = null; } };
+  cleanups.push(closeKeyPanel);
+  addWoodButton(scene, keyR - 62, y0 + 88, 124, 34, '按鍵設定', () => {
+    if (keyPanel) return;
+    keyPanel = buildKeyBindPanel(scene, { depth: d + 20, x0, y0, w: W, h: H, onClose: closeKeyPanel });
+  }, { depth: d + 2, fontSize: 15 }).objects.forEach(push);
+  const chartValues = KEY_CHART.map((line, i) => {
     const y = y0 + 108 + i * 31;
     text(keyX, y, line.label, 15, '#e8d3a8', { strokeThickness: 2 });
-    text(keyR, y, line.key, 15, '#ffee44', { strokeThickness: 2 }).setOrigin(1, 0);
+    return text(keyR, y, line.key, 15, '#ffee44', { strokeThickness: 2 }).setOrigin(1, 0);
+  });
+  refreshers.push(() => {
+    keyChartFor(settings.get().keys).forEach((line, i) => { if (chartValues[i]) chartValues[i].setText(line.key); });
   });
   KEY_CHART_NOTES.forEach((note, i) => {
     text(keyX, y0 + 108 + KEY_CHART.length * 31 + 8 + i * 40, note, 13, '#b9a98a',

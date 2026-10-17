@@ -25,7 +25,9 @@ import { settings } from './engine/settings.js';
 import { installSettingsHooks } from './engine/settingsHooks.js';
 import { saveOnExit } from './engine/saveGame.js';
 import { isTouchDevice } from './engine/device.js';
-import { mountTouchControls } from './engine/touchControls.js';
+import { mountTouchControls, TOUCH_ACTIONS } from './engine/touchControls.js';
+import { installGamepad } from './engine/gamepad.js';
+import { eventDef } from './engine/keyBindings.js';
 import { audio } from './engine/audio.js';
 import { installContextGuard } from './engine/contextGuard.js';
 import { installErrorGuard } from './engine/errorGuard.js';
@@ -173,9 +175,27 @@ document.addEventListener('visibilitychange', () => {
   else audio.suspendContext();
 });
 
+// ── 手把 ────────────────────────────────────────────────────────────────────
+// 手把按鈕轉成「目前綁定的鍵」的合成鍵盤事件（見 engine/gamepad.js）；選單 / 教學 / 結算畫面 A 當 Enter
+const MENU_SCENES = ['BootScene', 'MenuScene', 'GameOverScene', 'TutorialScene'];
+const inMenu = () => MENU_SCENES.some((key) => game.scene.isActive(key));
+installGamepad({
+  game,
+  isMenu: inMenu,
+  resolveKey: (action) => {
+    if (action === 'pause') return eventDef('ESC');
+    if (action === 'confirm') return eventDef('ENTER');
+    // 選單裡左右固定送方向鍵（教學換頁用 ← →），不受鍵位設定影響
+    if (inMenu() && (action === 'left' || action === 'right')) return eventDef(action === 'left' ? 'LEFT' : 'RIGHT');
+    return eventDef(settings.get().keys[action]);
+  },
+});
+
 // 觸控裝置：掛上操作層，只在實際遊玩（HUD 場景存在）時顯示
 if (isTouchDevice()) {
-  const controls = mountTouchControls({ canvasProvider: () => game.canvas });
+  // 觸控鈕送「目前綁定的鍵」（玩家在設定裡改過鍵位也照樣能用）；ESC 固定
+  const resolveKey = (name) => (TOUCH_ACTIONS[name] ? eventDef(settings.get().keys[TOUCH_ACTIONS[name]]) : null);
+  const controls = mountTouchControls({ canvasProvider: () => game.canvas, resolveKey });
   const gameplayScenes = ['BootScene', 'MenuScene', 'GameOverScene', 'TutorialScene'];
   const SHORT = { Z: '鏢', X: '步', C: '殺', V: '渦', B: '影', backstab: '刺', poison: '毒', mark: '印', whirl: '旋', steal: '盜', smoke: '煙' };
   let lastSkillSig = '';
