@@ -6,6 +6,7 @@
 import { MAPS } from '../config/maps.js';
 import { MAP_SCENE_KEYS } from '../config/constants.js';
 import { addParchmentPanel, addWoodButton } from '../engine/woodUi.js';
+import { badgeCount, mapBadgeProgress, BADGE_COUNT } from '../engine/badges.js';
 import {
   WORLD_ROUTE, SIDE_MAPS, WORLD_MAP_SIZE, nodeScreenPos, mapState, travelCheck, travelFee,
 } from '../engine/worldTravel.js';
@@ -49,6 +50,8 @@ export class WorldMapOverlay {
       .setDepth(DEPTH + 3).setScrollFactor(0));
     add(s.add.text(170, 30, 'M / Esc 關閉　點節點選取，再點一次或按「傳送」出發', textStyle(12, '#d9c7a0'))
       .setDepth(DEPTH + 3).setScrollFactor(0));
+    add(s.add.text(width - 80, 24, `盜賊徽章 ${badgeCount(gs)}/${BADGE_COUNT}`, textStyle(15, '#ffe27a', { fontStyle: 'bold' }))
+      .setOrigin(1, 0).setDepth(DEPTH + 3).setScrollFactor(0));
     const close = addWoodButton(s, width - 44, 34, 44, 40, '×', () => this.close(), { depth: DEPTH + 4, fontSize: 22 });
     close.objects.forEach(add);
 
@@ -160,7 +163,8 @@ export class WorldMapOverlay {
     const band = map.levelBand ? `Lv.${map.levelBand[0]}-${map.levelBand[1]}` : '安全地圖';
     const fee = travelFee(gs.level, key);
     const feeText = key === 'boss' ? '請走王城傳送門' : fee === 0 ? '傳送費 免費' : `傳送費 ${fee} 楓幣`;
-    this._infoMain.setText(`${map.name}　${band}　${feeText}`);
+    const badges = mapBadgeProgress(gs, key);
+    this._infoMain.setText(`${map.name}　${band}　${feeText}${badges.total ? `　徽章 ${badges.got}/${badges.total}` : ''}`);
     const chk = travelCheck(gs, key, this._ctx());
     this._infoSub.setText(this._notice || (chk.ok ? `${STATE_TEXT[state]}・按「傳送」前往` : `${STATE_TEXT[state]}・${chk.reason}`));
     const canGo = this.selected === key ? chk.ok : travelCheck(gs, this.selected, this._ctx()).ok;

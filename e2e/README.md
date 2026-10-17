@@ -38,6 +38,7 @@
 | `soak.cjs` | 浸泡測試（效能 / 記憶體）：連續遊玩數分鐘（連打技能、受傷死亡、走遍所有地圖與 Boss / 副本、換職業、開技能視窗、音樂開著），每分鐘印出堆積 / 紋理 / 物件 / 計時器 / 音訊節點，最後斷言暖機後不成長，並演練 WebGL context 遺失。`PORT=8401 SOAK_MIN=8 node e2e/soak.cjs /tmp/shots`（`SOAK_JSON=檔案` 可存數據） |
 
 | `ai.cjs` | 怪物 AI：Boss 追擊不抖動、玩家在別層時怪物不呆站、每種新攻擊出手並造成效果、守衛 / Boss 階段切換、機器人玩家難度抽樣。用法 `PORT=8402 node e2e/ai.cjs <截圖目錄> [a b c d e]`（只跑指定章節；`CASES=charge,slam` 可限制 c 章的招式、`E_ONLY=boss` 只跑 e 章的 Boss 戰）；時間門檻用遊戲時間（headless 只有約 10 FPS） |
+| `badges.cjs` | 盜賊徽章：在浮空島嶼與森林獵場把角色瞬移到徽章上，檢查計數、浮字、立即存檔；重新整理讀檔後仍在且已撿的不再出現；第 10 枚發金幣獎勵且只發一次；任務日誌 / 世界地圖顯示進度；截圖 `badge-sky.png` 等。用法 `PORT=8133 node e2e/badges.cjs /tmp/shots` |
 | `world/` | 世界骨架：主線傳送門、星光碎片、四張新地圖的機制（`lib.cjs` 是共用工具） |
 | `world/s4.cjs` | 支線岔路入口（真實按鍵跳上跳台、走地面不誤入、按 F 進入）與世界地圖浮層（節點狀態、傳送、扣費、副本中拒絕） |
 | `balance.cjs` | 技能平衡實測：每個職業、每個技能對靜止靶的傷害 / MP，並斷言設計意圖（見 `docs/SKILLS_DESIGN.md` 第八節） |

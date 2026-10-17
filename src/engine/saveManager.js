@@ -16,6 +16,7 @@ import {
   MAX_LEVEL, titleFor, BOSS_FALLBACK_MAP,
 } from '../config/constants.js';
 import { SHARD_IDS } from '../config/shards.js';
+import { sanitizeBadges, sanitizeBadgeRewards } from './badges.js';
 import { MAPS } from '../config/maps.js';
 import { EQUIPMENT_SLOTS, EQUIPMENT_BASES, RARITIES } from '../config/equipment.js';
 import { getQuestDef, QUESTS } from '../config/quests.js';
@@ -158,6 +159,9 @@ export function sanitizeState(raw) {
   gs.shards = sanitizeShards(raw.shards);
   gs.towerLit = raw.towerLit === true && gs.shards.length >= SHARD_IDS.length;
   gs.bossUnlocked = raw.bossUnlocked === true || gs.towerLit;
+  // 盜賊徽章：只認已知 id、去重；舊存檔沒有這兩個欄位 → 空陣列
+  gs.badges = sanitizeBadges(raw.badges);
+  gs.badgeRewards = sanitizeBadgeRewards(raw.badgeRewards, gs.badges.length);
 
   if (isPlainObject(raw.equipment)) {
     for (const slot of EQUIPMENT_SLOTS) {
