@@ -323,3 +323,11 @@
 - 補給斷層（經濟審查 P6）：森林獵場「行商阿福」（只賣 HP 藥水 5 個 150、10 個 290，單價 30 / 29）、古代廢墟「遺跡商販老莫」（HP / MP 藥水各 5 個 155）、碧濤港「船具商阿海」（HP / MP 5 個 160、強效 HP / MP 3 個 240、萬靈藥 1 個 140）。圖沿用 `npc_merchant` / `npc_townsfolk` 加色調，單價比晨曦鎮（30 / 75 / 130）略高並隨區域上升，強效藥水 80 介於晨曦鎮 75 與黃沙遺跡 90 之間。`test/content.test.js` 的「補給商店」兩項檢查 Lv9 以上每張地圖都有商店（例外：暗巷城、台北都會、神秘之境、決戰場，皆在商店地圖一步或兩步內）。實測截圖與購買流程見 `e2e/world/shops.cjs`。
 - 真實 bug：`engine/assetLoader.js` 的 `releaseExcept` 現在釋放紋理前會先銷毀仍使用它們的場上物件。以前換職業（只有除錯 `__setJob` 或轉職時）會讓還在場上的斷命印記圖示讀到空的 glTexture，渲染丟例外、遊戲迴圈整個停住。
 - e2e 腳本診斷結果與已知偶發項目見 `e2e/README.md` 的「穩定性筆記」。單元測試 292 項。
+
+## 穩定性與安裝（錯誤防護、離線、版本）
+
+- **全域錯誤防護**：`src/engine/errorGuard.js`（`main.js` 掛上）。`window` 的 `error` / `unhandledrejection` → 只認本站來源（擴充功能、其他網域、跨來源 `Script error.`、ResizeObserver 迴圈、`AbortError` / `NotAllowedError` 略過）→ 先用 `saveIfPlaying()` 存檔（回傳 `saved` / `failed` / `skipped`，選單與結算畫面不存）→ 畫面下方小框（DOM，`#err-guard`）說明是否已存檔，「重新載入」與「繼續」兩鈕。每次載入頁面只提示一次；防護本身全包 try/catch。
+- **Service Worker**：根目錄 `sw.js`，由 `src/engine/serviceWorker.js` 註冊。只在 http(s) 正式網址註冊；`localhost` / `127.0.0.1`（開發與 e2e）、`?debug=1`、`file://`、iframe 中都不註冊（本機開發時若之前註冊過會自動解除並清快取，避免舊 bundle 蓋住剛建置的版本）。`dist/bundle.js` 與 `dist/assets/*` 快取優先，頁面與 `dist/version.json` 網路優先，其他靜態檔先回快取再背景更新；安裝時預先快取頁面外殼，素材清單在背景下載。要在區網 IP 測離線功能，用正式建置並以 https 或瀏覽器的「視為安全來源」旗標開啟。
+- **版本**：`npm run build` 後 `scripts/buildVersion.js` 依 `dist/bundle.js` 內容算雜湊、依 `dist/assets` 全部檔案算素材雜湊，寫入 `dist/version.json` 並改寫 `sw.js` 的 `SHELL_VERSION` / `ASSETS_VERSION`（只依內容，不含時間，可重現）。新版 SW 啟用時刪除名稱不符的舊快取（bundle 變了只重抓外殼，素材沒變就沿用）。
+- **設定視窗**：標題列右側「版本 3.0.0-xxxxxxx · 更新紀錄」，點開更新紀錄面板（`src/ui/versionInfo.js`，內容在 `src/config/changelog.js`）。版號取自 `package.json`，雜湊執行時讀 `dist/version.json`（讀不到只顯示版號）。
+- 單元測試 `test/stability.test.js`（錯誤過濾與限流、版本字串、更新紀錄、SW 註冊條件、建置雜湊與 sw.js 改寫）。

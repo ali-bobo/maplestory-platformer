@@ -9,6 +9,7 @@ import { audio } from '../engine/audio.js';
 import { addParchmentPanel, addWoodButton } from '../engine/woodUi.js';
 import { KEY_CHART, KEY_CHART_NOTES } from './keyChart.js';
 import { cjkWrap } from './textWrap.js';
+import { addVersionInfo } from './versionInfo.js';
 
 export const SETTINGS_WINDOW = { w: 760, h: 572, y: 14 };
 
@@ -46,6 +47,9 @@ export function buildSettingsWindow(scene, options = {}) {
 
   push(addParchmentPanel(scene, x0, y0, W, H, { depth: d }));
   text(x0 + 34, y0 + 20, '設定', 26, '#ffe9b0');
+  // 標題列右側：版本與更新紀錄（點開面板，見 versionInfo.js）
+  const versionInfo = addVersionInfo(scene, { rightX: x0 + W - 84, y: y0 + 30, depth: d, panel: { x: x0 + 20, y: y0 + 66, w: W - 40, h: H - 76 } });
+  cleanups.push(() => versionInfo.destroy());
 
   // 關閉 ×（44px 命中區）
   const closeBg = rect(x0 + W - 66, y0 + 14, 40, 40, 0x553333, 0.95, d + 1);
