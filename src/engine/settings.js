@@ -1,4 +1,4 @@
-// 玩家設定（音量、畫面效果、介面大小、減少動態）
+// 玩家設定（音量、畫面效果、介面大小、減少動態、難度）
 //
 // 設計重點：
 //  - 裝置偏好，不是進度：存在獨立的 localStorage key（SETTINGS_KEY），不放進存檔，也不會隨存檔代碼匯出。
@@ -9,6 +9,7 @@
 // 其他模組只要 import { settings }：settings.get()、settings.shake(camera, ...)、settings.flash(camera, ...)。
 
 import { getBrowserStorage } from './saveManager.js';
+import { DEFAULT_DIFFICULTY, isDifficultyId } from './difficulty.js';
 
 export const SETTINGS_KEY = 'thief-legend-settings';
 
@@ -23,6 +24,7 @@ export const DEFAULT_SETTINGS = Object.freeze({
   damageNumbers: true,   // 傷害數字
   reducedMotion: false,  // 減少動態：關閉震動、閃光、脈動與飄動效果
   uiScale: 'normal',     // small / normal / large
+  difficulty: DEFAULT_DIFFICULTY,   // easy / normal / hard（倍率見 engine/difficulty.js）
 });
 
 const BOOLEAN_KEYS = ['shake', 'flash', 'damageNumbers', 'reducedMotion'];
@@ -45,6 +47,7 @@ export function sanitizeSettings(raw) {
     if (Object.prototype.hasOwnProperty.call(raw, k) && typeof raw[k] === 'boolean') out[k] = raw[k];
   }
   if (Object.prototype.hasOwnProperty.call(raw, 'uiScale') && UI_SCALES.includes(raw.uiScale)) out.uiScale = raw.uiScale;
+  if (Object.prototype.hasOwnProperty.call(raw, 'difficulty') && isDifficultyId(raw.difficulty)) out.difficulty = raw.difficulty;
   return out;
 }
 

@@ -1,16 +1,17 @@
 // 設定視窗（Phaser 物件，UIScene 的「設定」鈕開啟）
 //
-// 內容：音樂 / 音效音量滑桿、畫面震動 / 閃光 / 傷害數字 / 減少動態開關、介面大小三段、操作說明表、
+// 內容：音樂 / 音效音量滑桿、畫面震動 / 閃光 / 傷害數字 / 減少動態開關、介面大小三段、難度三段、操作說明表、
 // 存檔代碼與「重設設定」。所有值走 src/engine/settings.js（獨立 localStorage key，不進存檔）。
 // 觸控友善：滑桿命中區 44px 高、開關整列可點、按鈕 40px 以上。
 
 import { settings, UI_SCALES, UI_SCALE_LABELS } from '../engine/settings.js';
+import { DIFFICULTY_IDS, DIFFICULTIES } from '../engine/difficulty.js';
 import { audio } from '../engine/audio.js';
 import { addParchmentPanel, addWoodButton } from '../engine/woodUi.js';
 import { KEY_CHART, KEY_CHART_NOTES } from './keyChart.js';
 import { cjkWrap } from './textWrap.js';
 
-export const SETTINGS_WINDOW = { w: 760, h: 572, y: 14 };
+export const SETTINGS_WINDOW = { w: 760, h: 636, y: 14 };
 
 const TOGGLES = [
   { key: 'shake', label: '畫面震動' },
@@ -55,7 +56,7 @@ export function buildSettingsWindow(scene, options = {}) {
     .setDepth(d + 4).setScrollFactor(0)).on('pointerdown', () => options.onClose && options.onClose());
 
   rect(x0 + 30, y0 + 62, W - 60, 2, 0xc99a4a, 0.7);
-  rect(x0 + 408, y0 + 78, 2, 430, 0xc99a4a, 0.4);
+  rect(x0 + 408, y0 + 78, 2, 494, 0xc99a4a, 0.4);
 
   // ── 左欄：聲音 ──────────────────────────────────────────────────────────
   const colX = x0 + 36;
@@ -140,6 +141,26 @@ export function buildSettingsWindow(scene, options = {}) {
   refreshers.push(() => {
     const cur = settings.get().uiScale;
     for (const s of segs) s.bg.setFillStyle(s.id === cur ? 0xc8861e : 0x5a4a3a, 1);
+  });
+
+  // 難度（簡單 / 普通 / 困難）：怪物 HP 與對玩家的傷害倍率，之後生成的怪物套用（engine/difficulty.js）
+  const diffY = scaleY + 52;
+  text(colX, diffY + 6, '難度', 17, '#fff3dc');
+  const diffSegs = DIFFICULTY_IDS.map((id, i) => {
+    const bx = colX + trackW - 3 * 68 - 4 + i * 68;
+    const bg = rect(bx, diffY, 64, 38, 0x5a4a3a, 1, d + 2);
+    bg.setStrokeStyle(2, 0xffffff, 0.35);
+    text(bx + 32, diffY + 19, DIFFICULTIES[id].label, 16, '#ffffff').setOrigin(0.5, 0.5);
+    push(scene.add.zone(bx - 2, diffY - 4, 68, 46).setOrigin(0, 0).setInteractive({ useHandCursor: true })
+      .setDepth(d + 4).setScrollFactor(0)).on('pointerdown', () => settings.set({ difficulty: id }));
+    return { id, bg };
+  });
+  const diffHint = text(colX, diffY + 44, '', 13, '#b9a98a', { strokeThickness: 2, fontStyle: 'normal' });
+  refreshers.push(() => {
+    const cur = settings.get().difficulty;
+    for (const s of diffSegs) s.bg.setFillStyle(s.id === cur ? 0xc8861e : 0x5a4a3a, 1);
+    const def = DIFFICULTIES[cur] || DIFFICULTIES.normal;
+    diffHint.setText(`怪物 HP ×${def.hp}、傷害 ×${def.dmg}（新出現的怪物套用）`);
   });
 
   // ── 右欄：操作說明 ──────────────────────────────────────────────────────

@@ -323,3 +323,20 @@
 - 補給斷層（經濟審查 P6）：森林獵場「行商阿福」（只賣 HP 藥水 5 個 150、10 個 290，單價 30 / 29）、古代廢墟「遺跡商販老莫」（HP / MP 藥水各 5 個 155）、碧濤港「船具商阿海」（HP / MP 5 個 160、強效 HP / MP 3 個 240、萬靈藥 1 個 140）。圖沿用 `npc_merchant` / `npc_townsfolk` 加色調，單價比晨曦鎮（30 / 75 / 130）略高並隨區域上升，強效藥水 80 介於晨曦鎮 75 與黃沙遺跡 90 之間。`test/content.test.js` 的「補給商店」兩項檢查 Lv9 以上每張地圖都有商店（例外：暗巷城、台北都會、神秘之境、決戰場，皆在商店地圖一步或兩步內）。實測截圖與購買流程見 `e2e/world/shops.cjs`。
 - 真實 bug：`engine/assetLoader.js` 的 `releaseExcept` 現在釋放紋理前會先銷毀仍使用它們的場上物件。以前換職業（只有除錯 `__setJob` 或轉職時）會讓還在場上的斷命印記圖示讀到空的 glTexture，渲染丟例外、遊戲迴圈整個停住。
 - e2e 腳本診斷結果與已知偶發項目見 `e2e/README.md` 的「穩定性筆記」。單元測試 292 項。
+
+## 通關後、難度與載入提示（2026-10）
+
+- **通關旗標**：擊敗暗影魔君時 `BossScene` 設 `gs.gameCleared = true` 並立刻存檔（Boss 房存檔照舊回魔君王城）。和 `deathWarned` 一樣不在 `createInitialGameState` 裡，只有為 true 時才存在；`sanitizeState` 只認 `true`。舊存檔沒有這個欄位 = 未通關。
+- **回程傳送門**：`config/maps.js` 的 `portal.requireCleared`（通關後才建立，`BaseMapScene._createPortals` 一行判斷）與 `portal.oneWay`（單向捷徑：`worldGraph.neighborsOf` 不算它，世界地圖不畫線、`test/content.test.js` 的「傳送門成對」略過）。魔君王城 x=2300（Boss 門左邊 210px）、暗影領域 x=70（進場落點 x=200），都是按 F 進入的金色門，通往晨曦鎮 x=240。地圖資訊視窗會標「（通關後開啟）」。
+- **結算畫面**：勝利的「繼續冒險」回晨曦鎮（樞紐，世界地圖傳送免費）、滿血滿魔、存檔；按鈕下方說明回程傳送門。死亡結算畫面按鈕下方隨機顯示一則提示（一半機率挑和死亡有關的）。
+- **難度**（設定視窗「難度」三段，存在 `settings.difficulty`，不進存檔）：`src/engine/difficulty.js`。
+
+  | 難度 | 怪物 HP | 怪物對玩家的傷害 |
+  |------|---------|------------------|
+  | 簡單 | ×0.8 | ×0.7 |
+  | 普通（預設） | ×1 | ×1 |
+  | 困難 | ×1.4 | ×1.3 |
+
+  套用點只有 `Monster` 建構子（Boss、副本、召喚小怪都經過）：HP 四捨五入，攻擊力 `atk` 直接乘倍率（所有近戰、招式、投射物、震波傷害都由 `atk` 算出）。遊戲中切換只影響之後生成的怪物（重生或換地圖後套用），已在場上的不變。熔岩噴發是依玩家最大 HP 的環境傷害，不受影響。普通 = 原數值，既有平衡與 e2e 數字不變。
+- **載入提示**：`src/config/tips.js`（22 則：12 則玩法、10 則對應本作地圖的世界觀；`pickTipIndex` / `pickTip` / `createTipRotator` 為純函式）。`assetLoader.attachLoadingBar` 在載入條下方輪播（3.2 秒換一則，preload 期間場景時鐘不走所以用 `setInterval`，載完或場景關閉時清掉）。另外修正：第一個檔案就很慢時以前要等到它下載完才出現載入條，現在 160 ms 一到就先顯示。
+- 測試：`test/difficulty.test.js`、`test/tips.test.js`、`test/postgame.test.js`；e2e `e2e/postgame.cjs`。`e2e/e2e-death.cjs` 改成等到結算畫面 / 地圖真的出現才往下（以前固定等 2.6 秒，機器忙時倒地 1.5 秒遊戲時間還沒跑完就判失敗）。

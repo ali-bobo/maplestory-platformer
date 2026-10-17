@@ -349,6 +349,7 @@ export class BaseMapScene extends Phaser.Scene {
     this._branchHints = [];
     for (const pd of this.mapData.portals) {
       if (pd.requireBoss && !gs.bossUnlocked) continue;
+      if (pd.requireCleared && !gs.gameCleared) continue;   // 通關後的回程傳送門
 
       const portal = this.portals.create(pd.x, pd.y, 'portal');
       portal.setVisible(false);  // 只當碰撞區，畫面由下方的光門特效負責
