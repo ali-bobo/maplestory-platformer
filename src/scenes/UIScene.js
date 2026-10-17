@@ -29,8 +29,9 @@ import { shouldWarnDeath, isLowHp } from '../engine/danger.js';
 // 盜賊技能在技能欄的簡稱（格子寬度有限）；其他技能直接用全名
 const SHORT_LABELS = { Z: '三連飛鏢', X: '影步伐', C: '暗殺', V: '漩渦', B: '影分身' };
 
-// 技能視窗底部的技能說明區高度
-const SKILL_DESC_H = 112;
+// 技能說明面板：貼在技能視窗左邊、底部對齊（不加高技能視窗，手機上視窗才放得夠大）
+const SKILL_DESC_W = 236;
+const SKILL_DESC_H = 210;
 
 // 中文逐字折行（Phaser 只會在空白處斷行，中英混排時會切得很怪）
 let _wrapCtx = null;
@@ -1452,7 +1453,7 @@ export class UIScene extends Phaser.Scene {
     const skillRows = type === 'skills' ? jobOf(this.registry.get('gameState')).pool.length : 0;
     const popW = 340;
     const popH = type === 'skills'
-      ? 340 + (skillRows - 5) * 44 + (jobOf(this.registry.get('gameState')).passive ? 36 : 0) + SKILL_DESC_H
+      ? 340 + (skillRows - 5) * 44 + (jobOf(this.registry.get('gameState')).passive ? 36 : 0)
       : 280;
     const popX = width - popW - 10;
     const popY = barPanelY - popH - 10;
@@ -1507,7 +1508,8 @@ export class UIScene extends Phaser.Scene {
 
     // 觸控裝置畫布縮得小（或介面大小設為「大」）時，整個彈窗以右下角為基準放大：
     // 版面、字、按鈕命中區一起放大，不用重排每一列。
-    const k = popupScale(this._uiCtx(), { w: popW, h: popH, availW: width - 20, availH: barPanelY - 14 });
+    const totalW = popW + (type === 'skills' ? SKILL_DESC_W + 8 : 0);   // 技能視窗連同左邊的說明面板
+    const k = popupScale(this._uiCtx(), { w: totalW, h: popH, availW: width - 20, availH: barPanelY - 14 });
     let container = null;
     if (k > 1) {
       container = this.add.container((popX + popW) * (1 - k), (popY + popH) * (1 - k))
@@ -1744,33 +1746,32 @@ export class UIScene extends Phaser.Scene {
       fontSize: '12px', color: sp > 0 ? '#ffff44' : '#bdb27a', fontFamily: 'Arial',
       stroke: '#000', strokeThickness: 2,
     }).setDepth(152).setScrollFactor(0));
-    let descY = footY + 52;
     if (job.passive) {
-      const passive = push(this.add.text(popX + 14, footY + 46, wrapCjk(`被動：${job.passive.name}　${job.passive.desc}`, 12, popW - 28), {
+      push(this.add.text(popX + 14, footY + 46, wrapCjk(`被動：${job.passive.name}　${job.passive.desc}`, 12, popW - 28), {
         fontSize: '12px', color: '#ffcf8a', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2, lineSpacing: 2,
       }).setDepth(152).setScrollFactor(0));
-      descY = footY + 46 + passive.height + 10;
     }
 
-    // 技能說明區：滑鼠移到（手機點）技能名稱上就顯示該技能的效果與目前等級的傷害
-    const descG = push(this.add.graphics().setDepth(151).setScrollFactor(0));
-    descG.fillStyle(0x1a0e06, 0.55);
-    descG.fillRoundedRect(popX + 10, descY - 4, popW - 20, SKILL_DESC_H - 8, 6);
-    const descTitle = push(this.add.text(popX + 18, descY, '', {
+    // 技能說明面板（視窗左邊）：滑鼠移到（手機點）技能名稱上就顯示該技能的效果與目前等級的傷害
+    const dX = popX - SKILL_DESC_W - 8;
+    const dY = WORLD_HEIGHT - 10 - SKILL_DESC_H;
+    const textW = SKILL_DESC_W - 36;
+    push(addParchmentPanel(this, dX, dY, SKILL_DESC_W, SKILL_DESC_H, { depth: 150 }));
+    const descTitle = push(this.add.text(dX + 18, dY + 16, '', {
       fontSize: '13px', color: '#ffe27a', fontFamily: 'Arial', fontStyle: 'bold', stroke: '#000', strokeThickness: 2,
     }).setDepth(152).setScrollFactor(0));
-    const descDmg = push(this.add.text(popX + 18, descY + 18, '', {
-      fontSize: '12px', color: '#ff9f80', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2,
+    const descDmg = push(this.add.text(dX + 18, dY + 36, '', {
+      fontSize: '12px', color: '#ff9f80', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2, lineSpacing: 2,
     }).setDepth(152).setScrollFactor(0));
-    const descBody = push(this.add.text(popX + 18, descY + 36, '', {
+    const descBody = push(this.add.text(dX + 18, dY + 56, '', {
       fontSize: '12px', color: '#f0e6cc', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2, lineSpacing: 2,
     }).setDepth(152).setScrollFactor(0));
     const showDesc = (key) => {
       const lv = (gs && gs.skillLevels && gs.skillLevels[key]) || 0;
       descTitle.setText(`${job.skills[key].name}${lv > 0 ? `　Lv.${lv}` : '　（未學）'}`);
-      descDmg.setText(wrapCjk(skillDamageText(key, skillDamageScale(Math.max(1, lv))), 12, popW - 36));
-      descBody.setText(wrapCjk(SKILL_DESC[key] || '', 12, popW - 36));
-      descBody.setY(descDmg.y + descDmg.height + 2);   // 傷害可能折成兩行
+      descDmg.setText(wrapCjk(skillDamageText(key, skillDamageScale(Math.max(1, lv))), 12, textW));
+      descBody.setText(wrapCjk(SKILL_DESC[key] || '', 12, textW));
+      descBody.setY(descDmg.y + descDmg.height + 6);   // 傷害會折成好幾行
     };
     this._skillDescKey = keys.includes(this._skillDescKey) ? this._skillDescKey : keys[0];
     showDesc(this._skillDescKey);
