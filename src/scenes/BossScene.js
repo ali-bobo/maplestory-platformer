@@ -14,6 +14,7 @@ export class BossScene extends BaseMapScene {
   create() {
     super.create();
     this._bossDefeated = false;
+    this._rageBg = null;
     this._spawnBoss();
     this._setupBossEvents();
   }
@@ -42,8 +43,10 @@ export class BossScene extends BaseMapScene {
   _setupBossEvents() {
     // Boss 被擊敗
     this._onBossDefeatedEvent = () => this._onBossDefeated();
+    this._onBossRageEvent = () => this._showRageBackground();
 
     this.events.on('boss-defeated', this._onBossDefeatedEvent);
+    this.events.on('boss-rage', this._onBossRageEvent);
 
     // this.events 是場景級 EventEmitter，場景 shutdown 不會自動清空它，
     // 必須手動 off，否則重玩二度進入 BossScene 時監聽器會疊加（重複轉場）。
@@ -55,6 +58,17 @@ export class BossScene extends BaseMapScene {
       this.events.off('boss-defeated', this._onBossDefeatedEvent);
       this._onBossDefeatedEvent = null;
     }
+    if (this._onBossRageEvent) {
+      this.events.off('boss-rage', this._onBossRageEvent);
+      this._onBossRageEvent = null;
+    }
+  }
+
+  // 第 3 階段：Boss 房換成燃燒的狂暴版背景（疊在原背景上淡入）
+  _showRageBackground() {
+    if (this._rageBg || !this.textures.exists('bg_boss_room_rage')) return;
+    this._rageBg = this._addCoverBackground('bg_boss_room_rage').setAlpha(0);
+    this.tweens.add({ targets: this._rageBg, alpha: 1, duration: 1200 });
   }
 
   _onBossDefeated() {

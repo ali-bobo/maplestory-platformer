@@ -4,6 +4,8 @@ import { addParchmentPanel, addWoodButton } from '../engine/woodUi.js';
 import { isTouchDevice } from '../engine/device.js';
 import { addSoundButton } from '../engine/soundButton.js';
 import { audio } from '../engine/audio.js';
+import { STORY_ASSETS } from '../config/assetCatalog.js';
+import { preloadAssets } from '../engine/assetLoader.js';
 
 export const TUTORIAL_SEEN_KEY = 'thief-legend-tutorial-seen';
 
@@ -17,31 +19,32 @@ function markTutorialSeen() {
 
 // ── 頁面內容 ─────────────────────────────────────────────────────────────────────
 // kind: 'story'（故事）| 'keys'（按鍵）| 'text'（一般說明）| 'final'
+// image：劇情插畫的材質 key（沒載到就退回 art 的表情符號）
 export function buildPages(touch) {
   const story = [
     {
-      kind: 'story', title: '晨曦大陸的傳說', art: '🌟',
+      kind: 'story', title: '晨曦大陸的傳說', art: '🌟', image: 'story_1',
       body: [
         '很久很久以前，天空的盡頭懸著一顆「晨曦之星」。',
         '它的光讓浮空島嶼漂浮在雲海上，讓森林結出果實，也讓城鎮的夜晚不再令人害怕。',
       ],
     },
     {
-      kind: 'story', title: '暗影魔君', art: '🌑',
+      kind: 'story', title: '暗影魔君', art: '🌑', image: 'story_2',
       body: [
         '直到某個沒有月亮的夜晚，沉睡在古代廢墟地底的「暗影魔君」甦醒了。',
         '他奪走晨曦之星，把它擊成碎片，藏進自己的巢穴。失去星光的怪物被暗影侵蝕，變得狂暴，開始攻擊旅人與村莊。',
       ],
     },
     {
-      kind: 'story', title: '影子盜賊', art: '🗡️',
+      kind: 'story', title: '影子盜賊', art: '🗡️', image: 'story_4',
       body: [
         '你是年輕的盜賊，人稱「影子」。盜賊最擅長的不是正面決鬥，而是潛入，奪回屬於別人的東西。',
         '晨曦鎮的商人老陳交給你一把短劍和一袋飛鏢：「在黑暗徹底吞沒大陸之前，把星光偷回來。」',
       ],
     },
     {
-      kind: 'story', title: '你的旅程', art: '🗺️',
+      kind: 'story', title: '你的旅程', art: '🗺️', image: 'story_3',
       body: [
         '從浮空島嶼出發，穿過森林獵場、古代廢墟、碧濤港，一路深入沙漠、雪山、熔岩與魔君王城。五個地區各有一名守護者，守著一塊星光碎片。',
         '把五塊碎片帶回晨曦鎮的星光之塔，塔重新亮起，通往魔君巢穴的傳送門就會開啟。打倒他，讓晨曦之星重新升起！',
@@ -124,6 +127,10 @@ export class TutorialScene extends Phaser.Scene {
     this._gameState = data && data.gameState;
   }
 
+  preload() {
+    preloadAssets(this, STORY_ASSETS);
+  }
+
   create() {
     const { width, height } = this.cameras.main;
     this._touch = isTouchDevice();
@@ -180,6 +187,8 @@ export class TutorialScene extends Phaser.Scene {
     this.events.once('shutdown', () => {
       this.input.keyboard.off('keydown', this._onKey);
       if (this._mode === 'overlay') this.registry.set('helpOpen', false);
+      // 劇情插畫只有這裡用，離開就釋放（四張 960×540 約占 8 MB 貼圖記憶體）
+      for (const a of STORY_ASSETS) if (this.textures.exists(a.key)) this.textures.remove(a.key);
     });
 
     // 新遊戲的教學用溫暖的小鎮配樂（浮層模式不打斷遊戲中的音樂）
@@ -219,11 +228,16 @@ export class TutorialScene extends Phaser.Scene {
     }).setOrigin(0.5).setDepth(20));
     keep(this.add.rectangle(width / 2, 152, 420, 3, 0xd9a441, 0.9).setDepth(20));
 
-    if (page.art) {
+    // 有插畫：左圖右文；沒有就照舊（文字置中，表情符號放下方）
+    const withImage = !!(page.image && this.textures.exists(page.image));
+    if (withImage) {
+      keep(this.add.rectangle(372, 392, 532, 302, 0x1a0e06, 0.9).setStrokeStyle(3, 0xd9a441).setDepth(20));
+      keep(this.add.image(372, 392, page.image).setDisplaySize(520, 290).setDepth(21));
+    } else if (page.art) {
       keep(this.add.text(width / 2, 505, page.art, { fontSize: '96px', fontFamily: 'Arial, sans-serif' }).setOrigin(0.5).setDepth(20));
     }
     if (page.kind === 'keys') this._drawKeyRows(page.rows, keep);
-    else this._drawParagraphs(page.body, page.kind, keep);
+    else this._drawParagraphs(page.body, page.kind, keep, withImage ? { x: 912, maxW: 520, fontPx: 25 } : null);
 
     this._pageNo.setText(`${this._index + 1} / ${this._pages.length}`);
     this._prevBtn.plate.setVisible(this._index > 0).setInteractive(this._index > 0);
@@ -245,18 +259,21 @@ export class TutorialScene extends Phaser.Scene {
     return lines;
   }
 
-  _drawParagraphs(paragraphs, kind, keep) {
+  // column：插畫頁的右欄（中心 x、寬度、字級）
+  _drawParagraphs(paragraphs, kind, keep, column = null) {
     const { width } = this.cameras.main;
-    const fontPx = kind === 'story' || kind === 'final' ? 27 : 23;
-    const maxW = width - 340;
+    const fontPx = column ? column.fontPx : (kind === 'story' || kind === 'final' ? 27 : 23);
+    const maxW = column ? column.maxW : width - 340;
+    const x = column ? column.x : width / 2;
     let y = kind === 'final' ? 270 : 200;
     for (const p of paragraphs) {
       const lines = this._wrap(p, fontPx, maxW);
-      keep(this.add.text(width / 2, y, lines.join('\n'), {
+      const t = keep(this.add.text(x, y, lines.join('\n'), {
         fontSize: `${fontPx}px`, color: '#fff0c8', fontFamily: 'Arial', fontStyle: 'bold',
         align: kind === 'text' ? 'left' : 'center', lineSpacing: 10, stroke: '#1a0e06', strokeThickness: 4,
       }).setOrigin(0.5, 0).setDepth(20));
-      y += lines.length * (fontPx + 10) + 22;
+      // 用實際排出來的高度往下排（中文字型的行高比字級高，估算會讓段落疊在一起）
+      y += Math.max(t.height, lines.length * (fontPx + 10)) + 22;
     }
     if (kind === 'final') {
       keep(this.add.text(width / 2, y + 30, this._touch ? '點「開始冒險」出發' : '按 Enter 出發', {
