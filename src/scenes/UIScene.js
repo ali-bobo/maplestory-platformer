@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
-import { POTIONS, expNeeded, MAP_SCENE_KEYS, WORLD_HEIGHT, SKILL_SLOT_KEYS, BASIC_ATTACK, skillForSlot, canReorderSkills, equipSkill, jobOf, jobIdOf, skillDefOf } from '../config/constants.js';
+import { POTIONS, expNeeded, MAP_SCENE_KEYS, WORLD_HEIGHT, SKILL_SLOT_KEYS, BASIC_ATTACK, skillForSlot, canReorderSkills, equipSkill, jobOf, jobIdOf, skillDefOf, skillDamageScale } from '../config/constants.js';
+import { SKILL_DESC, skillDamageText } from '../config/skillModel.js';
 import { MAPS } from '../config/maps.js';
 import { getQualityLevel, setQualityLevel, downgradeQuality, upgradeQuality } from '../engine/quality.js';
 import { getActiveQuests } from '../engine/questManager.js';
@@ -27,6 +28,27 @@ import { shouldWarnDeath, isLowHp } from '../engine/danger.js';
 // HUD 場景（平行運行）— 橫向捲軸風格底部狀態列
 // 盜賊技能在技能欄的簡稱（格子寬度有限）；其他技能直接用全名
 const SHORT_LABELS = { Z: '三連飛鏢', X: '影步伐', C: '暗殺', V: '漩渦', B: '影分身' };
+
+// 技能視窗底部的技能說明區高度
+const SKILL_DESC_H = 96;
+
+// 中文逐字折行（Phaser 只會在空白處斷行，中英混排時會切得很怪）
+let _wrapCtx = null;
+function wrapCjk(text, fontPx, maxWidth) {
+  if (!_wrapCtx) _wrapCtx = document.createElement('canvas').getContext('2d');
+  _wrapCtx.font = `${fontPx}px Arial, sans-serif`;
+  const lines = [];
+  let line = '';
+  for (const ch of text) {
+    if (line && _wrapCtx.measureText(line + ch).width > maxWidth) {
+      // 標點不放行首
+      if ('，。、；：）」！？'.includes(ch)) { line += ch; continue; }
+      lines.push(line); line = ch;
+    } else line += ch;
+  }
+  if (line) lines.push(line);
+  return lines.join('\n');
+}
 
 export class UIScene extends Phaser.Scene {
   constructor() {
@@ -1430,7 +1452,7 @@ export class UIScene extends Phaser.Scene {
     const skillRows = type === 'skills' ? jobOf(this.registry.get('gameState')).pool.length : 0;
     const popW = 340;
     const popH = type === 'skills'
-      ? 340 + (skillRows - 5) * 44 + (jobOf(this.registry.get('gameState')).passive ? 18 : 0)
+      ? 340 + (skillRows - 5) * 44 + (jobOf(this.registry.get('gameState')).passive ? 36 : 0) + SKILL_DESC_H
       : 280;
     const popX = width - popW - 10;
     const popY = barPanelY - popH - 10;
@@ -1722,11 +1744,42 @@ export class UIScene extends Phaser.Scene {
       fontSize: '12px', color: sp > 0 ? '#ffff44' : '#bdb27a', fontFamily: 'Arial',
       stroke: '#000', strokeThickness: 2,
     }).setDepth(152).setScrollFactor(0));
+    let descY = footY + 52;
     if (job.passive) {
-      push(this.add.text(popX + 14, footY + 46, `被動：${job.passive.name}　${job.passive.desc}`, {
-        fontSize: '12px', color: '#ffcf8a', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2,
+      const passive = push(this.add.text(popX + 14, footY + 46, wrapCjk(`被動：${job.passive.name}　${job.passive.desc}`, 12, popW - 28), {
+        fontSize: '12px', color: '#ffcf8a', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2, lineSpacing: 2,
       }).setDepth(152).setScrollFactor(0));
+      descY = footY + 46 + passive.height + 10;
     }
+
+    // 技能說明區：滑鼠移到（手機點）技能名稱上就顯示該技能的效果與目前等級的傷害
+    const descG = push(this.add.graphics().setDepth(151).setScrollFactor(0));
+    descG.fillStyle(0x1a0e06, 0.55);
+    descG.fillRoundedRect(popX + 10, descY - 4, popW - 20, SKILL_DESC_H - 8, 6);
+    const descTitle = push(this.add.text(popX + 18, descY, '', {
+      fontSize: '13px', color: '#ffe27a', fontFamily: 'Arial', fontStyle: 'bold', stroke: '#000', strokeThickness: 2,
+    }).setDepth(152).setScrollFactor(0));
+    const descDmg = push(this.add.text(popX + 18, descY + 18, '', {
+      fontSize: '12px', color: '#ff9f80', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2,
+    }).setDepth(152).setScrollFactor(0));
+    const descBody = push(this.add.text(popX + 18, descY + 36, '', {
+      fontSize: '12px', color: '#f0e6cc', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2, lineSpacing: 2,
+    }).setDepth(152).setScrollFactor(0));
+    const showDesc = (key) => {
+      const lv = (gs && gs.skillLevels && gs.skillLevels[key]) || 0;
+      descTitle.setText(`${job.skills[key].name}${lv > 0 ? `　Lv.${lv}` : '　（未學）'}`);
+      descDmg.setText(skillDamageText(key, skillDamageScale(Math.max(1, lv))));
+      descBody.setText(wrapCjk(SKILL_DESC[key] || '', 12, popW - 36));
+    };
+    this._skillDescKey = keys.includes(this._skillDescKey) ? this._skillDescKey : keys[0];
+    showDesc(this._skillDescKey);
+    keys.forEach((key, i) => {
+      const z = push(this.add.zone(popX + 10, contentY + i * 44 - 4, 190, 38).setOrigin(0, 0)
+        .setInteractive({ useHandCursor: true }).setDepth(151).setScrollFactor(0));
+      const pick = () => { this._skillDescKey = key; showDesc(key); };
+      z.on('pointerover', pick);
+      z.on('pointerdown', pick);
+    });
   }
 
   // 花 1 SP 升級技能，重建彈窗以反映新等級

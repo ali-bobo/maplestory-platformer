@@ -217,7 +217,10 @@ const BASE = `http://127.0.0.1:${PORT}/index.html?debug=1`;
     const g = window.__game; const sc = g.scene.getScene('MapleIslandScene'); const p = sc.player; const gs = g.registry.get('gameState'); const m = window.__m;
     gs.maxMp = 999999; const potions0 = gs.potions.A + gs.potions.D; let casts = 0;
     for (const o of sc.pickups.getChildren().slice()) o.destroy();
+    // 妙手空空會突進穿過敵人：每次施放前把玩家拉回原位，避免一路衝到地圖邊的傳送門而換地圖
+    const x0 = p.x;
     for (let i = 0; i < 160; i++) {
+      p.body.reset(x0, p.y);
       gs.mp = gs.maxMp; gs.skillCooldowns.steal = 0; m.setPosition(p.x + 70, p.y); m.body.setVelocity(0, 0); m.hurtTimer = 0; m.hp = m.maxHp;
       p.facingRight = true; p.castSkill('steal'); casts++;
       await new Promise((r) => setTimeout(r, 90));
