@@ -1,4 +1,4 @@
-// 玩家設定（音量、畫面效果、介面大小、減少動態、按鍵設定）
+// 玩家設定（音量、畫面效果、介面大小、減少動態、按鍵設定、難度）
 //
 // 設計重點：
 //  - 裝置偏好，不是進度：存在獨立的 localStorage key（SETTINGS_KEY），不放進存檔，也不會隨存檔代碼匯出。
@@ -10,6 +10,7 @@
 
 import { getBrowserStorage } from './saveManager.js';
 import { DEFAULT_BINDINGS, sanitizeBindings, sameBindings } from './keyBindings.js';
+import { DEFAULT_DIFFICULTY, isDifficultyId } from './difficulty.js';
 
 export const SETTINGS_KEY = 'thief-legend-settings';
 
@@ -25,6 +26,7 @@ export const DEFAULT_SETTINGS = Object.freeze({
   reducedMotion: false,  // 減少動態：關閉震動、閃光、脈動與飄動效果
   uiScale: 'normal',     // small / normal / large
   keys: DEFAULT_BINDINGS, // 按鍵設定（動作 → 按鍵名稱，見 keyBindings.js）
+  difficulty: DEFAULT_DIFFICULTY,   // easy / normal / hard（倍率見 engine/difficulty.js）
 });
 
 const BOOLEAN_KEYS = ['shake', 'flash', 'damageNumbers', 'reducedMotion'];
@@ -51,6 +53,7 @@ export function sanitizeSettings(raw) {
     const keys = sanitizeBindings(raw.keys);
     out.keys = sameBindings(keys, DEFAULT_BINDINGS) ? DEFAULT_BINDINGS : Object.freeze(keys);
   }
+  if (Object.prototype.hasOwnProperty.call(raw, 'difficulty') && isDifficultyId(raw.difficulty)) out.difficulty = raw.difficulty;
   return out;
 }
 

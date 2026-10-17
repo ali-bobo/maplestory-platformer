@@ -348,3 +348,19 @@
 - **手把**：`src/engine/gamepad.js`，每步（`game.events` 的 `prestep`）讀 `navigator.getGamepads()`，按下 / 放開時送「目前綁定的鍵」的合成鍵盤事件，所以 ESC 順序、對話、主選單都沿用鍵盤邏輯。標準配置：搖桿 / 十字鍵左右移動、下 = 下穿、上 = 互動、A 跳、X 普攻、Y / B / LB / RB 技能欄 1–4、LT / RT 藥水 1 / 2、Start = ESC。選單 / 教學 / 結算畫面 A 當 Enter、左右固定送方向鍵。接上 / 拔掉時畫面上方短暫顯示「已連接手把」/「手把已中斷連線」（DOM 提示）。沒有用 Phaser 的 gamepad 外掛，遊戲設定不用改。
 - **驗證**：`test/controls.test.js`；`e2e/controls.cjs`（假造 `navigator.getGamepads`：接上提示、主選單按 A、移動 / 跳 / 普攻 / 技能 / Start 暫停；設定面板改鍵、互換、拒絕、ESC 取消、HUD 字樣、改鍵後實際施放、重新載入保留、恢復預設）。
 - **未做**：手把在設定 / 商店等視窗裡沒有游標導覽（用滑鼠或觸控點）；手把按鈕本身不能自訂；世界地圖 M、任務日誌 J、暫停 ESC 固定不能改。
+## 通關後、難度與載入提示（2026-10）
+
+- **通關旗標**：擊敗暗影魔君時 `BossScene` 設 `gs.gameCleared = true` 並立刻存檔（Boss 房存檔照舊回魔君王城）。和 `deathWarned` 一樣不在 `createInitialGameState` 裡，只有為 true 時才存在；`sanitizeState` 只認 `true`。舊存檔沒有這個欄位 = 未通關。
+- **回程傳送門**：`config/maps.js` 的 `portal.requireCleared`（通關後才建立，`BaseMapScene._createPortals` 一行判斷）與 `portal.oneWay`（單向捷徑：`worldGraph.neighborsOf` 不算它，世界地圖不畫線、`test/content.test.js` 的「傳送門成對」略過）。魔君王城 x=2300（Boss 門左邊 210px）、暗影領域 x=70（進場落點 x=200），都是按 F 進入的金色門，通往晨曦鎮 x=240。地圖資訊視窗會標「（通關後開啟）」。
+- **結算畫面**：勝利的「繼續冒險」回晨曦鎮（樞紐，世界地圖傳送免費）、滿血滿魔、存檔；按鈕下方說明回程傳送門。死亡結算畫面按鈕下方隨機顯示一則提示（一半機率挑和死亡有關的）。
+- **難度**（設定視窗「難度」三段，存在 `settings.difficulty`，不進存檔）：`src/engine/difficulty.js`。
+
+  | 難度 | 怪物 HP | 怪物對玩家的傷害 |
+  |------|---------|------------------|
+  | 簡單 | ×0.8 | ×0.7 |
+  | 普通（預設） | ×1 | ×1 |
+  | 困難 | ×1.4 | ×1.3 |
+
+  套用點只有 `Monster` 建構子（Boss、副本、召喚小怪都經過）：HP 四捨五入，攻擊力 `atk` 直接乘倍率（所有近戰、招式、投射物、震波傷害都由 `atk` 算出）。遊戲中切換只影響之後生成的怪物（重生或換地圖後套用），已在場上的不變。熔岩噴發是依玩家最大 HP 的環境傷害，不受影響。普通 = 原數值，既有平衡與 e2e 數字不變。
+- **載入提示**：`src/config/tips.js`（22 則：12 則玩法、10 則對應本作地圖的世界觀；`pickTipIndex` / `pickTip` / `createTipRotator` 為純函式）。`assetLoader.attachLoadingBar` 在載入條下方輪播（3.2 秒換一則，preload 期間場景時鐘不走所以用 `setInterval`，載完或場景關閉時清掉）。另外修正：第一個檔案就很慢時以前要等到它下載完才出現載入條，現在 160 ms 一到就先顯示。
+- 測試：`test/difficulty.test.js`、`test/tips.test.js`、`test/postgame.test.js`；e2e `e2e/postgame.cjs`。`e2e/e2e-death.cjs` 改成等到結算畫面 / 地圖真的出現才往下（以前固定等 2.6 秒，機器忙時倒地 1.5 秒遊戲時間還沒跑完就判失敗）。

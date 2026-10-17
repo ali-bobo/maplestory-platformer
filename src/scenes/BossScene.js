@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { BaseMapScene } from './BaseMapScene.js';
 import { Boss } from '../entities/Boss.js';
 import { particles } from '../engine/particles.js';
+import { writeSave } from '../engine/saveGame.js';
 
 // Boss 戰鬥場景
 export class BossScene extends BaseMapScene {
@@ -75,6 +76,13 @@ export class BossScene extends BaseMapScene {
     if (this._bossDefeated) return;  // 防重入：boss-defeated 只處理一次
     this._bossDefeated = true;
     const { width, height } = this.cameras.main;
+
+    // 通關旗標：立即寫進存檔（Boss 房讀檔會回魔君王城，那裡的回程傳送門因此出現）
+    const gsNow = this.registry.get('gameState');
+    if (gsNow) {
+      gsNow.gameCleared = true;
+      writeSave(gsNow);
+    }
 
     // 勝利特效
     this.cameras.main.flash(1000, 255, 215, 0);

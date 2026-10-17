@@ -9,7 +9,8 @@ export function neighborsOf(mapKey) {
   if (!map) return [];
   const out = [];
   for (const p of map.portals) {
-    if (p.target !== 'dungeon' && MAPS[p.target] && !out.includes(p.target)) out.push(p.target);
+    // 單向捷徑（通關後的回程門）不算連線：世界地圖不畫、推算走過的路也不經過它
+    if (p.target !== 'dungeon' && !p.oneWay && MAPS[p.target] && !out.includes(p.target)) out.push(p.target);
   }
   return out;
 }

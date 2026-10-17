@@ -4,6 +4,9 @@
 import Phaser from 'phaser';
 import { isSpritesheet, ALL_ASSETS, ASSET_BY_KEY } from '../config/assetCatalog.js';
 import { releasable } from './assetPlan.js';
+import { createTipRotator } from '../config/tips.js';
+
+const TIP_ROTATE_MS = 3200;   // 載入提示輪播間隔
 
 const SOLID_SUFFIX = '--solid-alpha';            // Monster.js 去背後的副本
 const PLATFORM_SLICES = ['__L', '__R', '__M'];   // BaseMapScene 從跳台圖切出的三張 canvas
@@ -57,10 +60,12 @@ export function queueAssets(scene, assets) {
   return n;
 }
 
-// 小型載入條：載入超過 150 ms 才出現，避免正常（快取命中 / 本機）流程閃一下
+// 小型載入條：載入超過 150 ms 才出現，避免正常（快取命中 / 本機）流程閃一下。
+// 載入條下方輪播一行提示（config/tips.js）；preload 期間場景時鐘不走，輪播用 setInterval，結束時清掉
 export function attachLoadingBar(scene) {
   const t0 = performance.now();
   let objs = null;
+  let tipTimer = null;
   const W = 360, H = 14;
   const onProgress = (v) => {
     if (!objs) {
@@ -70,14 +75,26 @@ export function attachLoadingBar(scene) {
       const fill = scene.add.rectangle(cx - W / 2, cy, 1, H, 0xf2cf7a).setOrigin(0, 0.5).setDepth(1001).setScrollFactor(0);
       const label = scene.add.text(cx, cy - 26, '載入中…', { fontSize: '18px', color: '#f5e6c0', fontFamily: 'Arial, sans-serif' })
         .setOrigin(0.5).setDepth(1001).setScrollFactor(0);
-      objs = { back, fill, label };
+      const rotator = createTipRotator();
+      const tip = scene.add.text(cx, cy + 34, rotator.next(), {
+        fontSize: '16px', color: '#e8d3a8', fontFamily: 'Arial, sans-serif',
+        stroke: '#1a0e06', strokeThickness: 3, align: 'center', wordWrap: { width: Math.min(760, scene.scale.width - 48) },
+      }).setOrigin(0.5, 0).setDepth(1001).setScrollFactor(0);
+      objs = { back, fill, label, tip };
+      tipTimer = setInterval(() => { if (objs && objs.tip.active) objs.tip.setText(rotator.next()); }, TIP_ROTATE_MS);
     }
     objs.fill.width = Math.max(1, W * v);
   };
+  let finished = false;
   const done = () => {
+    finished = true;
+    clearTimeout(showTimer);
     scene.load.off('progress', onProgress);
+    if (tipTimer) { clearInterval(tipTimer); tipTimer = null; }
     if (objs) { for (const o of Object.values(objs)) o.destroy(); objs = null; }
   };
+  // 第一個檔案就很慢時 progress 事件遲遲不來：時間一到就先顯示（進度 0），不必等到第一個檔案下載完
+  const showTimer = setTimeout(() => { if (!finished) onProgress(scene.load.progress || 0); }, 160);
   scene.load.on('progress', onProgress);
   scene.load.once('complete', done);
   scene.events.once('shutdown', done);

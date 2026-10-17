@@ -30,8 +30,7 @@ export class Boss extends Monster {
       area: 'boss',
     });
 
-    this.maxHp = BOSS_HP;
-    this.hp = BOSS_HP;
+    // maxHp / hp 由 Monster 建構子依 config.hp（BOSS_HP）與難度倍率設定
     applyAlignmentProfile(this, ALIGNMENT_PROFILES.boss);
     this.knockbackResist = 0.9;
 

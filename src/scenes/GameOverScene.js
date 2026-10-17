@@ -4,6 +4,7 @@ import { MAP_SCENE_KEYS } from '../config/constants.js';
 import { writeSave } from '../engine/saveGame.js';
 import { calcScore, applyDeathPenalty, countEquipment } from '../engine/death.js';
 import { addParchmentPanel, addWoodButton } from '../engine/woodUi.js';
+import { pickTip } from '../config/tips.js';
 
 export class GameOverScene extends Phaser.Scene {
   constructor() {
@@ -99,6 +100,15 @@ export class GameOverScene extends Phaser.Scene {
       () => (this._victory ? this._returnToTown() : this._restartAtDeathPoint()),
       { depth: 3, fontSize: this._victory ? 19 : 17 });
     addWoodButton(this, width / 2 + 130, btnY, 220, 48, '主選單', () => this.scene.start('MenuScene'), { depth: 3, fontSize: 19 });
+
+    // 按鈕下方一行：勝利 → 通關後還能做什麼；倒下 → 隨機一則提示（優先挑和死亡有關的）
+    const footer = this._victory
+      ? '魔君王城與暗影領域出現了「回晨曦鎮」的傳送門，也可以再次挑戰暗影魔君。'
+      : `提示：${pickTip(Math.random, Math.random() < 0.5 ? 'death' : null)}`;
+    this._footerText = this.add.text(width / 2, btnY + 52, footer, {
+      fontSize: '17px', color: '#e8d3a8', fontFamily: 'Arial', stroke: '#1a0e06', strokeThickness: 4,
+      align: 'center', wordWrap: { width: width - 120 },
+    }).setOrigin(0.5, 0).setDepth(3);
   }
 
   _returnToTown() {
@@ -110,9 +120,12 @@ export class GameOverScene extends Phaser.Scene {
     gs.hp = gs.maxHp;
     gs.mp = gs.maxMp;
     gs.currentMap = 'town';
-    gs.skillCooldowns = { Z: 0, X: 0, C: 0, V: 0, B: 0 };
+    gs.gameCleared = true;   // 保險：舊流程進來的勝利也記為通關
+    gs.skillCooldowns = { ATK: 0, Z: 0, X: 0, C: 0, V: 0, B: 0 };
     this.registry.set('gameState', gs);
-    this.scene.start('TownScene', { gameState: gs, spawnX: 200 });
+    writeSave(gs);
+    // 回晨曦鎮（樞紐：世界地圖傳送免費、星光之塔旁），落點避開傳送門
+    this.scene.start('TownScene', { gameState: gs, spawnX: 240 });
   }
 
   _restartAtDeathPoint() {

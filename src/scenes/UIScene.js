@@ -1836,7 +1836,7 @@ export class UIScene extends Phaser.Scene {
       fontSize: '13px', color: '#ffee88', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2,
     }).setDepth(152).setScrollFactor(0));
     // 由地圖資料產生（不另外維護一份文字，避免和實際傳送門脫節）
-    const portals = map ? map.portals.map((p) => `${p.label}${p.requireBoss ? '（5/5 碎片後開啟）' : ''}`) : [];
+    const portals = map ? map.portals.map((p) => `${p.label}${p.requireBoss ? '（5/5 碎片後開啟）' : ''}${p.requireCleared && !(gs && gs.gameCleared) ? '（通關後開啟）' : ''}`) : [];
     if (currentMap === 'boss') portals.push('擊敗暗影魔君即可獲勝');
     (portals.length ? portals : ['暫無傳送門資訊']).slice(0, 5).forEach((p, i) => {
       push(this.add.text(popX + 24, contentY + 50 + i * 22, p, {

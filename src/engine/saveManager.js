@@ -205,6 +205,8 @@ export function sanitizeState(raw) {
 
   // 死亡警告看過了沒（每個存檔只提示一次）；不屬於 createInitialGameState，只有為 true 時才存在
   if (raw.deathWarned === true) gs.deathWarned = true;
+  // 已通關（擊敗暗影魔君）：同樣只有為 true 時才存在；決定魔君王城 / 暗影領域的回程傳送門是否出現
+  if (raw.gameCleared === true) gs.gameCleared = true;
 
   gs.currentMap = sanitizeMap(raw.currentMap);
   gs.spawnX = MAPS[gs.currentMap].spawnX ?? gs.spawnX;
