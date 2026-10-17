@@ -104,7 +104,8 @@ const BASE = `http://127.0.0.1:${PORT}/index.html?debug=1`;
   st0 = await state();
   await equip('Z', 'poison'); await press('z'); await page.waitForTimeout(800);
   s = await state();
-  check('蝕心毒鏢：MP -30、冷卻開始', (st0.mp - s.mp) > 20 && (st0.mp - s.mp) < 31 && s.cd.poison > 0, `mp ${st0.mp} -> ${s.mp}`);
+  // 等兩支鏢飛完的 0.8 秒內 MP 每秒回 10，所以扣量會少於 30
+  check('蝕心毒鏢：MP -30、冷卻開始', (st0.mp - s.mp) > 15 && (st0.mp - s.mp) < 31 && s.cd.poison > 0, `mp ${st0.mp} -> ${s.mp}`);
   check('蝕心毒鏢：兩支都命中，中毒 2 層', s.hp < st0.hp && s.poison === 2, `hp ${st0.hp} -> ${s.hp} stacks=${s.poison}`);
   const hpAfterHit = s.hp;
   await page.waitForTimeout(2300);
