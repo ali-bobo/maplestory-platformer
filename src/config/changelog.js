@@ -2,6 +2,7 @@
 // test/stability.test.js 會檢查：至少一條、每條有標題、沒有重複、長度放得進面板。
 
 export const CHANGELOG = [
+  { title: '30 枚隱藏盜賊徽章與收集獎勵' },
   { title: '穩定性：出錯時自動存檔並提示、可安裝到主畫面離線遊玩' },
   { title: '技能說明面板' },
   { title: '刺客毒鏢與斷命印記重做' },
