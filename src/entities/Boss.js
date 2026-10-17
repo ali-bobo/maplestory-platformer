@@ -30,8 +30,7 @@ export class Boss extends Monster {
       area: 'boss',
     });
 
-    this.maxHp = BOSS_HP;
-    this.hp = BOSS_HP;
+    // maxHp / hp 由 Monster 建構子依 config.hp（BOSS_HP）與難度倍率設定
     applyAlignmentProfile(this, ALIGNMENT_PROFILES.boss);
     this.knockbackResist = 0.9;
 
@@ -83,7 +82,12 @@ export class Boss extends Monster {
   }
 
   // ── 姿勢動畫 ─────────────────────────────────────────────────────────────
+  // 第 3 階段（狂暴）起，待機 / 移動 / 攻擊改用 boss_rage_*（圖沒載到就沿用一般版）
   _setPose(poseKey) {
+    if (this._rage && /^boss_(idle|move|attack)$/.test(poseKey)) {
+      const rageKey = poseKey.replace('boss_', 'boss_rage_');
+      if (this.scene.textures.exists(rageKey)) poseKey = rageKey;
+    }
     if (this._currentPose === poseKey || !this.active) return;
     this._currentPose = poseKey;
     this.setTexture(poseKey);
@@ -142,6 +146,15 @@ export class Boss extends Monster {
       { fontSize: '48px', color: newPhase >= 3 ? '#ff4444' : '#ff00ff', fontFamily: 'Arial', stroke: '#000000', strokeThickness: 6 }
     ).setScrollFactor(0).setDepth(201).setOrigin(0.5, 0.5);
     scene.tweens.add({ targets: phaseText, y: phaseText.y - 80, alpha: 0, duration: 2000, onComplete: () => phaseText.destroy() });
+
+    if (newPhase >= 3 && !this._rage) {
+      this._rage = true;
+      // 狂暴圖本身就是紅色系，不再整隻染紅（染了會把紫焰壓成一片暗紅）；沒有狂暴圖才保留紅色染色
+      if (scene.textures.exists('boss_rage_idle')) this._baseTint = null;
+      this._currentPose = null;   // 立刻換成狂暴姿勢
+      this._updatePose();
+      scene.events.emit('boss-rage');
+    }
 
     this._restoreTint();
   }

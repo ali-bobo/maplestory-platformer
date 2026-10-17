@@ -153,10 +153,10 @@ test('地圖連通：從起始地圖出發，沿傳送門能到每一張地圖�
   assert.deepEqual(Object.keys(MAPS).filter((k) => !seen.has(k)), []);
 });
 
-test('傳送門成對：A 能走到 B，B 也有一條能回 A（Boss 房除外）', () => {
+test('傳送門成對：A 能走到 B，B 也有一條能回 A（Boss 房與單向回程門除外）', () => {
   for (const [key, map] of Object.entries(MAPS)) {
     for (const p of map.portals) {
-      if (p.target === 'dungeon' || p.target === 'boss') continue;
+      if (p.target === 'dungeon' || p.target === 'boss' || p.oneWay) continue;
       assert.ok(MAPS[p.target].portals.some((q) => q.target === key), `${key} → ${p.target} 沒有回程`);
     }
   }

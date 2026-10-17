@@ -125,6 +125,12 @@ export class AudioSynth {
     setTimeout(() => this._tone(1100, 0.06, 'sine', 0.1), 60);
   }
 
+  // 撿到盜賊徽章：三個上行的清亮音 + 一聲高音閃光，比一般拾取音明顯
+  playBadge() {
+    [784, 988, 1319].forEach((n, i) => setTimeout(() => this._tone(n, 0.14, 'triangle', 0.12), i * 70));
+    setTimeout(() => this._tone(2093, 0.22, 'sine', 0.07), 230);
+  }
+
   playDeath() {
     this._chord([220, 180, 150], 0.4, 'sawtooth', 0.1);
   }

@@ -167,7 +167,27 @@ export const CHARACTER_ASSETS = [
     path: 'dist/assets/title_hero.png',
     status: 'used',
   },
+  // 主選單標題徽章（星形 + 雙匕首 + 空白緞帶，遊戲名稱寫在緞帶上）
+  {
+    assetId: 'CHR-TTL-002',
+    groupId: 'CHR-TTL',
+    kind: 'ui',
+    key: 'title_emblem',
+    path: 'dist/assets/title_emblem.png',
+    status: 'used',
+  },
 ];
+
+// 新手教學的劇情插畫（960×540）：只有教學場景要用，進場景時才載入
+export const STORY_ASSETS = [1, 2, 3, 4].map((n) => ({
+  assetId: `STY-00${n}`,
+  groupId: 'STY',
+  kind: 'story',
+  key: `story_${n}`,
+  path: `dist/assets/story_${n}.webp`,
+  status: 'used',
+  scope: 'lazy',
+}));
 
 export const BACKGROUND_ASSETS = [
   {
@@ -239,6 +259,16 @@ export const BACKGROUND_ASSETS = [
     kind: 'background',
     key: 'bg_boss_room',
     path: 'dist/assets/bg_boss_room.webp',
+    status: 'used',
+    targetMaps: ['boss'],
+  },
+  // 第 3 階段（狂暴）時淡入的 Boss 房背景
+  {
+    assetId: 'BG-BOSS-002',
+    groupId: 'BG-BOSS',
+    kind: 'background',
+    key: 'bg_boss_room_rage',
+    path: 'dist/assets/bg_boss_room_rage.webp',
     status: 'used',
     targetMaps: ['boss'],
   },
@@ -331,6 +361,14 @@ export const PLATFORM_ASSETS = [
     kind: 'platform',
     key: 'platform_city',
     path: 'dist/assets/platform_city.png',
+    status: 'used',
+  },
+  {
+    assetId: 'PLT-TPE-001',
+    groupId: 'PLT-TPE',
+    kind: 'platform',
+    key: 'platform_taipei',
+    path: 'dist/assets/platform_taipei.png',
     status: 'used',
   },
   {
@@ -846,6 +884,17 @@ export const BOSS_ASSETS = [
     targetMaps: ['boss'],
     pose: 'death2',
   },
+  // 第 3 階段（狂暴）的待機 / 移動 / 攻擊姿勢；死亡姿勢沿用一般版
+  ...['idle', 'move', 'attack'].map((pose) => ({
+    assetId: `BOSS-SHADOW-RAGE-${pose.toUpperCase()}`,
+    groupId: 'BOSS-SHADOW',
+    kind: 'boss',
+    key: `boss_rage_${pose}`,
+    path: `dist/assets/boss_rage_${pose}.png`,
+    status: 'used',
+    targetMaps: ['boss'],
+    pose: `rage_${pose}`,
+  })),
 ];
 
 // 裝備掉落圖示：沿用程序材質的 key，載入後 generateItems 會跳過已存在的 key
@@ -857,6 +906,15 @@ export const ICON_ASSETS = ['weapon', 'armor', 'gloves', 'helmet', 'boots'].map(
   path: `dist/assets/item_${slot}.png`,
   status: 'used',
 }));
+// 金幣掉落圖示：同樣沿用程序材質的 key（item-meso）
+ICON_ASSETS.push({
+  assetId: 'ICO-COIN-001',
+  groupId: 'ICO-COIN',
+  kind: 'icon',
+  key: 'item-meso',
+  path: 'dist/assets/item_coin.png',
+  status: 'used',
+});
 
 // 藥水圖示：key 對應 POTIONS 的快捷鍵
 export const POTION_ICON_KEYS = {
@@ -1088,7 +1146,7 @@ export const PLATFORM_THEMES = {
   ruins:   { key: 'platform_ruins',   surfaceTop: 0 },
   ellinia: { key: 'platform_mystic',  surfaceTop: 10 },
   kerning: { key: 'platform_city',    surfaceTop: 11 },
-  taipei:  { key: 'platform_city',    surfaceTop: 11 },
+  taipei:  { key: 'platform_taipei',  surfaceTop: 8 },
   town:    { key: 'platform_town',    surfaceTop: 1 },
   // platform_shrine 也是 246×30 的細條，同樣縱向拉厚
   shrine:  { key: 'platform_shrine',  surfaceTop: 2, stretchH: 36 },
@@ -1114,8 +1172,9 @@ export const PLATFORM_THEMES = {
 export const ASSET_SCOPES = ['boot', 'core', 'job', 'map', 'lazy'];
 
 const JOB_FX = { assassin: ['fx_slash_assassin', 'fx_backstab', 'fx_poison', 'fx_mark'], bandit: ['fx_slash_bandit', 'fx_whirl', 'fx_smoke'] };
-const CORE_KEYS = new Set(['fx_hit', 'fx_job_change', 'fx_star_restore', 'ui_world_map']);
-const LAZY_KEYS = new Set(['fx_boss_aura']);   // fx_shuriken / fx_vortex 是盜賊技能特效，走 core
+// fx_boss_aura：Boss 換階段與區域頭目狂暴時都會播（以前標成 lazy 卻沒有人載入，所以從來沒出現過）
+const CORE_KEYS = new Set(['fx_hit', 'fx_job_change', 'fx_star_restore', 'ui_world_map', 'fx_boss_aura']);
+const LAZY_KEYS = new Set([]);   // fx_shuriken / fx_vortex 是盜賊技能特效，走 core
 // 地圖專屬的怪物 / 圖：key → 額外地圖（BossScene 的援軍是暗影史萊姆，怪物資料裡沒有 boss 地圖）
 const EXTRA_MAPS = { monster_slime: ['boss'] };
 
@@ -1140,7 +1199,7 @@ function defaultScope(a) {
 }
 
 export const ALL_ASSETS = [
-  ...CHARACTER_ASSETS, ...BACKGROUND_ASSETS, ...PLATFORM_ASSETS, ...MONSTER_ASSETS, ...BOSS_ASSETS, ...NPC_ASSETS,
+  ...CHARACTER_ASSETS, ...STORY_ASSETS, ...BACKGROUND_ASSETS, ...PLATFORM_ASSETS, ...MONSTER_ASSETS, ...BOSS_ASSETS, ...NPC_ASSETS,
   ...ICON_ASSETS, ...POTION_ICON_ASSETS, ...UI_ASSETS, ...SKILL_ICON_ASSETS, ...QUEST_ITEM_ASSETS, ...PROP_UI_ASSETS,
   ...FX_ASSETS,
 ];

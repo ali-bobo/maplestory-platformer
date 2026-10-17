@@ -129,7 +129,7 @@ const check = (n, c, x = '') => { console.log((c ? 'PASS' : 'FAIL') + ' - ' + n 
   const pm = (r, id, key = 'one') => r.skills[id][key] / Math.max(1, r.skills[id].mp);
   check('瞬影連刺 每 MP > 暗殺', pm(A, 'backstab') > pm(A, 'C'), `${pm(A, 'backstab').toFixed(3)} vs ${pm(A, 'C').toFixed(3)}`);
   check('蝕心毒鏢 每 MP ≈ 或高於暗殺（單體，實測有暴擊雜訊，容許 -20%；持續疊毒更高）', pm(A, 'poison') > pm(A, 'C') * 0.8, `${pm(A, 'poison').toFixed(3)} vs ${pm(A, 'C').toFixed(3)}`);
-  check('斷命印記：印記期間普攻傷害 ≥ 1.4 倍', A.markRatio >= 1.4, 'x' + A.markRatio.toFixed(2));
+  check('斷命印記：印記期間普攻傷害 ≥ 1.2 倍（存下的 25% 在斷命時才釋放）', A.markRatio >= 1.2, 'x' + A.markRatio.toFixed(2));
   check('赤月迴旋 打 3 隻每 MP > 暗影漩渦', pm(B, 'whirl', 'three') > pm(B, 'V', 'three'), `${pm(B, 'whirl', 'three').toFixed(3)} vs ${pm(B, 'V', 'three').toFixed(3)}`);
   check('妙手空空 MP 成本 24（命中另回 10，見 damageModel 單元測試）', Math.abs(B.skills.steal.mp - 24) < 1.5, 'mp ' + B.skills.steal.mp.toFixed(1));
   check('迷煙彈 有實際傷害（打 3 隻 > 3 倍攻擊力）', B.skills.smoke.three > 3, B.skills.smoke.three.toFixed(2));

@@ -1,16 +1,19 @@
 // 設定視窗（Phaser 物件，UIScene 的「設定」鈕開啟）
 //
-// 內容：音樂 / 音效音量滑桿、畫面震動 / 閃光 / 傷害數字 / 減少動態開關、介面大小三段、操作說明表、
+// 內容：音樂 / 音效音量滑桿、畫面震動 / 閃光 / 傷害數字 / 減少動態開關、介面大小三段、難度三段、操作說明表、
 // 存檔代碼與「重設設定」。所有值走 src/engine/settings.js（獨立 localStorage key，不進存檔）。
 // 觸控友善：滑桿命中區 44px 高、開關整列可點、按鈕 40px 以上。
 
 import { settings, UI_SCALES, UI_SCALE_LABELS } from '../engine/settings.js';
+import { DIFFICULTY_IDS, DIFFICULTIES } from '../engine/difficulty.js';
 import { audio } from '../engine/audio.js';
 import { addParchmentPanel, addWoodButton } from '../engine/woodUi.js';
-import { KEY_CHART, KEY_CHART_NOTES } from './keyChart.js';
+import { KEY_CHART, KEY_CHART_NOTES, keyChartFor } from './keyChart.js';
+import { buildKeyBindPanel } from './keyBindPanel.js';
 import { cjkWrap } from './textWrap.js';
+import { addVersionInfo } from './versionInfo.js';
 
-export const SETTINGS_WINDOW = { w: 760, h: 572, y: 14 };
+export const SETTINGS_WINDOW = { w: 760, h: 636, y: 14 };
 
 const TOGGLES = [
   { key: 'shake', label: '畫面震動' },
@@ -46,6 +49,9 @@ export function buildSettingsWindow(scene, options = {}) {
 
   push(addParchmentPanel(scene, x0, y0, W, H, { depth: d }));
   text(x0 + 34, y0 + 20, '設定', 26, '#ffe9b0');
+  // 標題列右側：版本與更新紀錄（點開面板，見 versionInfo.js）
+  const versionInfo = addVersionInfo(scene, { rightX: x0 + W - 84, y: y0 + 30, depth: d, panel: { x: x0 + 20, y: y0 + 66, w: W - 40, h: H - 76 } });
+  cleanups.push(() => versionInfo.destroy());
 
   // 關閉 ×（44px 命中區）
   const closeBg = rect(x0 + W - 66, y0 + 14, 40, 40, 0x553333, 0.95, d + 1);
@@ -55,7 +61,7 @@ export function buildSettingsWindow(scene, options = {}) {
     .setDepth(d + 4).setScrollFactor(0)).on('pointerdown', () => options.onClose && options.onClose());
 
   rect(x0 + 30, y0 + 62, W - 60, 2, 0xc99a4a, 0.7);
-  rect(x0 + 408, y0 + 78, 2, 430, 0xc99a4a, 0.4);
+  rect(x0 + 408, y0 + 78, 2, 494, 0xc99a4a, 0.4);
 
   // ── 左欄：聲音 ──────────────────────────────────────────────────────────
   const colX = x0 + 36;
@@ -142,14 +148,45 @@ export function buildSettingsWindow(scene, options = {}) {
     for (const s of segs) s.bg.setFillStyle(s.id === cur ? 0xc8861e : 0x5a4a3a, 1);
   });
 
+  // 難度（簡單 / 普通 / 困難）：怪物 HP 與對玩家的傷害倍率，之後生成的怪物套用（engine/difficulty.js）
+  const diffY = scaleY + 52;
+  text(colX, diffY + 6, '難度', 17, '#fff3dc');
+  const diffSegs = DIFFICULTY_IDS.map((id, i) => {
+    const bx = colX + trackW - 3 * 68 - 4 + i * 68;
+    const bg = rect(bx, diffY, 64, 38, 0x5a4a3a, 1, d + 2);
+    bg.setStrokeStyle(2, 0xffffff, 0.35);
+    text(bx + 32, diffY + 19, DIFFICULTIES[id].label, 16, '#ffffff').setOrigin(0.5, 0.5);
+    push(scene.add.zone(bx - 2, diffY - 4, 68, 46).setOrigin(0, 0).setInteractive({ useHandCursor: true })
+      .setDepth(d + 4).setScrollFactor(0)).on('pointerdown', () => settings.set({ difficulty: id }));
+    return { id, bg };
+  });
+  const diffHint = text(colX, diffY + 44, '', 13, '#b9a98a', { strokeThickness: 2, fontStyle: 'normal' });
+  refreshers.push(() => {
+    const cur = settings.get().difficulty;
+    for (const s of diffSegs) s.bg.setFillStyle(s.id === cur ? 0xc8861e : 0x5a4a3a, 1);
+    const def = DIFFICULTIES[cur] || DIFFICULTIES.normal;
+    diffHint.setText(`怪物 HP ×${def.hp}、傷害 ×${def.dmg}（新出現的怪物套用）`);
+  });
+
   // ── 右欄：操作說明 ──────────────────────────────────────────────────────
   const keyX = x0 + 436;
   const keyR = x0 + W - 34;
   text(keyX, y0 + 76, '操作說明', 17, '#ffd27a');
-  KEY_CHART.forEach((line, i) => {
+  // 按鍵設定（疊在設定視窗上的面板，見 keyBindPanel.js）；表格的按鍵跟著目前的鍵位
+  let keyPanel = null;
+  const closeKeyPanel = () => { if (keyPanel) { keyPanel.destroy(); keyPanel = null; } };
+  cleanups.push(closeKeyPanel);
+  addWoodButton(scene, keyR - 62, y0 + 88, 124, 34, '按鍵設定', () => {
+    if (keyPanel) return;
+    keyPanel = buildKeyBindPanel(scene, { depth: d + 20, x0, y0, w: W, h: H, onClose: closeKeyPanel });
+  }, { depth: d + 2, fontSize: 15 }).objects.forEach(push);
+  const chartValues = KEY_CHART.map((line, i) => {
     const y = y0 + 108 + i * 31;
     text(keyX, y, line.label, 15, '#e8d3a8', { strokeThickness: 2 });
-    text(keyR, y, line.key, 15, '#ffee44', { strokeThickness: 2 }).setOrigin(1, 0);
+    return text(keyR, y, line.key, 15, '#ffee44', { strokeThickness: 2 }).setOrigin(1, 0);
+  });
+  refreshers.push(() => {
+    keyChartFor(settings.get().keys).forEach((line, i) => { if (chartValues[i]) chartValues[i].setText(line.key); });
   });
   KEY_CHART_NOTES.forEach((note, i) => {
     text(keyX, y0 + 108 + KEY_CHART.length * 31 + 8 + i * 40, note, 13, '#b9a98a',

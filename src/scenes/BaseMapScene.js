@@ -24,11 +24,14 @@ import { getQuestDef, TRIAL_ITEM_NAME } from '../config/quests.js';
 import { canEnterDungeon, getRemainingEntries } from '../engine/dungeonRecord.js';
 import { getDungeonDef } from '../config/dungeons.js';
 import { keyHint } from '../engine/device.js';
+import { settings } from '../engine/settings.js';
+import { eventMatches, keyLabel } from '../engine/keyBindings.js';
 import { getQualityLevel } from '../engine/quality.js';
 import { SHARD_COUNT, SHARD_TEXTURE } from '../config/shards.js';
 import { grantShard, lightTower, shardCount } from '../engine/shards.js';
 import { visitMap } from '../engine/worldGraph.js';
 import { createMapModifier } from '../engine/mapModifiers.js';
+import { createBadgeField } from '../engine/badgeField.js';
 
 const PLATFORM_HEIGHT = 24;
 const GROUND_Y = WORLD_HEIGHT;
@@ -124,6 +127,7 @@ export class BaseMapScene extends Phaser.Scene {
     this._createNPCs();
     this._setupColliders();
     this._modifier = createMapModifier(this, this.mapData.modifier);   // 冰面 / 流沙 / 岩漿 / 暗黑視野（沒有則 null）
+    this._badgeField = createBadgeField(this);   // 盜賊徽章（這張圖沒有或都撿完則 null）
 
     if (!this.scene.isActive('UIScene')) {
       this.scene.launch('UIScene');
@@ -140,7 +144,8 @@ export class BaseMapScene extends Phaser.Scene {
     // ESC 關閉 NPC 對話
     this._onEscKeyDown = () => { this._closeNpcDialog(); };
     this.input.keyboard.on('keydown-ESC', this._onEscKeyDown);
-    this._onInteractKeyDown = () => {
+    this._onInteractKeyDown = (ev) => {
+      if (!eventMatches(ev, settings.get().keys, 'interact')) return;   // 互動鍵可在設定裡改（預設 F）
       this._interactPressedAt = this.time.now;   // 支線傳送門（portal.interact）要按互動鍵才進入
       const npcData = this._getNearbyNpcData();
       if (!npcData) {
@@ -165,7 +170,7 @@ export class BaseMapScene extends Phaser.Scene {
       onNpcTalked(this, npcData.npcId);
       this._openNpcDialog(npcData);
     };
-    this.input.keyboard.on('keydown-F', this._onInteractKeyDown);
+    this.input.keyboard.on('keydown', this._onInteractKeyDown);
     // 只註冊 shutdown：場景被 destroy 前 Phaser 必先觸發 shutdown，且本遊戲場景
     // 從不被 scene.remove()，重複註冊 destroy 監聽只會在 relaunch 時累積死監聽。
     this.events.once('shutdown', this._onSceneShutdown, this);
@@ -349,6 +354,7 @@ export class BaseMapScene extends Phaser.Scene {
     this._branchHints = [];
     for (const pd of this.mapData.portals) {
       if (pd.requireBoss && !gs.bossUnlocked) continue;
+      if (pd.requireCleared && !gs.gameCleared) continue;   // 通關後的回程傳送門
 
       const portal = this.portals.create(pd.x, pd.y, 'portal');
       portal.setVisible(false);  // 只當碰撞區，畫面由下方的光門特效負責
@@ -421,7 +427,7 @@ export class BaseMapScene extends Phaser.Scene {
         .setOrigin(0.5, 0.5).setDepth(8).setTint(pd.interact ? 0xffe39a : 0xe6d6bc);
     }
     if (pd.interact) {
-      const hint = this.add.text(x, cy - 90, keyHint('按 F 進入', '點「互動」進入'), {
+      const hint = this.add.text(x, cy - 90, keyHint(`按 ${keyLabel(settings.get().keys.interact)} 進入`, '點「互動」進入'), {
         fontSize: '12px', color: '#ffe9a0', fontFamily: 'Arial', stroke: '#000', strokeThickness: 3,
       }).setOrigin(0.5, 0.5).setDepth(9).setAlpha(0);
       this._branchHints.push({ x, hint, until: 0 });
@@ -455,10 +461,10 @@ export class BaseMapScene extends Phaser.Scene {
 
       // 互動提示（靠近時才顯示）
       const hintLabel = npcDef.shop
-        ? keyHint('[按 F 開啟商店]', '[點「互動」開啟商店]')
+        ? keyHint(`[按 ${keyLabel(settings.get().keys.interact)} 開啟商店]`, '[點「互動」開啟商店]')
         : npcDef.role === 'starTower'
-          ? keyHint('[按 F 查看星光碎片]', '[點「互動」查看星光碎片]')
-          : keyHint('[按 F 對話]', '[點「互動」對話]');
+          ? keyHint(`[按 ${keyLabel(settings.get().keys.interact)} 查看星光碎片]`, '[點「互動」查看星光碎片]')
+          : keyHint(`[按 ${keyLabel(settings.get().keys.interact)} 對話]`, '[點「互動」對話]');
       // 高大的擺設（塔）把提示放在塔腳，免得飄在畫面外
       const hint = this.add.text(placement.x, npcH > 120 ? footY - 70 : footY - 106, hintLabel, {
         fontSize: '11px', color: '#aaffaa', fontFamily: 'Arial',
@@ -665,7 +671,7 @@ export class BaseMapScene extends Phaser.Scene {
       wordWrap: { width: 400 }, lineSpacing: 4,
     }).setOrigin(0.5, 0).setDepth(101);
 
-    const close = this.add.text(cx, top + (choices ? 196 : 144) + extra, keyHint('[ 按 F 或 ESC 關閉 ]', '[ 點此關閉 ]'), {
+    const close = this.add.text(cx, top + (choices ? 196 : 144) + extra, keyHint(`[ 按 ${keyLabel(settings.get().keys.interact)} 或 ESC 關閉 ]`, '[ 點此關閉 ]'), {
       fontSize: '12px', color: '#e8d3a8', fontFamily: 'Arial', stroke: '#1a0e06', strokeThickness: 3,
     }).setOrigin(0.5, 0.5).setDepth(101)
       .setInteractive({ useHandCursor: true })
@@ -786,7 +792,7 @@ export class BaseMapScene extends Phaser.Scene {
     });
 
     // 觸控裝置沒有鍵盤：關閉字樣本身可點擊
-    push(this.add.text(panelX + panelW / 2, panelY + panelH - 30, keyHint('[ 按 F 或 ESC 關閉 ]', '[ 點此關閉 ]'), {
+    push(this.add.text(panelX + panelW / 2, panelY + panelH - 30, keyHint(`[ 按 ${keyLabel(settings.get().keys.interact)} 或 ESC 關閉 ]`, '[ 點此關閉 ]'), {
       fontSize: '12px', color: '#e8d3a8', fontFamily: 'Arial', stroke: '#1a0e06', strokeThickness: 3,
     }).setOrigin(0.5, 0.5).setScrollFactor(0).setDepth(151)
       .setInteractive({ useHandCursor: true })
@@ -965,6 +971,7 @@ export class BaseMapScene extends Phaser.Scene {
     this.player.update(delta);
     this.player.recoverMp(delta);
     this.player.recoverHp(delta);
+    if (this._badgeField) this._badgeField.update();
     // Phase 3.5：NPC 距離檢測降頻（每 100 ms 一次而非每幀 60 Hz）。
     // F 鍵互動會即時呼叫一次，不影響反應速度。
     if (time - (this._lastNpcCheckAt || 0) >= 100) {
@@ -1037,6 +1044,7 @@ export class BaseMapScene extends Phaser.Scene {
 
   _onSceneShutdown() {
     if (this._modifier) { this._modifier.destroy(); this._modifier = null; }
+    if (this._badgeField) { this._badgeField.destroy(); this._badgeField = null; }
     this.events.off('monster-died', this._onMonsterDied, this);
     this.events.off('job-changed', this._onJobChanged, this);
 
@@ -1052,7 +1060,7 @@ export class BaseMapScene extends Phaser.Scene {
     }
 
     if (this._onInteractKeyDown) {
-      this.input.keyboard.off('keydown-F', this._onInteractKeyDown);
+      this.input.keyboard.off('keydown', this._onInteractKeyDown);
       this._onInteractKeyDown = null;
     }
 

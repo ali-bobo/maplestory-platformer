@@ -25,9 +25,13 @@ import { settings } from './engine/settings.js';
 import { installSettingsHooks } from './engine/settingsHooks.js';
 import { saveOnExit } from './engine/saveGame.js';
 import { isTouchDevice } from './engine/device.js';
-import { mountTouchControls } from './engine/touchControls.js';
+import { mountTouchControls, TOUCH_ACTIONS } from './engine/touchControls.js';
+import { installGamepad } from './engine/gamepad.js';
+import { eventDef } from './engine/keyBindings.js';
 import { audio } from './engine/audio.js';
 import { installContextGuard } from './engine/contextGuard.js';
+import { installErrorGuard } from './engine/errorGuard.js';
+import { setupServiceWorker } from './engine/serviceWorker.js';
 import { SKILL_SLOT_KEYS, BASIC_ATTACK, skillForSlot, jobOf } from './config/constants.js';
 import { TutorialScene } from './scenes/TutorialScene.js';
 import { debugSetJob } from './engine/jobChange.js';
@@ -129,10 +133,11 @@ if (typeof window !== 'undefined' && new URLSearchParams(window.location.search)
 }
 
 // 關閉分頁 / 切到背景時補存一次（只在實際遊玩的場景中；選單與結算畫面的狀態不覆蓋存檔）
+// 回傳 'saved' | 'failed' | 'skipped'（不在遊玩中）；錯誤防護依此決定提示文字
 function saveIfPlaying() {
   const idle = ['BootScene', 'MenuScene', 'GameOverScene'];
-  if (idle.some((key) => game.scene.isActive(key))) return;
-  saveOnExit(game.registry.get('gameState'));
+  if (idle.some((key) => game.scene.isActive(key))) return 'skipped';
+  return saveOnExit(game.registry.get('gameState')) ? 'saved' : 'failed';
 }
 window.addEventListener('pagehide', saveIfPlaying);
 document.addEventListener('visibilitychange', () => {
@@ -141,6 +146,12 @@ document.addEventListener('visibilitychange', () => {
 
 // WebGL context 被瀏覽器回收（手機 / iframe 記憶體吃緊）時：存檔、顯示提示，恢復後自動收起，沒恢復給重新載入鈕
 installContextGuard(game, { saveNow: saveIfPlaying });
+
+// 未捕捉的例外（本站腳本才算，擴充功能等外來錯誤略過）：先存檔，再顯示「重新載入 / 繼續」提示，每次載入只提示一次
+installErrorGuard({ saveNow: saveIfPlaying });
+
+// 離線遊玩與安裝：註冊 sw.js（本機開發、?debug=1、file://、iframe 中不註冊，見 serviceWorker.js）
+setupServiceWorker();
 
 // ── 手機支援 ────────────────────────────────────────────────────────────────
 // 瀏覽器要求「使用者手勢」後才能啟動音效。觸控裝置上，手指按下（pointerdown / touchstart）不算有效手勢，
@@ -164,9 +175,27 @@ document.addEventListener('visibilitychange', () => {
   else audio.suspendContext();
 });
 
+// ── 手把 ────────────────────────────────────────────────────────────────────
+// 手把按鈕轉成「目前綁定的鍵」的合成鍵盤事件（見 engine/gamepad.js）；選單 / 教學 / 結算畫面 A 當 Enter
+const MENU_SCENES = ['BootScene', 'MenuScene', 'GameOverScene', 'TutorialScene'];
+const inMenu = () => MENU_SCENES.some((key) => game.scene.isActive(key));
+installGamepad({
+  game,
+  isMenu: inMenu,
+  resolveKey: (action) => {
+    if (action === 'pause') return eventDef('ESC');
+    if (action === 'confirm') return eventDef('ENTER');
+    // 選單裡左右固定送方向鍵（教學換頁用 ← →），不受鍵位設定影響
+    if (inMenu() && (action === 'left' || action === 'right')) return eventDef(action === 'left' ? 'LEFT' : 'RIGHT');
+    return eventDef(settings.get().keys[action]);
+  },
+});
+
 // 觸控裝置：掛上操作層，只在實際遊玩（HUD 場景存在）時顯示
 if (isTouchDevice()) {
-  const controls = mountTouchControls({ canvasProvider: () => game.canvas });
+  // 觸控鈕送「目前綁定的鍵」（玩家在設定裡改過鍵位也照樣能用）；ESC 固定
+  const resolveKey = (name) => (TOUCH_ACTIONS[name] ? eventDef(settings.get().keys[TOUCH_ACTIONS[name]]) : null);
+  const controls = mountTouchControls({ canvasProvider: () => game.canvas, resolveKey });
   const gameplayScenes = ['BootScene', 'MenuScene', 'GameOverScene', 'TutorialScene'];
   const SHORT = { Z: '鏢', X: '步', C: '殺', V: '渦', B: '影', backstab: '刺', poison: '毒', mark: '印', whirl: '旋', steal: '盜', smoke: '煙' };
   let lastSkillSig = '';

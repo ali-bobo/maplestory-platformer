@@ -5,7 +5,7 @@
 
 import Phaser from 'phaser';
 import { audio } from '../engine/audio.js';
-import { spawnSlashWave, cameraShockwave, spawnLightRays } from '../engine/vfx.js';
+import { spawnSlashWave, cameraShockwave, spawnLightRays, energyBurstRing, screenFlash } from '../engine/vfx.js';
 import { VFX_TEX } from '../engine/vfxTextures.js';
 import {
   skillDamageScale, effectiveCritMulti, effectiveCritRate, jobOf, jobPassive,
@@ -16,8 +16,9 @@ import {
   hitStop, findNearestEnemy, launchShuriken, resolveAssassinateWarpPoint,
 } from './Skill.js';
 import {
-  setMark, clearMark, addPoison, tickPoison, POISON_TICK_MULT, MARK_DURATION_MS,
-  pruneSmoke, SMOKE_DURATION_MS, SMOKE_RADIUS, SMOKE_TICK_MULT, STEAL_MP_REFUND, rollSteal, comboStep,
+  setMark, clearMark, addPoison, tickPoison, detonatePoison, POISON_TICK_MULT, POISON_MAX_STACKS, POISON_DARTS, POISON_PIERCE,
+  POISON_BURST_MULT, POISON_BURST_RADIUS, MARK_DURATION_MS, MARK_FINISH_RADIUS,
+  pruneSmoke, SMOKE_DURATION_MS, SMOKE_RADIUS, SMOKE_TICK_MULT, SMOKE_BLAST_MULT, SMOKE_FINALE_MULT, STEAL_MP_REFUND, rollSteal, comboStep,
 } from '../engine/statusEffects.js';
 
 const alive = (e) => !!e && e.active && !e.isDead;
@@ -185,29 +186,90 @@ export function castBackstab(scene, player, enemies) {
   return true;
 }
 
-// ── 蝕心毒鏢（刺客）：1.2 倍飛鏢，命中後中毒 6 秒（每秒 0.65 倍，最多 3 層）─────
-export function applyPoison(scene, player, enemy) {
+// ── 蝕心毒鏢（刺客）：連丟 2 支穿透毒鏢，每支上 1 層毒（6 秒、每層每秒 0.4 倍）；疊滿 3 層毒爆 ─────
+const POISON_GREEN = 0x8cff4a;
+const POISON_DARK = 0x2f8f1c;
+
+// 綠色毒泡：從 (x, y) 往上冒、慢慢散開
+function spawnBubbles(scene, x, y, count, spread) {
+  for (let i = 0; i < count; i++) {
+    const b = scene.add.image(x + (Math.random() - 0.5) * spread, y + (Math.random() - 0.5) * spread * 0.5, VFX_TEX.SOFT_GLOW)
+      .setDepth(58).setTint(Math.random() < 0.6 ? POISON_GREEN : 0xd8ff9a).setBlendMode(Phaser.BlendModes.ADD)
+      .setScale(0.1 + Math.random() * 0.16);
+    scene.tweens.add({
+      targets: b, y: b.y - 30 - Math.random() * 50, x: b.x + (Math.random() - 0.5) * 30, alpha: 0, scale: 0.03,
+      duration: 500 + Math.random() * 500, ease: 'Sine.easeOut', onComplete: () => b.destroy(),
+    });
+  }
+}
+
+function stopPoison(enemy) {
+  const st = enemy._poison;
+  if (st?.timer) { st.timer.remove(); st.timer = null; }
+  enemy._poison = null;
+}
+
+// 毒爆：剩下的毒傷一次打完 + 2.2 倍可暴擊的爆炸，並讓周圍其他敵人中毒 1 層（可能連鎖毒爆）
+function poisonBurst(scene, player, enemies, enemy) {
+  const gs = player.gameState;
+  const rest = detonatePoison(enemy._poison);
+  stopPoison(enemy);
+  const c = getEntityEffectPoint(enemy);
+  const { damage, isCrit } = calcDamage(
+    gs.atk, effectiveCritRate(gs), effectiveCritMulti(gs), POISON_BURST_MULT * skillDamageScale(gs.skillLevels.poison),
+  );
+  enemy.takeDamage(damage + rest, isCrit);
+  enemy._poisonBursts = (enemy._poisonBursts || 0) + 1;
+
+  const flash = scene.add.image(c.x, c.y, VFX_TEX.SOFT_GLOW).setDepth(57).setTint(POISON_GREEN)
+    .setBlendMode(Phaser.BlendModes.ADD).setScale(0.8);
+  scene.tweens.add({ targets: flash, scale: POISON_BURST_RADIUS / 16, alpha: 0, duration: 380, ease: 'Quad.easeOut', onComplete: () => flash.destroy() });
+  energyBurstRing(scene, c.x, c.y, POISON_GREEN, POISON_BURST_RADIUS);
+  spawnShockCircle(scene, c.x, c.y, { startRadius: 12, endRadius: POISON_BURST_RADIUS, duration: 340, color: POISON_DARK, alpha: 0.9, lineWidth: 5 });
+  spawnLightRays(scene, c.x, c.y, { count: 12, length: 110, color: POISON_GREEN, alpha: 0.5, duration: 320 });
+  playFx(scene, 'fx_poison', c.x, c.y, { scale: 1.5, frameRate: 18, normal: true });
+  spawnBubbles(scene, c.x, c.y, 18, 70);
+  floatText(scene, c.x, c.y - 40, '毒爆！', '#b8ff6a');
+  scene.cameras.main.shake(140, 0.012);
+  hitStop(scene, 60);
+  audio.playImpact(true);
+
+  // 擴散：稍微延遲，連鎖毒爆看得出先後
+  later(scene, player, 160, () => {
+    enemies?.getChildren?.().forEach((other) => {
+      if (other === enemy || !alive(other)) return;
+      const o = getEntityEffectPoint(other);
+      if (Phaser.Math.Distance.Between(c.x, c.y, o.x, o.y) > POISON_BURST_RADIUS + (other.body ? other.body.halfWidth : 0)) return;
+      applyPoison(scene, player, other, enemies);
+    });
+  });
+}
+
+export function applyPoison(scene, player, enemy, enemies) {
   if (!alive(enemy)) return;
   const gs = player.gameState;
   const perTick = Math.floor(gs.atk * POISON_TICK_MULT * skillDamageScale(gs.skillLevels.poison));
   const st = addPoison(enemy, perTick);
   const c = getEntityEffectPoint(enemy);
-  playFx(scene, 'fx_poison', c.x, c.y - 6, { scale: 0.6, frameRate: 14, normal: true });
+  playFx(scene, 'fx_poison', c.x, c.y - 6, { scale: 0.7, frameRate: 14, normal: true });
+  spawnBubbles(scene, c.x, c.y, 5, 30);
+  if (st.stacks >= POISON_MAX_STACKS) { poisonBurst(scene, player, enemies, enemy); return; }
   floatText(scene, c.x, c.y - 30, `毒 x${st.stacks}`, '#8cff66');
   if (st.timer) return;   // 已有跳毒計時器：只刷新層數與持續時間
   st.timer = scene.time.addEvent({
     delay: 1000, loop: true,
     callback: () => {
-      if (!enemy.active || enemy.isDead || !scene.sys.isActive()) { st.timer.remove(); st.timer = null; enemy._poison = null; return; }
+      if (!enemy.active || enemy.isDead || !scene.sys.isActive() || enemy._poison !== st) { st.timer?.remove(); st.timer = null; if (enemy._poison === st) enemy._poison = null; return; }
       const dmg = tickPoison(st);
       if (dmg > 0) {
         enemy.takeDamage(dmg, false, { dot: true });
         if (!enemy.isDead) {
           const p = getEntityEffectPoint(enemy);
           playFx(scene, 'fx_poison', p.x, p.y - 4, { scale: 0.38, frameRate: 18, normal: true });
+          spawnBubbles(scene, p.x, p.y, 2 + st.stacks * 2, 30);
         }
       }
-      if (st.ticksLeft <= 0) { st.timer.remove(); st.timer = null; enemy._poison = null; }
+      if (st.ticksLeft <= 0) stopPoison(enemy);
     },
   });
 }
@@ -215,54 +277,139 @@ export function applyPoison(scene, player, enemy) {
 export function castPoison(scene, player, enemies) {
   audio.playSkill('Z');
   const dir = player.facingRight ? 1 : -1;
-  player.playThrowAnimation?.(220);
-  later(scene, player, 60, () => {
-    const origin = getEntityEffectPoint(player);
-    launchShuriken(scene, player, enemies, {
-      x: player.x + dir * 24, y: origin.y - 6, vx: dir * 700, vy: 0,
-      multiplier: M.POISON_DART, skillKey: 'poison', tint: 0x9dff6a, scale: 1.1,
-      trailTint: [0xc8ff9a, 0x6edc3c, 0x2f8f1c],
-      onHit: (enemy) => applyPoison(scene, player, enemy),
+  player.playThrowAnimation?.(300);
+  for (let i = 0; i < POISON_DARTS; i++) {
+    later(scene, player, 60 + i * 130, () => {
+      const origin = getEntityEffectPoint(player);
+      const hx = player.x + dir * 24;
+      const hy = origin.y - 10 + i * 8;
+      // 出手的綠光
+      const glow = scene.add.image(hx, hy, VFX_TEX.SOFT_GLOW).setDepth(41).setTint(POISON_GREEN)
+        .setBlendMode(Phaser.BlendModes.ADD).setScale(0.5);
+      scene.tweens.add({ targets: glow, scale: 1.1, alpha: 0, duration: 200, onComplete: () => glow.destroy() });
+      launchShuriken(scene, player, enemies, {
+        x: hx, y: hy, vx: dir * 760, vy: 0, pierce: POISON_PIERCE, lifetime: 700,
+        multiplier: M.POISON_DART, skillKey: 'poison', tint: 0x9dff6a, scale: 1.25,
+        trailTint: [0xc8ff9a, 0x6edc3c, POISON_DARK],
+        onHit: (enemy) => applyPoison(scene, player, enemy, enemies),
+      });
+    });
+  }
+}
+
+// ── 斷命印記（刺客）：血印落下斬一刀；7 秒內打它必暴擊並存下 25%；時間到或目標死亡時「斷命」───
+const MARK_RED = 0xff3a4a;
+
+// 斷命：先一道紅線預告，接著從天而降的重斬，範圍內所有敵人吃 2.5 倍必暴擊 + 印記存下的傷害
+function markFinale(scene, player, enemies, x, y, stored) {
+  const cam = scene.cameras.main;
+  const top = cam.worldView.y - 20;
+  const h = y - top + 30;
+  const warn = scene.add.rectangle(x, top + h / 2, 4, h, 0xc0102a, 0.0).setDepth(63);
+  scene.tweens.add({ targets: warn, fillAlpha: 0.8, duration: 220 });
+  later(scene, player, 260, () => {
+    warn.destroy();
+    const gs = player.gameState;
+    // 重斬：紅色外光 + 白色刃芯，由上往下砸
+    const blade = scene.add.rectangle(x, top + h / 2, 34, h, 0xc0102a, 0.9).setDepth(63);
+    const core = scene.add.rectangle(x, top + h / 2, 10, h, 0xffffff, 1).setDepth(64).setBlendMode(Phaser.BlendModes.ADD);
+    scene.tweens.add({ targets: [blade, core], scaleX: 0, alpha: 0, duration: 320, ease: 'Quad.easeIn', onComplete: () => { blade.destroy(); core.destroy(); } });
+    playFx(scene, 'fx_mark', x, y, { scale: 1.8, frameRate: 24 });
+    energyBurstRing(scene, x, y, MARK_RED, MARK_FINISH_RADIUS);
+    spawnShockCircle(scene, x, y, { startRadius: 14, endRadius: MARK_FINISH_RADIUS * 1.1, duration: 360, color: MARK_RED, alpha: 0.9, lineWidth: 6 });
+    spawnLightRays(scene, x, y, { count: 14, length: 150, color: MARK_RED, alpha: 0.6, duration: 360 });
+    spawnSlashWave(scene, x, y, true, { radius: 90, color: 0xff8a8a, duration: 260, scale: 2 });
+    spawnSlashWave(scene, x, y, false, { radius: 90, color: 0xff8a8a, duration: 260, scale: 2 });
+    cameraShockwave(scene, x, y, 380);
+    screenFlash(scene, 140, 0.22);
+    cam.shake(260, 0.02);
+    hitStop(scene, 90);
+    floatText(scene, x, y - 60, '斷命！', '#ff6a6a').setFontSize(24);
+    audio.playImpact(true);
+    const mult = M.MARK_FINISH * skillDamageScale(gs.skillLevels.mark);
+    enemies?.getChildren?.().forEach((enemy) => {
+      if (!alive(enemy)) return;
+      const c = getEntityEffectPoint(enemy);
+      if (Phaser.Math.Distance.Between(x, y, c.x, c.y) > MARK_FINISH_RADIUS + (enemy.body ? enemy.body.halfWidth : 0)) return;
+      const { damage } = calcDamage(gs.atk, 1, effectiveCritMulti(gs), mult);
+      enemy.takeDamage(damage + stored, true);
+      enemy.applyKnockback?.((c.x >= x ? 1 : -1) * 240, 240, -200);
+      spawnImpactSpark(scene, c.x, c.y, 0xffdd66, 1.5);
     });
   });
 }
 
-// ── 斷命印記（刺客）：標記最近敵人 7 秒，期間每次受擊（毒除外）必暴擊並 +20% 傷害 ───
 export function castMark(scene, player, enemies) {
   const origin = getEntityEffectPoint(player);
   const target = findNearestEnemy(enemies, origin.x, origin.y, 460);
   if (!target) return false;
   audio.playSkill('V');
   player._lockPose(player.pose('cast'), 450);
-  const c = getEntityEffectPoint(target);
-  playFx(scene, 'fx_mark', c.x, c.y, { scale: 1.1, frameRate: 10 });
-  spawnShockCircle(scene, c.x, c.y, { startRadius: 10, endRadius: 56, duration: 300, color: 0xff6a6a, alpha: 0.7, lineWidth: 2 });
+  const gs = player.gameState;
 
-  const mark = setMark(target, scene.time.now, MARK_DURATION_MS);
-  // 印記圖示跟著敵人（一個 update 監聽，印記消失就移除）
-  const icon = loopFx(scene, 'fx_mark', c.x, c.y - 50, { scale: 0.42, frameRate: 6, alpha: 0.95 });
-  const follow = () => {
-    if (!icon?.active || !target.active) return;
-    const p = getEntityEffectPoint(target);
-    icon.setPosition(p.x, (target.body ? target.body.top : p.y - 30) - 18);
-  };
-  scene.events.on('update', follow);
-  const timer = scene.time.delayedCall(MARK_DURATION_MS, () => { if (target._mark === mark) clearMark(target, 'expired'); });
-  // 第一擊演出「斷命」；之後每一擊只閃一下印記，避免多段攻擊洗版
-  mark.onHit = (n) => {
-    if (!target.active) return;
-    const p = getEntityEffectPoint(target);
-    if (n === 1) {
-      playFx(scene, 'fx_mark', p.x, p.y, { scale: 1.4, frameRate: 24 });
-      floatText(scene, p.x, p.y - 34, '斷命！', '#ff8a8a');
-      spawnLightRays(scene, p.x, p.y, { count: 10, length: 90, color: 0xff6a6a, alpha: 0.5, duration: 280 });
-    }
-  };
-  mark.onClear = () => {
-    scene.events.off('update', follow);
-    timer.remove();
-    if (icon?.active) icon.destroy();
-  };
+  // 血印飛向目標
+  const t0 = getEntityEffectPoint(target);
+  const orb = scene.add.image(origin.x, origin.y - 10, VFX_TEX.MAGIC_CIRCLE).setDepth(62).setTint(MARK_RED)
+    .setBlendMode(Phaser.BlendModes.ADD).setScale(0.18);
+  scene.tweens.add({
+    targets: orb, x: t0.x, y: t0.y, angle: 540, duration: 200, ease: 'Quad.easeIn',
+    onUpdate: () => spawnAfterimage(scene, orb, { alpha: 0.4, duration: 160, tint: MARK_RED }),
+    onComplete: () => orb.destroy(),
+  });
+
+  later(scene, player, 200, () => {
+    if (!alive(target)) return;
+    const c = getEntityEffectPoint(target);
+    // 落印一斬（必暴擊）：紅色 X 斬 + 衝擊圈
+    const { damage } = calcDamage(gs.atk, 1, effectiveCritMulti(gs), M.MARK_HIT * skillDamageScale(gs.skillLevels.mark));
+    target.takeDamage(damage, true);
+    spawnSlashWave(scene, c.x, c.y, true, { radius: 60, color: MARK_RED, duration: 220, scale: 1.6 });
+    spawnSlashWave(scene, c.x, c.y, false, { radius: 60, color: MARK_RED, duration: 220, scale: 1.6 });
+    playFx(scene, 'fx_mark', c.x, c.y, { scale: 1.1, frameRate: 14 });
+    spawnShockCircle(scene, c.x, c.y, { startRadius: 10, endRadius: 70, duration: 300, color: MARK_RED, alpha: 0.8, lineWidth: 3 });
+    scene.cameras.main.shake(90, 0.008);
+    audio.playImpact(true);
+    if (!alive(target)) return;
+
+    const mark = setMark(target, scene.time.now, MARK_DURATION_MS);
+    floatText(scene, c.x, c.y - 44, '斷命印記', '#ff8a8a');
+    // 頭上的印記 + 存下的傷害數字 + 腳下的紅色符文圈，都跟著敵人
+    const icon = loopFx(scene, 'fx_mark', c.x, c.y - 50, { scale: 0.48, frameRate: 6, alpha: 0.95 });
+    const label = scene.add.text(c.x, c.y - 30, '', {
+      fontSize: '13px', color: '#ff9a9a', fontFamily: 'Arial', fontStyle: 'bold', stroke: '#000', strokeThickness: 3,
+    }).setOrigin(0.5, 0).setDepth(90);
+    const rune = scene.add.image(c.x, c.y, VFX_TEX.MAGIC_CIRCLE).setDepth(11).setTint(MARK_RED)
+      .setBlendMode(Phaser.BlendModes.ADD).setAlpha(0.6).setScale(0.6, 0.2);
+    const spin = scene.tweens.add({ targets: rune, angle: 360, duration: 2400, repeat: -1 });
+    const follow = () => {
+      if (!target.active) return;
+      const p = getEntityEffectPoint(target);
+      const headY = (target.body ? target.body.top : p.y - 30) - 18;
+      icon?.setPosition(p.x, headY);
+      label.setPosition(p.x, headY + 14);
+      rune.setPosition(p.x, target.body ? target.body.bottom - 2 : p.y + 30);
+    };
+    scene.events.on('update', follow);
+    const timer = scene.time.delayedCall(MARK_DURATION_MS, () => { if (target._mark === mark) clearMark(target, 'expired'); });
+    mark.onHit = (n, stored) => {
+      label.setText(`斷命 +${stored}`);
+      if (icon?.active) {
+        scene.tweens.killTweensOf(icon);
+        icon.setScale(0.7);
+        scene.tweens.add({ targets: icon, scale: 0.48, duration: 160 });
+      }
+    };
+    mark.onClear = (reason, stored) => {
+      scene.events.off('update', follow);
+      timer.remove();
+      spin.remove();
+      const p = getEntityEffectPoint(target);
+      if (icon?.active) icon.destroy();
+      label.destroy();
+      rune.destroy();
+      if (reason !== 'replaced' && scene.sys.isActive()) markFinale(scene, player, enemies, p.x, p.y, stored);
+    };
+  });
   return true;
 }
 
@@ -313,49 +460,160 @@ export function castWhirl(scene, player, enemies) {
   }
 }
 
-// ── 妙手空空（俠盜）：近戰兩連擊各 1.8 倍；命中回 10 MP、60% 多掉一份金幣、12% 偷到藥水 ───
+// ── 妙手空空（俠盜）：金光突進，穿過前方最多 3 隻敵人；每隻吃兩記 X 字斬（各 1.8 倍），
+//    當場噴出金幣（60% 機率真的多掉一份錢）、12% 偷到藥水；命中回 10 MP ───────────────
+const STEAL_DASH = 230;        // 突進距離（px）
+const STEAL_MAX_TARGETS = 3;
+const STEAL_GOLD = 0xffcf3a;
+
+// 從 (x, y) 噴出一把裝飾用金幣（不會被撿，真正的錢走 _spawnPickup）
+function spawnCoinBurst(scene, x, y, count) {
+  const key = scene.textures.exists('item-meso') ? 'item-meso' : VFX_TEX.SOFT_GLOW;
+  for (let i = 0; i < count; i++) {
+    const coin = scene.add.image(x, y, key).setDepth(59).setScale(key === 'item-meso' ? 1.1 : 0.2);
+    if (key !== 'item-meso') coin.setTint(STEAL_GOLD).setBlendMode(Phaser.BlendModes.ADD);
+    const vx = (Math.random() - 0.5) * 160;
+    const peak = 50 + Math.random() * 50;
+    scene.tweens.add({ targets: coin, x: x + vx, duration: 620, ease: 'Linear' });
+    scene.tweens.add({ targets: coin, y: y - peak, duration: 260, ease: 'Quad.easeOut', yoyo: true, hold: 40 });
+    scene.tweens.add({ targets: coin, alpha: 0, angle: (Math.random() - 0.5) * 360, delay: 380, duration: 260, onComplete: () => coin.destroy() });
+  }
+}
+
+// X 字金色斬痕
+function spawnGoldX(scene, x, y) {
+  for (const rot of [0.7, -0.7]) {
+    const line = scene.add.rectangle(x, y, 8, 8, 0xfff2b0).setDepth(60).setRotation(rot).setBlendMode(Phaser.BlendModes.ADD);
+    scene.tweens.add({ targets: line, width: 120, displayWidth: 120, alpha: 0, duration: 260, ease: 'Quad.easeOut', onComplete: () => line.destroy() });
+  }
+  const glow = scene.add.image(x, y, VFX_TEX.SOFT_GLOW).setDepth(59).setTint(STEAL_GOLD).setBlendMode(Phaser.BlendModes.ADD).setScale(0.6);
+  scene.tweens.add({ targets: glow, scale: 2.2, alpha: 0, duration: 280, onComplete: () => glow.destroy() });
+}
+
 export function castSteal(scene, player, enemies) {
   const gs = player.gameState;
   const dir = player.facingRight ? 1 : -1;
   const origin = getEntityEffectPoint(player);
-  const target = nearestInFront(enemies, origin, dir, 130);
-  if (!target) return false;
-  audio.playSkill('ATK');
-  player._lockPose(player.pose('slash_1'), 70);
-  later(scene, player, 70, () => player._lockPose(player.pose('slash_2'), 160));
-  for (let n = 0; n < M.STEAL_HITS; n++) {
-    const last = n === M.STEAL_HITS - 1;
-    later(scene, player, 70 + n * 110, () => {
-      if (!alive(target)) return;
-      const c = getEntityEffectPoint(target);
-      swingFx(scene, player, 'fx_slash_bandit', { scale: 0.85, forward: 50, normal: true, tilt: n ? -0.3 : 0 });
-      const { damage, isCrit } = calcDamage(gs.atk, effectiveCritRate(gs), effectiveCritMulti(gs), M.STEAL * skillDamageScale(gs.skillLevels.steal));
-      target.takeDamage(damage, isCrit);
-      target.applyKnockback?.(dir * 150, 120);
-      spawnImpactSpark(scene, c.x, c.y, isCrit ? 0xffdd66 : 0xffcf70, 1.1);
-      audio.playImpact(isCrit);
-      if (!last) return;
-      // 命中回 MP（讓妙手空空幾乎自給自足）
-      gs.mp = Math.min(gs.maxMp, gs.mp + STEAL_MP_REFUND);
-      scene.registry.events.emit('changedata-mp', null, gs.mp);
-      const roll = rollSteal(Math.random(), Math.random());
-      if (roll.meso && typeof target._spawnPickup === 'function') {
-        const meso = Math.max(1, Math.floor((target.meso || 5) * (1 + Math.random()) * jobPassive(gs, 'mesoMult', 1)));
-        target._spawnPickup('item-meso', meso, 'meso');
-        floatText(scene, c.x, c.y - 34, '妙手！', '#ffe27a');
-      }
-      if (roll.potion && gs.potions) {
-        const slot = Math.random() < 0.5 ? 'A' : 'D';
-        gs.potions[slot] = (gs.potions[slot] || 0) + 1;
-        scene.registry.set('gameState', gs);
-        floatText(scene, c.x, c.y - 52, slot === 'A' ? '偷到 HP藥水！' : '偷到 MP藥水！', '#9ff0c8');
-      }
-    });
-  }
+  // 突進路線上的敵人（由近到遠，最多 3 隻）
+  const targets = [];
+  enemies?.getChildren?.().forEach((enemy) => {
+    if (!alive(enemy)) return;
+    const c = getEntityEffectPoint(enemy);
+    const ahead = (c.x - origin.x) * dir;
+    if (ahead < -10 || ahead > STEAL_DASH + 40 || Math.abs(c.y - origin.y) > 62) return;
+    targets.push({ enemy, ahead });
+  });
+  if (targets.length === 0) return false;
+  targets.sort((a, b) => a.ahead - b.ahead);
+  targets.length = Math.min(targets.length, STEAL_MAX_TARGETS);
+
+  audio.playSkill('X');
+  player._lockPose(player.pose('slash_1'), 90);
+  later(scene, player, 90, () => player._lockPose(player.pose('slash_2'), 220));
+  // 突進：穿過敵人停在最後一隻後方，途中無敵、留下金色殘影
+  const bounds = scene.physics.world.bounds;
+  const lastAhead = targets[targets.length - 1].ahead;
+  const destX = Phaser.Math.Clamp(player.x + dir * Math.min(STEAL_DASH, lastAhead + 70), bounds.x + 30, bounds.right - 30);
+  const wasInvincible = player.isInvincible;
+  player.isInvincible = true;
+  const startY = player.y;
+  scene.tweens.add({
+    targets: player, x: destX, duration: 180, ease: 'Cubic.easeOut',
+    onUpdate: () => {
+      if (player.body) player.body.reset(player.x, startY);
+      if (Math.random() < 0.6) spawnAfterimage(scene, player, { alpha: 0.5, duration: 220, tint: STEAL_GOLD });
+    },
+  });
+  later(scene, player, 260, () => { if (!wasInvincible) player.isInvincible = false; });
+  spawnSlashWave(scene, origin.x + dir * 60, origin.y - 4, player.facingRight, { radius: 90, color: STEAL_GOLD, duration: 220, scale: 1.6 });
+
+  let gotMp = false;
+  targets.forEach(({ enemy }, idx) => {
+    for (let n = 0; n < M.STEAL_HITS; n++) {
+      later(scene, player, 60 + idx * 50 + n * 140, () => {
+        if (!alive(enemy)) return;
+        const c = getEntityEffectPoint(enemy);
+        spawnGoldX(scene, c.x, c.y);
+        const { damage, isCrit } = calcDamage(gs.atk, effectiveCritRate(gs), effectiveCritMulti(gs), M.STEAL * skillDamageScale(gs.skillLevels.steal));
+        enemy.takeDamage(damage, isCrit);
+        enemy.applyKnockback?.(-dir * 90, 120);
+        spawnImpactSpark(scene, c.x, c.y, isCrit ? 0xffdd66 : STEAL_GOLD, 1.2);
+        audio.playImpact(isCrit);
+        if (n !== M.STEAL_HITS - 1) return;
+        spawnCoinBurst(scene, c.x, c.y - 10, 6);
+        if (!gotMp) {
+          // 命中回 MP（讓妙手空空幾乎自給自足）
+          gotMp = true;
+          gs.mp = Math.min(gs.maxMp, gs.mp + STEAL_MP_REFUND);
+          scene.registry.events.emit('changedata-mp', null, gs.mp);
+          const p = getEntityEffectPoint(player);
+          floatText(scene, p.x, p.y - 56, `+${STEAL_MP_REFUND} MP`, '#8fd0ff');
+          hitStop(scene, 50);
+          scene.cameras.main.shake(90, 0.008);
+        }
+        const roll = rollSteal(Math.random(), Math.random());
+        if (roll.meso && typeof enemy._spawnPickup === 'function') {
+          const meso = Math.max(1, Math.floor((enemy.meso || 5) * (1 + Math.random()) * jobPassive(gs, 'mesoMult', 1)));
+          enemy._spawnPickup('item-meso', meso, 'meso');
+          floatText(scene, c.x, c.y - 34, `妙手！+${meso} 金幣`, '#ffe27a');
+        }
+        if (roll.potion && gs.potions) {
+          const slot = Math.random() < 0.5 ? 'A' : 'D';
+          gs.potions[slot] = (gs.potions[slot] || 0) + 1;
+          scene.registry.set('gameState', gs);
+          floatText(scene, c.x, c.y - 52, slot === 'A' ? '偷到 HP藥水！' : '偷到 MP藥水！', '#9ff0c8');
+        }
+      });
+    }
+  });
   return true;
 }
 
-// ── 迷煙彈（俠盜）：落點 5 秒煙霧；範圍內敵人傷害 -50%、不再追擊 ───────────────
+// ── 迷煙彈（俠盜）：落地爆炸 → 7 秒赤紫毒煙（敵人傷害 -60%、不追擊、每秒灼燒）→ 煙霧收縮引爆 ───
+const SMOKE_PURPLE = 0x7a3fb0;
+const SMOKE_EMBER = 0xff6a2a;
+
+// 往外 / 往上飛的火星（SOFT_GLOW 小光點，ADD 混合）
+function spawnEmbers(scene, x, y, count, spread, opts = {}) {
+  for (let i = 0; i < count; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const d = spread * (0.3 + Math.random() * 0.7);
+    const e = scene.add.image(x, y, VFX_TEX.SOFT_GLOW).setDepth(opts.depth ?? 58)
+      .setTint(Math.random() < 0.7 ? SMOKE_EMBER : 0xffd06a).setBlendMode(Phaser.BlendModes.ADD)
+      .setScale(0.12 + Math.random() * 0.14);
+    scene.tweens.add({
+      targets: e, x: x + Math.cos(a) * d, y: y + Math.sin(a) * d * 0.6 - (opts.rise ?? 40) * Math.random(),
+      alpha: 0, scale: 0.04, duration: 420 + Math.random() * 380, ease: 'Quad.easeOut', onComplete: () => e.destroy(),
+    });
+  }
+}
+
+// 爆炸：閃光 + 雙層衝擊環 + 火星 + 震動；對範圍內敵人造成一次可暴擊的傷害
+function smokeBlast(scene, player, enemies, x, y, mult, big) {
+  const gs = player.gameState;
+  const flash = scene.add.image(x, y, VFX_TEX.SOFT_GLOW).setDepth(57).setTint(0xffb070)
+    .setBlendMode(Phaser.BlendModes.ADD).setScale(1);
+  scene.tweens.add({ targets: flash, scale: SMOKE_RADIUS / 18, alpha: 0, duration: 360, ease: 'Quad.easeOut', onComplete: () => flash.destroy() });
+  energyBurstRing(scene, x, y, SMOKE_EMBER, SMOKE_RADIUS * 1.1);
+  spawnShockCircle(scene, x, y, { startRadius: 16, endRadius: SMOKE_RADIUS * 1.15, duration: 380, color: SMOKE_PURPLE, alpha: 0.85, lineWidth: 5 });
+  spawnEmbers(scene, x, y, big ? 26 : 16, SMOKE_RADIUS, { rise: 60 });
+  scene.cameras.main.shake(big ? 220 : 150, big ? 0.016 : 0.01);
+  cameraShockwave(scene, x, y, big ? 360 : 260);
+  let hits = 0;
+  enemies?.getChildren?.().forEach((enemy) => {
+    if (!alive(enemy)) return;
+    const c = getEntityEffectPoint(enemy);
+    if (Phaser.Math.Distance.Between(x, y, c.x, c.y) > SMOKE_RADIUS + (enemy.body ? enemy.body.halfWidth : 0)) return;
+    const { damage, isCrit } = calcDamage(gs.atk, effectiveCritRate(gs), effectiveCritMulti(gs), mult * skillDamageScale(gs.skillLevels.smoke));
+    enemy.takeDamage(damage, isCrit);
+    enemy.applyKnockback?.((c.x >= x ? 1 : -1) * (big ? 260 : 140), 240, big ? -220 : -120);
+    spawnImpactSpark(scene, c.x, c.y, isCrit ? 0xffdd66 : SMOKE_EMBER, 1.4);
+    hits++;
+  });
+  audio.playImpact(hits > 0);
+  if (hits > 0 && big) hitStop(scene, 70);
+}
+
 export function castSmoke(scene, player, enemies) {
   audio.playSkill('B');
   const dir = player.facingRight ? 1 : -1;
@@ -364,8 +622,15 @@ export function castSmoke(scene, player, enemies) {
   const ty = feetY - 36;
   player.playThrowAnimation?.(220);
   const origin = getEntityEffectPoint(player);
-  const ball = scene.add.image(origin.x + dir * 20, origin.y - 10, VFX_TEX.SHURIKEN).setDepth(40).setScale(0.35).setTint(0x4a4a60);
-  scene.tweens.add({ targets: ball, x: tx, y: ty, angle: 360, duration: 280, ease: 'Quad.easeIn', onComplete: () => ball.destroy() });
+  // 煙霧彈：暗色彈體 + 燃燒的引信光點
+  const ball = scene.add.image(origin.x + dir * 20, origin.y - 10, VFX_TEX.SHURIKEN).setDepth(40).setScale(0.38).setTint(0x3a2850);
+  const fuse = scene.add.image(ball.x, ball.y, VFX_TEX.SOFT_GLOW).setDepth(41).setTint(SMOKE_EMBER)
+    .setBlendMode(Phaser.BlendModes.ADD).setScale(0.35);
+  scene.tweens.add({
+    targets: [ball, fuse], x: tx, y: ty, duration: 280, ease: 'Quad.easeIn',
+    onUpdate: () => { ball.angle += 24; if (Math.random() < 0.5) spawnEmbers(scene, ball.x, ball.y, 1, 14, { rise: 10, depth: 39 }); },
+    onComplete: () => { ball.destroy(); fuse.destroy(); },
+  });
 
   scene.time.delayedCall(280, () => {
     if (!scene.sys.isActive() || !player.active) return;
@@ -373,45 +638,65 @@ export function castSmoke(scene, player, enemies) {
     pruneSmoke(zones, scene.time.now);
     const zone = { x: tx, y: ty, r: SMOKE_RADIUS, until: scene.time.now + SMOKE_DURATION_MS };
     zones.push(zone);
-    // 煙霧內的敵人每秒受到持續傷害（不暴擊）；敵人移出範圍就不再受傷
     const gs = player.gameState;
+
+    smokeBlast(scene, player, enemies, tx, ty, SMOKE_BLAST_MULT, false);
+    floatText(scene, tx, ty - 74, '迷煙！敵人攻擊 -60%', '#e0c0ff');
+
+    // 地面符文圈（持續整段煙霧，慢慢旋轉、紅光呼吸）
+    const rune = scene.add.image(tx, ty + 30, VFX_TEX.MAGIC_CIRCLE).setDepth(11).setTint(SMOKE_EMBER)
+      .setBlendMode(Phaser.BlendModes.ADD).setAlpha(0).setScale((SMOKE_RADIUS / 100) * 0.9, (SMOKE_RADIUS / 100) * 0.3);
+    scene.tweens.add({ targets: rune, alpha: 0.55, duration: 300 });
+    scene.tweens.add({ targets: rune, angle: 360, duration: SMOKE_DURATION_MS, ease: 'Linear' });
+
+    // 煙霧：fx_smoke 第一格（煙團）染成赤紫色散布成一片；沒有圖就只靠符文圈與火星
+    // 不直接循環整條動畫——第 2、3 格的煙圈橫跨格線，放大後會有明顯的方形接縫（素材待修）
+    const puffs = [];
+    if (scene.textures.exists('fx_smoke')) {
+      for (let i = 0; i < 12; i++) {
+        const px = tx + (Math.random() - 0.5) * SMOKE_RADIUS * 1.7;
+        const py = ty + 6 + (Math.random() - 0.3) * 44;
+        const tint = i % 3 === 0 ? 0x4a2a66 : (i % 3 === 1 ? 0x8a4ab8 : 0xb0507a);
+        const puff = scene.add.image(px, py, 'fx_smoke', 0).setDepth(12).setTint(tint).setAlpha(0).setScale(0.3)
+          .setFlipX(Math.random() < 0.5);
+        const full = 0.95 + Math.random() * 0.6;
+        scene.tweens.add({ targets: puff, scale: full, alpha: 0.78, duration: 380 + i * 25, ease: 'Quad.easeOut' });
+        scene.tweens.add({ targets: puff, x: px + (Math.random() - 0.5) * 22, scale: full * 1.1, duration: 1600, yoyo: true, repeat: -1, delay: 500, ease: 'Sine.easeInOut' });
+        puffs.push(puff);
+      }
+    }
+
+    // 每秒灼燒：範圍內敵人受到持續傷害（不暴擊），煙霧裡冒出火星
     const ticks = Math.floor(SMOKE_DURATION_MS / 1000);
     scene.time.addEvent({
       delay: 1000, repeat: ticks - 1,
       callback: () => {
         if (!scene.sys.isActive()) return;
+        spawnEmbers(scene, tx, ty + 10, 6, SMOKE_RADIUS * 0.8, { rise: 70, depth: 13 });
         const dmg = Math.max(1, Math.floor(gs.atk * SMOKE_TICK_MULT * skillDamageScale(gs.skillLevels.smoke)));
         enemies?.getChildren?.().forEach((enemy) => {
           if (!alive(enemy)) return;
           const c = getEntityEffectPoint(enemy);
           if (Phaser.Math.Distance.Between(tx, ty, c.x, c.y) > SMOKE_RADIUS) return;
           enemy.takeDamage(dmg, false, { dot: true });
+          spawnImpactSpark(scene, c.x, c.y, SMOKE_EMBER, 0.9);
         });
       },
     });
-    spawnShockCircle(scene, tx, ty, { startRadius: 10, endRadius: SMOKE_RADIUS, duration: 400, color: 0xc8c8d8, alpha: 0.6, lineWidth: 3 });
-    // 煙霧：用 fx_smoke 第一格（煙團）散布成一片；最後換第四格（消散）淡出。
-    // 不直接循環整條動畫——第 2、3 格的煙圈橫跨格線，放大後會有明顯的方形接縫（素材待修）
-    if (scene.textures.exists('fx_smoke')) {
-      const puffs = [];
-      for (let i = 0; i < 8; i++) {
-        const px = tx + (Math.random() - 0.5) * SMOKE_RADIUS * 1.7;
-        const py = ty + 6 + (Math.random() - 0.3) * 40;
-        const puff = scene.add.image(px, py, 'fx_smoke', 0).setDepth(12).setTint(0xa0a0b8).setAlpha(0).setScale(0.3)
-          .setFlipX(Math.random() < 0.5);
-        const full = 0.95 + Math.random() * 0.6;
-        scene.tweens.add({ targets: puff, scale: full, alpha: 0.72, duration: 380 + i * 30, ease: 'Quad.easeOut' });
-        scene.tweens.add({ targets: puff, x: px + (Math.random() - 0.5) * 20, scale: full * 1.08, duration: 1800, yoyo: true, repeat: -1, delay: 500, ease: 'Sine.easeInOut' });
-        puffs.push(puff);
+
+    // 結束：煙霧往中心收縮，然後引爆
+    scene.time.delayedCall(SMOKE_DURATION_MS - 450, () => {
+      if (!scene.sys.isActive()) return;
+      for (const puff of puffs) {
+        if (!puff.active) continue;
+        scene.tweens.killTweensOf(puff);
+        scene.tweens.add({ targets: puff, x: tx, y: ty, scale: 0.25, alpha: 0.9, duration: 420, ease: 'Quad.easeIn', onComplete: () => puff.destroy() });
       }
-      scene.time.delayedCall(SMOKE_DURATION_MS - 700, () => {
-        for (const puff of puffs) {
-          if (!puff.active) continue;
-          scene.tweens.killTweensOf(puff);
-          puff.setFrame(3);
-          scene.tweens.add({ targets: puff, alpha: 0, duration: 700, onComplete: () => puff.destroy() });
-        }
-      });
-    }
+      if (rune.active) scene.tweens.add({ targets: rune, alpha: 1, scaleX: rune.scaleX * 0.4, scaleY: rune.scaleY * 0.4, duration: 420, ease: 'Quad.easeIn', onComplete: () => rune.destroy() });
+    });
+    scene.time.delayedCall(SMOKE_DURATION_MS, () => {
+      if (!scene.sys.isActive() || !player.active) return;
+      smokeBlast(scene, player, enemies, tx, ty, SMOKE_FINALE_MULT, true);
+    });
   });
 }

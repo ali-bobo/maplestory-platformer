@@ -2,30 +2,37 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  setMark, hasMark, clearMark, consumeMark, MARK_DURATION_MS, MARK_DAMAGE_BONUS,
-  addPoison, tickPoison, POISON_MAX_STACKS, POISON_TICKS,
+  setMark, hasMark, clearMark, consumeMark, MARK_DURATION_MS, MARK_STORE_RATIO,
+  addPoison, tickPoison, detonatePoison, POISON_MAX_STACKS, POISON_TICKS,
   inSmoke, pruneSmoke, SMOKE_DAMAGE_FACTOR, rollSteal, comboStep,
 } from '../src/engine/statusEffects.js';
 
-test('斷命印記：7 秒內有效；期間每一擊都必暴擊並 +20%，不會打一下就消失', () => {
+test('斷命印記：7 秒內有效；期間每一擊都必暴擊並存下 25%，不會打一下就消失', () => {
   const e = {};
   setMark(e, 1000);
   assert.equal(hasMark(e, 1000 + MARK_DURATION_MS - 1), true);
   assert.equal(hasMark(e, 1000 + MARK_DURATION_MS), false);
-  // 非暴擊：先換成暴擊傷害（×2.1）再 ×1.2
+  // 非暴擊：換成暴擊傷害（×2.1）
   const r = consumeMark(e, 2000, 1000, false, 2.1);
-  assert.deepEqual(r, { amount: Math.floor(1000 * 2.1 * MARK_DAMAGE_BONUS), isCrit: true });
+  assert.deepEqual(r, { amount: 2100, isCrit: true });
+  assert.equal(e._mark.stored, Math.floor(2100 * MARK_STORE_RATIO));
   assert.ok(e._mark);                                         // 印記還在
-  assert.equal(consumeMark(e, 2500, 1000, false, 2.1).amount, 2520);   // 第二擊同樣有加成
+  assert.equal(consumeMark(e, 2500, 1000, false, 2.1).amount, 2100);
   assert.equal(e._mark.hits, 2);
-  // 已經是暴擊：只 ×1.2，不重複乘暴擊倍率
+  assert.equal(e._mark.stored, 2 * Math.floor(2100 * MARK_STORE_RATIO));
+  // 已經是暴擊：不重複乘暴擊倍率
   setMark(e, 0);
-  assert.equal(consumeMark(e, 10, 2000, true, 2.1).amount, 2400);
-  // onHit 每擊通知一次
+  assert.equal(consumeMark(e, 10, 2000, true, 2.1).amount, 2000);
+  // onHit 每擊通知一次（帶目前存下的傷害）
   const seen = [];
-  e._mark.onHit = (n) => seen.push(n);
+  e._mark.onHit = (n, stored) => seen.push([n, stored]);
   consumeMark(e, 20, 100, false, 2); consumeMark(e, 30, 100, false, 2);
-  assert.deepEqual(seen, [2, 3]);
+  assert.deepEqual(seen, [[2, 500 + 50], [3, 500 + 100]]);
+  // 清除時把存下的傷害交給視覺層
+  let got = null;
+  e._mark.onClear = (reason, stored) => { got = [reason, stored]; };
+  clearMark(e, 'died');
+  assert.deepEqual(got, ['died', 600]);
 });
 
 test('斷命印記：逾時後被攻擊不引爆；重複標記會取代舊印記並通知視覺層', () => {
@@ -71,6 +78,17 @@ test('蝕心毒鏢：6 跳、可疊 3 層，每跳傷害 = 層數 × 每層傷�
   assert.equal(st.stacks, 0);                   // 結束後清層數
   assert.equal(tickPoison(st), 0);
   assert.equal(tickPoison(null), 0);
+});
+
+test('蝕心毒鏢：毒爆一次打完剩下的毒傷並清掉層數', () => {
+  const e = {};
+  addPoison(e, 40); addPoison(e, 40); addPoison(e, 40);
+  tickPoison(e._poison);                                // 跳掉 1 跳 → 剩 5 跳
+  assert.equal(detonatePoison(e._poison), 40 * 3 * (POISON_TICKS - 1));
+  assert.equal(e._poison.stacks, 0);
+  assert.equal(tickPoison(e._poison), 0);
+  assert.equal(detonatePoison(e._poison), 0);
+  assert.equal(detonatePoison(null), 0);
 });
 
 test('迷煙彈：範圍判定含邊界、過期的不算；pruneSmoke 就地移除過期區', () => {

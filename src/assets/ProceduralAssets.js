@@ -254,11 +254,15 @@ function generateParticles(scene){
 
 // ── 物品 ──────────────────────────────────────────────────────────────────────
 function generateItems(scene){
-  let g=g_(scene);
-  g.fillStyle(0x997700); g.fillCircle(8,8,8);
-  g.fillStyle(0xffcc00); g.fillCircle(8,8,6);
-  g.fillStyle(0xffee88); g.fillCircle(6,6,3);
-  g.generateTexture('item-meso',16,16); g.destroy();
+  let g;
+  // 金幣：有 item_coin.png 就用圖，沒有才畫
+  if (!scene.textures.exists('item-meso')) {
+    g=g_(scene);
+    g.fillStyle(0x997700); g.fillCircle(8,8,8);
+    g.fillStyle(0xffcc00); g.fillCircle(8,8,6);
+    g.fillStyle(0xffee88); g.fillCircle(6,6,3);
+    g.generateTexture('item-meso',16,16); g.destroy();
+  }
 
   // 任務物品「試煉之證」（程式繪製暫代：紫色菱形徽章 + 金邊；手繪圖示到位後可換成 dist/assets 的圖）
   if (!scene.textures.exists('item-quest-token')) {

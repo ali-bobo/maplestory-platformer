@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { BaseMapScene } from './BaseMapScene.js';
 import { Boss } from '../entities/Boss.js';
 import { particles } from '../engine/particles.js';
+import { writeSave } from '../engine/saveGame.js';
 
 // Boss 戰鬥場景
 export class BossScene extends BaseMapScene {
@@ -14,6 +15,7 @@ export class BossScene extends BaseMapScene {
   create() {
     super.create();
     this._bossDefeated = false;
+    this._rageBg = null;
     this._spawnBoss();
     this._setupBossEvents();
   }
@@ -42,8 +44,10 @@ export class BossScene extends BaseMapScene {
   _setupBossEvents() {
     // Boss 被擊敗
     this._onBossDefeatedEvent = () => this._onBossDefeated();
+    this._onBossRageEvent = () => this._showRageBackground();
 
     this.events.on('boss-defeated', this._onBossDefeatedEvent);
+    this.events.on('boss-rage', this._onBossRageEvent);
 
     // this.events 是場景級 EventEmitter，場景 shutdown 不會自動清空它，
     // 必須手動 off，否則重玩二度進入 BossScene 時監聽器會疊加（重複轉場）。
@@ -55,12 +59,30 @@ export class BossScene extends BaseMapScene {
       this.events.off('boss-defeated', this._onBossDefeatedEvent);
       this._onBossDefeatedEvent = null;
     }
+    if (this._onBossRageEvent) {
+      this.events.off('boss-rage', this._onBossRageEvent);
+      this._onBossRageEvent = null;
+    }
+  }
+
+  // 第 3 階段：Boss 房換成燃燒的狂暴版背景（疊在原背景上淡入）
+  _showRageBackground() {
+    if (this._rageBg || !this.textures.exists('bg_boss_room_rage')) return;
+    this._rageBg = this._addCoverBackground('bg_boss_room_rage').setAlpha(0);
+    this.tweens.add({ targets: this._rageBg, alpha: 1, duration: 1200 });
   }
 
   _onBossDefeated() {
     if (this._bossDefeated) return;  // 防重入：boss-defeated 只處理一次
     this._bossDefeated = true;
     const { width, height } = this.cameras.main;
+
+    // 通關旗標：立即寫進存檔（Boss 房讀檔會回魔君王城，那裡的回程傳送門因此出現）
+    const gsNow = this.registry.get('gameState');
+    if (gsNow) {
+      gsNow.gameCleared = true;
+      writeSave(gsNow);
+    }
 
     // 勝利特效
     this.cameras.main.flash(1000, 255, 215, 0);

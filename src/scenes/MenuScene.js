@@ -24,19 +24,33 @@ export class MenuScene extends Phaser.Scene {
       this.add.rectangle(width / 2, height / 2, width, height, 0xffffff);
     }
 
-    // 遊戲標題
-    this.add.text(width / 2, 140, '盜賊傳說', {
-      fontSize: '72px', color: '#3a2410', fontFamily: 'Arial, sans-serif',
-      stroke: '#fff4dc', strokeThickness: 8,
-      fontStyle: 'bold',
-    }).setOrigin(0.5, 0.5);
+    // 遊戲標題：有徽章圖就把名稱寫在徽章的緞帶上，沒有就照舊用大字
+    let heroY = 370;
+    if (this.textures.exists('title_emblem')) {
+      const EMBLEM_SCALE = 0.75;
+      const emblemY = 140;
+      this.add.image(width / 2, emblemY, 'title_emblem').setScale(EMBLEM_SCALE);
+      // 緞帶正面在原圖 (180, 278)，圖高 322
+      this.add.text(width / 2, emblemY + (278 - 161) * EMBLEM_SCALE, '盜賊傳說', {
+        fontSize: '38px', color: '#3a2410', fontFamily: 'Arial, sans-serif',
+        stroke: '#fff4dc', strokeThickness: 4, fontStyle: 'bold',
+      }).setOrigin(0.5, 0.5);
+      heroY = 385;
+    } else {
+      this.add.text(width / 2, 140, '盜賊傳說', {
+        fontSize: '72px', color: '#3a2410', fontFamily: 'Arial, sans-serif',
+        stroke: '#fff4dc', strokeThickness: 8,
+        fontStyle: 'bold',
+      }).setOrigin(0.5, 0.5);
+    }
 
     // 封面角色圖（title_hero，保持原比例，浮動動畫）
-    const charImg = this.add.image(width / 2, 370, 'title_hero')
+    const charImg = this.add.image(width / 2, heroY, 'title_hero')
       .setOrigin(0.5, 0.5);
+    if (heroY !== 370) charImg.setScale(0.8);
 
     this.tweens.add({
-      targets: charImg, y: 370 - 14, duration: 900,
+      targets: charImg, y: heroY - 14, duration: 900,
       yoyo: true, repeat: -1, ease: 'Sine.easeInOut',
     });
 

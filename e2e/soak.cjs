@@ -116,6 +116,10 @@ const SAMPLE = () => {
   // （頁面的 CSP 禁止 eval，所以不能用字串形式的 waitForFunction / eval）
   const hopTo = async (spec) => {
     const [key, dungeonId] = spec.split(':');
+    // 上一段戰鬥中被怪物打死（不是 dieAndRespawn 安排的）→ 先從結算畫面重新開始，否則沒有地圖場景可跳
+    if (await page.evaluate(() => window.__game.scene.isActive('GameOverScene'))) {
+      await page.mouse.move(510, 540); await page.waitForTimeout(150); await page.mouse.click(510, 540);
+    }
     await page.waitForFunction(() => !!window.__runningMap(), null, { timeout: 60000 });
     await page.evaluate(([k, dungeonId]) => {
       const g = window.__game; const sc = window.__runningMap();
