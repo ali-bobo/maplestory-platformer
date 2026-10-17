@@ -60,7 +60,7 @@ export function travelCheck(gs, key, ctx = {}) {
     return fail('還沒去過這張地圖');
   }
   if (ctx.inCombat) return fail('附近有怪物，無法傳送');
-  if ((gs.meso || 0) < fee) return fail(`楓幣不足（需要 ${fee}）`);
+  if ((gs.meso || 0) < fee) return fail(`金幣不足（需要 ${fee}）`);
   return { ok: true, reason: '', fee };
 }
 

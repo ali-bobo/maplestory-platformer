@@ -29,6 +29,7 @@ import { SHARD_COUNT, SHARD_TEXTURE } from '../config/shards.js';
 import { grantShard, lightTower, shardCount } from '../engine/shards.js';
 import { visitMap } from '../engine/worldGraph.js';
 import { createMapModifier } from '../engine/mapModifiers.js';
+import { createBadgeField } from '../engine/badgeField.js';
 
 const PLATFORM_HEIGHT = 24;
 const GROUND_Y = WORLD_HEIGHT;
@@ -124,6 +125,7 @@ export class BaseMapScene extends Phaser.Scene {
     this._createNPCs();
     this._setupColliders();
     this._modifier = createMapModifier(this, this.mapData.modifier);   // 冰面 / 流沙 / 岩漿 / 暗黑視野（沒有則 null）
+    this._badgeField = createBadgeField(this);   // 盜賊徽章（這張圖沒有或都撿完則 null）
 
     if (!this.scene.isActive('UIScene')) {
       this.scene.launch('UIScene');
@@ -965,6 +967,7 @@ export class BaseMapScene extends Phaser.Scene {
     this.player.update(delta);
     this.player.recoverMp(delta);
     this.player.recoverHp(delta);
+    if (this._badgeField) this._badgeField.update();
     // Phase 3.5：NPC 距離檢測降頻（每 100 ms 一次而非每幀 60 Hz）。
     // F 鍵互動會即時呼叫一次，不影響反應速度。
     if (time - (this._lastNpcCheckAt || 0) >= 100) {
@@ -1037,6 +1040,7 @@ export class BaseMapScene extends Phaser.Scene {
 
   _onSceneShutdown() {
     if (this._modifier) { this._modifier.destroy(); this._modifier = null; }
+    if (this._badgeField) { this._badgeField.destroy(); this._badgeField = null; }
     this.events.off('monster-died', this._onMonsterDied, this);
     this.events.off('job-changed', this._onJobChanged, this);
 

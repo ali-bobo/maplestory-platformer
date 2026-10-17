@@ -13,6 +13,7 @@ import { saveGame, getSaveStatus } from '../engine/saveGame.js';
 import { openSaveDialog, closeSaveDialog, isSaveDialogOpen } from '../ui/saveDialog.js';
 import { SHARD_COUNT, SHARD_IDS, SHARD_TEXTURE } from '../config/shards.js';
 import { hasShard, shardCount } from '../engine/shards.js';
+import { badgeCount, BADGE_COUNT } from '../engine/badges.js';
 import { audio } from '../engine/audio.js';
 import { addSoundButton } from '../engine/soundButton.js';
 import { WorldMapOverlay } from '../ui/WorldMapOverlay.js';
@@ -1819,7 +1820,7 @@ export class UIScene extends Phaser.Scene {
         fontSize: '12px', color: '#88ccff', fontFamily: 'Arial',
       }).setDepth(152).setScrollFactor(0));
     });
-    push(this.add.text(popX + 14, contentY + 168, `星光碎片：${gs ? shardCount(gs) : 0} / ${SHARD_COUNT}　擊殺數：${gs ? (gs.killCount || 0) : 0}`, {
+    push(this.add.text(popX + 14, contentY + 168, `星光碎片：${gs ? shardCount(gs) : 0} / ${SHARD_COUNT}　擊殺數：${gs ? (gs.killCount || 0) : 0}　徽章：${badgeCount(gs)} / ${BADGE_COUNT}`, {
       fontSize: '12px', color: '#ffee88', fontFamily: 'Arial', stroke: '#000', strokeThickness: 2,
     }).setDepth(152).setScrollFactor(0));
   }
