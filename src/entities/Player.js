@@ -64,7 +64,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   }
 
   // 依鍵位表建立 Phaser Key 物件。屬性名稱沿用舊的（cursors / keySpace / keyZ… / keyAlt / keyPotA…），
-  // 預設鍵位與以前完全相同：← → ↑ ↓、Alt / ↑ 跳、空白鍵普攻、Z X C V 技能欄、A S D R G 藥水。
+  // 預設鍵位：← → ↑ ↓、Q / ↑ 跳（舊版是 Alt，見 keyBindings.js）、空白鍵普攻、Z X C V 技能欄、A S D R G 藥水。
   // 舊的 Key 物件不移除：同一個 keyCode 的 Key 可能被別處共用（addKey 會回傳同一個實例）。
   _bindKeys(kb) {
     const kbd = this.scene.input.keyboard;

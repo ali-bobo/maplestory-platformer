@@ -152,14 +152,14 @@ test('installSettingsHooks：包住相機與怪物飄字，只包一次，開關
   assert.deepEqual(log, []);                     // 但震動關了
 });
 
-test('操作說明表：技能是 Z X C V 四格（沒有 B）、普攻空白鍵、互動 F、地圖 M、暫停 ESC、跳躍 Alt / ↑', () => {
+test('操作說明表：技能是 Z X C V 四格（沒有 B）、普攻空白鍵、互動 F、地圖 M、暫停 ESC、跳躍 Q / ↑', () => {
   const byLabel = Object.fromEntries(KEY_CHART.map((r) => [r.label, r.key]));
   assert.equal(byLabel['技能 1–4 欄'], 'Z X C V');
   assert.equal(byLabel['普通攻擊'], '空白鍵');
   assert.equal(byLabel['互動 / 對話'], 'F');
   assert.equal(byLabel['世界地圖'], 'M');
   assert.equal(byLabel['暫停 / 關閉視窗'], 'ESC');
-  assert.equal(byLabel['跳躍（可二段跳）'], 'Alt / ↑');
+  assert.equal(byLabel['跳躍（可二段跳）'], 'Q / ↑');
   assert.equal(byLabel['移動'], '← →');
   assert.ok(!KEY_CHART.some((r) => /\bB\b/.test(r.key)), '不應再列出 B 鍵');
   assert.deepEqual(UI_SCALES, ['small', 'normal', 'large']);

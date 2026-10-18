@@ -21,7 +21,7 @@ const SP = process.argv[2] || '.';
       const want = m.x < tx - 8 ? 'ArrowRight' : m.x > tx + 8 ? 'ArrowLeft' : null;
       if (want !== dir) { if (dir) await page.keyboard.up(dir); if (want) await page.keyboard.down(want); dir = want; }
       const below = m.feet > topY + 10;
-      if (below && Date.now() - lastJump > 380 && Math.abs(m.x - tx) < 260) { await page.keyboard.down('Alt'); await page.waitForTimeout(40); await page.keyboard.up('Alt'); lastJump = Date.now(); }
+      if (below && Date.now() - lastJump > 380 && Math.abs(m.x - tx) < 260) { await page.keyboard.down('q'); await page.waitForTimeout(40); await page.keyboard.up('q'); lastJump = Date.now(); }
       await page.waitForTimeout(40);
     }
     if (dir) await page.keyboard.up(dir);

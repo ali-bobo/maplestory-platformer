@@ -390,6 +390,9 @@ export function castMark(scene, player, enemies) {
       rune.setPosition(p.x, target.body ? target.body.bottom - 2 : p.y + 30);
     };
     scene.events.on('update', follow);
+    // 換地圖 / 死亡時場景關閉，計時器跟著消失、onClear 不會被叫到：在這裡收掉，不讓 follow 留在 scene.events 上
+    const onShutdown = () => { if (target._mark === mark) clearMark(target, 'replaced'); };
+    scene.events.once('shutdown', onShutdown);
     const timer = scene.time.delayedCall(MARK_DURATION_MS, () => { if (target._mark === mark) clearMark(target, 'expired'); });
     mark.onHit = (n, stored) => {
       label.setText(`斷命 +${stored}`);
@@ -401,13 +404,16 @@ export function castMark(scene, player, enemies) {
     };
     mark.onClear = (reason, stored) => {
       scene.events.off('update', follow);
+      scene.events.off('shutdown', onShutdown);
       timer.remove();
       spin.remove();
-      const p = getEntityEffectPoint(target);
       if (icon?.active) icon.destroy();
       label.destroy();
       rune.destroy();
-      if (reason !== 'replaced' && scene.sys.isActive()) markFinale(scene, player, enemies, p.x, p.y, stored);
+      if (reason !== 'replaced' && scene.sys.isActive()) {
+        const p = getEntityEffectPoint(target);
+        markFinale(scene, player, enemies, p.x, p.y, stored);
+      }
     };
   });
   return true;

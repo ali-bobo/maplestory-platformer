@@ -1,6 +1,6 @@
 // 操作的 e2e：手把（以 addInitScript 假造 navigator.getGamepads）與按鍵設定。
 //  1. 接上手把 → 「已連接手把」提示；主選單按 A 開始遊戲
-//  2. 設定 → 按鍵設定：把技能欄 1 改成 Q（HUD 字樣、localStorage、Q 施放 / Z 不再施放）、
+//  2. 設定 → 按鍵設定：把技能欄 1 改成 P（HUD 字樣、localStorage、P 施放 / Z 不再施放）、
 //     衝突互換、保留鍵拒絕、等待按鍵時 ESC 只取消、恢復預設、重新載入後保留
 //  3. 手把：十字鍵 / 搖桿移動、A 跳、X 普攻、Y 技能欄 1（跟著改過的鍵位）、Start 暫停 / 繼續
 // 用法：PORT=8132 node e2e/controls.cjs /tmp/shots
@@ -86,34 +86,34 @@ const errors = [];
 
   await clickBindBox('技能欄 1');
   check('點技能欄 1 的按鍵格 → 等待按鍵', await hasText(/^請按鍵…$/));
-  await page.keyboard.press('q');
+  await page.keyboard.press('p');
   await frames(1);
   let kb = await keys();
-  check('按 Q → 技能欄 1 改成 Q', kb.skill1 === 'Q', JSON.stringify(kb));
+  check('按 P → 技能欄 1 改成 P', kb.skill1 === 'P', JSON.stringify(kb));
   const stored = await page.evaluate((k) => { try { return JSON.parse(localStorage.getItem(k)); } catch (_) { return null; } }, SETTINGS_KEY);
-  check('鍵位存進設定的 localStorage key', !!stored && stored.keys && stored.keys.skill1 === 'Q');
-  check('設定視窗的操作說明跟著改', await hasText(/^Q X C V$/));
+  check('鍵位存進設定的 localStorage key', !!stored && stored.keys && stored.keys.skill1 === 'P');
+  check('設定視窗的操作說明跟著改', await hasText(/^P X C V$/));
 
-  // 衝突：技能欄 2 也要 Q → 互換
+  // 衝突：技能欄 2 也要 P → 互換
   await clickBindBox('技能欄 2');
-  await page.keyboard.press('q');
+  await page.keyboard.press('p');
   await frames(1);
   kb = await keys();
-  check('衝突：技能欄 2 改成 Q → 與技能欄 1 互換', kb.skill2 === 'Q' && kb.skill1 === 'X', JSON.stringify(kb));
+  check('衝突：技能欄 2 改成 P → 與技能欄 1 互換', kb.skill2 === 'P' && kb.skill1 === 'X', JSON.stringify(kb));
   check('互換時顯示說明', await hasText(/互換/));
-  // 換回來：技能欄 1 = Q、技能欄 2 = X
+  // 換回來：技能欄 1 = P、技能欄 2 = X
   await clickBindBox('技能欄 1');
-  await page.keyboard.press('q');
+  await page.keyboard.press('p');
   await frames(1);
   kb = await keys();
-  check('再換回：技能欄 1 = Q、技能欄 2 = X', kb.skill1 === 'Q' && kb.skill2 === 'X', JSON.stringify(kb));
+  check('再換回：技能欄 1 = P、技能欄 2 = X', kb.skill1 === 'P' && kb.skill2 === 'X', JSON.stringify(kb));
 
   // 保留鍵：跳躍不能用 M
   await clickBindBox('跳躍');
   await page.keyboard.press('m');
   await frames(2);
   kb = await keys();
-  check('保留鍵 M 被拒絕，跳躍仍是 Alt', kb.jump === 'ALT' && await hasText(/保留給世界地圖/), JSON.stringify(kb));
+  check('保留鍵 M 被拒絕，跳躍仍是 Q', kb.jump === 'Q' && await hasText(/保留給世界地圖/), JSON.stringify(kb));
   check('按 M 沒有打開世界地圖', !(await page.evaluate(() => { const w = window.__game.scene.getScene('UIScene')._worldMap; return !!(w && w.isOpen); })));
   // 等待按鍵時 ESC 只取消，不關視窗
   await clickBindBox('普通攻擊');
@@ -127,25 +127,25 @@ const errors = [];
   await page.keyboard.press('Escape');
   await frames(3);
   check('ESC 關閉設定視窗', await page.evaluate(() => !window.__game.scene.getScene('UIScene')._popup));
-  check('HUD 技能欄 1 的字樣變成 Q', await page.evaluate(() => {
+  check('HUD 技能欄 1 的字樣變成 P', await page.evaluate(() => {
     const u = window.__game.scene.getScene('UIScene');
-    return u._hudKeyTexts.some((r) => r.action === 'skill1' && r.text.text === 'Q');
+    return u._hudKeyTexts.some((r) => r.action === 'skill1' && r.text.text === 'P');
   }));
 
-  // 遊戲中：Z 不再施放，Q 施放技能欄 1（三連飛鏢）
+  // 遊戲中：Z 不再施放，P 施放技能欄 1（三連飛鏢）
   await page.waitForTimeout(500);
   await tap('z');
   await page.waitForTimeout(300);
   let s = await sc();
   check('改鍵後按 Z 不施放技能欄 1', !(s.cd.Z > 0), 'cdZ=' + s.cd.Z);
-  await page.keyboard.down('q'); await frames(2);
-  s = await sc(); await page.keyboard.up('q');
-  check('改鍵後按 Q 施放技能欄 1', s.cd.Z > 0, 'cdZ=' + s.cd.Z);
+  await page.keyboard.down('p'); await frames(2);
+  s = await sc(); await page.keyboard.up('p');
+  check('改鍵後按 P 施放技能欄 1', s.cd.Z > 0, 'cdZ=' + s.cd.Z);
 
   // 重新載入後保留
   await page.reload();
   await page.waitForFunction(() => window.__game && window.__game.scene.isActive('MenuScene'), null, { timeout: 40000 });
-  check('重新載入後鍵位仍在', (await keys()).skill1 === 'Q');
+  check('重新載入後鍵位仍在', (await keys()).skill1 === 'P');
   await page.waitForTimeout(800);
   await page.keyboard.press('Enter');
   await page.waitForFunction(() => window.__game.scene.isActive('SkyIslandScene') && window.__game.scene.isActive('UIScene'), null, { timeout: 30000 });
@@ -189,7 +189,7 @@ const errors = [];
   check('手把 X → 普通攻擊', attacked);
   await page.waitForTimeout(400);
 
-  // Y 技能欄 1（送的是改過的 Q 鍵）
+  // Y 技能欄 1（送的是改過的 P 鍵）
   await page.evaluate(() => window.__setPad([3]));
   const cast = await page.waitForFunction(() => (window.__game.registry.get('gameState').skillCooldowns.Z || 0) > 0, null, { polling: 20, timeout: 3000 }).then(() => true).catch(() => false);
   await page.evaluate(() => window.__setPad([]));
@@ -222,7 +222,7 @@ const errors = [];
   await clickText('恢復預設');
   await clickText('再按一次確認');
   const def = await keys();
-  check('恢復預設 → 技能欄 1 回到 Z', def.skill1 === 'Z' && def.skill2 === 'X' && def.jump === 'ALT');
+  check('恢復預設 → 技能欄 1 回到 Z', def.skill1 === 'Z' && def.skill2 === 'X' && def.jump === 'Q');
 
   check('全程沒有 JS 錯誤', errors.length === 0, errors.slice(0, 3).join(' | '));
   await b.close();

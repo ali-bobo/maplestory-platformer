@@ -24,9 +24,9 @@ function memStorage(initial) {
 
 // ── 鍵位表 ────────────────────────────────────────────────────────────────────
 
-test('預設鍵位與原本完全相同（e2e 依賴）', () => {
+test('預設鍵位（跳躍改成 Q，其餘和原本相同）', () => {
   assert.deepEqual(DEFAULT_BINDINGS, {
-    left: 'LEFT', right: 'RIGHT', up: 'UP', down: 'DOWN', jump: 'ALT', interact: 'F', attack: 'SPACE',
+    left: 'LEFT', right: 'RIGHT', up: 'UP', down: 'DOWN', jump: 'Q', interact: 'F', attack: 'SPACE',
     skill1: 'Z', skill2: 'X', skill3: 'C', skill4: 'V', potA: 'A', potS: 'S', potD: 'D', potR: 'R', potG: 'G',
   });
   assert.deepEqual(defaultBindings(), { ...DEFAULT_BINDINGS });
@@ -77,9 +77,9 @@ test('eventMatches：依目前鍵位判斷（互動鍵改成 E 後 F 不再算�
 // ── 重新指定與衝突 ────────────────────────────────────────────────────────────
 
 test('rebind：指定沒人用的鍵', () => {
-  const r = rebind(DEFAULT_BINDINGS, 'skill1', 'Q');
+  const r = rebind(DEFAULT_BINDINGS, 'skill1', 'P');
   assert.equal(r.ok, true);
-  assert.equal(r.bindings.skill1, 'Q');
+  assert.equal(r.bindings.skill1, 'P');
   assert.equal(r.swappedWith, undefined);
   assert.equal(DEFAULT_BINDINGS.skill1, 'Z', '不改到傳入的物件');
 });
@@ -116,9 +116,9 @@ test('rebind：指定成目前的鍵 = 沒變', () => {
 
 test('sanitizeBindings：垃圾輸入回預設、未知動作丟棄、壞值與保留鍵回預設', () => {
   for (const bad of [null, undefined, 42, 'x', [], [1, 2]]) assert.deepEqual(sanitizeBindings(bad), { ...DEFAULT_BINDINGS });
-  const s = sanitizeBindings({ skill1: 'Q', jump: 'M', attack: 123, evil: 'K', __proto__: { left: 'P' } });
-  assert.equal(s.skill1, 'Q');
-  assert.equal(s.jump, 'ALT', '保留鍵不收');
+  const s = sanitizeBindings({ skill1: 'P', jump: 'M', attack: 123, evil: 'K', __proto__: { left: 'O' } });
+  assert.equal(s.skill1, 'P');
+  assert.equal(s.jump, 'Q', '保留鍵不收');
   assert.equal(s.attack, 'SPACE', '型別錯誤回預設');
   assert.equal('evil' in s, false);
   assert.equal(s.left, 'LEFT', '原型上的欄位不收');
@@ -237,24 +237,26 @@ test('手把橋接：按下 / 放開各送一次、依鍵位、選單 A = Enter�
   });
   br.poll();
   assert.deepEqual(log, []);
+  pads = [fakePad([])];
+  br.poll();
   pads = [fakePad([PAD.A])];
   br.poll(); br.poll();
   assert.deepEqual(events, ['connect']);
-  assert.deepEqual(log, ['keydown:AltLeft']);
+  assert.deepEqual(log, ['keydown:KeyQ']);
   pads = [fakePad([PAD.X], [1, 0])];
   br.poll();
-  assert.deepEqual(log.slice(1), ['keyup:AltLeft', 'keydown:Space', 'keydown:ArrowRight']);
+  assert.deepEqual(log.slice(1), ['keyup:KeyQ', 'keydown:Space', 'keydown:ArrowRight']);
   log.length = 0;
   // 改了鍵位：之後按下的用新鍵，按住中的照舊放開
-  kb = { ...kb, skill1: 'Q' };
+  kb = { ...kb, skill1: 'P' };
   pads = [fakePad([PAD.Y])];
   br.poll();
-  assert.deepEqual(log, ['keyup:Space', 'keyup:ArrowRight', 'keydown:KeyQ']);
+  assert.deepEqual(log, ['keyup:Space', 'keyup:ArrowRight', 'keydown:KeyP']);
   log.length = 0;
   menu = true;
   pads = [fakePad([PAD.A])];
   br.poll();
-  assert.deepEqual(log, ['keyup:KeyQ', 'keydown:Enter']);
+  assert.deepEqual(log, ['keyup:KeyP', 'keydown:Enter']);
   log.length = 0;
   pads = [null];
   br.poll();
@@ -268,9 +270,35 @@ test('手把橋接：按下 / 放開各送一次、依鍵位、選單 A = Enter�
 
 test('releaseAll：全部放開', () => {
   const log = [];
-  const br = createGamepadBridge({ getPads: () => [fakePad([PAD.A, PAD.X])], emit: (t, d) => log.push(`${t}:${d.code}`), resolveKey: (a) => eventDef(DEFAULT_BINDINGS[a]) });
+  let pads = [fakePad([])];
+  const br = createGamepadBridge({ getPads: () => pads, emit: (t, d) => log.push(`${t}:${d.code}`), resolveKey: (a) => eventDef(DEFAULT_BINDINGS[a]) });
+  br.poll();
+  pads = [fakePad([PAD.A, PAD.X])];
   br.poll();
   br.releaseAll();
-  assert.deepEqual(log, ['keydown:AltLeft', 'keydown:Space', 'keyup:AltLeft', 'keyup:Space']);
+  assert.deepEqual(log, ['keydown:KeyQ', 'keydown:Space', 'keyup:KeyQ', 'keyup:Space']);
   assert.ok(KEY_TABLE.ALT);
+});
+
+test('手把：接上時就按著的輸入（靜止停在 -1 的軸）放開過一次才算數', () => {
+  const log = [];
+  let pads = [fakePad([PAD.START], [0, -1])];
+  const br = createGamepadBridge({ getPads: () => pads, emit: (t, d) => log.push(`${t}:${d.code}`),
+    resolveKey: (a) => (a === 'pause' ? eventDef('ESC') : eventDef(DEFAULT_BINDINGS[a])) });
+  br.poll(); br.poll();
+  assert.deepEqual(log, [], '接上時卡住的暫停 / 互動不送出');
+  pads = [fakePad([PAD.START], [0, 0])];
+  br.poll();
+  assert.deepEqual(log, [], '軸回正，暫停鍵仍按著');
+  pads = [fakePad([], [0, -1])];
+  br.poll();
+  assert.deepEqual(log, ['keydown:KeyF'], '軸放開過之後再推上 → 互動');
+});
+
+test('舊版預設鍵位（跳躍 Alt、其餘沒改）→ 換成新預設；自己改過的保留 Alt', () => {
+  assert.deepEqual(sanitizeBindings({ ...DEFAULT_BINDINGS, jump: 'ALT' }), { ...DEFAULT_BINDINGS });
+  assert.equal(sanitizeBindings({ jump: 'ALT' }).jump, 'Q');
+  const custom = sanitizeBindings({ ...DEFAULT_BINDINGS, jump: 'ALT', skill1: 'P' });
+  assert.equal(custom.jump, 'ALT');
+  assert.equal(custom.skill1, 'P');
 });
