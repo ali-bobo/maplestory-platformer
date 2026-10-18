@@ -1,9 +1,9 @@
-const { chromium } = require('/opt/node-tools/node_modules/playwright');
+const { chromium, executablePath: PW_EXE } = require('./pw.cjs');
 const PORT = process.env.PORT || 8123;
 let fails = 0; const SPDIR = process.argv[2] || '.';
 const check = (n, c, x = '') => { console.log((c ? 'PASS' : 'FAIL') + ' - ' + n + (x ? ' :: ' + x : '')); if (!c) fails++; };
 (async () => {
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome',
+  const b = await chromium.launch({ executablePath: PW_EXE,
     args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--no-sandbox', '--autoplay-policy=no-user-gesture-required'] });
   const page = await (await b.newContext({ viewport: { width: 1280, height: 720 } })).newPage();
   await page.addInitScript(() => { try { if (!sessionStorage.getItem('__t')) { localStorage.setItem('thief-legend-tutorial-seen', '1'); } } catch (_) {} });

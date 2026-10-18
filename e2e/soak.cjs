@@ -4,7 +4,7 @@
 // 用法：PORT=8401 SOAK_MIN=6 node e2e/soak.cjs [輸出資料夾]
 //   SOAK_MIN   總分鐘數（預設 6；每分鐘走完一圈：13 張地圖 + Boss 戰 + 副本）
 //   SOAK_JSON  若設定，把每分鐘取樣寫成 JSON 檔（比較前後數據用）
-const { chromium } = require('/opt/node-tools/node_modules/playwright');
+const { chromium, executablePath: PW_EXE } = require('./pw.cjs');
 const fs = require('fs');
 const PORT = process.env.PORT || 8123;
 const URL = `http://127.0.0.1:${PORT}/index.html?debug=1`;
@@ -88,7 +88,7 @@ const SAMPLE = () => {
 (async () => {
   const t0 = Date.now();
   const b = await chromium.launch({
-    executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome',
+    executablePath: PW_EXE,
     args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--no-sandbox',
       '--enable-precise-memory-info', '--js-flags=--expose-gc', '--autoplay-policy=no-user-gesture-required'],
   });

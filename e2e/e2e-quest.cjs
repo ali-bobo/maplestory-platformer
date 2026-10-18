@@ -1,5 +1,5 @@
 // 轉職任務鏈 e2e（真實流程：對話 → 選職業 → 收集 → 副本 → 覺醒）。用法：node e2e-quest.cjs <截圖目錄>
-const { chromium } = require('/opt/node-tools/node_modules/playwright');
+const { chromium, executablePath: PW_EXE } = require('./pw.cjs');
 const SPDIR = process.argv[2] || '.';
 let fails = 0;
 const check = (n, c, x = '') => { console.log((c ? 'PASS' : 'FAIL') + ' - ' + n + (x ? ' :: ' + x : '')); if (!c) fails++; };
@@ -150,7 +150,7 @@ async function flow(browser, choice) {   // choice: 'assassin' | 'bandit'
 }
 
 (async () => {
-  const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome',
+  const browser = await chromium.launch({ executablePath: PW_EXE,
     args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--no-sandbox', '--autoplay-policy=no-user-gesture-required'] });
   await flow(browser, 'assassin');
   await flow(browser, 'bandit');

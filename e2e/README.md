@@ -14,11 +14,13 @@
    node e2e/e2e-jobs.cjs /tmp/shots
    ```
 
-## 環境假設（換環境要改）
+## 環境假設
 
 - 連接埠用環境變數 `PORT`（預設 8123），多個工作同時跑時各用不同埠：`PORT=8401 node e2e/e2e-jobs.cjs`。
-
-- Playwright 路徑寫死為 `/opt/node-tools/node_modules/playwright`，Chromium 為 `/opt/pw-browsers/chromium-1194/chrome-linux/chrome`。
+- Playwright 與 Chromium 由共用的 `e2e/pw.cjs` 決定，所有腳本（含 `world/lib.cjs`）都從這裡拿 `chromium` 與 `executablePath`：
+  - Playwright：先 `require('playwright')`（專案或 `NODE_PATH` 找得到就用），否則退回 `/opt/node-tools/node_modules/playwright`。
+  - Chromium：環境變數 `PW_CHROMIUM` > Playwright 預設下載的瀏覽器（`npx playwright install chromium`）> `/opt/pw-browsers/chromium-1194/chrome-linux/chrome`。
+  - 本機容器什麼都不用設；換機器時裝 Playwright 1.56.1（和 `/opt` 版本一致）並 `npx playwright@1.56.1 install chromium` 即可。
 - 遊戲網址用環境變數 `PORT`（多數腳本預設 8123，`e2e-quest` 與 `world/*` 預設 8231）：`PORT=8403 node e2e/e2e-jobs.cjs /tmp/shots`。機器忙（多個瀏覽器同時跑）時載入與計時會變慢，腳本已改成等到進入地圖才開始，仍可能出現偶發的計時類失敗，重跑即可。
 - 腳本靠 `?debug=1` 暴露的 `window.__game`、`window.__setJob(job, level)`、`window.__QUESTS` 來快速設定狀態。
 
@@ -46,7 +48,14 @@
 | `balance.cjs` | 技能平衡實測：每個職業、每個技能對靜止靶的傷害 / MP，並斷言設計意圖（見 `docs/SKILLS_DESIGN.md` 第八節） |
 | `trial.cjs` | 影之試煉守衛的戰鬥時間：Lv10 盜賊三種打法（穩健 / 只用普攻 / 莽撞）各打數次，回報擊殺時間與血量；`GHP` / `GATK` 環境變數可覆寫守衛數值來調參 |
 
-> 這些腳本不在 `npm test` 裡（單元測試是 `npm test`，約 364 項）。要不要把它們串進 CI 之後再決定。
+> 這些腳本不在 `npm test` 裡（單元測試是 `npm test`，約 406 項）。
+
+## CI
+
+`.github/workflows/e2e.yml` 在 pull request 與推到 `main` 時跑冒煙子集：`e2e.cjs`、`e2e-skills2.cjs`、`e2e-jobs.cjs`、`ux.cjs`（本機約 4~5 分鐘）。
+流程：`npm ci` → `npm run build` → 把 Playwright 1.56.1 裝到暫存資料夾（不改 `package.json`，靠 `NODE_PATH` 讓 `pw.cjs` 找到）→
+`npx playwright@1.56.1 install --with-deps chromium` → `python3 -m http.server` → 每支腳本各自一步、各有時限。
+任何一步失敗都會把截圖資料夾上傳成 artifact `e2e-screenshots`。其他腳本（`ai`、`soak`、`balance`、`e2e-quest`、`world/*`…）較慢，仍在本機手動跑。
 
 ## 穩定性筆記（機器忙時要知道的事）
 
@@ -58,4 +67,10 @@
 - `e2e.cjs` 的匯出步驟收不到檔案下載時印 `SKIP`（不算失敗）；存檔代碼上線後要換成代碼的檢查。
 - 新增 `world/shops.cjs`：三個補給商人可開啟、購買增加庫存。
 - `ai.cjs` 全跑約 10~20 分鐘（機器忙時更久），外層 timeout 要設 1500 秒以上。
-- `world/s1.cjs` 與 `world/s3.cjs` 都用「整段補血」避免角色被打死後換場景；`balance.cjs` 在基準版本就會在量測中途崩潰（靶的 `body` 消失），尚未修。
+- `world/s1.cjs` 與 `world/s3.cjs` 都用「整段補血」避免角色被打死後換場景。
+- `balance.cjs` 以前在刺客「暗殺」量測中途崩潰（靶的 `body` 消失），已修。原因：腳本只用 `setPosition` 搬怪，Arcade body 要到下一個物理步才跟上；
+  多餘的怪被 `setPosition(-5000)` 停到畫面外，但牠的 body 還留在玩家身邊（上一段 3 隻靶的位置）。暗殺用 `body.center` 找最近敵人、
+  卻用 `sprite.x` 算「背後」，於是選中那隻、瞬移點夾到地圖左緣 x=40，正好踩上往村莊的傳送門 → 換場景、所有怪被 destroy。
+  現在搬怪一律用 `body.reset`、多餘的怪直接停用（`setActive(false)` + `body.enable = false`）、量測原點固定在離傳送門最遠的地面，
+  場景換掉或靶消失時會丟出清楚的錯誤。通則：**腳本搬怪要用 `body.reset(x, y)`，不要只 `setPosition`**。
+- `e2e-skills2.cjs` 的「按 ↑ 跳躍」以前固定按 100 ms 就讀速度，約 10 FPS 時常讀在起跳那一幀之前（`vy=0`）；現在先等站穩、按住並輪詢最多 1.5 秒。

@@ -1,4 +1,4 @@
-const { chromium, devices } = require('/opt/node-tools/node_modules/playwright');
+const { chromium, devices, executablePath: PW_EXE } = require('./pw.cjs');
 const PORT = process.env.PORT || 8123;
 const SP = process.argv[2];
 const BASE = `http://127.0.0.1:${PORT}/index.html?debug=1`;
@@ -8,7 +8,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 (async () => {
   const browser = await chromium.launch({
-    executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome',
+    executablePath: PW_EXE,
     args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--no-sandbox'],
   });
   const ctx = await browser.newContext({

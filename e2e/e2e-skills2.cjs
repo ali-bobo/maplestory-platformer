@@ -1,10 +1,10 @@
-const { chromium } = require('/opt/node-tools/node_modules/playwright');
+const { chromium, executablePath: PW_EXE } = require('./pw.cjs');
 const PORT = process.env.PORT || 8123;
 const SPDIR = process.argv[2] || '.';
 let fails = 0;
 const check = (n, c, x = '') => { console.log((c ? 'PASS' : 'FAIL') + ' - ' + n + (x ? ' :: ' + x : '')); if (!c) fails++; };
 (async () => {
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome',
+  const b = await chromium.launch({ executablePath: PW_EXE,
     args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--no-sandbox', '--autoplay-policy=no-user-gesture-required'] });
   const page = await (await b.newContext({ viewport: { width: 1280, height: 720 } })).newPage();
   const errors = []; page.on('pageerror', (e) => errors.push(e.message));
@@ -50,10 +50,16 @@ const check = (n, c, x = '') => { console.log((c ? 'PASS' : 'FAIL') + ' - ' + n 
   check('技能欄預設 Z X C V', JSON.stringify(z1.slots) === '["Z","X","C","V"]', JSON.stringify(z1.slots));
 
   // 3. 方向鍵上 = 跳躍
+  // 固定按 100 ms 再讀速度，在約 10 FPS 的無頭瀏覽器常常讀在跳躍那一幀之前（vy=0）：
+  // 先等站穩，再按住並輪詢最多 1.5 秒看有沒有起跳
   await page.waitForTimeout(600);
-  await page.keyboard.down('ArrowUp'); await page.waitForTimeout(100);
+  const onGround = () => page.evaluate(() => window.__game.scene.getScene('MapleIslandScene').player.body.blocked.down);
+  await page.waitForFunction(() => window.__game.scene.getScene('MapleIslandScene').player.body.blocked.down, null, { polling: 30, timeout: 2000 }).catch(() => {});
+  const grounded = await onGround();
+  await page.keyboard.down('ArrowUp');
+  await page.waitForFunction(() => window.__game.scene.getScene('MapleIslandScene').player.body.velocity.y < -100, null, { polling: 20, timeout: 1500 }).catch(() => {});
   const j = await gsInfo(); await page.keyboard.up('ArrowUp');
-  check('按「↑」跳躍（垂直速度向上）', j.vy < -100, 'vy=' + j.vy);
+  check('按「↑」跳躍（垂直速度向上）', j.vy < -100, 'vy=' + j.vy + (grounded ? '' : '（按下前不在地面）'));
 
   // 4. 技能欄：未全解鎖時拖曳被擋下
   const pos = (k) => page.evaluate((k) => { const u = window.__game.scene.getScene('UIScene'); const d = u._cdOverlays[k]; return { x: d.sx + d.slotW / 2, y: d.sy + d.slotW / 2 }; }, k);

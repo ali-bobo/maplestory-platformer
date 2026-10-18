@@ -1,7 +1,7 @@
 // UX 系統的 e2e：ESC 順序、存檔代碼往返、設定持久化、低血量暈影與首次死亡提醒、目標列、任務日誌、
 // localStorage 不可用、手機版面（844x390）。
 // 用法：PORT=8412 node e2e/ux.cjs /tmp/shots（第一個參數是截圖資料夾）
-const { chromium } = require('/opt/node-tools/node_modules/playwright');
+const { chromium, executablePath: PW_EXE } = require('./pw.cjs');
 const PORT = process.env.PORT || 8123;
 const SP = process.argv[2] || '.';
 const BASE = `http://127.0.0.1:${PORT}/index.html?debug=1`;
@@ -13,7 +13,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const errors = [];
 
 const LAUNCH = {
-  executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome',
+  executablePath: PW_EXE,
   args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--no-sandbox'],
 };
 const MOBILE_UA = 'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Mobile Safari/537.36';
