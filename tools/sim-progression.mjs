@@ -15,7 +15,7 @@ const SEEDS = seedsArg ? Math.max(1, parseInt(seedsArg.slice(8), 10) || 1) : 12;
 const AS_JSON = process.argv.includes('--json');
 
 const root = new URL('../src/config/', import.meta.url);
-const { MONSTERS } = await import(new URL('monsters.js', root));
+const { MONSTERS, FINAL_BOSS } = await import(new URL('monsters.js', root));
 const { MAPS } = await import(new URL('maps.js', root));
 const { QUESTS } = await import(new URL('quests.js', root));
 const C = await import(new URL('constants.js', root));
@@ -62,7 +62,7 @@ const PROFILES = {
 const ASSUME = {
   crit: 0.2 * (1.8 - 1) + 1,        // 期望暴擊倍率 1.16
   extraSkillBonus: 0.06,            // 每多解鎖 1 個非 Z 技能，期望 DPS +6%
-  mobAttackCd: 1.5, rangedCd: 2.0,  // Monster._doAttack / _doRangedAttack 冷卻（秒）
+  mobAttackCd: 1.5, rangedCd: 2.0,  // Monster._doAttack / _doRangedAttack 冷卻（秒）；v2：Lv11 起近戰 1.3 秒、小王 1.3 秒（見 meleeCd）
   crowd: 1.2,                       // 同時被 1.2 隻怪圍毆
   regenHpPerSec: 5,                 // Player.recoverHp：0.005 HP/ms
   walkPerMap: 22,                   // 秒：穿過一張 2560px 的圖
@@ -74,6 +74,9 @@ const ASSUME = {
   bossLevel: 44,                    // 玩家挑戰最終 Boss 的等級（等級帶 45-50）
   guardianLead: 3,                  // 等級 >= 守護者等級 - 3 才去挑戰
 };
+
+// v2 近戰間隔（同 Monster.js 的 _meleeCd）
+const meleeCd = (mon) => (mon.spawnRole === 'miniboss' ? 1.3 : mon.level <= 10 ? ASSUME.mobAttackCd : 1.3);
 
 // 地圖順序與玩家行進策略：「等級到了下一張圖的下限就換圖」
 const MAIN = ['sky', 'forest', 'ruins', 'harbor', 'desert', 'snow', 'lava', 'castle'];
@@ -138,7 +141,7 @@ const guardHp = (gd) => {
   return Math.round(RT.guardTargetSec * 0.6 * dpsK(Lc, PROFILES.normal) * baseAtk(Lc) * 1.35 / 100) * 100;
 };
 const finalHp = () => {
-  if (!RT) return 10000;
+  if (!RT) return FINAL_BOSS.hp;
   return Math.round(RT.finalTargetSec * 0.6 * dpsK(ASSUME.bossLevel, PROFILES.normal) * baseAtk(ASSUME.bossLevel) * 1.4 / 1000) * 1000;
 };
 
@@ -331,7 +334,7 @@ function simulate(profKey, seed, opts = {}) {
         if (hpPots() < 6) restock();
         st.hp = stats().maxHp;
         let hpB = guardHp(gd), t = 0, alive = true;
-        const interval = ASSUME.mobAttackCd;
+        const interval = meleeCd(gd);
         while (hpB > 0 && alive && t < 600) {
           const s = stats();
           const dps = s.atk * dpsK(st.L, p) * p.uptime;
@@ -358,7 +361,7 @@ function simulate(profKey, seed, opts = {}) {
     }
 
     function fightFinal() {
-      const H = finalHp(), atk = RT ? RT.finalAtk : 160;
+      const H = finalHp(), atk = RT ? RT.finalAtk : FINAL_BOSS.atk;
       let attempts = 0, won = false, dur = 0, potsBefore = st.potUsed, mk = 'castle';
       while (!won && attempts < 8) {
         attempts++;
@@ -368,7 +371,7 @@ function simulate(profKey, seed, opts = {}) {
         while (hpB > 0 && alive && t < 900) {
           const s = stats();
           const ratio = hpB / H;
-          const ph = ratio > 0.6 ? 1 : ratio > 0.3 ? 2 : 3;
+          const ph = ratio > FINAL_BOSS.phaseAt[0] ? 1 : ratio > FINAL_BOSS.phaseAt[1] ? 2 : 3;
           const dps = s.atk * dpsK(st.L, p) * p.uptime * (ph === 3 ? 0.85 : 1);      // 狂暴 Boss 速度 ×1.5 較難輸出
           hpB -= dps * 1.5; t += 1.5;
           st.hp = Math.min(s.maxHp, st.hp + ASSUME.regenHpPerSec * 1.5);
@@ -395,7 +398,7 @@ function simulate(profKey, seed, opts = {}) {
       const s = stats();
       const ttk = Math.max(0.7, mobHp(mon, mk) / (s.atk * dpsK(st.L, p)));
       const melee = mon.behavior !== 'ranged';
-      const lam = (ttk * p.contact / (melee ? ASSUME.mobAttackCd : ASSUME.rangedCd)) * ASSUME.crowd + (melee ? p.first : p.first * 0.5);
+      const lam = (ttk * p.contact / (melee ? meleeCd(mon) : ASSUME.rangedCd)) * ASSUME.crowd + (melee ? p.first : p.first * 0.5);
       const hits = poisson(lam, rnd);
       const dmgBase = mon.atk * (melee ? 1 : 0.7);
       let sec = ttk + p.overhead;

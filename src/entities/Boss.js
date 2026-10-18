@@ -4,11 +4,12 @@ import { particles } from '../engine/particles.js';
 import { ALIGNMENT_PROFILES, applyAlignmentProfile, getVisualCenterY } from '../config/alignment.js';
 import { getTable, jumpClassFor } from '../engine/platformGraph.js';
 import { playFx } from './Skill.js';
+import { FINAL_BOSS } from '../config/monsters.js';
+import { settings } from '../engine/settings.js';
 
-// 數值：Lv45 玩家只用普攻也 12 秒就能打倒舊的 10000 HP，遠低於 Lv44 的墮落騎士團長（25300 HP），
-// 最終 Boss 至少要比區域守衛更耐打才有「決戰」的份量
-const BOSS_HP = 28000;
-const BOSS_ATK = 160;
+// 數值（config/monsters.js 的 FINAL_BOSS）：最終 Boss 至少要比區域守衛更耐打才有「決戰」的份量
+const BOSS_HP = FINAL_BOSS.hp;
+const BOSS_ATK = FINAL_BOSS.atk;
 const BOSS_JUMP_VEL = 640;   // 能跳上相距約 200px 的平台（Boss 房每層落差 140–156）
 
 // 暗影魔君 — 3 階段 Boss（招式與階段門檻見 config/monsterAttacks.js 的 boss 條目）
@@ -72,10 +73,11 @@ export class Boss extends Monster {
     // 動態前景血條：origin (0,0) 左對齊，scaleX 控制 HP 比例
     this._bossFgBar = scene.add.rectangle(bx, by, bw, bh, 0xff0066)
       .setOrigin(0, 0).setScrollFactor(0).setDepth(100);
-    // 相位分隔線：血條由右往左縮短，60% 與 30% 血量在左起 0.6 / 0.3 處
-    this._bossPhaseLine1 = scene.add.rectangle(bx + bw * 0.6, by + bh / 2, 2, bh, 0xffffff, 0.6)
+    // 相位分隔線：血條由右往左縮短，階段門檻（70% / 35%）在左起 0.7 / 0.35 處
+    const [ph2, ph3] = FINAL_BOSS.phaseAt;
+    this._bossPhaseLine1 = scene.add.rectangle(bx + bw * ph2, by + bh / 2, 2, bh, 0xffffff, 0.6)
       .setScrollFactor(0).setDepth(101);
-    this._bossPhaseLine2 = scene.add.rectangle(bx + bw * 0.3, by + bh / 2, 2, bh, 0xffffff, 0.6)
+    this._bossPhaseLine2 = scene.add.rectangle(bx + bw * ph3, by + bh / 2, 2, bh, 0xffffff, 0.6)
       .setScrollFactor(0).setDepth(101);
 
     this._updateBossHpBar();
@@ -130,11 +132,12 @@ export class Boss extends Monster {
     const cam = scene.cameras.main;
     scene._aiPool?.clear();
 
-    const flash = scene.add.graphics();
-    flash.fillStyle(newPhase >= 3 ? 0xff3333 : 0xffffff, 0.8);
-    flash.fillRect(0, 0, cam.width, cam.height);
-    flash.setScrollFactor(0).setDepth(200);
-    scene.tweens.add({ targets: flash, alpha: 0, duration: 600, onComplete: () => flash.destroy() });
+    // 全螢幕閃光是一張矩形（不是相機效果，設定的「閃光 / 減少動態」要自己問）
+    if (settings.flashAllowed()) {
+      const flash = scene.add.rectangle(0, 0, cam.width, cam.height, newPhase >= 3 ? 0xff3333 : 0xffffff, 0.8)
+        .setOrigin(0, 0).setScrollFactor(0).setDepth(200);
+      scene.tweens.add({ targets: flash, alpha: 0, duration: 600, onComplete: () => flash.destroy() });
+    }
 
     cam.shake(700, 0.02);
     const cy = getVisualCenterY(this);

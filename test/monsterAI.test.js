@@ -10,7 +10,7 @@ import {
   inGroundBlast, circleHitsRect, leapVelocity, leapVx, tickCooldowns,
 } from '../src/engine/aiLogic.js';
 import { MONSTERS } from '../src/config/monsters.js';
-import { ATTACK_TYPES, getAttackProfile, MONSTER_ATTACKS } from '../src/config/monsterAttacks.js';
+import { ATTACK_TYPES, getAttackProfile, MONSTER_ATTACKS, regularCdMult } from '../src/config/monsterAttacks.js';
 
 // Boss 房的平台配置（與 maps.js 的 BOSS_PLATFORMS 相同形狀）
 const PLATS = [
@@ -310,5 +310,55 @@ test('招式表：新舊家族依類型分配（不是全部都一樣）', () =>
   assert.ok(typesOf('cyclops').includes('pound'));
   const all = new Set();
   for (const m of MONSTERS) for (const t of typesOf(m.id)) all.add(t);
-  for (const t of ['charge', 'slam', 'pound', 'shoot', 'kite', 'burrow', 'dive', 'summon', 'rain', 'burst']) assert.ok(all.has(t), `沒有任何怪使用 ${t}`);
+  for (const t of ['charge', 'slam', 'pound', 'shoot', 'kite', 'burrow', 'dive', 'summon', 'rain', 'burst', 'nova']) assert.ok(all.has(t), `沒有任何怪使用 ${t}`);
+});
+
+// ── v2 敵方強化：連段、地面爆發、狂暴、出招節奏 ──
+test('招式表 v2：連段的後續前搖不短於重擊下限；地面爆發前搖 >= 700ms、數量 <= 6', () => {
+  for (const def of MONSTERS.concat([{ id: 'boss', behavior: 'chase' }])) {
+    const prof = getAttackProfile(def);
+    const all = prof.attacks.concat(...prof.phases.map((p) => p.attacks));
+    for (const a of all) {
+      assert.ok(a.combo >= 0 && a.combo <= 2, `${def.id}/${a.type} combo ${a.combo}`);
+      if (a.heavy || a.dmg >= 1.2) assert.ok(a.comboWindup >= 400, `${def.id}/${a.type}: 連段重擊前搖 ${a.comboWindup}`);
+      else assert.ok(a.comboWindup >= 220, `${def.id}/${a.type}: 連段前搖 ${a.comboWindup}`);
+      if (a.type === 'nova') {
+        assert.ok(a.windup >= 700, `${def.id}: nova 前搖 ${a.windup}`);
+        assert.ok(a.count >= 1 && a.count <= 6 && a.radius > 0 && a.hMax > 0, `${def.id}: nova 參數`);
+      }
+    }
+  }
+});
+
+test('招式表 v2：每位守衛的狂暴階段有光環、且解鎖至少一個招牌技（連段 / 地面爆發 / 彈幕 / 召喚）', () => {
+  for (const id of GUARDIANS) {
+    const prof = getAttackProfile(MONSTERS.find((m) => m.id === id));
+    const p2 = prof.phases[0];
+    assert.ok(p2.aura != null, `${id}: 沒有狂暴光環`);
+    assert.ok(p2.at >= 0.4 && p2.at <= 0.5, `${id}: 狂暴門檻 ${p2.at}`);
+    const added = p2.attacks.slice(prof.attacks.length).map((a) => a.type);
+    assert.ok(added.some((t) => ['nova', 'burst', 'rain', 'summon'].includes(t)), `${id}: 狂暴沒有新招 ${added}`);
+    const anyCombo = p2.attacks.some((a) => a.combo > 0 || a.chain > 0 || a.count >= 3);
+    assert.ok(anyCombo, `${id}: 沒有連段或多發招式`);
+  }
+});
+
+test('招式表 v2：最終 Boss 階段門檻 70% / 35%，每階段更快；重擊後留有破綻（recover >= 900ms）', () => {
+  const prof = getAttackProfile({ id: 'boss', behavior: 'chase' });
+  assert.deepEqual(prof.phases.map((p) => p.at), [0.7, 0.35]);
+  assert.ok(prof.cdMult < 1);
+  assert.ok(prof.phases[1].cdMult < prof.phases[0].cdMult && prof.phases[1].speedMult > prof.phases[0].speedMult);
+  assert.ok(prof.attacks.find((a) => a.type === 'pound').recover >= 900);
+  assert.ok(prof.phases[1].attacks.find((a) => a.type === 'burst').recover >= 900);
+  assert.equal(prof.phases[1].open, 'nova');
+  assert.ok(prof.phases[1].attacks.find((a) => a.type === 'nova').count >= 5);
+});
+
+test('出招節奏：一般怪 Lv1–10 冷卻不變，之後逐級變快，但不低於 0.85 倍', () => {
+  assert.equal(regularCdMult(1), 1);
+  assert.equal(regularCdMult(10), 1);
+  let last = 1;
+  for (let lv = 1; lv <= 50; lv++) { const k = regularCdMult(lv); assert.ok(k <= last && k >= 0.85); last = k; }
+  // 入門區怪物的招式表維持不變（只有最單純的招）
+  for (const id of ['slime', 'mushroom', 'snail', 'sky_puff']) assert.equal(getAttackProfile(MONSTERS.find((m) => m.id === id)).attacks.length, 0);
 });

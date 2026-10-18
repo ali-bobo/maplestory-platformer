@@ -264,9 +264,12 @@ test('星光碎片：5 隻守護者都是小王、各掉一塊、碎片圖示在
     const spawns = MAPS[shard.map].monsters;
     assert.deepEqual(spawns[0], { id: shard.monsterId, count: 1 }, `${shard.map} 的守護者要放第一個`);
     assert.equal(def.level, MAPS[shard.map].levelBand[1] + 2, `${shard.monsterId} 等級`);
-    // 血量約為同圖最強小怪的 8～10 倍
-    const regular = Math.max(...spawns.map((sp) => MONSTERS.find((m) => m.id === sp.id)).filter((m) => m.spawnRole !== 'miniboss').map((m) => m.hp));
-    assert.ok(def.hp / regular >= 7 && def.hp / regular <= 10.5, `${shard.monsterId} 血量比 ${(def.hp / regular).toFixed(1)}`);
+    // 基準血量（調整前的表）約為同圖最強小怪的 8～10 倍；v2 耐打度調整後小王 ×1.4、小怪 ×1.15～1.33，實際約 8～12 倍
+    const regs = spawns.map((sp) => MONSTERS.find((m) => m.id === sp.id)).filter((m) => m.spawnRole !== 'miniboss');
+    const regularBase = Math.max(...regs.map((m) => m.baseHp));
+    const regular = Math.max(...regs.map((m) => m.hp));
+    assert.ok(def.baseHp / regularBase >= 7 && def.baseHp / regularBase <= 10.5, `${shard.monsterId} 基準血量比 ${(def.baseHp / regularBase).toFixed(1)}`);
+    assert.ok(def.hp / regular >= 8 && def.hp / regular <= 13, `${shard.monsterId} 血量比 ${(def.hp / regular).toFixed(1)}`);
   }
 });
 
@@ -356,7 +359,8 @@ test('數值曲線：碧濤港與四張新圖的小怪血量 / 攻擊貼近外�
   for (const m of regular) {
     const hp = 0.8 * 45 * m.level * (1 + m.level / 50);
     const atk = (5 * m.level + 0.04 * m.level * m.level) * (m.level >= 30 ? 0.92 : 1);
-    assert.ok(Math.abs(m.hp / hp - 1) <= 0.2, `${m.id} hp ${m.hp} vs ${hp.toFixed(0)}`);
+    // 公式對的是基準血量（baseHp）；實際血量另外乘上等級帶倍率（見下一個測試）
+    assert.ok(Math.abs(m.baseHp / hp - 1) <= 0.2, `${m.id} hp ${m.baseHp} vs ${hp.toFixed(0)}`);
     assert.ok(Math.abs(m.atk / atk - 1) <= 0.15, `${m.id} atk ${m.atk} vs ${atk.toFixed(0)}`);
   }
   for (const m of regular) for (const lower of regular.filter((x) => x.level < m.level)) assert.ok(m.exp >= lower.exp, `${m.id}（Lv${m.level}）經驗不該比 ${lower.id}（Lv${lower.level}）少`);
@@ -463,4 +467,23 @@ test('補給商店：森林 / 廢墟 / 碧濤港的商人單價隨等級遞增�
   assert.ok(shopOf('ruins').shop.items.some((it) => it.key === 'D'), '廢墟開始賣 MP 藥水');
   assert.ok(['S', 'R'].every((k) => shopOf('harbor').shop.items.some((it) => it.key === k)), '碧濤港賣強效藥水');
   assert.ok(unit('harbor', 'S') > 75 && unit('harbor', 'S') <= unit('desert', 'S'), '強效藥水單價介於晨曦鎮與黃沙遺跡之間');
+});
+
+test('v2 耐打度：入門怪（Lv1–8）血量不變、一般怪依等級帶 +15～33%、小王 ×1.4；最終 Boss 比所有守衛耐打', async () => {
+  const { FINAL_BOSS, regularHpMult, MINIBOSS_HP_MULT, HP_OVERRIDES } = await import('../src/config/monsters.js');
+  for (const m of MONSTERS) {
+    assert.ok(m.baseHp > 0, m.id);
+    if (m.level <= 8 && m.spawnRole !== 'miniboss') assert.equal(m.hp, m.baseHp, `${m.id} 入門怪不加血`);
+    if (m.spawnRole === 'miniboss') assert.ok(Math.abs(m.hp / m.baseHp - (HP_OVERRIDES[m.id] ?? MINIBOSS_HP_MULT)) < 0.01 && m.hp > m.baseHp, m.id);
+    if (!m.spawnRole && m.id !== 'shadow-slime') {
+      const k = m.hp / m.baseHp;
+      assert.ok(Math.abs(k - regularHpMult(m.level)) < 0.02 && k <= 1.35, `${m.id} 倍率 ${k.toFixed(2)}`);
+    }
+  }
+  // 倍率隨等級不遞減
+  let last = 0;
+  for (let lv = 1; lv <= 50; lv++) { assert.ok(regularHpMult(lv) >= last); last = regularHpMult(lv); }
+  const guards = MONSTERS.filter((m) => m.spawnRole === 'miniboss' && m.id !== 'shadow_guardian');
+  assert.ok(FINAL_BOSS.hp > Math.max(...guards.map((m) => m.hp)), `最終 Boss ${FINAL_BOSS.hp}`);
+  assert.deepEqual(FINAL_BOSS.phaseAt, [0.7, 0.35]);
 });
