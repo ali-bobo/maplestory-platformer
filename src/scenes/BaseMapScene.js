@@ -17,6 +17,7 @@ import { shopOf } from '../config/shops.js';
 import { shopItemLabel, buyShopItem } from '../engine/shop.js';
 import { VFX_TEX } from '../engine/vfxTextures.js';
 import { saveGame, isSavableMap } from '../engine/saveGame.js';
+import { isSafeZone } from '../engine/regen.js';
 import { onMonsterKilled, onMapEntered, acceptQuest, isQuestActive, isQuestCompleted, onNpcTalked, onItemCollected, questItemDrop, chooseJobPath } from '../engine/questManager.js';
 import { buildNpcDialog } from '../engine/npcDialog.js';
 import { npcQuestMarker } from '../engine/questMarkers.js';
@@ -32,6 +33,7 @@ import { grantShard, lightTower, shardCount } from '../engine/shards.js';
 import { visitMap } from '../engine/worldGraph.js';
 import { createMapModifier } from '../engine/mapModifiers.js';
 import { createBadgeField } from '../engine/badgeField.js';
+import { createAmbience } from '../engine/ambience.js';
 
 const PLATFORM_HEIGHT = 24;
 const GROUND_Y = WORLD_HEIGHT;
@@ -116,6 +118,8 @@ export class BaseMapScene extends Phaser.Scene {
     this._alignDynamicEntityToPlatformTop(this.player, spawnPlacement.topY);
     this.cameras.main.startFollow(this.player, true, 0.1, 0.1);
     if (this._respawnProtect) this.player.grantInvincibility(3000);
+    // 安全區（城鎮等沒有怪物的一般地圖）：HP / MP 自然回復較快
+    this.player.safeZone = isSafeZone(this.mapKey, this.mapData, !!this.dungeonId);
 
     this.monsters = this.add.group();
     this.pickups  = this.physics.add.group();
@@ -128,6 +132,7 @@ export class BaseMapScene extends Phaser.Scene {
     this._setupColliders();
     this._modifier = createMapModifier(this, this.mapData.modifier);   // 冰面 / 流沙 / 岩漿 / 暗黑視野（沒有則 null）
     this._badgeField = createBadgeField(this);   // 盜賊徽章（這張圖沒有或都撿完則 null）
+    this._ambience = createAmbience(this, { respawn: this._respawnProtect });   // 地圖氛圍：色調 / 環境粒子 / 標題卡（config/ambience.js）
 
     if (!this.scene.isActive('UIScene')) {
       this.scene.launch('UIScene');
@@ -194,6 +199,7 @@ export class BaseMapScene extends Phaser.Scene {
     const { bgColor, bgImage } = this.mapData;
     const SCREEN_W = 1280, SCREEN_H = 720;
     const bgH = WORLD_HEIGHT;
+    this._bgImage = null;
 
     // 底色（覆蓋整個畫布，包括 HUD 下方）
     // Phase 15 效能：Rectangle 走 batchSprite，消除靜態 Graphics 每幀 batchFillPath。
@@ -204,7 +210,7 @@ export class BaseMapScene extends Phaser.Scene {
     // 不使用 tileSprite：背景圖多為非 2 次方尺寸，平鋪時接縫處會出現裂痕／破圖，
     // 且每幀更新 tilePosition 也是額外負擔。改用固定單圖即可徹底消除接縫。
     if (bgImage && this.textures.exists(bgImage)) {
-      this._addCoverBackground(bgImage);
+      this._bgImage = this._addCoverBackground(bgImage);   // 地圖氛圍會在這張圖上加上下色調（頂點 tint，不多畫一層）
     }
   }
 
@@ -1045,6 +1051,7 @@ export class BaseMapScene extends Phaser.Scene {
   _onSceneShutdown() {
     if (this._modifier) { this._modifier.destroy(); this._modifier = null; }
     if (this._badgeField) { this._badgeField.destroy(); this._badgeField = null; }
+    if (this._ambience) { this._ambience.destroy(); this._ambience = null; }
     this.events.off('monster-died', this._onMonsterDied, this);
     this.events.off('job-changed', this._onJobChanged, this);
 

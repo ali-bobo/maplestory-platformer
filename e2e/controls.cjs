@@ -151,6 +151,8 @@ const errors = [];
   await page.waitForFunction(() => window.__game.scene.isActive('SkyIslandScene') && window.__game.scene.isActive('UIScene'), null, { timeout: 30000 });
   await page.waitForTimeout(1500);
   await page.evaluate(() => { const gs = window.__game.registry.get('gameState'); gs.mp = gs.maxMp; gs.skillCooldowns.Z = 0; });
+  // 這段只測手把輸入：受擊會擊退並短暫鎖住輸入（硬直），先讓角色不受傷害，免得機器忙時被島上的怪物打斷
+  await page.evaluate(() => { const p = window.__game.scene.getScene('SkyIslandScene').player; p.takeDamage = () => {}; });
 
   // ── 3. 手把遊玩 ─────────────────────────────────────────────────────────────
   await page.evaluate(() => window.__setPad([]));

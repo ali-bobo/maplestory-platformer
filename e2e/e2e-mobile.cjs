@@ -51,6 +51,16 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   });
   const rect = (sel) => page.evaluate((s) => { const r = document.querySelector(s).getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width, h: r.height }; }, sel);
 
+  // 受擊會擊退並短暫鎖住輸入（硬直）：這裡只測觸控輸入，先讓角色不受傷害（受擊改成空函式；只設無敵旗標不夠，
+  // 開場前若已被打過，無敵計時結束時會把旗標關掉），免得機器忙時被島上的怪物打斷；
+  // 開場若已被打退到左邊傳送門附近，之後往左走的測試會誤入晨曦鎮，所以也把角色放回離傳送門遠一點的位置
+  // （受擊反應本身由 e2e/savequit.cjs 測）
+  await page.evaluate(() => {
+    const sc = window.__game.scene.getScene('SkyIslandScene'); const p = sc && sc.player;
+    if (p) { p.takeDamage = () => {}; p.body.reset(400, p.y); p.setVelocity(0, 0); }
+  });
+  await page.waitForTimeout(600);
+
   // 3. 搖桿：按住右 → 角色向右移動；放開 → 停止（無卡鍵）
   const stick = await rect('.tc-stick');
   const s0 = await state();

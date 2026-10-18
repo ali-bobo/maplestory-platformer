@@ -74,7 +74,7 @@ const check = (n, c, x = '') => { console.log((c ? 'PASS' : 'FAIL') + ' - ' + n 
   check('通關前暗影領域沒有回程門', ports.length === 0, JSON.stringify(ports));
   await page.waitForFunction(() => { const s = window.__game.scene.getScene('BossScene'); return s && s._boss && s._boss.active; }, null, { timeout: 20000 });
   const bossHpNormal = await page.evaluate(() => window.__game.scene.getScene('BossScene')._boss.maxHp);
-  check('普通難度 Boss 血量 28000', bossHpNormal === 28000, `${bossHpNormal}`);
+  check('普通難度 Boss 血量 32000（v2 敵方強化：28000 → 32000）', bossHpNormal === 32000, `${bossHpNormal}`);
   for (let i = 0; i < 40; i++) {
     await heal('BossScene');
     const done = await page.evaluate(() => {
@@ -142,7 +142,7 @@ const check = (n, c, x = '') => { console.log((c ? 'PASS' : 'FAIL') + ' - ' + n 
   await page.evaluate(() => window.__settings.set({ difficulty: 'hard' }));
   await page.waitForFunction(() => { const s = window.__game.scene.getScene('BossScene'); return s && s._boss && s._boss.active; }, null, { timeout: 20000 });
   const bossHard = await page.evaluate(() => { const b = window.__game.scene.getScene('BossScene')._boss; return { hp: b.maxHp, atk: b.atk }; });
-  check('困難難度 Boss 血量 39200、攻擊 ×1.3', bossHard.hp === 39200 && Math.abs(bossHard.atk - 160 * 1.3) < 1e-6, JSON.stringify(bossHard));
+  check('困難難度 Boss 血量 44800（32000 × 1.4）、攻擊 ×1.3', bossHard.hp === 44800 && Math.abs(bossHard.atk - 160 * 1.3) < 1e-6, JSON.stringify(bossHard));
   await page.evaluate(() => {
     const g = window.__game; const gs = g.registry.get('gameState'); const s = g.scene.getScene('BossScene');
     gs.currentMap = 'castle'; s.scene.stop('UIScene'); s.scene.start('CastleScene', { gameState: gs, spawnX: 200 });

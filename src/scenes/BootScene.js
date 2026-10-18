@@ -3,6 +3,7 @@ import { generateTextures } from '../assets/ProceduralAssets.js';
 import { createInitialGameState } from '../config/constants.js';
 import { PRELOAD_IMAGE_ASSETS, PRELOAD_SPRITESHEET_ASSETS } from '../config/assetCatalog.js';
 import { initVfxTextures } from '../engine/vfxTextures.js';
+import { initAmbienceTextures } from '../engine/ambience.js';
 import GlowFilterPostFxPipeline from 'phaser3-rex-plugins/plugins/shaders/glowfilter/GlowFilterPostFxPipeline.js';
 import ShockwavePostFxPipeline from 'phaser3-rex-plugins/plugins/shaders/shockwave/ShockwavePostFxPipeline.js';
 import { isTouchDevice } from '../engine/device.js';
@@ -52,6 +53,7 @@ export class BootScene extends Phaser.Scene {
 
     // 預渲染 VFX 紋理（魔法陣/弧形斬擊/命中環/衝擊圓），消滅遊戲過程的 earcut 熱點
     initVfxTextures(this);
+    initAmbienceTextures(this);   // 地圖氛圍用的小紋理（花瓣、雨絲、雲、暗角⋯）
 
     // 啟動主選單
     this.scene.start('MenuScene');

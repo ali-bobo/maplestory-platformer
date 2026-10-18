@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  sanitizeState, serializeSave, parseSave, createSaveStore,
+  sanitizeState, serializeSave, parseSave, createSaveStore, resumeMapKey,
   SAVE_KEY, SAVE_VERSION, MAX_SAVE_BYTES,
 } from '../src/engine/saveManager.js';
 import { createInitialGameState, expNeeded, skillForSlot, canReorderSkills, equipSkill, SKILLS, MAX_LEVEL, BOSS_FALLBACK_MAP, titleFor } from '../src/config/constants.js';
@@ -361,4 +361,15 @@ test('去過的地圖：只留有效且可落腳的地圖；舊存檔依「起�
   // 往返不變
   const s = sanitizeState({ visitedMaps: ['sky', 'forest'], currentMap: 'forest' });
   assert.deepEqual(sanitizeState(JSON.parse(JSON.stringify(s))), s);
+});
+
+test('resumeMapKey：「儲存並離開」提示的落腳地圖與讀檔一致（副本 → 晨曦鎮、Boss → 回退地圖）', () => {
+  assert.equal(resumeMapKey('dungeon'), 'town');
+  assert.equal(resumeMapKey('boss'), BOSS_FALLBACK_MAP);
+  assert.equal(resumeMapKey('forest'), 'forest');
+  for (const key of ['dungeon', 'boss', 'forest']) {
+    const gs = createInitialGameState();
+    gs.currentMap = key;
+    assert.equal(sanitizeState(gs).currentMap, resumeMapKey(key), key);
+  }
 });

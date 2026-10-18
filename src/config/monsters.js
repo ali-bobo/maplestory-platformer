@@ -177,3 +177,35 @@ export const MONSTERS = [
 for (const monster of MONSTERS) {
   Object.assign(monster, MONSTER_CLASSIFICATION[monster.id] || {});
 }
+
+// ── v2 耐打度調整（敵方強化）────────────────────────────────────────────────
+// 上表的 hp 是調整前的「基準值」（保留在 baseHp），實際血量 = 基準 × 倍率：
+//  - 一般怪依等級帶加厚，入門區（Lv1–8）不變，越後面越耐打
+//  - 小王（守護者）實測熟練玩家 4–6 秒就倒（e2e/ai.cjs 難度抽樣），× 1.4 讓招牌技有機會出場
+//  - 試煉守衛是給 Lv10 打的轉職試煉，已依 e2e/trial.cjs 實測定過，只小幅 × 1.1；墮落騎士團長（王城守衛、招式最多）× 1.25，免得比最終 Boss 還耐打
+export const HP_BANDS = [
+  { maxLevel: 8, mult: 1 },
+  { maxLevel: 16, mult: 1.15 },
+  { maxLevel: 24, mult: 1.22 },
+  { maxLevel: 32, mult: 1.28 },
+  { maxLevel: Infinity, mult: 1.33 },
+];
+export const MINIBOSS_HP_MULT = 1.4;
+export const HP_OVERRIDES = { shadow_guardian: 1.1, fallen_commander: 1.25, 'shadow-slime': 1 };
+
+export function regularHpMult(level) {
+  for (const b of HP_BANDS) if (level <= b.maxLevel) return b.mult;
+  return 1;
+}
+export function hpMultFor(def) {
+  if (HP_OVERRIDES[def.id] != null) return HP_OVERRIDES[def.id];
+  return def.spawnRole === 'miniboss' ? MINIBOSS_HP_MULT : regularHpMult(def.level);
+}
+for (const monster of MONSTERS) {
+  monster.baseHp = monster.hp;
+  monster.hp = Math.round(monster.baseHp * hpMultFor(monster) / 10) * 10;
+}
+
+// 最終 Boss 暗影魔君（entities/Boss.js 使用；放在這裡讓 tools/sim-progression.mjs 也讀得到）
+// v2：28000 → 32000（仍高於最耐打的守衛墮落騎士團長 25300 × 1.25 = 31625）；三階段門檻 70% / 35%（招式見 config/monsterAttacks.js 的 boss 條目）
+export const FINAL_BOSS = { hp: 32000, atk: 160, phaseAt: [0.7, 0.35] };

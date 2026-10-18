@@ -9,7 +9,8 @@ import { screenFlash } from '../engine/vfx.js';
 import { POTION_ICON_KEYS } from '../config/assetCatalog.js';
 import { ensureSkillIcons, skillIconKey } from '../assets/skillIcons.js';
 import { addParchmentPanel, addWoodButton } from '../engine/woodUi.js';
-import { saveGame, getSaveStatus } from '../engine/saveGame.js';
+import { saveGame, getSaveStatus, isSavableMap, saveOnExit } from '../engine/saveGame.js';
+import { resumeMapKey } from '../engine/saveManager.js';
 import { openSaveDialog, closeSaveDialog, isSaveDialogOpen } from '../ui/saveDialog.js';
 import { SHARD_COUNT, SHARD_IDS, SHARD_TEXTURE } from '../config/shards.js';
 import { hasShard, shardCount } from '../engine/shards.js';
@@ -153,6 +154,7 @@ export class UIScene extends Phaser.Scene {
     this.registry.events.on('changedata-meso',      this._onMesoChange,  this);
     this.registry.events.on('changedata-shards',    this._onShardChange, this);
     this.registry.events.on('changedata-sp',        this._onSpChange,    this);
+    this.registry.events.on('player-heavy-hit',     this._onHeavyHit,    this);
 
     // Phase 13：任務追蹤面板（右上小地圖下方）
     this._setupQuestPanel(width);
@@ -227,6 +229,8 @@ export class UIScene extends Phaser.Scene {
 
     // Phase 15：ESC 暫停選單
     this._isPaused = false;
+    this._quitting = false;          // 「儲存並離開」已確認、正在回標題畫面
+    this._pauseConfirmObjs = [];     // 暫停選單上的確認小視窗
     this._bornAt = this.time.now;   // 剛啟動時忽略 Esc：教學按 Esc 跳過時，同一個按鍵事件會被這個新場景再收到一次
     this._pauseOverlayObjs = [];
     this._onUiEscKey = () => this._onEscKeyDown();
@@ -1146,6 +1150,7 @@ export class UIScene extends Phaser.Scene {
     this._lowHpTween = null;
     this._vignette = null;
     this._lowHp = false;
+    this._closePauseConfirm();
     closeSaveDialog();
     this._closePopup();
     if (this._worldMap) this._worldMap.destroy();
@@ -1163,6 +1168,10 @@ export class UIScene extends Phaser.Scene {
     this.registry.events.off('changedata-meso',      this._onMesoChange,  this);
     this.registry.events.off('changedata-shards',    this._onShardChange, this);
     this.registry.events.off('changedata-sp',        this._onSpChange,    this);
+    this.registry.events.off('player-heavy-hit',     this._onHeavyHit,    this);
+    if (this._hitPulseTween) { this._hitPulseTween.remove(); this._hitPulseTween = null; }
+    this._hitVignette = null;
+    this._quitting = false;
     // Phase 14：副本事件解除
     this.registry.events.off('dungeon-start', this._onDungeonStart, this);
     this.registry.events.off('dungeon-wave',  this._onDungeonWave,  this);
@@ -1258,6 +1267,23 @@ export class UIScene extends Phaser.Scene {
     this._vignette = this.add.image(0, 0, key).setOrigin(0, 0).setDisplaySize(width, height)
       .setDepth(45).setScrollFactor(0).setVisible(false);
     return this._vignette;
+  }
+
+  // 玩家受到重擊：紅色暈影快速閃一下（閃光關閉 / 減少動態時略過；與低血量暈影分開，互不干擾）
+  _onHeavyHit() {
+    if (!settings.flashAllowed()) return;
+    this._ensureVignette();   // 確保暈影紋理已建立
+    if (!this._hitVignette || !this._hitVignette.active) {
+      const { width, height } = this.cameras.main;
+      this._hitVignette = this.add.image(0, 0, 'hud_lowhp_vignette').setOrigin(0, 0).setDisplaySize(width, height)
+        .setDepth(46).setScrollFactor(0).setAlpha(0);
+    }
+    if (this._hitPulseTween) this._hitPulseTween.remove();
+    const v = this._hitVignette.setAlpha(0.85).setVisible(true);
+    this._hitPulseTween = this.tweens.add({
+      targets: v, alpha: 0, duration: 320, ease: 'Quad.easeOut',
+      onComplete: () => { this._hitPulseTween = null; if (v.active) v.setVisible(false); },
+    });
   }
 
   _applyLowHpVisual() {
@@ -1365,6 +1391,8 @@ export class UIScene extends Phaser.Scene {
     if (this._popup && !this._isPaused) { this._closePopup(); return; }   // 道具 / 裝備 / 技能 / 設定視窗
     // 暫停中：被暫停的地圖場景不再是 active，必須先處理關閉，否則 ESC 只能開不能關
     if (this._isPaused) {
+      if (this._quitting) return;   // 已確認離開，等它回標題畫面
+      if (this._pauseConfirmObjs.length) { this._closePauseConfirm(); return; }   // 先關確認小視窗
       this._closePauseMenu();
       return;
     }
@@ -1395,7 +1423,7 @@ export class UIScene extends Phaser.Scene {
     push(this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.6)
       .setDepth(190).setScrollFactor(0));
 
-    push(addParchmentPanel(this, width / 2 - 150, height / 2 - 120, 300, 418, { depth: 192 }));
+    push(addParchmentPanel(this, width / 2 - 150, height / 2 - 126, 300, 440, { depth: 192 }));
 
     // 標題
     push(this.add.text(width / 2, height / 2 - 72, '遊戲暫停', {
@@ -1423,20 +1451,101 @@ export class UIScene extends Phaser.Scene {
     addWoodButton(this, width / 2, height / 2 + 172, 190, 42, '存檔代碼', () => this._openSaveCode(),
       { depth: 195, fontSize: 18 }).objects.forEach(push);
 
-    addWoodButton(this, width / 2, height / 2 + 228, 190, 42, '存檔並回主選單', () => {
-      saveGame(this.registry.get('gameState'));
-      this._isPaused = false;
-      for (const obj of this._pauseOverlayObjs) { if (obj?.active) obj.destroy(); }
-      this._pauseOverlayObjs = [];
-      const key = this._pausedSceneKey;
-      this._pausedSceneKey = null;
-      if (key) this.scene.stop(key);
-      this.scene.start('MenuScene');
-    }, { depth: 195, fontSize: 18 }).objects.forEach(push);
+    // 儲存並離開：存檔後回到標題畫面（可「繼續遊戲」）。副本 / Boss 中會先確認（下次從安全地圖開始）
+    const gsNow = this.registry.get('gameState');
+    const battleMap = !!gsNow && !isSavableMap(gsNow.currentMap);
+    addWoodButton(this, width / 2, height / 2 + 228, 190, 42, '儲存並離開', () => this._saveAndQuit(),
+      { depth: 195, fontSize: 18 }).objects.forEach(push);
+    const note = battleMap
+      ? `副本 / Boss 中：下次從「${MAPS[resumeMapKey(gsNow.currentMap)]?.name || '安全地圖'}」開始`
+      : '存檔後回到標題畫面';
+    push(this.add.text(width / 2, height / 2 + 262, note, {
+      fontSize: '13px', color: '#ffe9b0', fontFamily: 'Arial', stroke: '#1a0e06', strokeThickness: 3,
+    }).setOrigin(0.5).setDepth(195).setScrollFactor(0));
+  }
+
+  // 「儲存並離開」：一般地圖直接存；副本 / Boss 先確認（走頁面關閉時的存檔規則，讀檔回到安全地圖）
+  _saveAndQuit() {
+    if (!this._isPaused || this._quitting || this._pauseConfirmObjs?.length) return;
+    const gs = this.registry.get('gameState');
+    if (!gs) { this._quitToMenu(); return; }
+    if (!isSavableMap(gs.currentMap)) {
+      const dest = MAPS[resumeMapKey(gs.currentMap)]?.name || '安全地圖';
+      this._showPauseConfirm(`副本 / Boss 戰中途離開，這場戰鬥不會保留。\n等級、經驗與道具會存檔，下次從「${dest}」開始。`, [
+        { label: '儲存並離開', onClick: () => this._finishSaveAndQuit(saveOnExit(gs)) },
+        { label: '取消', onClick: () => this._closePauseConfirm() },
+      ]);
+      return;
+    }
+    this._finishSaveAndQuit(saveGame(gs));
+  }
+
+  _finishSaveAndQuit(ok) {
+    this._closePauseConfirm();
+    if (!ok) {
+      // 存檔失敗（儲存空間滿 / 被封鎖）：進度只在這個分頁的記憶體裡，先警告再讓玩家決定
+      this._showPauseConfirm('存檔失敗：瀏覽器的儲存空間已滿或被封鎖。\n關閉分頁後進度會遺失，建議先用「存檔代碼」備份。', [
+        { label: '仍要離開', onClick: () => this._quitToMenu() },
+        { label: '存檔代碼', onClick: () => { this._closePauseConfirm(); this._openSaveCode(); } },
+        { label: '取消', onClick: () => this._closePauseConfirm() },
+      ], { warn: true });
+      return;
+    }
+    this._quitting = true;
+    const { width, height } = this.cameras.main;
+    const toast = this.add.text(width / 2, height / 2 - 30, '已儲存 ✓', {
+      fontSize: '20px', color: '#d8ffcf', fontFamily: 'Arial', fontStyle: 'bold',
+      backgroundColor: '#1d4a1ce6', padding: { x: 16, y: 8 }, stroke: '#0a1a08', strokeThickness: 3,
+    }).setOrigin(0.5).setDepth(205).setScrollFactor(0);
+    this._pauseOverlayObjs.push(toast);
+    this.time.delayedCall(650, () => this._quitToMenu());
+  }
+
+  // 回到標題畫面：與 GameOver → 主選單同一條路。先停掉被暫停的地圖場景（跑它的 shutdown 清理），
+  // 再由本場景 start 主選單（UIScene 自己也會被停掉並執行 _onShutdown，解除所有監聽）
+  _quitToMenu() {
+    this._closePauseConfirm();
+    this._isPaused = false;
+    for (const obj of this._pauseOverlayObjs) { if (obj?.active) obj.destroy(); }
+    this._pauseOverlayObjs = [];
+    const key = this._pausedSceneKey;
+    this._pausedSceneKey = null;
+    if (this.scene.isActive('TutorialScene') || this.scene.isPaused('TutorialScene')) this.scene.stop('TutorialScene');
+    if (key) this.scene.stop(key);
+    audio.stopBgm();
+    this.scene.start('MenuScene');
+  }
+
+  // 暫停選單上的確認小視窗（訊息 + 2~3 個按鈕）；底下鋪一層吃掉點擊的遮罩，避免點到暫停選單的按鈕
+  _showPauseConfirm(message, buttons, opts = {}) {
+    this._closePauseConfirm();
+    const { width, height } = this.cameras.main;
+    const objs = this._pauseConfirmObjs = [];
+    const push = (o) => { objs.push(o); return o; };
+    push(this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.35)
+      .setDepth(198).setScrollFactor(0).setInteractive());
+    const pw = 460, ph = 190;
+    push(addParchmentPanel(this, width / 2 - pw / 2, height / 2 - ph / 2 + 60, pw, ph, { depth: 199 }));
+    push(this.add.text(width / 2, height / 2 + 20, message, {
+      fontSize: '15px', color: opts.warn ? '#ffd0c0' : '#ffe9b0', fontFamily: 'Arial', fontStyle: 'bold',
+      stroke: '#1a0e06', strokeThickness: 4, align: 'center', lineSpacing: 6, wordWrap: { width: pw - 40 },
+    }).setOrigin(0.5).setDepth(201).setScrollFactor(0));
+    const bw = buttons.length >= 3 ? 124 : 150, gap = 14;
+    const total = buttons.length * bw + (buttons.length - 1) * gap;
+    buttons.forEach((b, i) => {
+      const cx = width / 2 - total / 2 + bw / 2 + i * (bw + gap);
+      addWoodButton(this, cx, height / 2 + 100, bw, 40, b.label, b.onClick, { depth: 201, fontSize: 16 }).objects.forEach(push);
+    });
+  }
+
+  _closePauseConfirm() {
+    for (const o of this._pauseConfirmObjs || []) { if (o?.active) o.destroy(); }
+    this._pauseConfirmObjs = [];
   }
 
   _closePauseMenu() {
-    if (!this._isPaused) return;
+    if (!this._isPaused || this._quitting) return;
+    this._closePauseConfirm();
     this._isPaused = false;
     for (const obj of this._pauseOverlayObjs) { if (obj?.active) obj.destroy(); }
     this._pauseOverlayObjs = [];

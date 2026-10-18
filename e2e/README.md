@@ -32,6 +32,7 @@
 | `e2e-tutorial.cjs` | 新手教學 |
 | `e2e-skills2.cjs` | 技能欄、普通攻擊 / Z 技能、冷卻與 MP、技能視窗與換入 |
 | `e2e-death.cjs` | 死亡與重新開始 |
+| `savequit.cjs` | 受擊反應（怪物從左 / 右打 → 往遠離攻擊者的方向擊退、硬直與無敵閃爍會結束、受傷後 HP 自然回復暫停）與暫停選單「儲存並離開」（存檔、回主選單、監聽清乾淨、繼續遊戲回到同一張地圖；副本中先確認、繼續後在晨曦鎮）。截圖 `hit-knockback.png`、`pause-save-quit.png`（`SHOT_DIR=資料夾` 另存一份）。用法 `PORT=8135 node e2e/savequit.cjs /tmp/shots` |
 | `e2e-mobile.cjs` | 觸控按鈕、多點觸控 |
 | `ux.cjs` | UX 系統：ESC 順序（含合成 ESC）、存檔代碼往返（全新設定檔匯入、壞代碼、剪貼簿被拒）、設定持久化與生效、低血量暈影與首次死亡提醒、目標列、任務日誌、localStorage 不可用、手機 844x390（技能視窗可點、觸控鈕讓開、冷卻遮罩）。用法 `PORT=8412 node e2e/ux.cjs /tmp/shots` |
 | `controls.cjs` | 手把（假造 `navigator.getGamepads`：接上提示、主選單按 A、移動 / 跳 / 普攻 / 技能 / Start 暫停、拔掉不卡鍵）與按鍵設定（設定面板改鍵、衝突互換、保留鍵拒絕、ESC 只取消、HUD 字樣、改鍵後實際施放、重新載入保留、恢復預設）。用法 `PORT=8132 node e2e/controls.cjs /tmp/shots` |

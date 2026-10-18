@@ -200,6 +200,8 @@ export class Monster extends Phaser.Physics.Arcade.Sprite {
     this._kbDuration = 1;
     this.attackCooldown = 0;
     this.rangedCooldown = 0;
+    // 貼身普攻間隔：入門怪（Lv1–10）維持 1.5 秒，之後與小王 1.3 秒；Boss 2.0 秒（壓力來自大招與預警區，不是貼身普攻）
+    this._meleeCd = (config.id === 'boss') ? 2000 : config.spawnRole === 'miniboss' ? 1300 : (config.level ?? 1) <= 10 ? 1500 : 1300;
     this.jumpProfile = config.jumpProfile || null;
     this.jumpCooldown = this._rollJumpCooldown();
 
@@ -532,6 +534,7 @@ export class Monster extends Phaser.Physics.Arcade.Sprite {
   update(player, delta) {
     if (this.isDead || !this.active) return;
     this._updateHpBar();
+    if (this.brain._aura) this.brain.updateAura();
 
     const dt = delta / 1000;
     this.hurtTimer = Math.max(0, this.hurtTimer - delta);
@@ -732,10 +735,11 @@ export class Monster extends Phaser.Physics.Arcade.Sprite {
   _doAttack(player) {
     this.setVelocityX(0);
     if (this.attackCooldown > 0) return;
-    this.attackCooldown = 1500;
+    this.attackCooldown = this._meleeCd;
     const dmg = Math.floor(this.atk * this.brain.dmgMult * (0.8 + Math.random() * 0.4) * (this._smoked ? SMOKE_DAMAGE_FACTOR : 1));
     if (player && !player.isInvincible) {
-      player.takeDamage(dmg);
+      // sourceX：把玩家往遠離怪物的方向擊退；force：小王 / Boss 的近戰推得更遠
+      player.takeDamage(dmg, { sourceX: this.x, force: this.brain.forceBase });
     }
     // 攻擊閃爍
     this.setTint(0xffffff);

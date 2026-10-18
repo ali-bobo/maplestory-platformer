@@ -22,7 +22,12 @@ const BASE = `http://127.0.0.1:${PORT}/index.html?debug=1`;
   const SCENE = 'SkyIslandScene';
   const ev = (fn, arg) => page.evaluate(fn, arg);
   // 準備一隻靶：離玩家 dx、血量極高、不動；其他怪清掉；玩家無敵、MP 滿、冷卻歸零
-  const prep = (dx) => ev((dx) => {
+  const prep = async (dx) => {
+    // 職業切換後場景會重建：等新場景的怪物群組可用，避免讀到剛被銷毀的群組（CI 慢機器上偶發）
+    await page.waitForFunction(() => { const sc = window.__game.scene.getScene('SkyIslandScene'); const e = sc && sc.player && sc.player.enemies; return !!(e && e.children && e.getChildren().length); }, null, { timeout: 20000 });
+    return prep0(dx);
+  };
+  const prep0 = (dx) => ev((dx) => {
     const g = window.__game; const sc = g.scene.getScene('SkyIslandScene'); const p = sc.player; const gs = g.registry.get('gameState');
     const ms = p.enemies.getChildren();
     const m = ms[0];
@@ -68,7 +73,7 @@ const BASE = `http://127.0.0.1:${PORT}/index.html?debug=1`;
   await page.waitForTimeout(600);
   let s = await state();
   check('刺客：待機動作圖是 player_assassin_*', s.tex.startsWith('player_assassin_'), s.tex);
-  check('刺客：HUD 職業名與頭像', await ev(() => { const u = window.__game.scene.getScene('UIScene'); return u._classText.text.includes('刺客') && u._portrait.texture.key === 'portrait_assassin'; }));
+  check('刺客：HUD 職業名與頭像', await page.waitForFunction(() => { const u = window.__game.scene.getScene('UIScene'); return u._classText.text.includes('刺客') && u._portrait.texture.key === 'portrait_assassin'; }, null, { timeout: 5000 }).then(() => true, () => false));
   check('刺客：技能欄預設 Z X C backstab（Lv.30 全解鎖，可自訂）', await ev(() => JSON.stringify(window.__game.registry.get('gameState').skillSlots)) === '["Z","X","C","backstab"]');
   await shot('job-assassin-idle');
 
@@ -158,7 +163,7 @@ const BASE = `http://127.0.0.1:${PORT}/index.html?debug=1`;
   await page.waitForTimeout(600);
   s = await state();
   check('俠盜：待機動作圖是 player_bandit_*', s.tex.startsWith('player_bandit_'), s.tex);
-  check('俠盜：HUD 職業名與頭像', await ev(() => { const u = window.__game.scene.getScene('UIScene'); return u._classText.text.includes('俠盜') && u._portrait.texture.key === 'portrait_bandit'; }));
+  check('俠盜：HUD 職業名與頭像', await page.waitForFunction(() => { const u = window.__game.scene.getScene('UIScene'); return u._classText.text.includes('俠盜') && u._portrait.texture.key === 'portrait_bandit'; }, null, { timeout: 5000 }).then(() => true, () => false));
   check('俠盜：技能欄預設 X V B whirl', await ev(() => JSON.stringify(window.__game.registry.get('gameState').skillSlots)) === '["X","V","B","whirl"]');
   await shot('job-bandit-idle');
 
