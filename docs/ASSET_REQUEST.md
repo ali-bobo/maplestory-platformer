@@ -30,7 +30,7 @@
 
 ### 0.1 美術風格
 
-- **楓之谷風手繪卡通 2D**：粗細一致的深色細輪廓線、柔和賽璐珞上色（2～3 階明暗）、飽和但不刺眼的色彩、可愛圓潤的比例（角色約 2.5～3 頭身）。
+- **手繪卡通 2D**：粗細一致的深色細輪廓線、柔和賽璐珞上色（2～3 階明暗）、飽和但不刺眼的色彩、可愛圓潤的比例（角色約 2.5～3 頭身）。
 - 光源固定**左上**；陰影偏冷色；高光用小塊亮色，不要寫實漸層、不要寫實質感、不要 3D 渲染感。
 - 與現有素材並排時要看不出差異：參考 `dist/assets/` 內既有圖（`player_idle.png`、`monster_slime.png`、`npc_merchant.png`、`bg_sky.webp`）。
 - **圖中不可出現文字、浮水印、簽名、UI 邊框**（文字由遊戲繪製）。
@@ -86,7 +86,7 @@
 
 ```
 STYLE PREFIX:
-2D side-view game sprite in MapleStory-like hand-painted cartoon style, chibi 2.5-3 heads tall,
+2D side-view game sprite in hand-painted cartoon style, chibi 2.5-3 heads tall,
 clean uniform dark outline, soft cel shading with 2-3 tones, light from upper-left, saturated but
 harmonious colors, cute rounded proportions, facing right, full body, transparent background,
 no text, no watermark, no ground shadow, centered, feet touching the bottom edge of the image.
@@ -102,7 +102,7 @@ extra limbs, white background, gradient background, harsh outline variation
 
 ```
 BACKGROUND PREFIX:
-Wide 2D side-scrolling game background, MapleStory-like painterly cartoon style, soft clouds and
+Wide 2D side-scrolling game background, painterly cartoon style, soft clouds and
 atmospheric depth, three depth layers (far / mid / near), the lower 20% of the image is a calm
 area where platforms will be placed, no characters, no text, no UI, horizontally seamless composition,
 aspect ratio 1376:768.

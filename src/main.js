@@ -2,11 +2,11 @@ import Phaser from 'phaser';
 import RexUIPlugin from 'phaser3-rex-plugins/templates/ui/ui-plugin.js';
 import { BootScene } from './scenes/BootScene.js';
 import { MenuScene } from './scenes/MenuScene.js';
-import { MapleIslandScene } from './scenes/MapleIslandScene.js';
-import { HenesysScene } from './scenes/HenesysScene.js';
-import { ElliniaScene } from './scenes/ElliniaScene.js';
-import { PerionScene } from './scenes/PerionScene.js';
-import { KerningScene } from './scenes/KerningScene.js';
+import { SkyIslandScene } from './scenes/SkyIslandScene.js';
+import { ForestScene } from './scenes/ForestScene.js';
+import { MysticScene } from './scenes/MysticScene.js';
+import { RuinsScene } from './scenes/RuinsScene.js';
+import { AlleyScene } from './scenes/AlleyScene.js';
 import { TaipeiScene } from './scenes/TaipeiScene.js';
 import { TownScene } from './scenes/TownScene.js';
 import { ShrineScene } from './scenes/ShrineScene.js';
@@ -83,11 +83,11 @@ const config = {
   scene: [
     BootScene,
     MenuScene,
-    MapleIslandScene,
-    HenesysScene,
-    ElliniaScene,
-    PerionScene,
-    KerningScene,
+    SkyIslandScene,
+    ForestScene,
+    MysticScene,
+    RuinsScene,
+    AlleyScene,
     TaipeiScene,
     TownScene,
     ShrineScene,

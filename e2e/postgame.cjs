@@ -24,7 +24,7 @@ const check = (n, c, x = '') => { console.log((c ? 'PASS' : 'FAIL') + ' - ' + n 
   page.on('pageerror', (e) => errors.push(e.message));
   page.on('console', (m) => { if (m.type() === 'error' && !m.text().includes('Failed to load resource')) errors.push(m.text()); });
 
-  const ROUTE = ['town', 'sky', 'henesys', 'ruins', 'harbor', 'desert', 'snow', 'lava', 'castle'];
+  const ROUTE = ['town', 'sky', 'forest', 'ruins', 'harbor', 'desert', 'snow', 'lava', 'castle'];
   const seeded = { format: 'thief-legend-save', version: 1, savedAt: Date.now(), state: {
     level: 45, exp: 0, maxHp: 4000, maxMp: 2000, atk: 900, meso: 200000, killCount: 3000,
     shards: ['harbor', 'desert', 'snow', 'lava', 'castle'], towerLit: true, bossUnlocked: true,

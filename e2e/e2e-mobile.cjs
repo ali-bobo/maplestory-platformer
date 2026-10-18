@@ -44,10 +44,10 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   await page.screenshot({ path: SP + '/m-game.png' });
 
   const state = () => page.evaluate(() => {
-    const g = window.__game; const sc = g.scene.getScene('MapleIslandScene');
+    const g = window.__game; const sc = g.scene.getScene('SkyIslandScene');
     const p = sc && sc.player; const gs = g.registry.get('gameState');
     return { x: p ? p.x : null, y: p ? p.y : null, vx: p ? p.body.velocity.x : null, vy: p ? p.body.velocity.y : null, cdZ: gs.skillCooldowns.ATK, mp: gs.mp,
-      paused: g.scene.isPaused('MapleIslandScene'), left: p && p.cursors.left.isDown, right: p && p.cursors.right.isDown };
+      paused: g.scene.isPaused('SkyIslandScene'), left: p && p.cursors.left.isDown, right: p && p.cursors.right.isDown };
   });
   const rect = (sel) => page.evaluate((s) => { const r = document.querySelector(s).getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width, h: r.height }; }, sel);
 

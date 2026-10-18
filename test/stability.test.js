@@ -14,7 +14,7 @@ import { hashBuffer, hashFiles, injectSwVersions, versionJson } from '../scripts
 const ORIGIN = 'https://ali-bobo.github.io';
 
 test('isOwnError：本站腳本的錯誤要提示', () => {
-  assert.equal(isOwnError({ filename: `${ORIGIN}/maplestory-platformer/dist/bundle.js`, message: 'TypeError: x is undefined' }, ORIGIN), true);
+  assert.equal(isOwnError({ filename: `${ORIGIN}/thief-legend/dist/bundle.js`, message: 'TypeError: x is undefined' }, ORIGIN), true);
   assert.equal(isOwnError({ filename: ORIGIN, message: 'boom' }, ORIGIN), true);
   // 沒有檔名（Promise rejection）但不是跨來源遮罩：算本站
   assert.equal(isOwnError({ filename: '', message: 'load failed', stack: `Error\n at ${ORIGIN}/dist/bundle.js:1:2` }, ORIGIN), true);
@@ -122,7 +122,7 @@ test('更新紀錄：有內容、標題不重複、長度放得進面板、含�
 
 test('shouldRegisterSW：只在正式網址的 http(s) 註冊', () => {
   const loc = (href) => { const u = new URL(href); return { protocol: u.protocol, hostname: u.hostname, search: u.search }; };
-  assert.equal(shouldRegisterSW(loc('https://ali-bobo.github.io/maplestory-platformer/')), true);
+  assert.equal(shouldRegisterSW(loc('https://ali-bobo.github.io/thief-legend/')), true);
   assert.equal(shouldRegisterSW(loc('http://192.168.1.20:3000/')), true);
   assert.equal(shouldRegisterSW(loc('https://ali-bobo.github.io/?debug=1')), false);
   assert.equal(shouldRegisterSW(loc('http://localhost:3000/')), false);

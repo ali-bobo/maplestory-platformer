@@ -104,7 +104,7 @@ test('地圖：未知 → sky；副本 → town；Boss → 主線終點；合法
   assert.equal(sanitizeState({ currentMap: 'constructor' }).currentMap, 'sky');
   assert.equal(sanitizeState({ currentMap: 'dungeon' }).currentMap, 'town');
   assert.equal(sanitizeState({ currentMap: 'boss' }).currentMap, BOSS_FALLBACK_MAP);
-  assert.equal(sanitizeState({ currentMap: 'ellinia' }).currentMap, 'ellinia');
+  assert.equal(sanitizeState({ currentMap: 'mystic' }).currentMap, 'mystic');
   assert.equal(sanitizeState({ currentMap: 42 }).currentMap, 'sky');
 });
 
@@ -229,14 +229,14 @@ test('重複存讀具冪等性：sanitize(sanitize(x)) 與 sanitize(x) 相同', 
 test('相容舊版存檔格式：{ version, savedAt, gameState }（無 format 欄位）', () => {
   const legacy = JSON.stringify({
     version: 1, savedAt: 1234,
-    gameState: { level: 8, exp: 5, maxHp: 540, meso: 321, currentMap: 'henesys', hp: 3 },
+    gameState: { level: 8, exp: 5, maxHp: 540, meso: 321, currentMap: 'forest', hp: 3 },
   });
   const res = parseSave(legacy);
   assert.ok(res.ok);
   assert.equal(res.savedAt, 1234);
   assert.equal(res.state.level, 8);
   assert.equal(res.state.meso, 321);
-  assert.equal(res.state.currentMap, 'henesys');
+  assert.equal(res.state.currentMap, 'forest');
   assert.equal(res.state.hp, res.state.maxHp);
   // 沒有 format 也沒有 gameState 的東西仍然拒絕
   assert.equal(parseSave('{"version":1,"state":{}}').ok, false);
@@ -319,7 +319,7 @@ test('Boss 解鎖：碎片不足不解鎖；towerLit 需要 5/5 碎片；舊存�
   assert.equal(lit.towerLit, true);
   assert.equal(lit.bossUnlocked, true);
   // 舊版（擊殺 60 解鎖）存檔：沒有 shards / towerLit，只有 bossUnlocked
-  const legacy = sanitizeState({ level: 28, killCount: 75, bossUnlocked: true, currentMap: 'kerning' });
+  const legacy = sanitizeState({ level: 28, killCount: 75, bossUnlocked: true, currentMap: 'alley' });
   assert.equal(legacy.bossUnlocked, true);
   assert.deepEqual(legacy.shards, []);
   assert.equal(legacy.towerLit, false);
@@ -355,10 +355,10 @@ test('grantShard / shardToDrop / lightTower：一個存檔每塊只拿一次，�
 
 test('去過的地圖：只留有效且可落腳的地圖；舊存檔依「起點到目前地圖的路徑」推算', () => {
   assert.deepEqual(sanitizeState({ visitedMaps: ['town', 'nope', 'boss', 'dungeon', 'town', 5] }).visitedMaps.sort(), ['sky', 'town']);   // 目前地圖 sky 一定包含
-  // 舊存檔沒有 visitedMaps：從 sky 走到 ruins 一定經過 henesys
+  // 舊存檔沒有 visitedMaps：從 sky 走到 ruins 一定經過 forest
   const old = sanitizeState({ currentMap: 'ruins' });
-  assert.deepEqual(old.visitedMaps.sort(), ['henesys', 'ruins', 'sky']);
+  assert.deepEqual(old.visitedMaps.sort(), ['forest', 'ruins', 'sky']);
   // 往返不變
-  const s = sanitizeState({ visitedMaps: ['sky', 'henesys'], currentMap: 'henesys' });
+  const s = sanitizeState({ visitedMaps: ['sky', 'forest'], currentMap: 'forest' });
   assert.deepEqual(sanitizeState(JSON.parse(JSON.stringify(s))), s);
 });

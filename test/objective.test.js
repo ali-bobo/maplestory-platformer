@@ -50,12 +50,12 @@ test('進行中任務的怪物不在目前地圖：指向最近有這種怪的�
   const gs = gsAt('ruins', 5, { quests: { active: [active('slime_hunt', 1)], completed: [] } });
   const o = getObjective(gs);
   assert.ok(o.text.startsWith('擊敗果凍精 1/5 → 浮空島嶼'), o.text);
-  assert.ok(o.text.includes('先到森林獵場'), o.text);   // ruins → henesys → sky
+  assert.ok(o.text.includes('先到森林獵場'), o.text);   // ruins → forest → sky
   assert.equal(o.mapKey, 'sky');
 });
 
 test('多個進行中任務：優先顯示目前地圖就能做的，並回報還有幾個', () => {
-  const gs = gsAt('henesys', 6, { quests: { active: [active('slime_hunt', 0), active('stump_clear', 2), active('reach_ruins', 0)], completed: [] } });
+  const gs = gsAt('forest', 6, { quests: { active: [active('slime_hunt', 0), active('stump_clear', 2), active('reach_ruins', 0)], completed: [] } });
   const o = getObjective(gs);
   assert.equal(o.questId, 'stump_clear');
   assert.equal(o.text, '擊敗怒木精 2/5');
@@ -149,17 +149,17 @@ test('壞資料不會丟例外：未知任務 id、缺欄位、怪進度值', ()
 
 test('地圖距離與下一站：由傳送門推出', () => {
   assert.equal(mapDistance('sky', 'sky'), 0);
-  assert.equal(mapDistance('sky', 'henesys'), 1);
+  assert.equal(mapDistance('sky', 'forest'), 1);
   assert.equal(mapDistance('sky', 'ruins'), 2);
-  assert.equal(nextHop('sky', 'ruins'), 'henesys');
-  assert.equal(nextHop('ruins', 'sky'), 'henesys');
+  assert.equal(nextHop('sky', 'ruins'), 'forest');
+  assert.equal(nextHop('ruins', 'sky'), 'forest');
   assert.equal(nextHop('sky', 'sky'), null);
   assert.equal(mapDistance('sky', 'nowhere'), Infinity);
 });
 
 test('練功地圖依等級帶：主線地圖都有等級帶，等級越高越後面', () => {
   assert.equal(grindMap(1), 'sky');
-  assert.equal(grindMap(5), 'henesys');
+  assert.equal(grindMap(5), 'forest');
   assert.equal(grindMap(9), 'ruins');
   assert.equal(grindMap(14), 'harbor');
   assert.equal(grindMap(50), 'castle');

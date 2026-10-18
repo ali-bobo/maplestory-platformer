@@ -1,6 +1,6 @@
 import { WORLD_HEIGHT } from './constants.js';
 
-// 地圖定義 v6.7 — 森林 / 玩具城 / 台北統一採用圖片跳台模型，並重排首章怪物輪廓
+// 地圖定義 v6.7 — 森林 / 神秘之境 / 台北統一採用圖片跳台模型，並重排首章怪物輪廓
 
 const PH = 24;          // 平台高度
 const GROUND_Y = WORLD_HEIGHT;   // 地板頂部固定貼齊 HUD 上緣，移除角色下方黑帶
@@ -32,12 +32,12 @@ const SKY_PLATFORMS = [
   plat(2060, 240, 580, 'wood'),
 ];
 
-// ─────────── 森林獵場 (Henesys) ───────────
+// ─────────── 森林獵場 ───────────
 // 2 層（草地系，棕綠色調）
-const HENESYS_PLATFORMS = [
+const FOREST_PLATFORMS = [
   ground(0, GROUND_Y, MAP_WIDTH, 'grass'),
 
-  // 第一層（y=400）：全部改用森林圖片跳台，沿用 Toytown 腳底接觸線
+  // 第一層（y=400）：全部改用森林圖片跳台，沿用神秘之境的腳底接觸線
   plat(100,  400, 600, 'grass'),
   plat(980,  400, 600, 'wood'),
   plat(1860, 400, 600, 'grass'),
@@ -126,12 +126,12 @@ const RUINS_PLATFORMS = [
   plat(2060, 240, 590, 'stone'),
 ];
 
-// ─────────── 神秘之境 (Ellinia / Toytown) ───────────
+// ─────────── 神秘之境 ───────────
 // 2 層（木頭＋磚石，彩色城市風）
-const ELLINIA_PLATFORMS = [
+const MYSTIC_PLATFORMS = [
   ground(0, GROUND_Y, MAP_WIDTH, 'brick'),
 
-  // 第一層（y=400）：全部採用已驗證的 Toytown 圖片跳台模式
+  // 第一層（y=400）：全部採用已驗證的圖片跳台模式
   plat(100,  400, 600, 'wood'),
   plat(980,  400, 600, 'brick'),
   plat(1860, 400, 600, 'wood'),
@@ -144,7 +144,7 @@ const ELLINIA_PLATFORMS = [
 
 // ─────────── 暗巷城 ───────────
 // 2 層（木頭＋磚石，暗夜都市風）
-const KERNING_PLATFORMS = [
+const ALLEY_PLATFORMS = [
   ground(0, GROUND_Y, MAP_WIDTH, 'brick'),
 
   // 第一層（y=400）：3 個，木頭材質
@@ -220,7 +220,7 @@ const SHRINE_PLATFORMS = [
 export const MAPS = {
   // ── 地圖 1：浮空島嶼（Lv1-8）淡藍天空，輕柔可愛怪物 ──────────────────────
   sky: {
-    key: 'sky', name: '浮空島嶼', sceneKey: 'MapleIslandScene',
+    key: 'sky', name: '浮空島嶼', sceneKey: 'SkyIslandScene',
     width: MAP_WIDTH, bgColor: 0x5588ff,
     platforms: SKY_PLATFORMS,
     bgType: 'sky', bgImage: 'bg_sky',
@@ -235,7 +235,7 @@ export const MAPS = {
     ],
     portals: [
       { x: 30,             y: GROUND_Y - 48, width: 40, height: 72, target: 'town',    label: '←晨曦鎮',   spawnX: 240 },
-      { x: MAP_WIDTH - 50, y: GROUND_Y - 48, width: 40, height: 72, target: 'henesys', label: '→森林獵場', spawnX: 200 },
+      { x: MAP_WIDTH - 50, y: GROUND_Y - 48, width: 40, height: 72, target: 'forest', label: '→森林獵場', spawnX: 200 },
     ],
     npcs: [
       { x: 250, y: GROUND_Y - 60, id: 'npc_new_2', name: '島嶼義工',
@@ -246,11 +246,11 @@ export const MAPS = {
   },
 
   // ── 地圖 2：森林獵場（Lv5-12）綠色森林，自然動物系怪物 ────────────────────
-  henesys: {
-    key: 'henesys', name: '森林獵場', sceneKey: 'HenesysScene',
+  forest: {
+    key: 'forest', name: '森林獵場', sceneKey: 'ForestScene',
     width: MAP_WIDTH, bgColor: 0x336622,
-    platforms: HENESYS_PLATFORMS,
-    bgType: 'henesys', bgImage: 'bg_forest',
+    platforms: FOREST_PLATFORMS,
+    bgType: 'forest', bgImage: 'bg_forest',
     levelBand: [5, 12],
     monsters: [
       // 森林主題：集中林地與野獸，避免再和天空地圖共用整批怪
@@ -262,8 +262,8 @@ export const MAPS = {
     portals: [
       { x: MAP_WIDTH - 50, y: GROUND_Y - 48, width: 40, height: 72, target: 'ruins',   label: '→古代廢墟', spawnX: 200 },
       { x: 30,             y: GROUND_Y - 48, width: 40, height: 72, target: 'sky',     label: '←浮空島嶼', spawnX: MAP_WIDTH - 200 },
-      // 支線岔路：神秘之境（Lv14-20），在右上角跳台上（見 HENESYS_PLATFORMS），按互動鍵進入
-      { x: 2290, y: 180 - 48, width: 40, height: 72, target: 'ellinia', label: '→ 神秘之境 Lv.14', spawnX: 200, interact: true },
+      // 支線岔路：神秘之境（Lv14-20），在右上角跳台上（見 FOREST_PLATFORMS），按互動鍵進入
+      { x: 2290, y: 180 - 48, width: 40, height: 72, target: 'mystic', label: '→ 神秘之境 Lv.14', spawnX: 200, interact: true },
     ],
     npcs: [
       { x: 300, y: GROUND_Y - 60, id: 'npc_new_0', name: '獵人協會員',
@@ -316,7 +316,7 @@ export const MAPS = {
 
   // ── 地圖 3：古代廢墟（Lv9-18）棕橘岩石，機械骷髏系怪物 ───────────────────
   ruins: {
-    key: 'ruins', name: '古代廢墟', sceneKey: 'PerionScene',
+    key: 'ruins', name: '古代廢墟', sceneKey: 'RuinsScene',
     width: MAP_WIDTH, bgColor: 0xc8a060,
     platforms: RUINS_PLATFORMS,
     bgType: 'ruins', bgImage: 'bg_ruins',
@@ -332,7 +332,7 @@ export const MAPS = {
     ],
     portals: [
       { x: MAP_WIDTH - 50, y: GROUND_Y - 48, width: 40, height: 72, target: 'harbor',  label: '→碧濤港', spawnX: 200 },
-      { x: 30,             y: GROUND_Y - 48, width: 40, height: 72, target: 'henesys', label: '←森林獵場', spawnX: MAP_WIDTH - 200 },
+      { x: 30,             y: GROUND_Y - 48, width: 40, height: 72, target: 'forest', label: '←森林獵場', spawnX: MAP_WIDTH - 200 },
     ],
     npcs: [
       { x: 300, y: GROUND_Y - 60, id: 'npc_new_3', name: '廢墟探險家',
@@ -347,11 +347,11 @@ export const MAPS = {
   },
 
   // ── 地圖 4：神秘之境（Lv13-22）彩色城鎮，奇幻多彩怪物 ───────────────────
-  ellinia: {
-    key: 'ellinia', name: '神秘之境', sceneKey: 'ElliniaScene',
+  mystic: {
+    key: 'mystic', name: '神秘之境', sceneKey: 'MysticScene',
     width: MAP_WIDTH, bgColor: 0x4422aa,
-    platforms: ELLINIA_PLATFORMS,
-    bgType: 'ellinia', bgImage: 'bg_mystic',
+    platforms: MYSTIC_PLATFORMS,
+    bgType: 'mystic', bgImage: 'bg_mystic',
     levelBand: [14, 20],
     monsters: [
       // 神秘之境：改成純奇幻高空區，避免與天空 / 廢墟地圖再次重複
@@ -360,7 +360,7 @@ export const MAPS = {
       { id: 'mimic',    count: 3 },
     ],
     portals: [
-      { x: 30,             y: GROUND_Y - 48, width: 40, height: 72, target: 'henesys', label: '←森林獵場', spawnX: 2000 },
+      { x: 30,             y: GROUND_Y - 48, width: 40, height: 72, target: 'forest', label: '←森林獵場', spawnX: 2000 },
     ],
     npcs: [
       { x: 300, y: GROUND_Y - 60, id: 'npc_new_1', name: '神秘嚮導',
@@ -371,11 +371,11 @@ export const MAPS = {
   },
 
   // ── 地圖 5：暗巷城（Lv19-29）暗黑都市，強力城市系怪物 ─────────────
-  kerning: {
-    key: 'kerning', name: '暗巷城', sceneKey: 'KerningScene',
+  alley: {
+    key: 'alley', name: '暗巷城', sceneKey: 'AlleyScene',
     width: MAP_WIDTH, bgColor: 0x111133,
-    platforms: KERNING_PLATFORMS,
-    bgType: 'kerning', bgImage: 'bg_city',
+    platforms: ALLEY_PLATFORMS,
+    bgType: 'alley', bgImage: 'bg_city',
     levelBand: [20, 29],
     monsters: [
       // 都市夜區：保留黑幫 / 夜獸 / 小王，不再與 Taipei 共用機械線
@@ -411,7 +411,7 @@ export const MAPS = {
       { id: 'city_boss1', count: 1 },
     ],
     portals: [
-      { x: 30,             y: GROUND_Y - 48, width: 40, height: 72, target: 'kerning', label: '←暗巷城', spawnX: MAP_WIDTH - 200 },
+      { x: 30,             y: GROUND_Y - 48, width: 40, height: 72, target: 'alley', label: '←暗巷城', spawnX: MAP_WIDTH - 200 },
     ],
     npcs: [
       { x: 330, y: GROUND_Y - 60, id: 'npc_new_5', name: '台北導遊',
@@ -590,7 +590,7 @@ export const MAPS = {
       // 影之殿堂：轉職長老、技能導師與「影之試煉」入口都在那裡
       { x: 1170, y: 200 - 48, width: 40, height: 72, target: 'shrine', label: '→ 影之殿堂', spawnX: 120, interact: true },
       // 城市特區（暗巷城 ⇄ 台北都會）：Lv18 開放
-      { x: 1360, y: 200 - 48, width: 40, height: 72, target: 'kerning', label: '→ 城市特區 Lv.18', spawnX: 200, minLevel: 18, interact: true },
+      { x: 1360, y: 200 - 48, width: 40, height: 72, target: 'alley', label: '→ 城市特區 Lv.18', spawnX: 200, minLevel: 18, interact: true },
     ],
     npcs: [
       // 星光之塔（role: 'starTower'）：互動顯示碎片進度，集滿 5 塊時點亮並解鎖最終 Boss。

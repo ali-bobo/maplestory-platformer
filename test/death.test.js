@@ -56,7 +56,7 @@ test('死亡懲罰：失去全部裝備、屬性回到無裝備的等級基礎�
   gs.unlockedSkills = ['Z', 'X', 'C', 'V']; gs.skillLevels = { Z: 5, X: 3, C: 2, V: 1, B: 0 };
   gs.potions = { A: 7, S: 1, D: 0, R: 2, G: 3 };
   gs.quests = { active: [{ id: 'slime_hunt', progress: 2 }], completed: ['reach_town'] };
-  gs.currentMap = 'ellinia'; gs.hp = 0;
+  gs.currentMap = 'mystic'; gs.hp = 0;
   assert.equal(countEquipment(gs), 5);
 
   const r = applyDeathPenalty(gs, 777.8);
@@ -75,7 +75,7 @@ test('死亡懲罰：失去全部裝備、屬性回到無裝備的等級基礎�
   assert.deepEqual(r.skillLevels, { Z: 5, X: 3, C: 2, V: 1, B: 0 });
   assert.deepEqual(r.potions, { A: 7, S: 1, D: 0, R: 2, G: 3 });
   assert.deepEqual(r.quests, gs.quests);
-  assert.equal(r.currentMap, 'ellinia');
+  assert.equal(r.currentMap, 'mystic');
   assert.equal(r.spawnX, 777);
 });
 
@@ -87,7 +87,7 @@ test('死亡懲罰不修改傳入的狀態', () => {
   assert.deepEqual(JSON.parse(JSON.stringify(gs)), snapshot);
 });
 
-test('副本死亡 → 楓葉城重生；Boss 房死亡 → 主線最後一張地圖重生；兩者都用預設出生點', () => {
+test('副本死亡 → 晨曦鎮重生；Boss 房死亡 → 主線最後一張地圖重生；兩者都用預設出生點', () => {
   const inDungeon = createInitialGameState(); inDungeon.currentMap = 'dungeon';
   const d = applyDeathPenalty(inDungeon, 999);
   assert.equal(d.currentMap, 'town');

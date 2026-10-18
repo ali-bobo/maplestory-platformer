@@ -30,7 +30,7 @@ test('npcQuestMarker：可接 / 進行中 / 可交付 / 沒有任務', () => {
 });
 
 test('npcQuestMarker：進行中（灰 ?）與對話型任務的可交付（金 ?）', () => {
-  const field = MAPS.henesys.npcs.find((n) => n.questIds && n.questIds.includes('mushroom_hunt'));
+  const field = MAPS.forest.npcs.find((n) => n.questIds && n.questIds.includes('mushroom_hunt'));
   assert.ok(field);
   const ids = field.questIds;
   // 全部已接 -> 進行中

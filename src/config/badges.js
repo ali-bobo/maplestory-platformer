@@ -8,6 +8,7 @@
 // 從地面走得到，而且不會離傳送門太近（碰徽章不會誤觸換圖）。
 //
 // id 是存進 gameState.badges 的穩定識別字：已發布後不要改名或重複使用。
+// 真的改了名，要把舊 id 加進 engine/legacyIds.js 的 LEGACY_BADGE_IDS，舊存檔才不會掉徽章。
 
 export const BADGES = [
   // ── 浮空島嶼 ──
@@ -15,9 +16,9 @@ export const BADGES = [
   { id: 'sky_2',     map: 'sky',     x: 1510, y: 130 },   // 中央高台的上方
   { id: 'sky_3',     map: 'sky',     x: 2525, y: 204 },   // 右上木台的最右端
   // ── 森林獵場 ──
-  { id: 'henesys_1', map: 'henesys', x: 395,  y: 140 },   // 左上平台的左端上方
-  { id: 'henesys_2', map: 'henesys', x: 1790, y: 204 },   // 中央高台的右端
-  { id: 'henesys_3', map: 'henesys', x: 2525, y: 204 },   // 金色傳送門後方的平台盡頭
+  { id: 'forest_1', map: 'forest', x: 395,  y: 140 },   // 左上平台的左端上方
+  { id: 'forest_2', map: 'forest', x: 1790, y: 204 },   // 中央高台的右端
+  { id: 'forest_3', map: 'forest', x: 2525, y: 204 },   // 金色傳送門後方的平台盡頭
   // ── 古代廢墟 ──
   { id: 'ruins_1',   map: 'ruins',   x: 960,  y: 140 },   // 左上石台的右端上方
   { id: 'ruins_2',   map: 'ruins',   x: 2525, y: 204 },   // 右上石台的最右端
@@ -39,11 +40,11 @@ export const BADGES = [
   { id: 'castle_1',  map: 'castle',  x: 470,  y: 140 },   // 左上城牆的左端上方
   { id: 'castle_2',  map: 'castle',  x: 2490, y: 204 },   // 右上城牆的最右端
   // ── 神秘之境 ──
-  { id: 'ellinia_1', map: 'ellinia', x: 1230, y: 140 },   // 中央高台的左端上方
-  { id: 'ellinia_2', map: 'ellinia', x: 2525, y: 204 },   // 右上平台的最右端
+  { id: 'mystic_1', map: 'mystic', x: 1230, y: 140 },   // 中央高台的左端上方
+  { id: 'mystic_2', map: 'mystic', x: 2525, y: 204 },   // 右上平台的最右端
   // ── 暗巷城 ──
-  { id: 'kerning_1', map: 'kerning', x: 950,  y: 204 },   // 左上屋頂的右端
-  { id: 'kerning_2', map: 'kerning', x: 2100, y: 140 },   // 右上屋頂的上方
+  { id: 'alley_1', map: 'alley', x: 950,  y: 204 },   // 左上屋頂的右端
+  { id: 'alley_2', map: 'alley', x: 2100, y: 140 },   // 右上屋頂的上方
   // ── 台北都會 ──
   { id: 'taipei_1',  map: 'taipei',  x: 350,  y: 140 },   // 左上高架的左端上方
   { id: 'taipei_2',  map: 'taipei',  x: 2450, y: 204 },   // 右上高架的最右端

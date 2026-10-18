@@ -40,7 +40,7 @@ export const QUESTS = {
     rewards: { exp: 200, meso: 400 },
   },
 
-  // ── 森林獵場（henesys）── 由「獵人協會員」發佈 ────────────────────────────
+  // ── 森林獵場（forest）── 由「獵人協會員」發佈 ────────────────────────────
   mushroom_hunt: {
     id: 'mushroom_hunt',
     name: '蘑菇危機',
@@ -80,7 +80,7 @@ export const QUESTS = {
     rewards: { exp: 500, meso: 1000 },
   },
 
-  // ── 神秘之境（ellinia）── 由「神秘嚮導」發佈 ──────────────────────────────
+  // ── 神秘之境（mystic）── 由「神秘嚮導」發佈 ──────────────────────────────
   dragon_slayer: {
     id: 'dragon_slayer',
     name: '屠龍勇士',
@@ -120,7 +120,7 @@ export const QUESTS = {
     rewards: { exp: 600, meso: 1100 },
   },
 
-  // ── 暗巷城（kerning）── 由「地下城嚮導」發佈 ────────────────────────
+  // ── 暗巷城（alley）── 由「地下城嚮導」發佈 ────────────────────────
   thug_cleanup: {
     id: 'thug_cleanup',
     name: '街頭整治',
@@ -307,7 +307,7 @@ Object.assign(QUESTS, {
     name: '試煉之證',
     desc: '在浮空島嶼、森林獵場或古代廢墟打倒怪物，收集 5 個「試煉之證」。',
     type: 'collect', target: TRIAL_ITEM, count: 5,
-    collect: { maps: ['sky', 'henesys', 'ruins'], dropRate: 0.4 },
+    collect: { maps: ['sky', 'forest', 'ruins'], dropRate: 0.4 },
     requires: ['job_choose'],
     rewards: { exp: 300, meso: 800 },
   },

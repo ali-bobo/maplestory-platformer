@@ -37,7 +37,7 @@ const KEY = 'thief-legend-save-v1';
   };
 
   await start(page);
-  check('新遊戲在浮空島嶼', (await a.scene()) === 'MapleIslandScene');
+  check('新遊戲在浮空島嶼', (await a.scene()) === 'SkyIslandScene');
   check('浮空島嶼有 3 枚徽章', JSON.stringify(await field()) === JSON.stringify(['sky_1', 'sky_2', 'sky_3']), JSON.stringify(await field()));
 
   // 截圖：站在徽章旁（左上草地平台），看得到徽章的浮動與光暈
@@ -58,37 +58,37 @@ const KEY = 'thief-legend-save-v1';
   check('立即存檔（不等 30 秒自動存檔）', JSON.stringify(await savedBadges()) === '["sky_1"]', JSON.stringify(await savedBadges()));
   check('再碰同一個位置不會重複計數', (await a.tp(400, 140), await page.waitForTimeout(500), (await a.gs()).badges.length === 1));
 
-  // 2. 森林獵場：撿 henesys_2
-  await a.go('HenesysScene', 300);
-  check('進入森林獵場', (await a.scene()) === 'HenesysScene');
-  check('瞬移到 henesys_2', await touch('henesys_2'));
+  // 2. 森林獵場：撿 forest_2
+  await a.go('ForestScene', 300);
+  check('進入森林獵場', (await a.scene()) === 'ForestScene');
+  check('瞬移到 forest_2', await touch('forest_2'));
   gs = await a.gs();
-  check('撿到 henesys_2：計數 2', gs.badges.length === 2 && gs.badges.includes('henesys_2'), JSON.stringify(gs.badges));
+  check('撿到 forest_2：計數 2', gs.badges.length === 2 && gs.badges.includes('forest_2'), JSON.stringify(gs.badges));
   check('存檔裡有 2 枚', (await savedBadges() || []).length === 2);
 
-  // 3. 重新整理 → 繼續遊戲：徽章還在，森林獵場的 henesys_2 不再出現
+  // 3. 重新整理 → 繼續遊戲：徽章還在，森林獵場的 forest_2 不再出現
   await page.reload();
   await page.waitForTimeout(6000);
   await page.keyboard.press('Enter');
   await page.waitForFunction(() => window.__game && window.__game.scene.getScenes(true).some((x) => x.player), null, { timeout: 40000 });
   await page.waitForTimeout(1500);
   gs = await a.gs();
-  check('讀檔後落在森林獵場', (await a.scene()) === 'HenesysScene', await a.scene());
-  check('讀檔後徽章仍是 2 枚', JSON.stringify(gs.badges) === '["sky_1","henesys_2"]', JSON.stringify(gs.badges));
-  check('讀檔後 henesys_2 不再出現、另外兩枚還在', JSON.stringify(await field()) === '["henesys_1","henesys_3"]', JSON.stringify(await field()));
+  check('讀檔後落在森林獵場', (await a.scene()) === 'ForestScene', await a.scene());
+  check('讀檔後徽章仍是 2 枚', JSON.stringify(gs.badges) === '["sky_1","forest_2"]', JSON.stringify(gs.badges));
+  check('讀檔後 forest_2 不再出現、另外兩枚還在', JSON.stringify(await field()) === '["forest_1","forest_3"]', JSON.stringify(await field()));
 
-  // 4. 跨過 10 枚門檻：先把存檔補到 9 枚（別張圖的），再撿 henesys_1 → 金幣 +2000、只發一次
+  // 4. 跨過 10 枚門檻：先把存檔補到 9 枚（別張圖的），再撿 forest_1 → 金幣 +2000、只發一次
   await page.evaluate(() => {
     const gs = window.__game.registry.get('gameState');
-    gs.badges = ['sky_1', 'henesys_2', 'ruins_1', 'ruins_2', 'harbor_1', 'harbor_2', 'harbor_3', 'desert_1', 'desert_2'];
+    gs.badges = ['sky_1', 'forest_2', 'ruins_1', 'ruins_2', 'harbor_1', 'harbor_2', 'harbor_3', 'desert_1', 'desert_2'];
   });
   const mesoBefore = (await a.gs()).meso;
-  check('瞬移到 henesys_1', await touch('henesys_1'));
+  check('瞬移到 forest_1', await touch('forest_1'));
   gs = await a.gs();
   check('第 10 枚：金幣 +2000、已領門檻 [10]', gs.meso === mesoBefore + 2000 && JSON.stringify(gs.badgeRewards) === '[10]',
     JSON.stringify({ meso: gs.meso, before: mesoBefore, rw: gs.badgeRewards }));
   await page.screenshot({ path: `${SP}/badge-reward.png` });
-  check('瞬移到 henesys_3', await touch('henesys_3'));
+  check('瞬移到 forest_3', await touch('forest_3'));
   gs = await a.gs();
   check('第 11 枚不再發 10 枚獎勵', gs.meso === mesoBefore + 2000 && gs.badges.length === 11, JSON.stringify({ meso: gs.meso, n: gs.badges.length }));
 

@@ -66,10 +66,10 @@
 
 ### 當前地圖與怪物主題狀態
 - **sky**：新手天空系，維持輕量且可愛的起手怪組。
-- **henesys**：以植物 / 菇類為核心，只保留少量林地獸點綴。
+- **forest**：以植物 / 菇類為核心，只保留少量林地獸點綴。
 - **ruins**：以戰士、岩石與重裝大型怪為主，形成峽谷壓迫感。
-- **ellinia**：精靈、飛行與奇幻怪作為彩色過渡地帶。
-- **kerning**：黑幫、夜獸與少量有趣異種混搭，並由低頻率小王鎮守 Boss 入口。
+- **mystic**：精靈、飛行與奇幻怪作為彩色過渡地帶。
+- **alley**：黑幫、夜獸與少量有趣異種混搭，並由低頻率小王鎮守 Boss 入口。
 - **taipei**：機械、菁英與都會督軍為主，平台配置優先維持乾淨輪廓。
 
 ---
@@ -110,11 +110,11 @@ project/
 │   │   ├── BootScene.js         — 資源預載與初始 GameState
 │   │   ├── MenuScene.js         — 主選單
 │   │   ├── BaseMapScene.js      — 共用地圖流程、NPC、傳送、戰鬥循環
-│   │   ├── MapleIslandScene.js  — 浮空島嶼
-│   │   ├── HenesysScene.js      — 森林獵場
-│   │   ├── ElliniaScene.js      — 神秘之境
-│   │   ├── PerionScene.js       — 高地戰區
-│   │   ├── KerningScene.js      — 暗巷城
+│   │   ├── SkyIslandScene.js  — 浮空島嶼
+│   │   ├── ForestScene.js      — 森林獵場
+│   │   ├── MysticScene.js      — 神秘之境
+│   │   ├── RuinsScene.js       — 高地戰區
+│   │   ├── AlleyScene.js      — 暗巷城
 │   │   ├── TownScene.js         — 城鎮 / 商店基礎場景
 │   │   ├── TaipeiScene.js       — 台北支線城市
 │   │   ├── BossScene.js         — 暗影領域
@@ -180,7 +180,7 @@ POST /api/auth    — 帳號系統（未來）
 3. 身體（深藍黑 #1a1a2e 盜賊服）
 4. 頭部（膚色 #FFD4A3 圓形，略大）
 5. 頭髮（深棕 #2C1810，頭部上半）
-6. 眼睛（白圓 + 黑瞳，楓之谷大眼風）
+6. 眼睛（白圓 + 黑瞳，卡通大眼風）
 7. 手臂（膚色小矩形，左右各一）
 8. 腿部（深色長褲，走路時交替）
 ```
@@ -283,7 +283,7 @@ POST /api/auth    — 帳號系統（未來）
   HP 血條（怪物頂部上方 4px，綠色細條，長 40px）
   受傷後血條變橘色閃爍提示
 
-目標選取標記（參考 Henesys 截圖紅框）：
+目標選取標記（紅色虛線框）：
   玩家最近攻擊的怪物顯示紅色虛線矩形框
   框以 setLineDash([4,4]) 繪製
   閃爍動畫：每 0.4s 切換顯示/隱藏
@@ -295,17 +295,17 @@ POST /api/auth    — 帳號系統（未來）
 
 #### 平台繪製語言
 ```
-【草地平台（楓之島/Henesys）】
+【草地平台（浮空島嶼 / 森林獵場）】
   頂面：亮草綠 #5C8A3C，5px 高，帶不規則草葉裝飾
   側面/底面：泥土色 #8B6914，帶深色橫條紋
   邊緣：深綠 #3D5C28 1px 描邊
   平台下方有木根裝飾伸出（純視覺）
 
-【石磚平台（Perion 荒原）】（參考截圖3岩石平台）
+【石磚平台（古代廢墟）】（參考截圖3岩石平台）
   頂面：淡棕 #C4A882，石板紋路（每 24px 一條細紋）
   側面：岩石灰 #8C7B6B，不規則縫隙效果
 
-【磚牆平台（Kerning 地下城）】（參考截圖1城市磚牆）
+【磚牆平台（暗巷城）】（參考截圖1城市磚牆）
   磚塊圖案：每磚約 16×8px，橘紅 #B5451B + 深縫 #7A2E0E
   磚牆背景延伸至螢幕全高
   牆面裝飾：塗鴉文字、管線（程式繪製簡化矩形）
@@ -320,19 +320,19 @@ POST /api/auth    — 帳號系統（未來）
 #### 各地圖背景層規格
 
 ```
-【楓之島 / Henesys — 草原晴天】
+【森林獵場 — 草原晴天】
   Layer 0（固定）  : 天空漸層 #4AAFE8 → #87CEEB → #B0E2FF
   Layer 1（0.05x） : 遠山淡藍剪影 #A8C8E8，高度 80px
   Layer 2（0.15x） : 厚重圓形白雲 × 4~6，多圓疊加，shadowBlur:10
   Layer 3（0.3x）  : 遠景深綠樹叢 #1C4A1C 剪影
-  Layer 4（0.6x）  : 中景橘葉楓樹，落葉粒子（橙/紅，每2s飄落）
+  Layer 4（0.6x）  : 中景橘葉樹，落葉粒子（橙/紅，每2s飄落）
   Layer 5（0.9x）  : 地面密鋪蘑菇（每 40px 一個，橙蘑菇或帽帽菇交替）
 
-  蘑菇裝飾（純視覺，不可互動，參考 Henesys 截圖密集感）：
+  蘑菇裝飾（純視覺，不可互動，前景要有密集感）：
     傘 r=6，白點 × 3，柄高 8px，顏色 #E8543A
     密度：前景每 40px，中景每 80px
 
-【Ellinia 森林 — 暖秋光線】（參考截圖4）
+【神秘之境 — 暖秋光線】（參考截圖4）
   Layer 0 : 暖橘漸層天空 #C8733A → #E8A860
   Layer 1 : 遠景岩石峭壁（米黃/棕），不規則剪影
   Layer 2 : 秋色圓頭大樹（橙 #E87830、紅 #C83820、黃 #D8A820）
@@ -341,7 +341,7 @@ POST /api/auth    — 帳號系統（未來）
   Layer 4 : 光線柱（白色半透明光束 3~4 條，opacity:0.12）
   落葉粒子：橙色菱形，緩慢左右飄落（每3s生成 5~8 顆）
 
-【Perion 荒原 — 岩石廢墟】（參考截圖3）
+【古代廢墟 — 岩石廢墟】（參考截圖3）
   Layer 0 : 淡灰藍天 #B8C8D8，偏冷
   Layer 1 : 遠景城堡剪影（灰色，shadowBlur:8 模糊感）
   Layer 2 : 遠景懸崖岩壁（土黃 #C4A06A + 深棕縫隙）
@@ -349,7 +349,7 @@ POST /api/auth    — 帳號系統（未來）
   Layer 4 : 枯木/木柵欄裝飾
   特效    : 沙塵粒子（米白色，靠近地面，緩慢飄動）
 
-【Kerning 城市地下】（參考截圖1）
+【暗巷城 — 城市地下】（參考截圖1）
   Layer 0 : 深色牆面背景 #2A1A0E（無天空）
   Layer 1 : 後方磚牆（磚紋 #8B3A1A，全高）
   Layer 2 : 建築物剪影（窗格、階梯）
@@ -357,13 +357,13 @@ POST /api/auth    — 帳號系統（未來）
   Layer 4 : 路燈（昏黃光圈，shadowBlur:30，#FFD070，每 300px）
   特效    : 幽暗浮塵（深灰小點，非常緩慢上浮）
 
-【天空地圖（楓之島高空）】（參考截圖5）
+【天空地圖（浮空島嶼高空）】（參考截圖5）
   Layer 0 : 純藍天 #1A7FD4
   Layer 1 : 大型棉花雲（白色，多圓疊加，shadowBlur:20，緩慢右移）
   Layer 2 : 遠景浮空小島（淡色，作背景點綴）
   特效    : 飛行船（紅白機械氣球，緩慢向右移動，純視覺）
 
-【城鎮 Victoria Port】（參考截圖1）
+【城鎮 晨曦鎮】（參考截圖1）
   Layer 0 : 晴朗白天 #87CEEB
   Layer 1 : 後方木造建築（黃棕色調）
   Layer 2 : 商店招牌（矩形 + 文字，各有自定顏色）
@@ -395,7 +395,7 @@ EXP 條：底部細條，參考截圖2星形圖示 + 數值格式「1265/2000」
   圖示：各技能特色顏色幾何圖案
   冷卻：灰色半透明扇形（順時針），剩餘秒數白色居中
 
-目標選取框（參考 Henesys 截圖紅框）：
+目標選取框（紅色虛線框）：
   紅色虛線矩形 setLineDash([4,4])，圍繞目標怪物
   每 0.4s 切換 visible/hidden
 ```
@@ -419,7 +419,7 @@ ATK:      70（等級每升1級 +4，含裝備加成）
 
 ### 移動系統
 ```
-水平：瞬間達到最高速（楓之谷風格，無加速感）
+水平：瞬間達到最高速（無加速感）
 停止：離開按鍵後 0.1 秒內停止
 跳躍：二段跳，第二段 = 85% 力道
 下穿：按 ↓ + Alt 可穿透 thin 平台往下跳（重要！）
@@ -465,24 +465,24 @@ MP 每秒自動回復 10
 
 | 地圖 ID | 名稱 | Scene 類 | 背景圖 |
 |---------|------|----------|--------|
-| `town` | 晨曦鎮（無怪物，商店 / 副本入口） | TownScene | bg_toytown.png |
-| `sky` | 浮空島嶼 | MapleIslandScene | bg_sky.png |
-| `henesys` | 森林獵場 | HenesysScene | bg_forest.png |
-| `ruins` | 古代廢墟 | PerionScene | bg_ruins.png |
-| `ellinia` | 神秘之境 | ElliniaScene | bg_toytown_refresh.png 等 |
+| `town` | 晨曦鎮（無怪物，商店 / 副本入口） | TownScene | bg_town.webp |
+| `sky` | 浮空島嶼 | SkyIslandScene | bg_sky.png |
+| `forest` | 森林獵場 | ForestScene | bg_forest.png |
+| `ruins` | 古代廢墟 | RuinsScene | bg_ruins.png |
+| `mystic` | 神秘之境 | MysticScene | bg_mystic.webp |
 | `taipei` | 台北都會（支線） | TaipeiScene | bg_taipei.png |
-| `kerning` | 暗巷城 | KerningScene | bg_city.png |
+| `alley` | 暗巷城 | AlleyScene | bg_city.png |
 | `boss` | 暗影領域 | BossScene | bg_boss_room.png |
 | `dungeon` | 史萊姆洞窟（由晨曦鎮進入） | DungeonScene | 見 `config/dungeons.js` |
 
-進程：`town` ↔ `sky` ↔ `henesys` ↔ `ruins` ↔ `ellinia` ↔ `kerning` → `boss`；`ellinia` ↔ `taipei` 為支線。地圖順序與怪物組合以 `src/config/maps.js` 為準。
+進程：`town` ↔ `sky` ↔ `forest` ↔ `ruins` ↔ `mystic` ↔ `alley` → `boss`；`mystic` ↔ `taipei` 為支線。地圖順序與怪物組合以 `src/config/maps.js` 為準。
 
 ### 地圖切換機制
 ```
 - 右側傳送門（抵達地圖最右端）觸發切換
 - 切換時 fadeOut(400ms) → scene.start(nextScene)
 - gameState 完整保留（等級、HP、裝備、擊殺數）
-- Boss 解鎖門：擊殺 60 隻後，kerning 右側出現 Boss 傳送門
+- Boss 解鎖門：擊殺 60 隻後，alley 右側出現 Boss 傳送門
 ```
 
 ### NPC（目前已實作）
@@ -504,7 +504,7 @@ MP 每秒自動回復 10
 - 目前 6 張戰鬥地圖的實際怪物組合以 src/config/maps.js 為準
 ```
 
-### 早期區域分類（Iteration 4 歷史快照，僅供設計參考；henesys / ellinia / taipei 的組合請看 maps.js）
+### 早期區域分類（Iteration 4 歷史快照，僅供設計參考；forest / mystic / taipei 的組合請看 maps.js）
 
 #### 浮空島嶼 sky（Lv1–8）
 | 怪物 ID   | 圖片 key         | 建議等級 | 行為   |
@@ -522,7 +522,7 @@ MP 每秒自動回復 10
 | skeleton | monster_skeleton | Lv14    | chase  |
 | snake    | monster_snake    | Lv17    | ranged |
 
-#### 暗巷城 kerning（Lv19–28）
+#### 暗巷城 alley（Lv19–28）
 | 怪物 ID  | 圖片 key         | 建議等級 | 行為   |
 |---------|-----------------|---------|--------|
 | dragon  | monster_dragon  | Lv19    | chase  |
@@ -651,7 +651,7 @@ Boss 死亡：分解成黑色粒子群，1s 淡出，播放「勝利！」音效
   ↓ 右側傳送門
 古代廢墟 ruins（Lv9–20，boar/robot/skeleton/snake）
   ↓ 右側傳送門
-暗巷城 kerning（Lv18–30，dragon/cyclops/golem/mimic）
+暗巷城 alley（Lv18–30，dragon/cyclops/golem/mimic）
   ↓ 累積擊殺 60 隻 → Boss 傳送門解鎖
 Boss 房（暗影魔君）
   ├── 死亡 → 死亡畫面（擊殺數、等級、遊玩時間）→ 可重新開始
@@ -687,7 +687,7 @@ function checkAABB(a, b) {
 
 ### 後端預留介面（localStorage 暫代）
 ```
-角色存檔目前存於 localStorage（key: 'maple_save'）
+角色存檔目前存於 localStorage（key: 'thief-legend-save-v1'）
 存檔格式預設與後端 API 一致：
 {
   level, exp, hp, mp, meso,

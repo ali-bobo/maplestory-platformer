@@ -33,7 +33,7 @@ const RETUNE = process.argv.includes('--retune');
 const RT = RETUNE ? {
   // expNeeded' = expNeeded × (1 + 3.4 × ((L-1)/49)^1.5)：Lv10 ×1.28、Lv20 ×1.85、Lv30 ×2.6、Lv40 ×3.5、Lv49 ×4.4
   expMult: (L) => 1 + 3.4 * Math.pow((L - 1) / 49, 1.5),
-  hpMult: { sky: 1, henesys: 1, ruins: 1.05, harbor: 1.1, desert: 1.15, snow: 1.2, lava: 1.25, castle: 1.3 },   // 一般怪 HP 倍率
+  hpMult: { sky: 1, forest: 1, ruins: 1.05, harbor: 1.1, desert: 1.15, snow: 1.2, lava: 1.25, castle: 1.3 },   // 一般怪 HP 倍率
   guardTargetSec: 35,       // 守護者戰 normal 玩家目標秒數
   finalTargetSec: 150,      // 最終 Boss
   dropRate: 0.08,           // 一般怪掉裝機率（取代 0.05~0.40）
@@ -76,8 +76,8 @@ const ASSUME = {
 };
 
 // 地圖順序與玩家行進策略：「等級到了下一張圖的下限就換圖」
-const MAIN = ['sky', 'henesys', 'ruins', 'harbor', 'desert', 'snow', 'lava', 'castle'];
-const HOPS = { sky: 1, henesys: 2, ruins: 3, harbor: 4, desert: 5, snow: 6, lava: 7, castle: 8 };
+const MAIN = ['sky', 'forest', 'ruins', 'harbor', 'desert', 'snow', 'lava', 'castle'];
+const HOPS = { sky: 1, forest: 2, ruins: 3, harbor: 4, desert: 5, snow: 6, lava: 7, castle: 8 };
 const HAS_REGION_SHOP = new Set(['desert', 'snow', 'lava', 'castle']);
 const mapLo = (k) => MAPS[k].levelBand[0];
 // 行進規則：等級到了下一張圖的下限，而且前面每張圖的守護者都打倒了（或該圖沒有守護者）才換圖

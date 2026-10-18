@@ -1,7 +1,7 @@
 {
  "version": "3.0.0",
- "hash": "930c0a41bc7b",
- "assetsHash": "6e3b6091a2e2",
+ "hash": "7df32b894963",
+ "assetsHash": "75f6e605c18e",
  "assets": [
   "dist/assets/bg_boss_room.webp",
   "dist/assets/bg_boss_room_rage.webp",
@@ -40,7 +40,6 @@
   "dist/assets/fx_star_restore.png",
   "dist/assets/fx_vortex.png",
   "dist/assets/fx_whirl.png",
-  "dist/assets/hisoka.jpg",
   "dist/assets/hud_bar_frame.png",
   "dist/assets/hud_panel.png",
   "dist/assets/hud_panel_sm.png",

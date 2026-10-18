@@ -4,9 +4,9 @@
 import { MAPS } from '../config/maps.js';
 
 // 主線（照底圖上的畫出來的路線由左到右）：10 個節點剛好對應 ui_world_map 的 10 個錨點
-export const WORLD_ROUTE = ['town', 'sky', 'henesys', 'ruins', 'harbor', 'desert', 'snow', 'lava', 'castle', 'boss'];
+export const WORLD_ROUTE = ['town', 'sky', 'forest', 'ruins', 'harbor', 'desert', 'snow', 'lava', 'castle', 'boss'];
 // 支線（畫在側欄，不在底圖路線上）
-export const SIDE_MAPS = ['shrine', 'ellinia', 'kerning', 'taipei'];
+export const SIDE_MAPS = ['shrine', 'mystic', 'alley', 'taipei'];
 
 // ui_world_map.webp（960×558）上的節點位置，來自 docs/asset_src/ui_world_map_nodes.json
 export const WORLD_MAP_SIZE = { w: 960, h: 558 };
