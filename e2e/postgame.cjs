@@ -5,7 +5,7 @@
 //  4. 困難難度讓新生成的怪物 HP ×1.4、攻擊力 ×1.3（普通 = 原數值）
 //  5. 載入條下方顯示提示（故意延遲素材下載讓載入條出現）；死亡結算畫面有提示
 // 用法：PORT=8134 node e2e/postgame.cjs /tmp/shots
-const { chromium } = require('/opt/node-tools/node_modules/playwright');
+const { chromium, executablePath: PW_EXE } = require('./pw.cjs');
 const PORT = process.env.PORT || 8123;
 const SP = process.argv[2] || '.';
 const URL = `http://127.0.0.1:${PORT}/index.html?debug=1`;
@@ -15,7 +15,7 @@ const check = (n, c, x = '') => { console.log((c ? 'PASS' : 'FAIL') + ' - ' + n 
 
 (async () => {
   const browser = await chromium.launch({
-    executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome',
+    executablePath: PW_EXE,
     args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--no-sandbox'],
   });
   const page = await (await browser.newContext({ viewport: { width: 1280, height: 720 } })).newPage();

@@ -1,13 +1,13 @@
 // 技能平衡實測：每個職業、每個技能對靜止的高血量靶施放數次，量「實際造成的傷害 / 攻擊力 / MP」，並斷言設計意圖。
 // 用法：PORT=8403 node e2e/balance.cjs   （atk 固定 100，暴擊 20% / ×1.8，所有技能 1 級）
-const { chromium } = require('/opt/node-tools/node_modules/playwright');
+const { chromium, executablePath: PW_EXE } = require('./pw.cjs');
 const PORT = process.env.PORT || 8403;
 const BASE = `http://127.0.0.1:${PORT}/index.html?debug=1`;
 let fails = 0;
 const check = (n, c, x = '') => { console.log((c ? 'PASS' : 'FAIL') + ' - ' + n + (x ? ' :: ' + x : '')); if (!c) fails++; };
 
 (async () => {
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome',
+  const b = await chromium.launch({ executablePath: PW_EXE,
     args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--no-sandbox', '--autoplay-policy=no-user-gesture-required'] });
   const page = await (await b.newContext({ viewport: { width: 1280, height: 720 } })).newPage();
   const errors = [];
@@ -19,15 +19,39 @@ const check = (n, c, x = '') => { console.log((c ? 'PASS' : 'FAIL') + ' - ' + n 
   await page.waitForTimeout(1500);
   const ev = (fn, arg) => page.evaluate(fn, arg);
 
-  // 擺 n 隻靜止靶（hp 極高、AI 關閉），回傳初始總血量
+  // 擺 n 隻靜止靶（hp 極高、AI 關閉），回傳靶數。
+  // 注意（之前中途崩潰的原因）：
+  //  1. 只用 setPosition 搬怪，Arcade body 要到下一個物理步才跟上；headless 約 10 FPS，搬完馬上施放時 body 還留在舊位置。
+  //     暗殺用 body.center 找最近敵人、卻用 sprite.x 算「背後」：舊版把多餘的怪 setPosition(-5000) 停到畫面外，
+  //     牠的 body 還在玩家身邊 → 被選成目標 → 瞬移點夾到地圖左緣 x=40，剛好踩上通往村莊的傳送門 → 換場景、所有怪被 destroy。
+  //     所以搬怪一律用 body.reset（sprite 與 body 同步），多餘的怪直接停用（不顯示、不參與碰撞、不會被技能選中）。
+  //  2. 量測原點固定在地面上離傳送門最遠的位置，不沿用玩家「目前」位置（瞬移 / 擊退會讓原點越漂越靠近地圖邊緣）。
   const setup = (n) => ev((n) => {
     const g = window.__game; const sc = g.scene.getScenes(true).find((x) => x.player); const p = sc.player; const gs = g.registry.get('gameState');
-    window.__ms = window.__ms || [];
+    if (!window.__balScene) window.__balScene = sc.scene.key;
+    if (sc.scene.key !== window.__balScene) throw new Error(`場景從 ${window.__balScene} 換成 ${sc.scene.key}（玩家被傳送或死亡）`);
+    if (!window.__anchor) {
+      const ground = sc.mapData.platforms.find((pl) => pl.isGround) || sc.mapData.platforms[0];
+      const portalXs = sc.portals.getChildren().map((o) => o.x);
+      const W = sc.physics.world.bounds.width;
+      let best = W / 2, bestD = -1;
+      for (let x = 300; x <= W - 300; x += 20) {
+        const d = portalXs.length ? Math.min(...portalXs.map((px) => Math.abs(px - x))) : W;
+        if (d > bestD) { bestD = d; best = x; }
+      }
+      window.__anchor = { x: best, y: ground.y };
+    }
+    window.__px = window.__anchor.x; window.__py = window.__anchor.y;
+    p.setPosition(window.__px, window.__py); p.body.reset(window.__px, window.__py);
     const all = p.enemies.getChildren();
     window.__ms = all.slice(0, n);
-    for (const o of all.slice(n)) { o.update = () => {}; o.setPosition(-5000, 0); o.hp = o.maxHp = 1e9; }   // 其他怪停到畫面外（不 destroy，下一次還要用）
+    for (const o of all.slice(n)) {   // 其他怪停用（不 destroy，下一次還要用）
+      o.update = () => {}; o.hp = o.maxHp = 1e9; o._mark = null; o._poison = null;
+      o.setActive(false).setVisible(false); if (o.body) { o.body.reset(o.x, o.y); o.body.enable = false; }
+    }
     window.__ms.forEach((m, i) => {
-      m.update = () => {}; m.setPosition(p.x + 70 + i * 28, p.y); m.body.setVelocity(0, 0);
+      m.update = () => {}; m.setActive(true).setVisible(true); m.body.enable = true;
+      m.body.reset(window.__px + 70 + i * 28, window.__py);
       m.hp = m.maxHp = 1e9; m._mark = null; m._poison = null;
     });
     gs.atk = 100; gs.critRate = 0.2; gs.critMulti = 1.8; gs.hp = gs.maxHp = 9999; gs.mp = gs.maxMp = 9999; p.isInvincible = true;
@@ -37,17 +61,18 @@ const check = (n, c, x = '') => { console.log((c ? 'PASS' : 'FAIL') + ' - ' + n 
   const reset = () => ev(() => {
     const g = window.__game; const sc = g.scene.getScenes(true).find((x) => x.player); const p = sc.player; const gs = g.registry.get('gameState');
     for (const k of Object.keys(gs.skillCooldowns)) gs.skillCooldowns[k] = 0;
-    gs.mp = gs.maxMp; p.facingRight = true; p.setFlipX(false); p.isInvincible = true;
-    // 瞬移類技能會把玩家帶走：每次施放前回到原位、靶回到身前
+    if (sc.scene.key !== window.__balScene) throw new Error(`場景從 ${window.__balScene} 換成 ${sc.scene.key}（玩家被傳送或死亡）`);
+    if (window.__ms.some((m) => !m.active || !m.body)) throw new Error('靶被移除了（body 消失）');
+    gs.mp = gs.maxMp; gs.hp = gs.maxHp; p.facingRight = true; p.setFlipX(false); p.isInvincible = true;
+    // 瞬移類技能會把玩家帶走：每次施放前回到原位、靶回到身前（body.reset：sprite 與 body 立刻同步、速度歸零）
     p.setPosition(window.__px, window.__py); p.body.reset(window.__px, window.__py);
-    window.__ms.forEach((m, i) => { m.setPosition(window.__px + 70 + i * 28, window.__py); m.body.setVelocity(0, 0); m._poison = null; m._mark = null; });
+    window.__ms.forEach((m, i) => { m.body.reset(window.__px + 70 + i * 28, window.__py); m._poison = null; m._mark = null; });
   });
   const mpOf = () => ev(() => window.__game.registry.get('gameState').mp);
 
   // 對 n 隻靶連放 casts 次技能（每次等 windowMs 讓持續傷害結算），回傳 { perCast(倍攻擊力), mp }
   async function measure(skillId, n, casts, windowMs) {
     await setup(n);
-    await ev(() => { const p = window.__game.scene.getScenes(true).find((x) => x.player).player; window.__px = p.x; window.__py = p.y; });
     let total = 0; let mpUsed = 0;
     for (let i = 0; i < casts; i++) {
       await reset();
@@ -64,7 +89,6 @@ const check = (n, c, x = '') => { console.log((c ? 'PASS' : 'FAIL') + ' - ' + n 
   }
   async function measureBasic(casts) {
     await setup(1);
-    await ev(() => { const p = window.__game.scene.getScenes(true).find((x) => x.player).player; window.__px = p.x; window.__py = p.y; });
     let total = 0; const t0 = Date.now();
     for (let i = 0; i < casts; i++) {
       await reset(); const hp0 = await lost();
@@ -106,8 +130,7 @@ const check = (n, c, x = '') => { console.log((c ? 'PASS' : 'FAIL') + ' - ' + n 
       // 斷命印記：對照有 / 無印記時 8 下普通攻擊的總傷害
       const base = await measureBasic(24);
       await setup(1);
-      await ev(() => { const p = window.__game.scene.getScenes(true).find((x) => x.player).player; window.__px = p.x; window.__py = p.y; });
-      let marked = 0;
+        let marked = 0;
       for (let i = 0; i < 16; i++) {
         await reset(); const hp0 = await lost();
         await ev(() => window.__game.scene.getScenes(true).find((x) => x.player).player.castSkill('mark'));   // reset 會清掉印記，每下重標
