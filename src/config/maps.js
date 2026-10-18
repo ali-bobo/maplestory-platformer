@@ -215,6 +215,7 @@ const SHRINE_PLATFORMS = [
 //   支線：森林獵場 → 神秘之境；晨曦鎮 → 暗巷城 ⇄ 台北都會（城市特區，Lv18 開放）
 // levelBand：建議等級帶 [最低, 最高]（世界地圖顯示用，content.test.js 檢查怪物等級落在帶內）
 // hub：安全樞紐（世界地圖傳送免費）；portal.minLevel：等級不足時傳送門擋下並提示
+// portal.requireCleared：通關（gs.gameCleared）後才出現；portal.oneWay：單向捷徑，不算世界地圖的連線、不要求回程
 
 export const MAPS = {
   // ── 地圖 1：浮空島嶼（Lv1-8）淡藍天空，輕柔可愛怪物 ──────────────────────
@@ -544,6 +545,8 @@ export const MAPS = {
       { x: 30,             y: GROUND_Y - 48, width: 40, height: 72, target: 'lava', label: '←熔岩巢穴', spawnX: MAP_WIDTH - 200 },
       // 主線終點：星光之塔點亮（5/5 碎片）後才出現
       { x: MAP_WIDTH - 50, y: GROUND_Y - 48, width: 40, height: 72, target: 'boss', label: '⚠ Boss 決戰', spawnX: 200, requireBoss: true },
+      // 通關後（擊敗暗影魔君，gs.gameCleared）才出現的回程傳送門：單向、按 F 進入，不畫進世界地圖的連線
+      { x: MAP_WIDTH - 260, y: GROUND_Y - 48, width: 40, height: 72, target: 'town', label: '✦ 回晨曦鎮', spawnX: 240, requireCleared: true, oneWay: true, interact: true },
     ],
     npcs: [
       { x: 330, y: GROUND_Y - 60, id: 'npc_prisoner', npcId: 'prisoner', name: '被囚的騎士',
@@ -564,7 +567,12 @@ export const MAPS = {
     platforms: BOSS_PLATFORMS,
     bgType: 'boss', bgImage: 'bg_boss_room',
     levelBand: [45, 50],
-    monsters: [], portals: [], npcs: [],
+    monsters: [],
+    // 通關後再次挑戰時的退路：左端回晨曦鎮（單向、按 F 進入；進場落點 x=200，不會誤觸）
+    portals: [
+      { x: 70, y: GROUND_Y - 48, width: 40, height: 72, target: 'town', label: '✦ 回晨曦鎮', spawnX: 240, requireCleared: true, oneWay: true, interact: true },
+    ],
+    npcs: [],
     spawnX: 200,
   },
 

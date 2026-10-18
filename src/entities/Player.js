@@ -9,6 +9,8 @@ import { audio } from '../engine/audio.js';
 import { iceVelocity } from '../engine/mapModifierLogic.js';
 import { isEquipmentBetter } from '../config/equipment.js';
 import { ALIGNMENT_PROFILES, applyAlignmentProfile, getVisualCenterPoint, getVisualTopY } from '../config/alignment.js';
+import { settings } from '../engine/settings.js';
+import { keyCodeOf } from '../engine/keyBindings.js';
 
 export class Player extends Phaser.Physics.Arcade.Sprite {
   constructor(scene, x, y, gameState) {
@@ -47,24 +49,8 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     // 目標選取框（單一 Graphics 物件複用，每幀同步最近怪物的位置）
     this._targetGfx = scene.add.graphics().setDepth(30);
 
-    // 輸入按鍵
-    const { LEFT, RIGHT, UP, DOWN, ALT } = Phaser.Input.Keyboard.KeyCodes;
-    this.cursors = scene.input.keyboard.createCursorKeys();
-    // 普通攻擊：空白鍵（近戰揮刀，不耗 MP）；四個技能欄位：Z X C V（放哪個技能由 gs.skillSlots 決定，Z 預設三連飛鏢）
-    this.keySpace = scene.input.keyboard.addKey('SPACE');
-    this.keyZ = scene.input.keyboard.addKey('Z');
-    this.keyX = scene.input.keyboard.addKey('X');
-    this.keyC = scene.input.keyboard.addKey('C');
-    this.keyV = scene.input.keyboard.addKey('V');
-    this.keyB = scene.input.keyboard.addKey('B');
-    this.keyAlt = scene.input.keyboard.addKey(ALT);
-    // 藥水快捷鍵
-    this.keyPotA = scene.input.keyboard.addKey('A');
-    this.keyPotS = scene.input.keyboard.addKey('S');
-    this.keyPotD = scene.input.keyboard.addKey('D');
-    // F 鍵保留給 NPC 對話 / 任務接收（BaseMapScene），這裡改用 R 鍵作為第 4 個藥水鍵
-    this.keyPotR = scene.input.keyboard.addKey('R');
-    this.keyPotG = scene.input.keyboard.addKey('G');
+    // 輸入按鍵：依設定裡的鍵位（src/engine/keyBindings.js）建立；設定改了在 update 開頭重新綁定
+    this._bindKeys(settings.get().keys);
 
     // Phase 4.0：修復場景切換時冷卻卡死 bug
     // gs.skillCooldowns 持久化在 registry，但 Player 物件在傳送門切場景時會 new 一個新的。
@@ -77,8 +63,33 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     }
   }
 
+  // 依鍵位表建立 Phaser Key 物件。屬性名稱沿用舊的（cursors / keySpace / keyZ… / keyAlt / keyPotA…），
+  // 預設鍵位與以前完全相同：← → ↑ ↓、Alt / ↑ 跳、空白鍵普攻、Z X C V 技能欄、A S D R G 藥水。
+  // 舊的 Key 物件不移除：同一個 keyCode 的 Key 可能被別處共用（addKey 會回傳同一個實例）。
+  _bindKeys(kb) {
+    const kbd = this.scene.input.keyboard;
+    const key = (action) => kbd.addKey(keyCodeOf(kb[action]));
+    this._boundKeys = kb;
+    this.cursors = { left: key('left'), right: key('right'), up: key('up'), down: key('down') };
+    // 普通攻擊（近戰揮刀，不耗 MP）；四個技能欄位（放哪個技能由 gs.skillSlots 決定，欄位 id 仍是 Z X C V）
+    this.keySpace = key('attack');
+    this.keyZ = key('skill1');
+    this.keyX = key('skill2');
+    this.keyC = key('skill3');
+    this.keyV = key('skill4');
+    this.keyAlt = key('jump');
+    // 藥水快捷鍵（F 預設是互動鍵，由 BaseMapScene 處理）
+    this.keyPotA = key('potA');
+    this.keyPotS = key('potS');
+    this.keyPotD = key('potD');
+    this.keyPotR = key('potR');
+    this.keyPotG = key('potG');
+  }
+
   update(delta) {
     if (this.isDead) return;
+    const kb = settings.get().keys;
+    if (kb !== this._boundKeys) this._bindKeys(kb);
 
     const gs = this.gameState;
     const dt = delta / 1000;

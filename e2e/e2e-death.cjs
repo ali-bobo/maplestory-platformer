@@ -46,7 +46,8 @@ const check = (n, c, x = '') => { console.log((c ? 'PASS' : 'FAIL') + ' - ' + n 
   await page.waitForTimeout(800);
   const deathX = (await info()).px;
   await page.evaluate(() => { const g = window.__game; g.registry.get('gameState').hp = 0; g.scene.getScene('PerionScene').player._die(); });
-  await page.waitForTimeout(2600);
+  await page.waitForFunction(() => window.__game.scene.isActive('GameOverScene'), null, { timeout: 30000 }).catch(() => {});   // 倒地 1.5 秒（遊戲時間）後才進結算；機器忙時 FPS 低，不用固定等待
+  await page.waitForTimeout(600);
   i = await info();
   check('進入結算畫面', i.active.includes('GameOverScene'), i.active.join(','));
   await page.screenshot({ path: SP + '/gameover-death.png' });
@@ -57,7 +58,8 @@ const check = (n, c, x = '') => { console.log((c ? 'PASS' : 'FAIL') + ' - ' + n 
   check('存檔地圖為死亡地圖 ruins', saved.currentMap === 'ruins');
 
   await page.mouse.move(510, 540); await page.waitForTimeout(400); await page.mouse.click(510, 540);   // 從死亡點重新開始
-  await page.waitForTimeout(3000);
+  await page.waitForFunction(() => { const s = window.__game.scene.getScene('PerionScene'); return window.__game.scene.isActive('PerionScene') && s.player && s.player.body; }, null, { timeout: 30000 }).catch(() => {});
+  await page.waitForTimeout(300);
   i = await info();
   check('重新開始後回到古代廢墟', i.active.includes('PerionScene') && !i.active.includes('GameOverScene'), i.active.join(','));
   check('裝備為空、屬性為無裝備基礎值、HP/MP 回滿', !i.gs.equipment.weapon && i.gs.atk === 140 && i.gs.hp === 680 && i.gs.mp === 418,
@@ -77,7 +79,8 @@ const check = (n, c, x = '') => { console.log((c ? 'PASS' : 'FAIL') + ' - ' + n 
 
   // 無裝備時死亡：提示文字不同，且不會壞掉
   await page.evaluate(() => { const g = window.__game; g.scene.getScene('PerionScene').player._die(); });
-  await page.waitForTimeout(2600);
+  await page.waitForFunction(() => window.__game.scene.isActive('GameOverScene'), null, { timeout: 30000 }).catch(() => {});   // 倒地 1.5 秒（遊戲時間）後才進結算；機器忙時 FPS 低，不用固定等待
+  await page.waitForTimeout(600);
   await page.screenshot({ path: SP + '/gameover-noequip.png' });
   i = await info();
   check('無裝備死亡可正常進入結算', i.active.includes('GameOverScene'));

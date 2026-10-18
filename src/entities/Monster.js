@@ -5,7 +5,7 @@ import { rollEquipmentDrop } from '../config/equipment.js';
 import { MONSTER_ASSETS } from '../config/assetCatalog.js';
 import { ALIGNMENT_PROFILES, applyAlignmentProfile, getVisualCenterPoint, getVisualCenterY, getVisualTopY } from '../config/alignment.js';
 import { VFX_TEX } from '../engine/vfxTextures.js';
-import { consumeMark, inSmoke, SMOKE_DAMAGE_FACTOR } from '../engine/statusEffects.js';
+import { consumeMark, clearMark, inSmoke, SMOKE_DAMAGE_FACTOR } from '../engine/statusEffects.js';
 import { effectiveCritMulti, jobPassive } from '../config/constants.js';
 import { SHARD_TEXTURE } from '../config/shards.js';
 import { shardToDrop } from '../engine/shards.js';
@@ -14,6 +14,8 @@ import { MonsterBrain, ST_IDLE, ST_WINDUP } from './monsterAI.js';
 import { playFx } from './Skill.js';
 import { getPlatformGraph, getTable, platformAt, jumpClassFor } from '../engine/platformGraph.js';
 import { SteerState, makeSteerInput, makeSteerOut, steer } from '../engine/aiLogic.js';
+import { settings } from '../engine/settings.js';
+import { scaleMonsterStats } from '../engine/difficulty.js';
 
 // Phase 10.3 PoC：HP 條渲染模式開關（'shape' = Rectangle 走 batchFillPath；
 // 'image' = 白塊 texture 走 batchSprite）。預設 shape（維持 Phase 3 現狀）。
@@ -166,10 +168,12 @@ export class Monster extends Phaser.Physics.Arcade.Sprite {
     this.config = config;
     this.gameState = scene.registry.get('gameState');
 
-    // 戰鬥數值
-    this.maxHp = config.hp;
-    this.hp = config.hp;
-    this.atk = config.atk;
+    // 戰鬥數值（難度倍率只在生成時套用一次：HP 與攻擊力，見 engine/difficulty.js）
+    const scaled = scaleMonsterStats(config, settings.get().difficulty);
+    this.difficulty = settings.get().difficulty;
+    this.maxHp = scaled.hp;
+    this.hp = scaled.hp;
+    this.atk = scaled.atk;
     this.exp = config.exp;
     this.speed = config.speed;
     this.meso = config.meso;
@@ -328,6 +332,7 @@ export class Monster extends Phaser.Physics.Arcade.Sprite {
     });
 
     if (this.hp <= 0) {
+      if (this._mark) clearMark(this, 'died');   // 帶著斷命印記死亡 → 當場斷命（打周圍的敵人）
       this.die();
     } else {
       this._checkPhase();

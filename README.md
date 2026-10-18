@@ -73,10 +73,12 @@ docs/
   TODO.md           — 待你決定 / 調整的項目
 dist/
   bundle.js         — esbuild 打包輸出（**已進 git，玩家免 build**）
+  version.json      — 建置版本（bundle 雜湊、素材清單；build.js 產生，已進 git）
   assets/           — 50 張 PNG 素材（角色 / 怪物 / 背景 / NPC / Boss）
 index.html          — 主入口（含 CSP meta tag）
 style.css           — 版面樣式與手機觸控操作層樣式
 manifest.webmanifest — 加入主畫面（PWA）設定；圖示在 icons/
+sw.js               — Service Worker（離線遊玩；版本常數由 build.js 改寫）
 build.js            — esbuild 打包腳本
 package.json        — npm scripts
 ```
@@ -126,7 +128,7 @@ package.json        — npm scripts
 
 ## 貢獻
 
-PR 會由 CI 執行 `npm test`、檢查 `npm run build` 能成功，且提交的 `dist/bundle.js` 與原始碼一致。修改 `src/` 後請先執行 `npm run build` 並一併提交 bundle。
+PR 會由 CI 執行 `npm test`、檢查 `npm run build` 能成功，且提交的 `dist/bundle.js` 與原始碼一致。修改 `src/` 後請先執行 `npm run build` 並一併提交 bundle（以及建置一併更新的 `dist/version.json`、`sw.js`；合併分支遇到這三個檔衝突時，直接重新 build 即可）。
 
 ---
 

@@ -152,7 +152,7 @@
 - WebGL renderer 與 rexUI 已就位，可作為下一輪技能特效與 UI 開發基礎。
 
 ### 已知仍待補強
-- Boss 第三階段狂暴視覺
+- ~~Boss 第三階段狂暴視覺~~（2026-10-17 已做：狂暴姿勢與背景）
 
 ---
 
@@ -162,7 +162,7 @@
 （Phase 15 已清空：ESC 暫停選單、目標選取框、Level Up 演出皆已完成）
 
 ### 中優先
-1. Boss 第三階段缺少狂暴視覺層，強度變化不夠直觀。
+1. ~~Boss 第三階段缺少狂暴視覺層~~（已做：狂暴姿勢與背景）
 2. 玩家姿態變化仍以單圖加 transform 模擬為主，尚未做到完整姿勢差異。
 3. 視差背景目前是單層基礎版，仍有空間擴充為多層。
 
@@ -175,7 +175,7 @@
 ## 五、下一步建議順序
 
 ### 下一批建議
-1. Boss 第三階段狂暴視覺與技能特效升級。
+1. ~~Boss 第三階段狂暴視覺~~（已做）；技能特效升級。
 2. 藥水經濟平衡。
 3. 分數榜（需要後端服務與反作弊策略，見 TODO）。
 
@@ -248,8 +248,8 @@
 - **驗證**：`test/worldTravel.test.js`（節點對應、費用、狀態、傳送檢查、支線入口位置與可達性）；`e2e/world/s4.cjs`（用真實按鍵從地面跳上每個岔路、確認走地面不會誤入、按 F 進入、開浮層、點節點傳送、扣費、副本中拒絕）。
 
 ### 職業技能調校與試煉守衛（Phase 24）
-- **技能平衡**：數字見 [`SKILLS_DESIGN.md`](SKILLS_DESIGN.md) 第八節。倍率集中在 `config/skillModel.js`，執行期（`Skill.js` / `JobSkills.js`）與平衡模型（`engine/damageModel.js`，純函式）共用；`test/damageModel.test.js` 鎖定設計意圖（專屬技能每 MP / 每冷卻秒 ≥ 繼承技能、轉職普攻 ≥ 盜賊 ×1.3、MP 撐得過 10 秒但不是無限），`e2e/balance.cjs` 在遊戲內實測。斷命印記改為 7 秒內每擊必暴擊 ×1.2（不被打掉）；毒鏢 6 跳 × 0.65；迷煙彈 7 秒、半徑 150、傷害 ×0.4 並每秒受傷；赤月迴旋三圈 + 回血；妙手空空兩連擊 + 回 MP；殺手本能 +8% 暴擊率 / +40% 暴擊傷害；悍匪體魄 HP +30%（升級也成長）、減傷 10%、金幣 +25%。
-- **試煉守衛**：Lv10 盜賊原本 2 秒（穩健打法）～ 9 秒（只用普攻）就能打倒 1400 血的守衛，整場副本 6～15 秒。調整為 hp 46000 / atk 40、限時 150 秒、獎勵 700 exp + 1000 楓幣、每日 10 次。`e2e/trial.cjs` 實測（機器人不會閃躲，Lv10 盜賊 hp 580 / atk 115，各打法 4 場）：
+- **技能平衡**：數字見 [`SKILLS_DESIGN.md`](SKILLS_DESIGN.md) 第八節。倍率集中在 `config/skillModel.js`，執行期（`Skill.js` / `JobSkills.js`）與平衡模型（`engine/damageModel.js`，純函式）共用；`test/damageModel.test.js` 鎖定設計意圖（專屬技能每 MP / 每冷卻秒 ≥ 繼承技能、轉職普攻 ≥ 盜賊 ×1.3、MP 撐得過 10 秒但不是無限），`e2e/balance.cjs` 在遊戲內實測。斷命印記（2026-10-17 重做）落印一斬，7 秒內每擊必暴擊並存 25%，時間到或目標死亡時從天而降斷命重斬（範圍、2.5 倍 + 存下的傷害）；毒鏢（2026-10-17 重做）一次 2 支穿透鏢、每層每跳 0.4，疊滿 3 層毒爆並擴散；迷煙彈 7 秒、半徑 150、傷害 ×0.4 並每秒受傷；赤月迴旋三圈 + 回血；妙手空空兩連擊 + 回 MP；殺手本能 +8% 暴擊率 / +40% 暴擊傷害；悍匪體魄 HP +30%（升級也成長）、減傷 10%、金幣 +25%。
+- **試煉守衛**：Lv10 盜賊原本 2 秒（穩健打法）～ 9 秒（只用普攻）就能打倒 1400 血的守衛，整場副本 6～15 秒。調整為 hp 46000 / atk 40、限時 150 秒、獎勵 700 exp + 1000 金幣、每日 10 次。`e2e/trial.cjs` 實測（機器人不會閃躲，Lv10 盜賊 hp 580 / atk 115，各打法 4 場）：
   - 穩健（普攻 + 三連飛鏢 + 藥水）：守衛倒下 45～51 秒（平均 47.5），整場通關 48～55 秒，4/4 通關，過程最低血量平均 250/580；
   - 只用普攻 + 藥水：4/4 失敗（撐不過）；莽撞（不喝藥）：2/4 通關，最低血量 9～293。
   - 為什麼血量這麼大：三連飛鏢每 10 MP 約 480 傷害，Lv10 的 MP 池 358 + 每秒回 10，持續輸出從約 1000 DPS 降到約 500 DPS；原本 1400 血守衛（穩健打法 2 秒、只用普攻 9 秒就倒、整場 6～15 秒）對這套打法完全沒有挑戰。守衛的血量 / 攻擊不吃玩家等級或副本縮放（直接用 `monsters.js` 的數字）。
@@ -323,3 +323,44 @@
 - 補給斷層（經濟審查 P6）：森林獵場「行商阿福」（只賣 HP 藥水 5 個 150、10 個 290，單價 30 / 29）、古代廢墟「遺跡商販老莫」（HP / MP 藥水各 5 個 155）、碧濤港「船具商阿海」（HP / MP 5 個 160、強效 HP / MP 3 個 240、萬靈藥 1 個 140）。圖沿用 `npc_merchant` / `npc_townsfolk` 加色調，單價比晨曦鎮（30 / 75 / 130）略高並隨區域上升，強效藥水 80 介於晨曦鎮 75 與黃沙遺跡 90 之間。`test/content.test.js` 的「補給商店」兩項檢查 Lv9 以上每張地圖都有商店（例外：暗巷城、台北都會、神秘之境、決戰場，皆在商店地圖一步或兩步內）。實測截圖與購買流程見 `e2e/world/shops.cjs`。
 - 真實 bug：`engine/assetLoader.js` 的 `releaseExcept` 現在釋放紋理前會先銷毀仍使用它們的場上物件。以前換職業（只有除錯 `__setJob` 或轉職時）會讓還在場上的斷命印記圖示讀到空的 glTexture，渲染丟例外、遊戲迴圈整個停住。
 - e2e 腳本診斷結果與已知偶發項目見 `e2e/README.md` 的「穩定性筆記」。單元測試 292 項。
+
+## 穩定性與安裝（錯誤防護、離線、版本）
+
+- **全域錯誤防護**：`src/engine/errorGuard.js`（`main.js` 掛上）。`window` 的 `error` / `unhandledrejection` → 只認本站來源（擴充功能、其他網域、跨來源 `Script error.`、ResizeObserver 迴圈、`AbortError` / `NotAllowedError` 略過）→ 先用 `saveIfPlaying()` 存檔（回傳 `saved` / `failed` / `skipped`，選單與結算畫面不存）→ 畫面下方小框（DOM，`#err-guard`）說明是否已存檔，「重新載入」與「繼續」兩鈕。每次載入頁面只提示一次；防護本身全包 try/catch。
+- **Service Worker**：根目錄 `sw.js`，由 `src/engine/serviceWorker.js` 註冊。只在 http(s) 正式網址註冊；`localhost` / `127.0.0.1`（開發與 e2e）、`?debug=1`、`file://`、iframe 中都不註冊（本機開發時若之前註冊過會自動解除並清快取，避免舊 bundle 蓋住剛建置的版本）。`dist/bundle.js` 與 `dist/assets/*` 快取優先，頁面與 `dist/version.json` 網路優先，其他靜態檔先回快取再背景更新；安裝時預先快取頁面外殼，素材清單在背景下載。要在區網 IP 測離線功能，用正式建置並以 https 或瀏覽器的「視為安全來源」旗標開啟。
+- **版本**：`npm run build` 後 `scripts/buildVersion.js` 依 `dist/bundle.js` 內容算雜湊、依 `dist/assets` 全部檔案算素材雜湊，寫入 `dist/version.json` 並改寫 `sw.js` 的 `SHELL_VERSION` / `ASSETS_VERSION`（只依內容，不含時間，可重現）。新版 SW 啟用時刪除名稱不符的舊快取（bundle 變了只重抓外殼，素材沒變就沿用）。
+- **設定視窗**：標題列右側「版本 3.0.0-xxxxxxx · 更新紀錄」，點開更新紀錄面板（`src/ui/versionInfo.js`，內容在 `src/config/changelog.js`）。版號取自 `package.json`，雜湊執行時讀 `dist/version.json`（讀不到只顯示版號）。
+- 單元測試 `test/stability.test.js`（錯誤過濾與限流、版本字串、更新紀錄、SW 註冊條件、建置雜湊與 sw.js 改寫）。
+
+## 隱藏收集品：盜賊徽章（重玩 / 探索）
+
+- 30 枚「盜賊徽章」藏在 13 張可探索地圖（Boss 房、副本沒有；每張 2～3 枚），位置在高層平台盡頭、地圖兩端、浮在高台上方要跳一下的地方。資料在 `src/config/badges.js`，規則（撿起、獎勵、存檔驗證、任務日誌摘要）在 `src/engine/badges.js`（純邏輯），場景端（程式繪製的盾牌徽章貼圖、浮動 + 光暈 + 小星星、碰觸判定、音效、浮字「盜賊徽章 n/30」、撿到立即存檔）在 `src/engine/badgeField.js`，`BaseMapScene` 只有建立 / update / 關閉三行。
+- 存檔欄位 `badges`（已收集 id，只認已知 id、去重、依表順序）與 `badgeRewards`（已領門檻，不得超過收集數）；舊存檔沒有這兩個欄位時讀成空陣列。
+- 收集獎勵各發一次：10 枚 2,000 金幣；20 枚 4,000 金幣 + 永久暴擊率 +2%；30 枚 8,000 金幣 + 永久暴擊傷害 +10%。暴擊不在死亡重算的屬性內，所以死亡不會洗掉加成。
+- 進度顯示：任務日誌標題列「盜賊徽章 n/30」、最後一段列出去過的地圖各自的收集數與獎勵狀態；世界地圖右上角總數、資訊列「徽章 n/m」；HUD 資訊彈窗也有總數。
+- 測試：`test/badges.test.js`（用 `maps.js` 的平台資料與 `platformGraph` 檢查每枚都在平台 / 地面上方 20～115px、在地圖內、不卡進平台、從地面用跑跳 / 二段跳到得了、離傳送門 100px 以上；存檔驗證、獎勵只發一次、死亡保留）；e2e `e2e/badges.cjs`。
+
+## 手把與按鍵設定
+
+- **按鍵設定**：`src/engine/keyBindings.js`（純邏輯：動作表與預設鍵位、允許的按鍵表、`rebind` 衝突時互換、保留鍵 ESC / M / J / 1 / 2 拒絕、`sanitizeBindings` 讀回清理）。鍵位存在設定的 `keys` 欄位（`thief-legend-settings`，不進存檔；「重設設定」也會一併回預設）。預設和以前完全相同（← → ↑ ↓、Alt / ↑ 跳、空白鍵普攻、Z X C V 技能欄、A S D R G 藥水、F 互動）。
+- **面板**：設定視窗右上「按鍵設定」鈕開 `src/ui/keyBindPanel.js`（點按鍵格 → 按鍵；等待時按鍵在 window capture 階段攔下，ESC 只取消；「恢復預設」要按兩次）。
+- **生效**：`Player._bindKeys` 依鍵位建 Key（屬性名稱沿用 `cursors` / `keySpace` / `keyZ` / `keyAlt` / `keyPotA`…，e2e 腳本照舊可用），設定改了下一幀重綁；互動鍵在 `BaseMapScene` 改聽通用 `keydown` 比對鍵位；HUD 技能欄 / 藥水格角落字樣、技能視窗「X 欄」、道具欄、低血量提示、NPC / 傳送門提示、設定視窗操作說明、教學按鍵頁都跟著鍵位。觸控鈕送「目前綁定的鍵」（`createKeyState(emit, resolve)`）。
+- **手把**：`src/engine/gamepad.js`，每步（`game.events` 的 `prestep`）讀 `navigator.getGamepads()`，按下 / 放開時送「目前綁定的鍵」的合成鍵盤事件，所以 ESC 順序、對話、主選單都沿用鍵盤邏輯。標準配置：搖桿 / 十字鍵左右移動、下 = 下穿、上 = 互動、A 跳、X 普攻、Y / B / LB / RB 技能欄 1–4、LT / RT 藥水 1 / 2、Start = ESC。選單 / 教學 / 結算畫面 A 當 Enter、左右固定送方向鍵。接上 / 拔掉時畫面上方短暫顯示「已連接手把」/「手把已中斷連線」（DOM 提示）。沒有用 Phaser 的 gamepad 外掛，遊戲設定不用改。
+- **驗證**：`test/controls.test.js`；`e2e/controls.cjs`（假造 `navigator.getGamepads`：接上提示、主選單按 A、移動 / 跳 / 普攻 / 技能 / Start 暫停；設定面板改鍵、互換、拒絕、ESC 取消、HUD 字樣、改鍵後實際施放、重新載入保留、恢復預設）。
+- **未做**：手把在設定 / 商店等視窗裡沒有游標導覽（用滑鼠或觸控點）；手把按鈕本身不能自訂；世界地圖 M、任務日誌 J、暫停 ESC 固定不能改。
+## 通關後、難度與載入提示（2026-10）
+
+- **通關旗標**：擊敗暗影魔君時 `BossScene` 設 `gs.gameCleared = true` 並立刻存檔（Boss 房存檔照舊回魔君王城）。和 `deathWarned` 一樣不在 `createInitialGameState` 裡，只有為 true 時才存在；`sanitizeState` 只認 `true`。舊存檔沒有這個欄位 = 未通關。
+- **回程傳送門**：`config/maps.js` 的 `portal.requireCleared`（通關後才建立，`BaseMapScene._createPortals` 一行判斷）與 `portal.oneWay`（單向捷徑：`worldGraph.neighborsOf` 不算它，世界地圖不畫線、`test/content.test.js` 的「傳送門成對」略過）。魔君王城 x=2300（Boss 門左邊 210px）、暗影領域 x=70（進場落點 x=200），都是按 F 進入的金色門，通往晨曦鎮 x=240。地圖資訊視窗會標「（通關後開啟）」。
+- **結算畫面**：勝利的「繼續冒險」回晨曦鎮（樞紐，世界地圖傳送免費）、滿血滿魔、存檔；按鈕下方說明回程傳送門。死亡結算畫面按鈕下方隨機顯示一則提示（一半機率挑和死亡有關的）。
+- **難度**（設定視窗「難度」三段，存在 `settings.difficulty`，不進存檔）：`src/engine/difficulty.js`。
+
+  | 難度 | 怪物 HP | 怪物對玩家的傷害 |
+  |------|---------|------------------|
+  | 簡單 | ×0.8 | ×0.7 |
+  | 普通（預設） | ×1 | ×1 |
+  | 困難 | ×1.4 | ×1.3 |
+
+  套用點只有 `Monster` 建構子（Boss、副本、召喚小怪都經過）：HP 四捨五入，攻擊力 `atk` 直接乘倍率（所有近戰、招式、投射物、震波傷害都由 `atk` 算出）。遊戲中切換只影響之後生成的怪物（重生或換地圖後套用），已在場上的不變。熔岩噴發是依玩家最大 HP 的環境傷害，不受影響。普通 = 原數值，既有平衡與 e2e 數字不變。
+- **載入提示**：`src/config/tips.js`（22 則：12 則玩法、10 則對應本作地圖的世界觀；`pickTipIndex` / `pickTip` / `createTipRotator` 為純函式）。`assetLoader.attachLoadingBar` 在載入條下方輪播（3.2 秒換一則，preload 期間場景時鐘不走所以用 `setInterval`，載完或場景關閉時清掉）。另外修正：第一個檔案就很慢時以前要等到它下載完才出現載入條，現在 160 ms 一到就先顯示。
+- 測試：`test/difficulty.test.js`、`test/tips.test.js`、`test/postgame.test.js`；e2e `e2e/postgame.cjs`。`e2e/e2e-death.cjs` 改成等到結算畫面 / 地圖真的出現才往下（以前固定等 2.6 秒，機器忙時倒地 1.5 秒遊戲時間還沒跑完就判失敗）。
