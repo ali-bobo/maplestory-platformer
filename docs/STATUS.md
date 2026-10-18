@@ -75,7 +75,15 @@
 - 加入主畫面：`manifest.webmanifest` + `icons/`（無 service worker，不提供離線）。
 - NPC 提示文字在觸控裝置改為「點互動」；商店面板的關閉字樣可點擊。
 - 順手修正：暫停選單開啟後 ESC 無法關閉（既有 bug）；死亡重生加 3 秒保護。
+- 注意：上面描述的是「舊式按鈕」模式；預設已改為浮動虛擬搖桿，見下方「手機虛擬搖桿」。
 - 測試：`test/mobile.test.js`；Chromium 手機模擬（多指、暫停、失焦、直向）端對端已驗證，**尚未在真機上測試**。
+
+### 手機虛擬搖桿（浮動式）
+- 設定 `touchControls`（`joystick` 預設 / `buttons` 舊式；`engine/settings.js`，設定視窗「觸控操作」只在觸控裝置顯示，立即生效）。
+- `src/engine/joystick.js`（純函式，`test/joystick.test.js`）：手指位移 → 左 / 右 / 下（按住）與「跳」（單次事件）。閾值全在 `JOY`：水平死區 0.28（離開 0.2，遲滯）、往上用力時水平需 ≥ |ny|×0.5、上推 ≥ 0.6 半徑觸發跳、回到 ≤ 0.35 才重新武裝（二段跳）、快速上滑（220 ms 內上移 ≥ 0.45 且到 ≥ 0.4）、下推 ≥ 0.6 且垂直為主。最大半徑 = 1.3 個 `--tc-unit`（相對畫面高度）。
+- `touchControls.js`：移動側半個視窗是感應區 `.tc-joy-zone`（上緣貼畫布頂、下緣讓開 HUD 列，藥水槽仍可點），按下處浮出圓盤；另一側 `.tc-tap-zone` 點一下 = 跳（`↑` 鍵脈衝，帶漣漪回饋）；搖桿的跳走 `Alt` 鍵脈衝（Player 的第二個跳鍵）以免和跳躍鈕 / 點擊互相吃掉。脈衝至少撐兩個動畫幀（Phaser `JustDown` 一幀才讀一次）。仍然送合成 KeyboardEvent，Player 的 `jumpsLeft=2` 與輸入緩衝完全沿用。
+- 多點觸控：搖桿只追蹤按下它的 `pointerId`（第二指在同一側不處理）；`pointerup / pointercancel / lostpointercapture / blur / 切背景 / 視窗開啟（setModal）/ 切換模式 / 左右互換` 一律放開所有方向鍵。搖桿模式下動作區在另一側，跳躍鈕併入動作區（`.tc-joy`）；左右互換在搖桿模式存 `thief-legend-touch-joyside`。
+- 驗證：`e2e/mobile-joystick.cjs`（844x390、CDP 多指，53 項）；`e2e/e2e-mobile.cjs` 改在 `buttons` 模式跑（舊式按鈕迴歸）。**尚未在真機上測試**。
 
 ### 音樂重寫（Phase 18）
 - 舊版問題：每張地圖只有 2 小節旋律 + 低音兩個聲部、沒有和弦；直接用方波 / 鋸齒波（高頻泛音多）；每個 8 分音符隨機加重或減弱；旋律與低音各寫各的，Boss / 副本大量使用半音相鄰的音。

@@ -18,6 +18,7 @@
 | D. 素材缺口盤點＋提示詞 | docs/ASSET_GAPS.md、docs/asset-requests/（含 ref/ 參考圖複本） | **完成並合併** | 缺口表 docs/ASSET_GAPS.md（G-01~G-21）、參考圖 asset-requests/ref/（26 張）；使用者產圖放 asset-requests/incoming/ 後由 AI 去背接線 |
 | E. 提示詞改寫為自足版 | docs/asset-requests/PROMPTS.md、ASSET_GAPS.md | **完成並合併** | 可複製版在 docs/asset-requests/PROMPTS.md；待使用者確認的外觀描述見該檔與日誌。使用者用免費 Gemini：無上下文、預設無參考圖。每段提示詞必須完整重述風格＋角色文字描述，參考圖僅為可選加強 |
 | F. 提示詞壓縮為短版 | PROMPTS.md、ASSET_GAPS.md 第4節、asset-requests/README.md | **完成並合併**（72 段皆 ≤700 字元） | 使用者回饋：太長，免費 Gemini 不能用。規則：『貼這段』每個 ≤ 700 英文字元，仍自足 |
+| G. 手機虛擬搖桿 | joystick.js、touchControls.js、settings、settingsWindow、style.css 觸控段、e2e/mobile-joystick.cjs | **完成，已在分支提交（未合併）**；53 項 e2e 通過、單元測試 +13 | 手勢閾值見 STATUS「手機虛擬搖桿」；真機手感未測 |
 
 子代理規則：不提交 `dist/bundle.js`（由主線統一重建）；不 push、不開 PR；中文 commit。
 
@@ -44,3 +45,4 @@ Boss 狂暴姿勢與背景、劇情插畫 2 與 4、標題徽章、刺客／俠�
 - 2026-10-13：Boss 狂暴三姿勢（待機／移動／攻擊）已入庫並接線（assetCatalog、Boss.js `_rage`＋`_poseKey`，第 3 階段起使用；狂暴時不疊紅染色）。e2e/boss-rage.cjs 全過。G-01 完成；G-02（狂暴背景）仍缺。下次發布試玩頁面要多附 boss_rage_*.png 三個檔。
 - 2026-10-13：子代理 A 合併（balance.cjs 修好並新增普攻 DPS 斷言）。A～F 全部完成。下一步：機器空閒時整份重跑 e2e（ux、jobs、skills2、quest）、重建並重發試玩頁面（多附 boss_rage_*.png），再決定是否開 PR 併 main。
 - 2026-10-13：合併後整份 e2e 在空閒機器通過：e2e、tutorial、skills2、death、mobile、music、jobs、feel、ux、quest、world/s4、world/shops、boss-rage（單元測試 364）。開發分支比 main 多：回程門、閃光設定、手機版 UI、輸入緩衝、Boss 狂暴姿勢、balance 修復、提示詞文件。**尚未開 PR／併 main／重發試玩頁面**（等使用者指示；重發需附 boss_rage_*.png）。
+- 2026-10-18：子代理 G（手機虛擬搖桿）完成並在分支提交：浮動圓形搖桿、上推跳、回中立再推 / 快速上滑 / 另一側點擊 = 二段跳、設定可切回舊式按鈕；單元測試 +13，`e2e/mobile-joystick.cjs` 全過，`e2e-mobile`（改測舊式按鈕）與 `ux.cjs` 迴歸通過。未合併、未重建 dist。

@@ -4,13 +4,14 @@
 // 存檔代碼與「重設設定」。所有值走 src/engine/settings.js（獨立 localStorage key，不進存檔）。
 // 觸控友善：滑桿命中區 44px 高、開關整列可點、按鈕 40px 以上。
 
-import { settings, UI_SCALES, UI_SCALE_LABELS } from '../engine/settings.js';
+import { settings, UI_SCALES, UI_SCALE_LABELS, TOUCH_MODES, TOUCH_MODE_LABELS } from '../engine/settings.js';
+import { isTouchDevice } from '../engine/device.js';
 import { audio } from '../engine/audio.js';
 import { addParchmentPanel, addWoodButton } from '../engine/woodUi.js';
 import { KEY_CHART, KEY_CHART_NOTES } from './keyChart.js';
 import { cjkWrap } from './textWrap.js';
 
-export const SETTINGS_WINDOW = { w: 760, h: 572, y: 14 };
+export const SETTINGS_WINDOW = { w: 760, h: 620, y: 14 };
 
 const TOGGLES = [
   { key: 'shake', label: '畫面震動' },
@@ -141,6 +142,26 @@ export function buildSettingsWindow(scene, options = {}) {
     const cur = settings.get().uiScale;
     for (const s of segs) s.bg.setFillStyle(s.id === cur ? 0xc8861e : 0x5a4a3a, 1);
   });
+
+  // 觸控操作方式（只有觸控裝置顯示）：虛擬搖桿 / 舊式按鈕
+  if (isTouchDevice()) {
+    const modeY = scaleY + 50;
+    text(colX, modeY + 6, '觸控操作', 17, '#fff3dc');
+    const mw = 98;
+    const modeSegs = TOUCH_MODES.map((id, i) => {
+      const bx = colX + trackW - 2 * (mw + 4) + i * (mw + 4);
+      const bg = rect(bx, modeY, mw, 38, 0x5a4a3a, 1, d + 2);
+      bg.setStrokeStyle(2, 0xffffff, 0.35);
+      text(bx + mw / 2, modeY + 19, TOUCH_MODE_LABELS[id], 15, '#ffffff').setOrigin(0.5, 0.5);
+      push(scene.add.zone(bx - 2, modeY - 4, mw + 4, 46).setOrigin(0, 0).setInteractive({ useHandCursor: true })
+        .setDepth(d + 4).setScrollFactor(0)).on('pointerdown', () => settings.set({ touchControls: id }));
+      return { id, bg };
+    });
+    refreshers.push(() => {
+      const cur = settings.get().touchControls;
+      for (const s of modeSegs) s.bg.setFillStyle(s.id === cur ? 0xc8861e : 0x5a4a3a, 1);
+    });
+  }
 
   // ── 右欄：操作說明 ──────────────────────────────────────────────────────
   const keyX = x0 + 436;

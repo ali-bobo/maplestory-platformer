@@ -30,7 +30,8 @@
 | `e2e-tutorial.cjs` | 新手教學 |
 | `e2e-skills2.cjs` | 技能欄、普通攻擊 / Z 技能、冷卻與 MP、技能視窗與換入 |
 | `e2e-death.cjs` | 死亡與重新開始 |
-| `e2e-mobile.cjs` | 觸控按鈕、多點觸控 |
+| `e2e-mobile.cjs` | 舊式觸控按鈕（強制 `touchControls: buttons`）、多點觸控、左右互換、暫停、直向 |
+| `mobile-joystick.cjs` | 虛擬搖桿（844x390，CDP 多指）：浮動底盤、左右拖曳、上推跳、二段跳（回中立再推 / 快速上滑 / 另一側點擊 / 跳躍鈕）、按住不連跳、右手同時攻擊、touchcancel / 拖出螢幕 / 失焦不卡鍵、第二指不搶搖桿、下推、HUD 藥水槽仍可點、左右互換、設定切換、視窗縮放。注意 CDP `touchEnd` 的 touchPoints 是「要放開的那幾指」；無頭瀏覽器負載高時二段跳序列會自動重試。用法 `PORT=8517 node e2e/mobile-joystick.cjs <截圖目錄>` |
 | `ux.cjs` | UX 系統：ESC 順序（含合成 ESC）、存檔代碼往返（全新設定檔匯入、壞代碼、剪貼簿被拒）、設定持久化與生效、低血量暈影與首次死亡提醒、目標列、任務日誌、localStorage 不可用、手機 844x390（技能視窗可點、觸控鈕讓開、冷卻遮罩）。用法 `PORT=8412 node e2e/ux.cjs /tmp/shots` |
 | `e2e-music.cjs` | 每張地圖的音樂 |
 | `e2e-feel.cjs` | 戰鬥手感：土狼時間、落地前提前按跳、攻擊 / 技能冷卻尾端再按會銜接且不多扣 MP。用 `game.step` 虛擬時鐘逐幀推進（headless 約 7 FPS，比 120 ms 緩衝窗還慢，真實時間按鍵不可靠） |
