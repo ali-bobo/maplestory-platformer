@@ -1,5 +1,5 @@
 {
-  "name": "maplestory-platformer",
+  "name": "thief-legend",
   "version": "3.0.0",
   "description": "盜賊傳說：橫向捲軸動作 RPG — Phaser 3 多檔案架構",
   "main": "src/main.js",
@@ -9,7 +9,7 @@
   "author": "ali-bobo",
   "repository": {
     "type": "git",
-    "url": "https://github.com/ali-bobo/maplestory-platformer"
+    "url": "https://github.com/ali-bobo/nishiyigeyige"
   },
   "scripts": {
     "preinstall": "node -e \"var v=process.version.slice(1).split('.')[0]; if(v<18){process.stderr.write('\\n[錯誤] 需要 Node.js 18+，目前版本：'+process.version+'\\n請執行：nvm install 20 && nvm use 20\\n\\n');process.exit(1)}\"",
