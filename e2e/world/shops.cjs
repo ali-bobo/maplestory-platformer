@@ -4,7 +4,7 @@ const L = require('./lib.cjs');
   const { browser, page, errors } = await L.launch();
   await L.start(page); const A = L.api(page);
   await A.ev(() => window.__setJob('thief', 25));
-  for (const [sc, x, name] of [['HenesysScene', 720, '行商阿福'], ['PerionScene', 720, '遺跡商販老莫'], ['HarborScene', 1100, '船具商阿海']]) {
+  for (const [sc, x, name] of [['ForestScene', 720, '行商阿福'], ['RuinsScene', 720, '遺跡商販老莫'], ['HarborScene', 1100, '船具商阿海']]) {
     await A.go(sc, x - 120);
     await A.ev(() => { const gs = window.__game.registry.get('gameState'); gs.meso = 2000; gs.hp = gs.maxHp; });
     await A.ev(() => { const s = window.__game.scene.getScenes(true).find((o) => o.player); s.monsters.getChildren().forEach((m) => m.destroy()); });

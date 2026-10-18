@@ -52,7 +52,7 @@ clone 完直接執行對應的腳本：
 
 ```bash
 git clone <repo-url>
-cd 偽造楓之谷
+cd <repo 資料夾>
 npm run play          # 等同 npx serve（綁定 127.0.0.1）
 ```
 
@@ -397,7 +397,7 @@ HUD 右上角會即時顯示 active 任務的名稱與進度（例如 `史萊姆
 ### Q2：副本進不去 / 一靠近 portal 就被擋回來
 **A**：看 portal 上方標籤「今日剩 N 次」：
 - 顯示 N > 0：應該能進，若仍進不去請開 F12 看 console error
-- 顯示 N = 0：今日 3 次已用完，明天才能再進。如要立即重置可清除瀏覽器 localStorage（F12 → Application → Local Storage → 刪 `maple_dungeon_daily_record`）
+- 顯示 N = 0：今日 3 次已用完，明天才能再進。如要立即重置可清除瀏覽器 localStorage（F12 → Application → Local Storage → 刪 `thief_legend_dungeon_daily_record`）
 
 ### Q3：按鍵沒反應
 **A**：依序檢查：

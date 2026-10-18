@@ -39,7 +39,7 @@ const errors = [];
     const t = setInterval(() => { if (window.__game.loop.frame >= f0 + n) { clearInterval(t); res(); } }, 15);
   }), n);
   const sc = () => page.evaluate(() => {
-    const g = window.__game; const gs = g.registry.get('gameState'); const p = g.scene.getScene('MapleIslandScene').player;
+    const g = window.__game; const gs = g.registry.get('gameState'); const p = g.scene.getScene('SkyIslandScene').player;
     return { x: p.x, vy: p.body.velocity.y, onGround: p.body.blocked.down, cd: { ...gs.skillCooldowns }, mp: gs.mp };
   });
   const keys = () => page.evaluate(() => ({ ...window.__settings.get().keys }));
@@ -69,7 +69,7 @@ const errors = [];
     .catch(() => check('接上手把 → 顯示「已連接手把」', false));
   await page.screenshot({ path: `${SP}/controls-pad-toast.png` });
   await page.evaluate(() => window.__setPad([0]));   // A
-  const started = await page.waitForFunction(() => window.__game.scene.isActive('MapleIslandScene') && window.__game.scene.isActive('UIScene'), null, { timeout: 30000 }).then(() => true).catch(() => false);
+  const started = await page.waitForFunction(() => window.__game.scene.isActive('SkyIslandScene') && window.__game.scene.isActive('UIScene'), null, { timeout: 30000 }).then(() => true).catch(() => false);
   await page.evaluate(() => window.__setPad([]));
   check('主選單按手把 A → 開始遊戲', started);
   if (!started) { await b.close(); process.exit(1); }
@@ -148,7 +148,7 @@ const errors = [];
   check('重新載入後鍵位仍在', (await keys()).skill1 === 'Q');
   await page.waitForTimeout(800);
   await page.keyboard.press('Enter');
-  await page.waitForFunction(() => window.__game.scene.isActive('MapleIslandScene') && window.__game.scene.isActive('UIScene'), null, { timeout: 30000 });
+  await page.waitForFunction(() => window.__game.scene.isActive('SkyIslandScene') && window.__game.scene.isActive('UIScene'), null, { timeout: 30000 });
   await page.waitForTimeout(1500);
   await page.evaluate(() => { const gs = window.__game.registry.get('gameState'); gs.mp = gs.maxMp; gs.skillCooldowns.Z = 0; });
 
@@ -158,7 +158,7 @@ const errors = [];
   let s0 = await sc();
   // 等到走夠遠（最多 4 秒；機器忙時 FPS 很低，固定毫秒數走不遠）
   const moved = (dir, x0) => page.waitForFunction(([dir, x0]) => {
-    const p = window.__game.scene.getScene('MapleIslandScene').player; return dir > 0 ? p.x > x0 + 30 : p.x < x0 - 30;
+    const p = window.__game.scene.getScene('SkyIslandScene').player; return dir > 0 ? p.x > x0 + 30 : p.x < x0 - 30;
   }, [dir, x0], { polling: 30, timeout: 4000 }).catch(() => {});
   await page.evaluate(() => window.__setPad([15]));   // 十字鍵右
   await moved(1, s0.x);
@@ -175,9 +175,9 @@ const errors = [];
   await page.waitForTimeout(400);
 
   // A 跳
-  await page.waitForFunction(() => window.__game.scene.getScene('MapleIslandScene').player.body.blocked.down, null, { timeout: 5000 }).catch(() => {});
+  await page.waitForFunction(() => window.__game.scene.getScene('SkyIslandScene').player.body.blocked.down, null, { timeout: 5000 }).catch(() => {});
   await page.evaluate(() => window.__setPad([0]));
-  const jumped = await page.waitForFunction(() => window.__game.scene.getScene('MapleIslandScene').player.body.velocity.y < -100, null, { polling: 20, timeout: 3000 }).then(() => true).catch(() => false);
+  const jumped = await page.waitForFunction(() => window.__game.scene.getScene('SkyIslandScene').player.body.velocity.y < -100, null, { polling: 20, timeout: 3000 }).then(() => true).catch(() => false);
   await page.evaluate(() => window.__setPad([]));
   check('手把 A → 跳躍', jumped);
   await page.waitForTimeout(1200);
@@ -213,7 +213,7 @@ const errors = [];
   await frames(2);
   await page.evaluate(() => window.__unplug());
   await frames(3);
-  check('拔掉手把 → 按鍵全部放開', await page.evaluate(() => !window.__game.scene.getScene('MapleIslandScene').player.cursors.right.isDown));
+  check('拔掉手把 → 按鍵全部放開', await page.evaluate(() => !window.__game.scene.getScene('SkyIslandScene').player.cursors.right.isDown));
 
   // 恢復預設
   await page.evaluate(() => window.__game.scene.getScene('UIScene')._openPopup('settings'));

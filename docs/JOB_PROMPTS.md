@@ -78,7 +78,7 @@ transparent checkerboard, ground shadow, motion blur, glow, particles, text, wat
 ### 3.4 風格前綴（每個提示詞開頭都要有）
 
 ```
-Use the attached STYLE REFERENCE images for art style only: MapleStory-like hand-painted 2D game sprite,
+Use the attached STYLE REFERENCE images for art style only: hand-painted 2D game sprite,
 chibi about 2.5 heads tall, thin dark outline, soft cel shading with 2-3 tones and light gradients,
 light from upper-left, saturated but harmonious colours. The character's face, black short messy hair
 and brown eyes must stay exactly the same as the reference hero.
@@ -220,7 +220,7 @@ Draw 5 poses (grid 3 on the top row, 2 on the bottom row):
 ### 6.1 特效動畫表（每個一張，橫排）
 
 ```
-Game visual effect sprite sheet, MapleStory-like painterly style, bright glowing colours on a pure black
+Game visual effect sprite sheet, painterly style, bright glowing colours on a pure black
 #000000 background, NO character, effect only, frames in one horizontal row, evenly spaced, same size,
 no text. Effect: [下表的描述]
 ```
@@ -238,7 +238,7 @@ no text. Effect: [下表的描述]
 ### 6.2 技能圖示（38×38，圓角深紫寶石底，置中圖案）
 
 ```
-Game skill icon, MapleStory-like style, rounded-square dark purple gem frame, single centred symbol,
+Game skill icon, hand-painted cartoon style, rounded-square dark purple gem frame, single centred symbol,
 thin dark outline, no text. Symbol: [描述]. Background: flat solid green #00FF00 outside the frame.
 ```
 

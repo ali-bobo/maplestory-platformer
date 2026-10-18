@@ -10,7 +10,7 @@ export const TIPS = Object.freeze([
   { tag: 'play', text: '技能放在 Z X C V 四格，打開技能視窗可以換掉欄位裡的技能。' },
   { tag: 'play', text: '升級獲得的 SP 記得投進最順手的技能，等級越高傷害越痛。' },
   { tag: 'play', text: 'A S D R G 是五種藥水的快捷鍵，血量見紅前就先喝。' },
-  { tag: 'play', text: '按 M 打開世界地圖，去過的地圖可以直接傳送；回晨曦鎮、影之殿堂不收楓幣。' },
+  { tag: 'play', text: '按 M 打開世界地圖，去過的地圖可以直接傳送；回晨曦鎮、影之殿堂不收金幣。' },
   { tag: 'play', text: '抵達新地圖、升級時會自動存檔，換裝置可以用「存檔代碼」帶走進度。' },
   { tag: 'play', tags: ['death'], text: '倒下後會在同一張地圖重新開始，但身上的裝備會全部遺失。' },
   { tag: 'play', tags: ['death'], text: '打不贏就先回晨曦鎮補給：設定裡也可以把難度調成「簡單」。' },

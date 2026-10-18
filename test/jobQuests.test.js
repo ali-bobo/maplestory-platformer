@@ -33,12 +33,12 @@ test('questAvailable：等級、前置任務、已接 / 已完成', () => {
 test('questItemDrop：只在收集任務進行中、指定地圖、沒收滿、骰過掉落率時掉', () => {
   const rate = QUESTS.job_proof.collect.dropRate;
   const gs = gsWith(10, ['job_proof']);
-  assert.equal(questItemDrop(gs, 'henesys', rate - 0.001), 'trial_token');
-  assert.equal(questItemDrop(gs, 'henesys', rate), null);               // 沒骰過
-  assert.equal(questItemDrop(gs, 'kerning', 0), null);                  // 不在指定地圖
-  assert.equal(questItemDrop(gsWith(10), 'henesys', 0), null);          // 沒接任務
+  assert.equal(questItemDrop(gs, 'forest', rate - 0.001), 'trial_token');
+  assert.equal(questItemDrop(gs, 'forest', rate), null);               // 沒骰過
+  assert.equal(questItemDrop(gs, 'alley', 0), null);                  // 不在指定地圖
+  assert.equal(questItemDrop(gsWith(10), 'forest', 0), null);          // 沒接任務
   gs.quests.active[0].progress = 5;
-  assert.equal(questItemDrop(gs, 'henesys', 0), null);                  // 已收滿
+  assert.equal(questItemDrop(gs, 'forest', 0), null);                  // 已收滿
   assert.equal(questItemDrop(gsWith(10, ['slime_hunt']), 'sky', 0), null);   // 擊殺任務不掉物品
   assert.equal(questItemDrop(null, 'sky', 0), null);
 });

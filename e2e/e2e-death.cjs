@@ -34,18 +34,18 @@ const check = (n, c, x = '') => { console.log((c ? 'PASS' : 'FAIL') + ' - ' + n 
   const info = () => page.evaluate(() => {
     const g = window.__game; const gs = g.registry.get('gameState');
     const active = g.scene.getScenes(true).map((s) => s.sys.settings.key);
-    const sc = g.scene.getScene('PerionScene');
+    const sc = g.scene.getScene('RuinsScene');
     return { active, gs: JSON.parse(JSON.stringify(gs)), px: sc && sc.player ? sc.player.x : null };
   });
   let i = await info();
-  check('繼續後在古代廢墟、穿著 2 件裝備', i.active.includes('PerionScene') && i.gs.equipment.weapon && i.gs.equipment.boots, i.active.join(','));
+  check('繼續後在古代廢墟、穿著 2 件裝備', i.active.includes('RuinsScene') && i.gs.equipment.weapon && i.gs.equipment.boots, i.active.join(','));
   check('裝備加成還在屬性上 (atk 200)', i.gs.atk === 200, 'atk=' + i.gs.atk);
 
   // 移動玩家到非預設位置後讓他死亡
-  await page.evaluate(() => { const p = window.__game.scene.getScene('PerionScene').player; p.x = 900; });
+  await page.evaluate(() => { const p = window.__game.scene.getScene('RuinsScene').player; p.x = 900; });
   await page.waitForTimeout(800);
   const deathX = (await info()).px;
-  await page.evaluate(() => { const g = window.__game; g.registry.get('gameState').hp = 0; g.scene.getScene('PerionScene').player._die(); });
+  await page.evaluate(() => { const g = window.__game; g.registry.get('gameState').hp = 0; g.scene.getScene('RuinsScene').player._die(); });
   await page.waitForFunction(() => window.__game.scene.isActive('GameOverScene'), null, { timeout: 30000 }).catch(() => {});   // 倒地 1.5 秒（遊戲時間）後才進結算；機器忙時 FPS 低，不用固定等待
   await page.waitForTimeout(600);
   i = await info();
@@ -58,10 +58,10 @@ const check = (n, c, x = '') => { console.log((c ? 'PASS' : 'FAIL') + ' - ' + n 
   check('存檔地圖為死亡地圖 ruins', saved.currentMap === 'ruins');
 
   await page.mouse.move(510, 540); await page.waitForTimeout(400); await page.mouse.click(510, 540);   // 從死亡點重新開始
-  await page.waitForFunction(() => { const s = window.__game.scene.getScene('PerionScene'); return window.__game.scene.isActive('PerionScene') && s.player && s.player.body; }, null, { timeout: 30000 }).catch(() => {});
+  await page.waitForFunction(() => { const s = window.__game.scene.getScene('RuinsScene'); return window.__game.scene.isActive('RuinsScene') && s.player && s.player.body; }, null, { timeout: 30000 }).catch(() => {});
   await page.waitForTimeout(300);
   i = await info();
-  check('重新開始後回到古代廢墟', i.active.includes('PerionScene') && !i.active.includes('GameOverScene'), i.active.join(','));
+  check('重新開始後回到古代廢墟', i.active.includes('RuinsScene') && !i.active.includes('GameOverScene'), i.active.join(','));
   check('裝備為空、屬性為無裝備基礎值、HP/MP 回滿', !i.gs.equipment.weapon && i.gs.atk === 140 && i.gs.hp === 680 && i.gs.mp === 418,
     JSON.stringify({ atk: i.gs.atk, hp: i.gs.hp, mp: i.gs.mp }));
   check('在死亡點附近重生', Math.abs(i.px - deathX) < 150, `deathX=${Math.round(deathX)} px=${Math.round(i.px)}`);
@@ -78,7 +78,7 @@ const check = (n, c, x = '') => { console.log((c ? 'PASS' : 'FAIL') + ' - ' + n 
   check('重開頁面後仍沒有裝備', !i.gs.equipment.weapon && !i.gs.equipment.boots && i.gs.atk === 140);
 
   // 無裝備時死亡：提示文字不同，且不會壞掉
-  await page.evaluate(() => { const g = window.__game; g.scene.getScene('PerionScene').player._die(); });
+  await page.evaluate(() => { const g = window.__game; g.scene.getScene('RuinsScene').player._die(); });
   await page.waitForFunction(() => window.__game.scene.isActive('GameOverScene'), null, { timeout: 30000 }).catch(() => {});   // 倒地 1.5 秒（遊戲時間）後才進結算；機器忙時 FPS 低，不用固定等待
   await page.waitForTimeout(600);
   await page.screenshot({ path: SP + '/gameover-noequip.png' });

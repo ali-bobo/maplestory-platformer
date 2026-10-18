@@ -326,6 +326,6 @@ export class TutorialScene extends Phaser.Scene {
     }
     const gs = this._gameState || createInitialGameState();
     this.registry.set('gameState', gs);
-    this.scene.start('MapleIslandScene', { gameState: gs });
+    this.scene.start('SkyIslandScene', { gameState: gs });
   }
 }

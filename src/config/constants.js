@@ -193,12 +193,12 @@ export function titleFor(jobId, shardCount) {
 export const BOSS_FALLBACK_MAP = 'castle';
 
 export const MAP_SCENE_KEYS = {
-  sky:     'MapleIslandScene',
-  henesys: 'HenesysScene',
-  ruins:   'PerionScene',
-  ellinia: 'ElliniaScene',
+  sky:     'SkyIslandScene',
+  forest: 'ForestScene',
+  ruins:   'RuinsScene',
+  mystic: 'MysticScene',
   taipei:  'TaipeiScene',
-  kerning: 'KerningScene',
+  alley: 'AlleyScene',
   boss:    'BossScene',
   town:    'TownScene',
   shrine:  'ShrineScene',

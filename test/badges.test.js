@@ -179,7 +179,7 @@ test('存檔驗證：只認已知 id、去重、非陣列 → []，順序固定'
 });
 
 test('舊存檔沒有徽章欄位也能讀；存檔 / 存檔代碼往返保留徽章', () => {
-  const legacy = JSON.stringify({ version: 1, savedAt: 1, gameState: { level: 5, currentMap: 'henesys' } });
+  const legacy = JSON.stringify({ version: 1, savedAt: 1, gameState: { level: 5, currentMap: 'forest' } });
   const res = parseSave(legacy);
   assert.ok(res.ok);
   assert.deepEqual(res.state.badges, []);

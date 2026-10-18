@@ -2,6 +2,8 @@
 
 2D 橫向捲軸平台動作遊戲，採用 Phaser 3 + esbuild 開發。扮演盜賊，從浮空島嶼出發、串接 6 張地圖、挑戰暗影魔君 Boss，並有副本系統提升重玩價值。
 
+> **🌐 線上遊玩：https://ali-bobo.github.io/nishiyigeyige/**（合併到 `main` 會由 `.github/workflows/pages.yml` 自動部署）
+>
 > **🎮 想直接玩遊戲？請看 [PLAYER_GUIDE.md](docs/PLAYER_GUIDE.md)**（含 30 秒上手、操作說明、地圖介紹、副本系統、FAQ、Troubleshooting）
 >
 > 本檔給「想修改原始碼 / 了解技術細節」的開發者看。
@@ -58,8 +60,8 @@ npm run dev
 ```
 src/
   scenes/           — 各地圖 Scene（繼承 BaseMapScene）
-                       BootScene / MenuScene / MapleIslandScene / HenesysScene /
-                       PerionScene / ElliniaScene / KerningScene / TaipeiScene /
+                       BootScene / MenuScene / SkyIslandScene / ForestScene /
+                       RuinsScene / MysticScene / AlleyScene / TaipeiScene /
                        TownScene / BossScene / DungeonScene / UIScene / GameOverScene
   entities/         — Player、Monster、Boss、Skill、Clone
   config/           — 常數、怪物 / 裝備 / 地圖 / 任務 / 副本定義、asset catalog
@@ -110,7 +112,7 @@ package.json        — npm scripts
 | **CSP**（Content Security Policy）| `index.html` 使用 `meta` 標籤宣告 CSP，限制 `script-src` 為 `'self'` + inline script hash，`style-src` 為 `'self'`（樣式放在外部 `style.css`，沒有 inline style），阻擋 XSS 注入 |
 | **本機綁定** | `serve` / `play` 腳本均綁定 `127.0.0.1`，不對外開放網路連線 |
 | **debug 工具** | `window.__setFps` / `window.__hpBarMode` 僅在 URL 含 `?debug=1` 時啟用，避免一般玩家誤操作 |
-| **副本次數** | 每日上限存於 `localStorage`（key: `maple_dungeon_daily_record`），本機端記錄，跨日自動歸零；如需重置可在 DevTools 執行 `localStorage.removeItem('maple_dungeon_daily_record')` |
+| **副本次數** | 每日上限存於 `localStorage`（key: `thief_legend_dungeon_daily_record`），本機端記錄，跨日自動歸零；如需重置可在 DevTools 執行 `localStorage.removeItem('thief_legend_dungeon_daily_record')` |
 | **依賴更新** | 已設定 Dependabot 每週自動掃描 npm 依賴安全漏洞並開 PR |
 
 ---

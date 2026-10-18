@@ -13,8 +13,8 @@ const OUT = process.argv[2] || '.';
 let fails = 0;
 const check = (n, c, x = '') => { console.log((c ? 'PASS' : 'FAIL') + ' - ' + n + (x ? ' :: ' + x : '')); if (!c) fails++; };
 
-const MAPS = ['MapleIslandScene', 'HenesysScene', 'HarborScene', 'PerionScene', 'DesertScene', 'SnowScene', 'LavaScene',
-  'CastleScene', 'TownScene', 'ShrineScene', 'KerningScene', 'TaipeiScene', 'ElliniaScene',
+const MAPS = ['SkyIslandScene', 'ForestScene', 'HarborScene', 'RuinsScene', 'DesertScene', 'SnowScene', 'LavaScene',
+  'CastleScene', 'TownScene', 'ShrineScene', 'AlleyScene', 'TaipeiScene', 'MysticScene',
   'BossScene', 'DungeonScene:slime_cave'];   // 後兩個：Boss 戰與副本（不是一般地圖，素材清單來源不同）
 const JOB_CYCLE = [['thief', 12], ['assassin', 24], ['bandit', 24], ['thief', 30]];
 

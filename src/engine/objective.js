@@ -16,7 +16,7 @@ import { neighborsOf } from './worldGraph.js';
 import { questAvailable } from './questManager.js';
 
 // 沒有任務可做時，依等級帶推薦的練功地圖（主線順序）
-export const MAIN_LINE = ['sky', 'henesys', 'ruins', 'harbor', 'desert', 'snow', 'lava', 'castle'];
+export const MAIN_LINE = ['sky', 'forest', 'ruins', 'harbor', 'desert', 'snow', 'lava', 'castle'];
 // 可接任務的地點等級下限比玩家高這麼多以上就不推薦（避免叫 1 級的人去魔君王城接任務）
 const QUEST_LEVEL_SLACK = 5;
 // 守護者的等級下限比玩家高這麼多以內，就直接叫玩家去挑戰；再高就先練功

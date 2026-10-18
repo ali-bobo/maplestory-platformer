@@ -51,6 +51,7 @@
 
 ### 存檔系統（Phase 16）
 - `src/engine/saveManager.js`：純邏輯（不依賴 Phaser / DOM）。`sanitizeState` 以初始狀態為底，只複製白名單欄位並夾範圍，未知欄位丟棄；存檔格式 `{ format, version, savedAt, state }`。
+- `src/engine/legacyIds.js`：改過名的地圖 key / 徽章 id 對照表；`sanitizeState` 驗證前先換成新名，舊存檔（localStorage、匯出檔、存檔代碼）讀回同一張地圖、同樣的徽章（`test/legacyIds.test.js`）。副本每日次數也換了 localStorage key，第一次讀取時把舊 key 的紀錄搬過去（`test/dungeonRecord.test.js`）。
 - `src/engine/saveGame.js`：遊戲端介面（`saveGame` / `loadGame` / `hasSave` / `getSaveSummary` / `deleteSave`），底層用 saveManager；另含檔案匯出 / 匯入。相容舊版存檔格式。
 - 自動存檔點：抵達地圖（副本 / Boss 除外）、升級、暫停選單存檔並回主選單、每 30 秒、`pagehide` / `visibilitychange`。
 - 主選單：繼續遊戲、新遊戲（二次確認）、匯出 / 匯入存檔。通關後可繼續冒險（存檔保留）。
@@ -196,7 +197,7 @@
 - ✅ 12 種怪物圖片渲染
 - ✅ BGM 系統（audio.js Web Audio API）
 - ✅ 粒子系統（死亡/升級）
-- ✅ 地圖切換（sky→ruins→kerning，雙向）
+- ✅ 地圖切換（sky→ruins→alley，雙向）
 - ✅ UIScene HP/MP/EXP 條 + 技能快捷列 + 冷卻顯示
 - ✅ GameOverScene（死亡結算）
 - ✅ Boss 場景（BossScene + Boss.js 3 階段）

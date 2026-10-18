@@ -6,6 +6,7 @@
 //    createInitialGameState() 為底，只複製白名單欄位並限制範圍，缺的欄位補預設值。
 //  - 存檔格式：{ format: 'thief-legend-save', version, savedAt, state }；
 //    同時相容舊版 { version: 1, savedAt, gameState }（無 format 欄位）。
+//  - 改過名的地圖 key / 徽章 id 由 legacyIds.js 在驗證前換成新名。
 //  - 此處的範圍檢查只防止壞檔 / 型別錯誤導致遊戲崩潰，不是防作弊機制
 //    （存檔在玩家端，無法保證數值真實）。
 //
@@ -21,6 +22,7 @@ import { MAPS } from '../config/maps.js';
 import { EQUIPMENT_SLOTS, EQUIPMENT_BASES, RARITIES } from '../config/equipment.js';
 import { getQuestDef, QUESTS } from '../config/quests.js';
 import { pathBetween } from './worldGraph.js';
+import { migrateLegacyIds } from './legacyIds.js';
 
 export const SAVE_FORMAT = 'thief-legend-save';
 export const SAVE_VERSION = 1;
@@ -130,9 +132,11 @@ function sanitizeQuests(raw) {
 
 // 把任意輸入轉成一份合法、可直接放進 registry 的 gameState。
 // 只依賴 createInitialGameState 的欄位，未知欄位一律丟棄。
-export function sanitizeState(raw) {
+export function sanitizeState(input) {
   const gs = createInitialGameState();
-  if (!isPlainObject(raw)) return gs;
+  if (!isPlainObject(input)) return gs;
+  // 舊版地圖 key / 徽章 id 先換成新名（見 legacyIds.js），否則會被當成未知值丟掉
+  const raw = migrateLegacyIds(input);
 
   gs.level = int(raw.level, 1, MAX_LEVEL, 1);
   gs.expNeeded = expNeeded(gs.level);
@@ -255,7 +259,7 @@ export function parseSave(text) {
 export function getBrowserStorage() {
   try {
     if (typeof localStorage === 'undefined') return null;
-    const probe = '__maple_probe__';
+    const probe = '__thief_legend_probe__';
     localStorage.setItem(probe, '1');
     localStorage.removeItem(probe);
     return localStorage;

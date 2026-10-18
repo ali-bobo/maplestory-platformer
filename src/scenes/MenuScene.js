@@ -151,6 +151,6 @@ export class MenuScene extends Phaser.Scene {
       this.scene.start('TutorialScene', { mode: 'newGame', gameState: gs });
       return;
     }
-    this.scene.start('MapleIslandScene');
+    this.scene.start('SkyIslandScene');
   }
 }

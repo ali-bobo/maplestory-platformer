@@ -93,12 +93,12 @@
 | U-27 | 存檔槽 3 格：選單「繼續」改成 3 個槽卡片（顯示 等級、職業、地圖、遊玩時間、存檔日期），key 為 `thief-legend-save-v1`（槽 1 沿用）與 `-s2`、`-s3` | 家人共用 / 重來一個職業會覆蓋 | 2 | L | saveGame.js、MenuScene.js | 否 |
 | U-28 | 小修正集合：星光之塔對話文字重疊（面板加高 24px）；設定視窗按鍵表欄位右移避免裁切；教學頁文字統一左對齊；左緣傳送門標籤 x clamp 到 >=8；SP>0 時技能鈕發光 | 見 1.2 第 8 點 | 2 | S | BaseMapScene.js、UIScene.js、TutorialScene.js | 否 |
 
-### 需要的美術（英文提示詞，風格：MapleStory-like hand-painted chibi，flat #00FF00 green background for sprites）
+### 需要的美術（英文提示詞，風格：hand-painted chibi，flat #00FF00 green background for sprites）
 
-- U-03 任務標記：`Three small MapleStory-style quest marker icons in one row on a flat #00FF00 green background: a golden exclamation mark in a rounded bubble (quest available), a grey question mark (quest in progress), a bright gold question mark with sparkles (ready to turn in). Hand-painted chibi game UI, soft shading, thick dark-brown outline, 64x64 each, no text.`
-- U-09 存檔圖示：`A tiny hand-painted floppy-disk-like scroll icon with a small check mark, MapleStory-like game UI, warm cream and brown palette, flat #00FF00 green background, 48x48, thick dark-brown outline.`
-- U-17 狀態圖示：`Four 32x32 status icons on a flat #00FF00 green background, hand-painted MapleStory-like chibi style, thick dark outline: green poison droplet with skull, red target mark crosshair, grey smoke cloud, golden shield sparkle. Readable at 16px.`
-- U-13（可選）觸控技能鈕底圖：`Round wooden-rimmed button frame, hand-painted MapleStory-like UI, warm brown wood with gold trim, empty center, 128x128, flat #00FF00 green background.`
+- U-03 任務標記：`Three small hand-painted quest marker icons in one row on a flat #00FF00 green background: a golden exclamation mark in a rounded bubble (quest available), a grey question mark (quest in progress), a bright gold question mark with sparkles (ready to turn in). Hand-painted chibi game UI, soft shading, thick dark-brown outline, 64x64 each, no text.`
+- U-09 存檔圖示：`A tiny hand-painted floppy-disk-like scroll icon with a small check mark, cartoon game UI, warm cream and brown palette, flat #00FF00 green background, 48x48, thick dark-brown outline.`
+- U-17 狀態圖示：`Four 32x32 status icons on a flat #00FF00 green background, hand-painted chibi style, thick dark outline: green poison droplet with skull, red target mark crosshair, grey smoke cloud, golden shield sparkle. Readable at 16px.`
+- U-13（可選）觸控技能鈕底圖：`Round wooden-rimmed button frame, hand-painted game UI, warm brown wood with gold trim, empty center, 128x128, flat #00FF00 green background.`
 
 ---
 

@@ -215,7 +215,7 @@ export const BACKGROUND_ASSETS = [
     key: 'bg_city',
     path: 'dist/assets/bg_city.webp',
     status: 'used',
-    targetMaps: ['kerning'],
+    targetMaps: ['alley'],
   },
   {
     assetId: 'BG-FOR-001',
@@ -224,7 +224,7 @@ export const BACKGROUND_ASSETS = [
     key: 'bg_forest',
     path: 'dist/assets/bg_forest.webp',
     status: 'used',
-    targetMaps: ['henesys'],
+    targetMaps: ['forest'],
   },
   {
     assetId: 'BG-TOY-001',
@@ -242,7 +242,7 @@ export const BACKGROUND_ASSETS = [
     key: 'bg_mystic',
     path: 'dist/assets/bg_mystic.webp',
     status: 'used',
-    targetMaps: ['ellinia'],
+    targetMaps: ['mystic'],
   },
   {
     assetId: 'BG-TPE-001',
@@ -1142,10 +1142,10 @@ export const PROP_UI_ASSETS = [
 // surfaceTop：圖片頂端到可站立表面的距離（px）
 export const PLATFORM_THEMES = {
   sky:     { key: 'platform_sky',     surfaceTop: 7 },
-  henesys: { key: 'platform_forest',  surfaceTop: 12 },
+  forest: { key: 'platform_forest',  surfaceTop: 12 },
   ruins:   { key: 'platform_ruins',   surfaceTop: 0 },
-  ellinia: { key: 'platform_mystic',  surfaceTop: 10 },
-  kerning: { key: 'platform_city',    surfaceTop: 11 },
+  mystic: { key: 'platform_mystic',  surfaceTop: 10 },
+  alley: { key: 'platform_city',    surfaceTop: 11 },
   taipei:  { key: 'platform_taipei',  surfaceTop: 8 },
   town:    { key: 'platform_town',    surfaceTop: 1 },
   // platform_shrine 也是 246×30 的細條，同樣縱向拉厚

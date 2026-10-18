@@ -10,7 +10,7 @@ import {
 
 const GROUND_Y = 600;
 
-const gsAt = (map, over = {}) => ({ ...createInitialGameState(), currentMap: map, level: 20, meso: 5000, visitedMaps: ['sky', 'henesys', 'town', 'shrine'], ...over });
+const gsAt = (map, over = {}) => ({ ...createInitialGameState(), currentMap: map, level: 20, meso: 5000, visitedMaps: ['sky', 'forest', 'town', 'shrine'], ...over });
 
 test('世界地圖：主線 10 個節點對應 10 個錨點，加上 4 張支線剛好是全部地圖', () => {
   assert.equal(WORLD_ROUTE.length, WORLD_MAP_NODES.length);
@@ -28,23 +28,23 @@ test('世界地圖：主線 10 個節點對應 10 個錨點，加上 4 張支線
 test('傳送費：樞紐免費，其他隨玩家等級成長', () => {
   assert.equal(travelFee(30, 'town'), 0);
   assert.equal(travelFee(30, 'shrine'), 0);
-  assert.equal(travelFee(10, 'henesys'), 230);
+  assert.equal(travelFee(10, 'forest'), 230);
   assert.ok(travelFee(30, 'lava') > travelFee(10, 'lava'));
   assert.equal(travelFee(10, 'nope'), 0);
 });
 
 test('節點狀態：目前所在 / 去過且等級夠 = 解鎖 / 其餘鎖定；城市特區要 Lv18', () => {
-  assert.equal(mapMinLevel('kerning'), 18);
-  assert.equal(mapMinLevel('henesys'), 0);
+  assert.equal(mapMinLevel('alley'), 18);
+  assert.equal(mapMinLevel('forest'), 0);
   const gs = gsAt('sky');
   assert.equal(mapState(gs, 'sky'), 'current');
-  assert.equal(mapState(gs, 'henesys'), 'unlocked');
+  assert.equal(mapState(gs, 'forest'), 'unlocked');
   assert.equal(mapState(gs, 'ruins'), 'locked');        // 沒去過
-  gs.visitedMaps.push('kerning');
+  gs.visitedMaps.push('alley');
   gs.level = 17;
-  assert.equal(mapState(gs, 'kerning'), 'locked');      // 去過但等級不夠
+  assert.equal(mapState(gs, 'alley'), 'locked');      // 去過但等級不夠
   gs.level = 18;
-  assert.equal(mapState(gs, 'kerning'), 'unlocked');
+  assert.equal(mapState(gs, 'alley'), 'unlocked');
   assert.equal(mapState(gs, 'boss'), 'locked');
   gs.bossUnlocked = true;
   assert.equal(mapState(gs, 'boss'), 'unlocked');
@@ -52,23 +52,23 @@ test('節點狀態：目前所在 / 去過且等級夠 = 解鎖 / 其餘鎖定�
 
 test('傳送檢查：副本 / Boss 房 / 戰鬥中 / 錢不夠 / 未解鎖 都被拒絕', () => {
   const gs = gsAt('sky');
-  const ok = travelCheck(gs, 'henesys');
+  const ok = travelCheck(gs, 'forest');
   assert.deepEqual([ok.ok, ok.fee], [true, 430]);
   assert.equal(travelCheck(gs, 'town').fee, 0);
-  assert.equal(travelCheck(gs, 'henesys', { inInstance: true }).ok, false);
-  assert.equal(travelCheck(gs, 'henesys', { inCombat: true }).ok, false);
+  assert.equal(travelCheck(gs, 'forest', { inInstance: true }).ok, false);
+  assert.equal(travelCheck(gs, 'forest', { inCombat: true }).ok, false);
   assert.match(travelCheck(gs, 'ruins').reason, /還沒去過/);
   assert.equal(travelCheck(gs, 'sky').ok, false);                           // 已在這裡
-  assert.equal(travelCheck({ ...gs, meso: 100 }, 'henesys').ok, false);
+  assert.equal(travelCheck({ ...gs, meso: 100 }, 'forest').ok, false);
   assert.equal(travelCheck({ ...gs, meso: 100 }, 'town').ok, true);        // 免費的不看錢
   assert.equal(travelCheck({ ...gs, currentMap: 'boss' }, 'town').ok, false);
   assert.equal(travelCheck({ ...gs, bossUnlocked: true }, 'boss').ok, false);   // Boss 房只能走傳送門
   assert.equal(isTravelTarget('boss'), false);
-  assert.match(travelCheck({ ...gs, level: 10, visitedMaps: ['sky', 'kerning'] }, 'kerning').reason, /Lv\.18/);
+  assert.match(travelCheck({ ...gs, level: 10, visitedMaps: ['sky', 'alley'] }, 'alley').reason, /Lv\.18/);
 });
 
 // ── 支線入口：岔路跳台 ─────────────────────────────────────────────────────────
-const SIDE_TARGETS = ['ellinia', 'kerning', 'shrine'];
+const SIDE_TARGETS = ['mystic', 'alley', 'shrine'];
 
 // 腳底站得上去的平台（含地面）
 function platformUnder(map, p) {
@@ -114,7 +114,7 @@ test('支線入口（神秘之境 / 城市特區 / 影之殿堂）都在岔路�
       assert.ok(p.x > map.width * 0.55, `${key}->${p.target} 在右半邊`);
     }
   }
-  assert.deepEqual([...found].sort(), ['henesys->ellinia', 'town->kerning', 'town->shrine']);
+  assert.deepEqual([...found].sort(), ['forest->mystic', 'town->alley', 'town->shrine']);
 });
 
 test('地面（y=600 附近）上除了地圖兩端，沒有任何會自動觸發的傳送門擋在路中間', () => {
