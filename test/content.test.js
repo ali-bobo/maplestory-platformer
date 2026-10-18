@@ -463,7 +463,10 @@ test('補給商店：森林 / 廢墟 / 碧濤港的商人單價隨等級遞增�
   }
   assert.ok(unit('forest', 'A') >= town && unit('forest', 'A') <= unit('ruins', 'A'), '森林小瓶藥水單價不低於晨曦鎮、不高於廢墟');
   assert.ok(unit('ruins', 'A') <= unit('harbor', 'A'), '單價隨區域遞增');
-  assert.ok(shopOf('forest').shop.items.every((it) => it.key === 'A'), '森林只賣小瓶 HP 藥水');
+  // 自然回復調慢後森林也賣小瓶 MP 藥水（仍只有小瓶，強效藥水要到碧濤港）
+  assert.ok(shopOf('forest').shop.items.every((it) => it.key === 'A' || it.key === 'D'), '森林只賣小瓶 HP / MP 藥水');
+  assert.ok(shopOf('forest').shop.items.some((it) => it.key === 'D'), '森林有 MP 藥水');
+  assert.ok(unit('forest', 'D') >= town && unit('forest', 'D') <= unit('ruins', 'D'), '森林 MP 藥水單價介於晨曦鎮與廢墟之間');
   assert.ok(shopOf('ruins').shop.items.some((it) => it.key === 'D'), '廢墟開始賣 MP 藥水');
   assert.ok(['S', 'R'].every((k) => shopOf('harbor').shop.items.some((it) => it.key === k)), '碧濤港賣強效藥水');
   assert.ok(unit('harbor', 'S') > 75 && unit('harbor', 'S') <= unit('desert', 'S'), '強效藥水單價介於晨曦鎮與黃沙遺跡之間');

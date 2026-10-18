@@ -271,8 +271,9 @@ export const MAPS = {
         dialog: ['歡迎來到森林獵場！', '這裡是中級練功地點。', '小心那些野豬，衝刺速度非常快！', '右上角的跳台上有金色傳送門通往神秘之境（按 F 進入），地面往右是古代廢墟。'] },
       // 補給斷層：晨曦鎮之後到 Lv20 沒有商店，三張中段地圖各補一位商人（沿用區域商人格式，單價 30~32 起、隨等級加大包裝）
       { x: 720, y: GROUND_Y - 60, id: 'npc_merchant', npcId: 'forest_peddler', name: '行商阿福', tint: 0xc8ffc0,
+        // 自然回復調慢後（engine/regen.js），森林也補一包小瓶 MP 藥水，Lv5-12 不必為了 MP 跑回晨曦鎮
         shop: { title: '林間小攤', items: [
-          { key: 'A', qty: 5, cost: 150 }, { key: 'A', qty: 10, cost: 290 } ] },
+          { key: 'A', qty: 5, cost: 150 }, { key: 'A', qty: 10, cost: 290 }, { key: 'D', qty: 5, cost: 150 } ] },
         dialog: ['打獵打到一半沒藥水？來我這裡補貨。', '小瓶藥水便宜賣，買多還有優惠！'] },
     ],
     spawnX: 150,

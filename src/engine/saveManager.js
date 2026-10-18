@@ -81,6 +81,11 @@ function sanitizeMap(key) {
     : DEFAULT_MAP;
 }
 
+/** 讀檔後實際落腳的地圖：副本 → 晨曦鎮、Boss 房 → BOSS_FALLBACK_MAP、未知 → 預設地圖（「儲存並離開」的提示用） */
+export function resumeMapKey(key) {
+  return sanitizeMap(key);
+}
+
 // 星光碎片：只認 SHARD_IDS、去重，順序依 SHARD_IDS（和取得順序無關）
 function sanitizeShards(raw) {
   if (!Array.isArray(raw)) return [];

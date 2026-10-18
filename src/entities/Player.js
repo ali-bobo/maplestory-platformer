@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { poseKey, idleFrameKey } from '../config/poses.js';
 import { jobOf, jobIdOf, skillDefOf, expNeeded, MAX_LEVEL, MAP_SCENE_KEYS, POTIONS, createInitialGameState, BASIC_ATTACK, skillForSlot, jobPassive } from '../config/constants.js';
 import { saveGame } from '../engine/saveGame.js';
-import { castSlash, castShuriken, castDash, castAssassinate, castVortex, castClone } from './Skill.js';
+import { castSlash, castShuriken, castDash, castAssassinate, castVortex, castClone, hitStop } from './Skill.js';
 import { castTwinBlade, castSabre, castBackstab, castPoison, castMark, castWhirl, castSteal, castSmoke } from './JobSkills.js';
 import { particles } from '../engine/particles.js';
 import { audio } from '../engine/audio.js';
@@ -11,6 +11,13 @@ import { isEquipmentBetter } from '../config/equipment.js';
 import { ALIGNMENT_PROFILES, applyAlignmentProfile, getVisualCenterPoint, getVisualTopY } from '../config/alignment.js';
 import { settings } from '../engine/settings.js';
 import { keyCodeOf } from '../engine/keyBindings.js';
+import { REGEN, hpRegenPerSec, mpRegenPerSec, regenStep } from '../engine/regen.js';
+import {
+  HURT_IFRAME_MS, HURT_HITSTOP_MS, knockbackVelocity, decayKnockbackVx, isHeavyHit, canKnockback, lockHardCapMs,
+} from '../engine/knockback.js';
+
+// 硬直至少要跑過的物理步數（約 50 ms 模擬時間），遊戲時間上限才會生效
+const HIT_LOCK_MIN_STEPS = 3;
 
 export class Player extends Phaser.Physics.Arcade.Sprite {
   constructor(scene, x, y, gameState) {
@@ -37,6 +44,21 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     // HP/MP 自然回復的 UI 節流：只在顯示整數改變時才更新 registry/事件
     this._lastEmittedHp = -1;
     this._lastEmittedMp = -1;
+    // 自然回復的打斷時間點（受傷停 HP 回復、施法停 MP 回復；見 engine/regen.js）
+    this._lastHurtAt = null;
+    this._lastCastAt = null;
+    this.safeZone = false;   // 城鎮等安全區：回復較快（由地圖場景設定）
+    // 受擊反應：擊退硬直剩餘時間（以物理模擬時間計：每個物理步扣一次，FPS 低或命中停頓放慢物理時，
+    // 擊退距離都一樣，不會在物理還沒動之前就結束）、無敵結束時間與閃爍補間
+    this._hitLockLeft = 0;
+    this._hitLockSteps = 0;   // 這次硬直已經過的物理步數
+    this._hitLockCapAt = 0;   // 硬直的遊戲時間上限（見 knockback.js lockHardCapMs）
+    this._world = scene.physics.world;
+    this._onWorldStep = (dt) => this._stepHitLock(dt);
+    this._world.on('worldstep', this._onWorldStep);
+    this._invUntil = 0;
+    this._invTimer = null;
+    this._blinkTween = null;
 
     // 角色站位由共享腳底基準 metadata 決定，避免各類實體各自猜測底部留白。
     this.setCollideWorldBounds(true);
@@ -119,6 +141,19 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       return;
     }
 
+    // ─── 受擊硬直：擊退期間不能移動 / 跳 / 攻擊（藥水仍可用）；倒數與速度衰減在 _stepHitLock（每個物理步）───
+    // 遊戲時間上限：命中停頓一直觸發、物理長時間被放慢時，硬直也會在上限到時結束（至少跑過幾個物理步，確保真的被推開）
+    if (this._hitLockLeft > 0 && this.scene.time.now >= this._hitLockCapAt && this._hitLockSteps >= HIT_LOCK_MIN_STEPS) {
+      this._hitLockLeft = 0;
+    }
+    if (this._hitLockLeft > 0) {
+      this._handlePotionKeys();
+      this._updateFacing();
+      this._updateTargetBox();
+      this._updatePose(onGround);
+      return;
+    }
+
     // ─── 移動 ───────────────────────────────────────────────────────────────
     // 地圖機制（engine/mapModifiers.js）每幀先設好：speedMult（流沙 0.6）、iceFloor（冰面：在地面上加速 / 煞車都有慣性）
     const speed = gs.speed * this.speedMult;
@@ -161,16 +196,25 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     if (Phaser.Input.Keyboard.JustDown(this.keyV)) this.castSkill(skillForSlot(gs, 'V'));
 
     // ─── 藥水快捷鍵 ─────────────────────────────────────────────────────────
-    if (Phaser.Input.Keyboard.JustDown(this.keyPotA)) this.usePotion('A');
-    if (Phaser.Input.Keyboard.JustDown(this.keyPotS)) this.usePotion('S');
-    if (Phaser.Input.Keyboard.JustDown(this.keyPotD)) this.usePotion('D');
-    if (Phaser.Input.Keyboard.JustDown(this.keyPotR)) this.usePotion('R');
-    if (Phaser.Input.Keyboard.JustDown(this.keyPotG)) this.usePotion('G');
+    this._handlePotionKeys();
 
     // ─── 更新面向 + 目標框 + 動作圖 ─────────────────────────────────────────
     this._updateFacing();
     this._updateTargetBox();
     this._updatePose(onGround);
+  }
+
+  _handlePotionKeys() {
+    if (Phaser.Input.Keyboard.JustDown(this.keyPotA)) this.usePotion('A');
+    if (Phaser.Input.Keyboard.JustDown(this.keyPotS)) this.usePotion('S');
+    if (Phaser.Input.Keyboard.JustDown(this.keyPotD)) this.usePotion('D');
+    if (Phaser.Input.Keyboard.JustDown(this.keyPotR)) this.usePotion('R');
+    if (Phaser.Input.Keyboard.JustDown(this.keyPotG)) this.usePotion('G');
+  }
+
+  /** 受擊硬直中（擊退中）：供外部（e2e / 觸控）查詢 */
+  isHitLocked() {
+    return this._hitLockLeft > 0;
   }
 
   // 目前職業的姿勢紋理鍵（缺圖退回盜賊；都沒有回傳 null）
@@ -347,8 +391,10 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       return;
     }
 
-    // 消耗 MP 並設定冷卻
+    // 消耗 MP 並設定冷卻（施法後 MP 自然回復暫停一下）
     gs.mp = Math.max(0, gs.mp - skillDef.mpCost);
+    const prevCastAt = this._lastCastAt;
+    this._lastCastAt = this.scene.time.now;
     gs.skillCooldowns[key] = skillDef.cooldown;
     // Phase 3.6：把進入冷卻的 key 加入 Set，update() 才會去遞減它
     // （Set 已在 constructor 初始化，這裡不需 lazy check）
@@ -375,6 +421,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       // 沒有目標：沒有真的施放，退還 MP 與冷卻
       gs.mp = Math.min(gs.maxMp, gs.mp + skillDef.mpCost);
       gs.skillCooldowns[key] = 0;
+      this._lastCastAt = prevCastAt;
       this.scene.registry.events.emit('changedata-mp', null, gs.mp);
       this._showNotice('範圍內沒有目標');
     }
@@ -383,38 +430,125 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
 
   // 重生保護：一段時間不受傷，期間半透明閃爍
   grantInvincibility(ms) {
+    this._setInvincibleFor(ms);
+  }
+
+  // 無敵 ms 毫秒（含閃爍）。已經有更長的無敵（例如重生保護）時不縮短
+  _setInvincibleFor(ms) {
+    const scene = this.scene;
+    if (!scene || !this.active) return;
+    const until = scene.time.now + ms;
+    if (this.isInvincible && until <= this._invUntil) return;
+    this._invUntil = until;
     this.isInvincible = true;
-    this.scene.tweens.add({
-      targets: this, alpha: 0.4, duration: 150, yoyo: true, repeat: Math.max(0, Math.ceil(ms / 300) - 1),
-    });
-    this.scene.time.delayedCall(ms, () => {
+    this._startBlink();
+    if (this._invTimer) this._invTimer.remove(false);
+    this._invTimer = scene.time.delayedCall(ms, () => {
+      this._invTimer = null;
+      this._invUntil = 0;
       this.isInvincible = false;
-      if (this.active) this.setAlpha(1);
+      this._stopBlink();
     });
   }
 
-  takeDamage(amount) {
-    if (this.isInvincible || this.isDead) return;
+  // 無敵閃爍：半透明 ↔ 不透明，一直到無敵結束（同一時間只有一個補間）
+  _startBlink() {
+    if (this._blinkTween && this._blinkTween.isPlaying()) return;
+    this._stopBlink();
+    this._blinkTween = this.scene.tweens.add({
+      targets: this, alpha: { from: 1, to: 0.4 }, duration: 90, yoyo: true, repeat: -1,
+    });
+  }
+
+  _stopBlink() {
+    if (this._blinkTween) { this._blinkTween.remove(); this._blinkTween = null; }
+    if (this.active) this.setAlpha(1);
+  }
+
+  /**
+   * 受到傷害。opts：
+   *  - sourceX：攻擊來源的 x（怪物 / 投射物位置），玩家往遠離它的方向被擊退；沒給就往面向的反方向退
+   *  - force：擊退力道倍率（預設 1；精英 / Boss 重擊約 1.5~2，0 = 不擊退）
+   */
+  takeDamage(amount, opts = {}) {
+    if (this.isInvincible || this.isDead || !this.active) return;
+    const o = opts || {};
+    const scene = this.scene;
     const gs = this.gameState;
     const defense = this._getDefenseBonus();
     const actual = Math.max(1, Math.floor(amount * (1 - defense)));
     gs.hp = Math.max(0, gs.hp - actual);
-    this.scene.registry.set('gameState', gs);
-    this.scene.registry.events.emit('changedata-hp', null, gs.hp);
+    this._lastHurtAt = scene.time.now;   // 受傷後 HP 自然回復暫停
+    scene.registry.set('gameState', gs);
+    scene.registry.events.emit('changedata-hp', null, gs.hp);
 
     audio.playHit();
     // 傷害閃紅 + 受傷動作
     this._lockPose(this.pose('hurt'), 300);
     this.setTint(0xff4444);
-    this.scene.time.delayedCall(200, () => { if (this.active) this.clearTint(); });
-
-    // 無敵時間
-    this.isInvincible = true;
-    this.scene.time.delayedCall(800, () => { this.isInvincible = false; });
+    scene.time.delayedCall(200, () => { if (this.active && !this.isDead) this.clearTint(); });
+    this._showHurtNumber(actual);
 
     if (gs.hp <= 0) {
       this._die();
+      return;
     }
+
+    // 無敵時間（閃爍）
+    this._setInvincibleFor(HURT_IFRAME_MS);
+
+    // 擊退 + 短暫硬直 + 命中停頓
+    const force = o.force ?? 1;
+    this._applyKnockback(o.sourceX, force);
+    hitStop(scene, HURT_HITSTOP_MS);
+
+    // 重擊：畫面震動（相機震動已依設定開關把關）+ HUD 紅色暈影脈衝
+    if (isHeavyHit(actual, gs.maxHp, force)) {
+      scene.cameras.main.shake(160, 0.007);
+      scene.registry.events.emit('player-heavy-hit', actual);
+    }
+  }
+
+  // 擊退：死亡 / 衝刺 / 傳送 / 對話或選單開著時不擊退（只扣血）。牆壁交給物理碰撞，地圖邊界由 collideWorldBounds 夾住
+  _applyKnockback(sourceX, force) {
+    const scene = this.scene;
+    if (!this.body || !this.body.enable) return;
+    const state = {
+      dead: this.isDead,
+      dashing: this.isDashing,
+      transitioning: !!scene._transitioning,
+      dialogOpen: !!scene._npcDialog,
+      modal: !!scene.registry.get('uiModal'),
+    };
+    if (!canKnockback(state)) return;
+    const kb = knockbackVelocity(this.x, sourceX, this.facingRight, force);
+    if (kb.lockMs <= 0) return;
+    this.dropThrough = false;
+    this.setVelocity(kb.vx, Math.min(this.body.velocity.y, kb.vy));
+    this._hitLockLeft = kb.lockMs;
+    this._hitLockSteps = 0;
+    this._hitLockCapAt = scene.time.now + lockHardCapMs(kb.lockMs);
+  }
+
+  // 每個物理步：硬直倒數（模擬時間）+ 擊退水平速度衰減
+  _stepHitLock(dt) {
+    if (!(this._hitLockLeft > 0) || !this.body) return;
+    const ms = dt * 1000;
+    this._hitLockLeft -= ms;
+    this._hitLockSteps++;
+    this.body.velocity.x = decayKnockbackVx(this.body.velocity.x, ms);
+  }
+
+  // 玩家頭上的紅色扣血數字（設定可關閉傷害數字）
+  _showHurtNumber(actual) {
+    if (!settings.get().damageNumbers) return;
+    const topY = getVisualTopY(this);
+    const txt = this.scene.add.text(this.x, topY - 4, `-${actual}`, {
+      fontSize: '18px', color: '#ff5a4a', fontFamily: 'Arial', fontStyle: 'bold', stroke: '#2a0606', strokeThickness: 4,
+    }).setDepth(91).setOrigin(0.5, 1);
+    // 先往上飄、後半段才淡出（看得清楚扣了多少）
+    this.scene.tweens.add({ targets: txt, y: txt.y - 34, duration: 800, ease: 'Cubic.easeOut' });
+    this.scene.tweens.add({ targets: txt, alpha: 0, delay: 450, duration: 400, onComplete: () => txt.destroy() });
   }
 
   _getDefenseBonus() {
@@ -515,6 +649,8 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     if (this.isDead) return;
     this.isDead = true;
     this.isDashing = false;
+    this._hitLockLeft = 0;
+    this._stopBlink();
     this.setAlpha(1);
     this.body.setAllowGravity(true);
     this.setVelocity(0, -200);
@@ -530,10 +666,12 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   }
 
   // MP 自然回復（數值每幀平滑累加，但 registry/UI 只在顯示整數改變時更新 — 節流）
+  // 回復量見 engine/regen.js：依最大 MP 小幅成長，施法後暫停，安全區較快
   recoverMp(delta) {
     const gs = this.gameState;
     if (gs.mp < gs.maxMp) {
-      gs.mp = Math.min(gs.maxMp, gs.mp + delta * 0.01);
+      const now = this.scene.time.now;
+      gs.mp = regenStep(gs.mp, gs.maxMp, mpRegenPerSec(gs.maxMp, this.safeZone), delta, now, this._lastCastAt, REGEN.mpDelayMs);
       const shown = Math.ceil(gs.mp);
       if (shown !== this._lastEmittedMp) {
         this._lastEmittedMp = shown;
@@ -543,11 +681,12 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     }
   }
 
-  // HP 自然回復（每秒 +5，受傷無敵期間暫停回復；同樣節流 UI 更新）
+  // HP 自然回復（受傷後暫停 REGEN.hpDelayMs；同樣節流 UI 更新）
   recoverHp(delta) {
     const gs = this.gameState;
-    if (gs.hp < gs.maxHp && !this.isInvincible) {
-      gs.hp = Math.min(gs.maxHp, gs.hp + delta * 0.005);
+    if (gs.hp < gs.maxHp) {
+      const now = this.scene.time.now;
+      gs.hp = regenStep(gs.hp, gs.maxHp, hpRegenPerSec(gs.maxHp, this.safeZone), delta, now, this._lastHurtAt, REGEN.hpDelayMs);
       const shown = Math.ceil(gs.hp);
       if (shown !== this._lastEmittedHp) {
         this._lastEmittedHp = shown;
@@ -558,6 +697,12 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   }
 
   destroy(fromScene) {
+    // 物理世界在場景關閉時會先被銷毀（連同監聽），這裡只處理玩家單獨被銷毀的情況
+    if (this._world && this._onWorldStep) this._world.off('worldstep', this._onWorldStep);
+    this._world = null;
+    this._onWorldStep = null;
+    if (this._invTimer) { this._invTimer.remove(false); this._invTimer = null; }
+    if (this._blinkTween) { this._blinkTween.remove(); this._blinkTween = null; }
     if (this._targetGfx) {
       this._targetGfx.destroy();
       this._targetGfx = null;

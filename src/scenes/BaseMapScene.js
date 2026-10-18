@@ -17,6 +17,7 @@ import { shopOf } from '../config/shops.js';
 import { shopItemLabel, buyShopItem } from '../engine/shop.js';
 import { VFX_TEX } from '../engine/vfxTextures.js';
 import { saveGame, isSavableMap } from '../engine/saveGame.js';
+import { isSafeZone } from '../engine/regen.js';
 import { onMonsterKilled, onMapEntered, acceptQuest, isQuestActive, isQuestCompleted, onNpcTalked, onItemCollected, questItemDrop, chooseJobPath } from '../engine/questManager.js';
 import { buildNpcDialog } from '../engine/npcDialog.js';
 import { npcQuestMarker } from '../engine/questMarkers.js';
@@ -116,6 +117,8 @@ export class BaseMapScene extends Phaser.Scene {
     this._alignDynamicEntityToPlatformTop(this.player, spawnPlacement.topY);
     this.cameras.main.startFollow(this.player, true, 0.1, 0.1);
     if (this._respawnProtect) this.player.grantInvincibility(3000);
+    // 安全區（城鎮等沒有怪物的一般地圖）：HP / MP 自然回復較快
+    this.player.safeZone = isSafeZone(this.mapKey, this.mapData, !!this.dungeonId);
 
     this.monsters = this.add.group();
     this.pickups  = this.physics.add.group();
