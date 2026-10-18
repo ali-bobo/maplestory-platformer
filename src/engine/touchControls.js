@@ -3,12 +3,18 @@
 // 以 DOM 疊在畫布上，把觸控轉成合成的 KeyboardEvent 送給 window，Phaser 的鍵盤系統
 // 照原樣處理，因此玩家、NPC、暫停選單等既有的鍵盤邏輯完全不用改。
 //
-// - 移動區（預設在右手側）：搖桿左右移動、「↓」鈕下穿薄平台
+// - 操作方式有兩種（設定 touchControls）：
+//   · 虛擬搖桿（預設）：移動側半個螢幕任一處按下，就在該處浮出圓形搖桿；左右拖曳移動、往上推跳、
+//     回中立再上推（或快速上滑）二段跳、往下推下穿薄平台（手勢邏輯在 joystick.js）。
+//     另一側點擊畫面任一處、或按跳躍鈕，也能跳（含二段跳）。
+//   · 舊式按鈕：移動區（預設在右手側）搖桿條左右移動、跳 / 「↓」鈕
 // - 動作區（預設在左手側）：跳躍、普攻 Z、技能 X / C / V / B、互動 F
 // - 暫停 ESC、全螢幕、左右手對調（記在 localStorage）
 // - 藥水不放按鈕：直接點畫面下方的藥水槽（UIScene）
 // - 每個按鈕以 pointer events + setPointerCapture 追蹤，可同時多指操作
 // - 失焦 / 切背景 / 指標取消時一律放開所有按鍵，避免角色卡住一直跑
+
+import { createJoystickState, resetJoystick, updateJoystick, JOY } from './joystick.js';
 
 // 鍵位表：Phaser 以 keyCode 辨識按鍵
 export const KEYS = {
@@ -29,6 +35,8 @@ export const KEYS = {
   G: { key: 'g', code: 'KeyG', keyCode: 71 },
   F: { key: 'f', code: 'KeyF', keyCode: 70 },
   ESC: { key: 'Escape', code: 'Escape', keyCode: 27 },
+  // Alt 是 Player 的第二個跳躍鍵；搖桿的跳用它，才不會和跳躍鈕 / 點擊（用 ↑）互相吃掉
+  ALT: { key: 'Alt', code: 'AltLeft', keyCode: 18 },
 };
 
 // 搖桿水平偏移 → 方向。dx 為指標相對搖桿中心的位移（px），radius 為搖桿半徑。
@@ -86,17 +94,30 @@ const BUTTONS = [
   ['tc-util tc-pause', '暫停', 'ESC', '暫停選單 / 關閉', 'top'],
 ];
 
+const JOY_SIDE_KEY = 'thief-legend-touch-joyside';   // 'right' = 虛擬搖桿在右手，其餘 = 左手（預設）
 const HAND_KEY = 'thief-legend-touch-hand';   // 'left' = 移動在左手（傳統配置），其餘 = 移動在右手（預設）
 
 
 // 建立並掛載觸控層。回傳 { setVisible, destroy }。
-export function mountTouchControls({ canvasProvider, hudBottomRatio = 120 / 720 } = {}) {
+export function mountTouchControls({ canvasProvider, hudBottomRatio = 120 / 720, mode: initialMode = 'joystick' } = {}) {
   const root = document.createElement('div');
   root.id = 'touch-controls';
   root.className = 'tc-hidden';
   root.setAttribute('aria-hidden', 'true');
 
   const keys = createKeyState(fireKeyboardEvent);
+
+  // 虛擬搖桿的感應區與視覺（在所有按鈕之下）：joyZone 在移動側、tapZone 在另一側（點一下 = 跳）
+  const joyZone = document.createElement('div');
+  joyZone.className = 'tc-zone tc-joy-zone';
+  const tapZone = document.createElement('div');
+  tapZone.className = 'tc-zone tc-tap-zone';
+  const joyBase = document.createElement('div');
+  joyBase.className = 'tc-joy-base';
+  const joyKnob = document.createElement('div');
+  joyKnob.className = 'tc-joy-knob';
+  joyBase.appendChild(joyKnob);
+  root.append(joyZone, tapZone, joyBase);
 
   // 三個群組：移動區、動作區、頂部列。左右手對調只切換 root 的 class，內部排列自動鏡射
   const groups = {};
@@ -107,7 +128,6 @@ export function mountTouchControls({ canvasProvider, hudBottomRatio = 120 / 720 
     root.appendChild(g);
   }
   const readHand = () => { try { return localStorage.getItem(HAND_KEY); } catch (_) { return null; } };
-  root.classList.toggle('tc-moves-left', readHand() === 'left');
 
   const buttonEls = {};
   const labelEls = {};
@@ -189,6 +209,102 @@ export function mountTouchControls({ canvasProvider, hudBottomRatio = 120 / 720 
   stick.addEventListener('lostpointercapture', endStick);
   groups.moves.appendChild(stick);
 
+  // ── 虛擬搖桿（浮動式）────────────────────────────────────────────────────────
+  let mode = initialMode === 'buttons' ? 'buttons' : 'joystick';
+  let unitPx = 48;
+  const joyState = createJoystickState();
+  let joyPointer = null;                 // 目前控制搖桿的 pointerId；其他手指一律不碰搖桿
+  let joyOrigin = { x: 0, y: 0 };
+  const joyRadius = () => Math.round(unitPx * JOY.MAX_RADIUS_UNITS);
+
+  // 「單次按一下」的按鍵（跳）：至少撐過兩個動畫幀，Phaser 的 JustDown 一幀才讀一次，太短會漏掉
+  const pulseTokens = {};
+  function pulseKey(name) {
+    const token = (pulseTokens[name] || 0) + 1;
+    pulseTokens[name] = token;
+    if (keys.isDown(name)) keys.release(name);
+    keys.press(name);
+    const t0 = performance.now();
+    let frames = 0;
+    const tick = () => {
+      if (pulseTokens[name] !== token) return;   // 被新的 pulse 或全放開取代
+      frames++;
+      if (frames >= 2 && performance.now() - t0 >= 60) keys.release(name);
+      else requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  }
+
+  function setKey(name, on) { if (on) keys.press(name); else keys.release(name); }
+  function applyJoy(res) {
+    // 左右互斥：先放開對側再按下，Phaser 才不會同時看到兩個方向
+    if (res.left) keys.release('right'); else if (res.right) keys.release('left');
+    setKey('left', res.left); setKey('right', res.right); setKey('down', res.down);
+    if (res.jump) {
+      pulseKey('ALT');
+      joyKnob.classList.add('tc-jumped');
+      setTimeout(() => joyKnob.classList.remove('tc-jumped'), 160);
+    }
+    joyKnob.style.transform = `translate(${Math.round(res.kx)}px, ${Math.round(res.ky)}px)`;
+  }
+  const joyPoint = (e) => updateJoystick(joyState, e.clientX - joyOrigin.x, e.clientY - joyOrigin.y, joyRadius(), e.timeStamp || performance.now());
+  function endJoy(e) {
+    if (joyPointer !== null && e && e.pointerId !== undefined && e.pointerId !== joyPointer) return;
+    joyPointer = null;
+    resetJoystick(joyState);
+    keys.release('left'); keys.release('right'); keys.release('down');
+    joyBase.classList.remove('tc-on');
+    joyKnob.style.transform = 'translate(0px, 0px)';
+  }
+  joyZone.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    if (joyPointer !== null) return;       // 搖桿已有一根手指：第二根不處理（避免搶走控制）
+    joyPointer = e.pointerId;
+    try { joyZone.setPointerCapture(e.pointerId); } catch (_) { /* 靜默 */ }
+    resetJoystick(joyState);
+    joyOrigin = { x: e.clientX, y: e.clientY };
+    const r = joyRadius();
+    joyBase.style.width = joyBase.style.height = `${r * 2}px`;
+    joyBase.style.left = `${Math.round(joyOrigin.x - r)}px`;
+    joyBase.style.top = `${Math.round(joyOrigin.y - r)}px`;
+    joyBase.classList.add('tc-on');
+    applyJoy(joyPoint(e));
+  });
+  joyZone.addEventListener('pointermove', (e) => { if (e.pointerId === joyPointer) applyJoy(joyPoint(e)); });
+  joyZone.addEventListener('pointerup', endJoy);
+  joyZone.addEventListener('pointercancel', endJoy);
+  joyZone.addEventListener('lostpointercapture', endJoy);
+
+  // 另一側點一下 = 跳（含二段跳）；漣漪回饋
+  tapZone.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    pulseKey('up');
+    const rip = document.createElement('div');
+    rip.className = 'tc-ripple';
+    rip.style.left = `${Math.round(e.clientX)}px`;
+    rip.style.top = `${Math.round(e.clientY)}px`;
+    root.appendChild(rip);
+    setTimeout(() => rip.remove(), 450);
+  });
+
+  const readJoySide = () => { try { return localStorage.getItem(JOY_SIDE_KEY); } catch (_) { return null; } };
+  function applySide() {
+    const movesLeft = mode === 'joystick' ? readJoySide() !== 'right' : readHand() === 'left';
+    root.classList.toggle('tc-moves-left', movesLeft);
+  }
+  function setMode(next) {
+    const m = next === 'buttons' ? 'buttons' : 'joystick';
+    if (m === mode && root.classList.contains('tc-joy') === (m === 'joystick')) return;
+    mode = m;
+    releaseAllRef();
+    root.classList.toggle('tc-joy', mode === 'joystick');
+    // 跳躍鈕：搖桿模式放在動作區（和攻擊同一側的拇指），舊式放在移動區
+    groups[mode === 'joystick' ? 'actions' : 'moves'].appendChild(buttonEls.up);
+    applySide();
+    layout();
+  }
+  let releaseAllRef = () => {};
+
   // ── 全螢幕 ─────────────────────────────────────────────────────────────────
   const docEl = document.documentElement;
   if (docEl.requestFullscreen || docEl.webkitRequestFullscreen) {
@@ -215,13 +331,13 @@ export function mountTouchControls({ canvasProvider, hudBottomRatio = 120 / 720 
   const swap = document.createElement('div');
   swap.className = 'tc-btn tc-util tc-swap';
   swap.textContent = '左右互換';
-  swap.title = '把移動區與動作區左右對調';
+  swap.title = '把移動（搖桿）與動作按鈕左右對調';
   swap.addEventListener('pointerdown', (e) => {
     e.preventDefault();
-    keys.releaseAll(); endStick();
+    keys.releaseAll(); endStick(); endJoy();
     const toLeft = !root.classList.contains('tc-moves-left');
     root.classList.toggle('tc-moves-left', toLeft);
-    try { localStorage.setItem(HAND_KEY, toLeft ? 'left' : 'right'); } catch (_) { /* 靜默 */ }
+    try { localStorage.setItem(mode === 'joystick' ? JOY_SIDE_KEY : HAND_KEY, toLeft ? 'left' : 'right'); } catch (_) { /* 靜默 */ }
   });
   groups.top.appendChild(swap);
 
@@ -249,10 +365,15 @@ export function mountTouchControls({ canvasProvider, hudBottomRatio = 120 / 720 
     s.setProperty('--tc-left', `${Math.round(inset)}px`);
     s.setProperty('--tc-right', `${Math.round(insetR)}px`);
     s.setProperty('--tc-top', `${Math.round(Math.max(6, r.top + 6))}px`);
+    // 搖桿 / 點擊感應區：上緣貼畫布頂、下緣讓開底部 HUD 列（藥水槽要點得到）；左右各半個視窗
+    unitPx = unit;
+    s.setProperty('--tc-zone-top', `${Math.round(Math.max(0, r.top))}px`);
+    s.setProperty('--tc-zone-bottom', `${Math.round(Math.max(0, vh - r.bottom) + hudPx)}px`);
   }
 
   // ── 安全網：任何打斷都放開全部按鍵 ─────────────────────────────────────────
-  const releaseAll = () => { keys.releaseAll(); endStick(); };
+  const releaseAll = () => { for (const k in pulseTokens) pulseTokens[k]++; keys.releaseAll(); endStick(); endJoy(); };
+  releaseAllRef = releaseAll;
   window.addEventListener('blur', releaseAll);
   document.addEventListener('visibilitychange', () => { if (document.hidden) releaseAll(); });
   window.addEventListener('resize', layout);
@@ -274,12 +395,17 @@ export function mountTouchControls({ canvasProvider, hudBottomRatio = 120 / 720 
 
   document.body.appendChild(root);
   document.body.appendChild(hint);
+  root.classList.toggle('tc-joy', mode === 'joystick');
+  if (mode === 'joystick') groups.actions.appendChild(buttonEls.up);
+  applySide();
   layout();
 
   return {
     root,
     layout,
     keys,
+    setMode,
+    getMode: () => mode,
     // 四個技能鈕的字樣會跟著玩家排的技能欄位變：labels = { X: '步', ... }，locked = { X: true, ... }
     setSkillButtons(labels, locked) {
       for (const k of ['Z', 'X', 'C', 'V']) {

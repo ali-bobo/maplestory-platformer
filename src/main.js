@@ -166,7 +166,8 @@ document.addEventListener('visibilitychange', () => {
 
 // 觸控裝置：掛上操作層，只在實際遊玩（HUD 場景存在）時顯示
 if (isTouchDevice()) {
-  const controls = mountTouchControls({ canvasProvider: () => game.canvas });
+  const controls = mountTouchControls({ canvasProvider: () => game.canvas, mode: settings.get().touchControls });
+  settings.subscribe((cur) => controls.setMode(cur.touchControls));   // 設定裡切換虛擬搖桿 / 舊式按鈕，立即生效
   const gameplayScenes = ['BootScene', 'MenuScene', 'GameOverScene', 'TutorialScene'];
   const SHORT = { Z: '鏢', X: '步', C: '殺', V: '渦', B: '影', backstab: '刺', poison: '毒', mark: '印', whirl: '旋', steal: '盜', smoke: '煙' };
   let lastSkillSig = '';
