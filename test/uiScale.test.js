@@ -89,7 +89,7 @@ test('touchTargetPx：觸控裝置按鈕 >= 44 CSS px；桌機維持設計值；
   assert.equal(touchTargetPx(34, desktop), 34);
   assert.ok(touchTargetPx(34, phone) * phone.canvasScale >= MIN_TOUCH_CSS - 0.01);
   assert.equal(touchTargetPx(120, phone), 120);   // 已經夠大不縮小
-  assert.ok(touchTargetPx(10, { factor: 1, canvasScale: 0.2, touch: true }) <= 96);
+  assert.ok(touchTargetPx(10, { factor: 1, canvasScale: 0.2, touch: true }) <= 120);
   assert.equal(touchTargetPx(34, null), 34);
 });
 

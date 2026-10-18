@@ -9,6 +9,7 @@ import { audio } from '../engine/audio.js';
 import { addParchmentPanel, addWoodButton } from '../engine/woodUi.js';
 import { KEY_CHART, KEY_CHART_NOTES } from './keyChart.js';
 import { cjkWrap } from './textWrap.js';
+import { sceneUiCtx, touchTargetPx } from './uiScale.js';
 
 export const SETTINGS_WINDOW = { w: 760, h: 572, y: 14 };
 
@@ -47,11 +48,17 @@ export function buildSettingsWindow(scene, options = {}) {
   push(addParchmentPanel(scene, x0, y0, W, H, { depth: d }));
   text(x0 + 34, y0 + 20, '設定', 26, '#ffe9b0');
 
-  // 關閉 ×（44px 命中區）
-  const closeBg = rect(x0 + W - 66, y0 + 14, 40, 40, 0x553333, 0.95, d + 1);
+  // 關閉 ×：桌機維持原樣（40px 方塊 + 48px 命中區）；手機畫布縮小時命中區放大到 >= 44 CSS px（右上角貼齊視窗），
+  // 外觀方塊只略放大，命中區往視窗內側延伸（右上角下方沒有其他可點物件）。
+  const ui = sceneUiCtx(scene);
+  const hit = Math.min(touchTargetPx(48, ui), 112);
+  const box = hit > 48 ? Math.min(56, Math.max(40, Math.round(hit * 0.5))) : 40;
+  const boxX = hit > 48 ? x0 + W - 8 - box : x0 + W - 66, boxY = hit > 48 ? y0 + 8 : y0 + 14;
+  const closeBg = rect(boxX, boxY, box, box, 0x553333, 0.95, d + 1);
   closeBg.setStrokeStyle(2, 0xff8888, 0.7);
-  text(x0 + W - 46, y0 + 34, '×', 26, '#ff9a9a').setOrigin(0.5, 0.5);
-  push(scene.add.zone(x0 + W - 70, y0 + 10, 48, 48).setOrigin(0, 0).setInteractive({ useHandCursor: true })
+  text(boxX + box / 2, boxY + box / 2, '×', Math.round(26 * box / 40), '#ff9a9a').setOrigin(0.5, 0.5);
+  const hitX = hit > 48 ? x0 + W - 4 - hit : x0 + W - 70, hitY = hit > 48 ? y0 + 4 : y0 + 10;
+  push(scene.add.zone(hitX, hitY, hit, hit).setOrigin(0, 0).setInteractive({ useHandCursor: true })
     .setDepth(d + 4).setScrollFactor(0)).on('pointerdown', () => options.onClose && options.onClose());
 
   rect(x0 + 30, y0 + 62, W - 60, 2, 0xc99a4a, 0.7);

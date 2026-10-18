@@ -18,6 +18,7 @@
 | D. 素材缺口盤點＋提示詞 | docs/ASSET_GAPS.md、docs/asset-requests/（含 ref/ 參考圖複本） | **完成並合併** | 缺口表 docs/ASSET_GAPS.md（G-01~G-21）、參考圖 asset-requests/ref/（26 張）；使用者產圖放 asset-requests/incoming/ 後由 AI 去背接線 |
 | E. 提示詞改寫為自足版 | docs/asset-requests/PROMPTS.md、ASSET_GAPS.md | **完成並合併** | 可複製版在 docs/asset-requests/PROMPTS.md；待使用者確認的外觀描述見該檔與日誌。使用者用免費 Gemini：無上下文、預設無參考圖。每段提示詞必須完整重述風格＋角色文字描述，參考圖僅為可選加強 |
 | F. 提示詞壓縮為短版 | PROMPTS.md、ASSET_GAPS.md 第4節、asset-requests/README.md | **完成並合併**（72 段皆 ≤700 字元） | 使用者回饋：太長，免費 Gemini 不能用。規則：『貼這段』每個 ≤ 700 英文字元，仍自足 |
+| G. 手機滿版與對話視窗定位 | style.css、index 容器、main.js、src/engine/viewportFit.js、src/ui/dialogLayout.js、touchReserve.js、BaseMapScene（NPC 對話 / 商店）、UIScene 彈窗標題列、questLog / settings 關閉鈕、e2e/mobile-layout.cjs | **完成，待合併**（分支 `worktree-agent-ad5bd0bbf092f1392`；376 測試過；mobile-layout 8 組視窗全過；ux / e2e / e2e-mobile 全過） | 未碰搖桿與跳躍鈕邏輯 / 排版；整合點：`touchReservedRects(doc, canvas, 1280, {modal})` 讀觸控鈕邊界。尚缺真機驗證 |
 
 子代理規則：不提交 `dist/bundle.js`（由主線統一重建）；不 push、不開 PR；中文 commit。
 
@@ -44,3 +45,4 @@ Boss 狂暴姿勢與背景、劇情插畫 2 與 4、標題徽章、刺客／俠�
 - 2026-10-13：Boss 狂暴三姿勢（待機／移動／攻擊）已入庫並接線（assetCatalog、Boss.js `_rage`＋`_poseKey`，第 3 階段起使用；狂暴時不疊紅染色）。e2e/boss-rage.cjs 全過。G-01 完成；G-02（狂暴背景）仍缺。下次發布試玩頁面要多附 boss_rage_*.png 三個檔。
 - 2026-10-13：子代理 A 合併（balance.cjs 修好並新增普攻 DPS 斷言）。A～F 全部完成。下一步：機器空閒時整份重跑 e2e（ux、jobs、skills2、quest）、重建並重發試玩頁面（多附 boss_rage_*.png），再決定是否開 PR 併 main。
 - 2026-10-13：合併後整份 e2e 在空閒機器通過：e2e、tutorial、skills2、death、mobile、music、jobs、feel、ux、quest、world/s4、world/shops、boss-rage（單元測試 364）。開發分支比 main 多：回程門、閃光設定、手機版 UI、輸入緩衝、Boss 狂暴姿勢、balance 修復、提示詞文件。**尚未開 PR／併 main／重發試玩頁面**（等使用者指示；重發需附 boss_rage_*.png）。
+- 2026-10-18：子代理 G（手機滿版 + 對話視窗定位）完成。根因：(1) `#game-container` 是 flex 置中，Phaser 又開 `autoCenter: CENTER_BOTH`，兩邊各偏一半，畫布在 667x300 偏右 33 px；容器用 100vw/100vh，手機 100vh 含網址列；只靠 window resize，網址列收放不一定通知。(2) 對話 / 商店面板雖已依畫布縮放放大，但只夾「畫布高度」，沒避開 HUD：5 列商店在 667x300 下緣被下方狀態列蓋住、關閉鈕被右上角地圖鈕蓋住；按鈕上限 96 遊戲座標在 667x300（縮放 0.42）換算只有 40 CSS px；任務日誌 / 設定視窗關閉鈕只有 23 CSS px。修法與驗證見 TODO「手機版面」列與 e2e/README。限制：畫布仍固定 16:9（844x340 兩側各 ~120 px 邊，背景為漸層，觸控鈕不夠寬時疊在畫面上）。

@@ -50,7 +50,7 @@ export function popupScale(ctx, size = {}) {
 // ── 對話框 / 世界地圖浮層（手機可讀、可點）─────────────────────────────────────────
 export const MIN_READ_CSS = 12;     // 觸控裝置上，對話與地圖文字的螢幕大小下限（CSS px）
 export const MIN_TOUCH_CSS = 44;    // 觸控裝置上，按鈕觸控區的螢幕大小下限（CSS px）
-export const MAX_TOUCH_GAME = 96;   // 觸控區放大的上限（遊戲座標），避免按鈕大過面板
+export const MAX_TOUCH_GAME = 120;  // 觸控區放大的上限（遊戲座標）。畫布縮到 0.4 左右時 44 CSS px = 110 遊戲座標，上限要容得下
 
 /** 從場景取目前的縮放資訊（沿用設定的介面大小、畫布顯示比例與觸控偵測） */
 export function sceneUiCtx(scene) {
