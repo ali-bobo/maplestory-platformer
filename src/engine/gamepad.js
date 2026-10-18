@@ -78,6 +78,9 @@ export function menuActions(actions) {
 export function createGamepadBridge({ getPads, emit, resolveKey, isMenu = () => false, onConnect, onDisconnect } = {}) {
   const down = new Map();      // action → 按下時送出的 def
   const known = new Set();     // 已連接的手把 index
+  // 接上時就已經「按著」的輸入（方向盤、搖桿、某些耳機被當成手把，軸靜止時停在 -1）：放開過一次才算數，
+  // 否則會一直送出互動 / 暫停，看起來像遊戲自己跳出選單
+  const stuck = new Map();     // 手把 index → 尚未放開過的動作
 
   const release = (action) => {
     const def = down.get(action);
@@ -96,11 +99,14 @@ export function createGamepadBridge({ getPads, emit, resolveKey, isMenu = () => 
         if (!pad || pad.connected === false) continue;
         const idx = typeof pad.index === 'number' ? pad.index : i;
         seen.add(idx);
-        if (!known.has(idx)) { known.add(idx); if (onConnect) onConnect(pad); }
-        for (const a of padActions(pad)) actions.add(a);
+        const padNow = padActions(pad);
+        if (!known.has(idx)) { known.add(idx); stuck.set(idx, new Set(padNow)); if (onConnect) onConnect(pad); }
+        const held = stuck.get(idx);
+        for (const a of [...held]) if (!padNow.has(a)) held.delete(a);
+        for (const a of padNow) if (!held.has(a)) actions.add(a);
       }
       for (const idx of [...known]) {
-        if (!seen.has(idx)) { known.delete(idx); if (onDisconnect) onDisconnect(idx); }
+        if (!seen.has(idx)) { known.delete(idx); stuck.delete(idx); if (onDisconnect) onDisconnect(idx); }
       }
       if (isMenu()) actions = menuActions(actions);
       for (const action of [...down.keys()]) if (!actions.has(action)) release(action);

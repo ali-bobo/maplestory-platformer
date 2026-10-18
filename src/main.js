@@ -31,6 +31,7 @@ import { eventDef } from './engine/keyBindings.js';
 import { audio } from './engine/audio.js';
 import { installContextGuard } from './engine/contextGuard.js';
 import { installErrorGuard } from './engine/errorGuard.js';
+import { installBrowserKeyGuard } from './engine/browserKeyGuard.js';
 import { setupServiceWorker } from './engine/serviceWorker.js';
 import { SKILL_SLOT_KEYS, BASIC_ATTACK, skillForSlot, jobOf } from './config/constants.js';
 import { TutorialScene } from './scenes/TutorialScene.js';
@@ -149,6 +150,26 @@ installContextGuard(game, { saveNow: saveIfPlaying });
 
 // 未捕捉的例外（本站腳本才算，擴充功能等外來錯誤略過）：先存檔，再顯示「重新載入 / 繼續」提示，每次載入只提示一次
 installErrorGuard({ saveNow: saveIfPlaying });
+
+// Phaser 的 requestAnimationFrame 是「先跑這一幀、再排下一幀」：這一幀任何地方丟例外（特效的 onComplete、
+// 延遲呼叫碰到已銷毀的怪物…），下一幀就不會排，畫面整個停住，提示框的「繼續」也救不回來。
+// 包住 step：接住例外讓遊戲繼續跑，再把例外丟到下一個工作（setTimeout），照常進 window 'error'
+// → 錯誤防護提示、console 與 e2e 的 pageerror 都看得到。每 5 秒最多丟一次，避免每幀洗版。
+{
+  const step = game.step;
+  let lastThrow = 0;
+  game.step = function guardedStep(time, delta) {
+    try {
+      step.call(this, time, delta);
+    } catch (err) {
+      const now = Date.now();
+      if (now - lastThrow > 5000) { lastThrow = now; setTimeout(() => { throw err; }, 0); }
+    }
+  };
+}
+
+// 擋掉按住 Alt 打怪時會觸發的瀏覽器 / 系統快捷鍵（上一頁、視窗選單、網址列），以及滑鼠側鍵的上一頁
+installBrowserKeyGuard();
 
 // 離線遊玩與安裝：註冊 sw.js（本機開發、?debug=1、file://、iframe 中不註冊，見 serviceWorker.js）
 setupServiceWorker();

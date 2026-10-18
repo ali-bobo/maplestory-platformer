@@ -99,7 +99,7 @@
 - SFX（打擊 / 技能 / 升級音）沒有改動。
 
 ### 新手教學 / 技能欄位 / 聲音開關（Phase 19）
-- **普通攻擊與技能（Phase 20 調整後）**：空白鍵 = 近戰揮刀普通攻擊（`Skill.js` 的 `castSlash`，面前 90px 範圍內全部命中、傷害 ×0.9、不耗 MP、冷卻 0.4s、不吃技能等級，常數在 `BASIC_ATTACK_DEF`）；Z = 三連飛鏢技能（耗 MP 10、冷卻 0.5s）。電腦版 ↑ 與 Alt 都能跳躍。
+- **普通攻擊與技能（Phase 20 調整後）**：空白鍵 = 近戰揮刀普通攻擊（`Skill.js` 的 `castSlash`，面前 90px 範圍內全部命中、傷害 ×0.9、不耗 MP、冷卻 0.4s、不吃技能等級，常數在 `BASIC_ATTACK_DEF`）；Z = 三連飛鏢技能（耗 MP 10、冷卻 0.5s）。電腦版 ↑ 與 Q 都能跳躍（舊版預設 Alt，因為 Alt+← 會觸發瀏覽器上一頁而改掉；仍可在按鍵設定指定 Alt）。
 - **技能欄位**：盜賊技能池 5 個（Z X C V B；刺客 / 俠盜各 6 個，見下方 Phase 21），欄位 4 格（Z X C V 快捷鍵 / 手機四顆鈕），另有固定的普通攻擊欄（ATK，空白鍵）。欄位內容存在 `gameState.skillSlots`（`constants.js` 的 `SKILL_POOL` / `SKILL_SLOT_KEYS` / `skillForSlot` / `canReorderSkills` / `equipSkill`）；5 個技能全部解鎖（Lv.20）後可在 HUD 拖曳互換，或在技能視窗對沒裝備的技能按「換入」再選欄位。存檔驗證 `skillSlots` 必須是 4 個不重複、已解鎖的技能池成員，且未全部解鎖時一律回預設（`saveManager.js`）。
 - **新手教學**（`TutorialScene`）：9 頁——故事 4 頁（晨曦之星被暗影魔君擊碎，你是被託付奪回星光的盜賊「影子」）、操作按鍵（電腦 / 觸控兩種版本）、技能與欄位、任務系統、畫面 / 存檔 / 死亡、出發。Enter / → 下一頁，← 上一頁，Esc 跳過全部；手機點畫面繼續、點「跳過全部」。首次新遊戲自動出現，看過 / 跳過後記在 localStorage（`thief-legend-tutorial-seen`）；暫停選單「操作說明」可用浮層重看（浮層模式 Esc 只關說明）。修正：教學按 Esc 跳過時同一個按鍵事件會被剛啟動的遊戲 UI 再收到一次而彈出暫停選單（UIScene 啟動 0.6 秒內忽略 Esc）。
 - **聲音開關**（`engine/soundButton.js`）：主選單、教學、遊戲 HUD（小地圖左側）與暫停選單都有；全域靜音同時關閉音樂與音效，設定存 localStorage（`thief-legend-sound`）。
@@ -343,7 +343,7 @@
 
 ## 手把與按鍵設定
 
-- **按鍵設定**：`src/engine/keyBindings.js`（純邏輯：動作表與預設鍵位、允許的按鍵表、`rebind` 衝突時互換、保留鍵 ESC / M / J / 1 / 2 拒絕、`sanitizeBindings` 讀回清理）。鍵位存在設定的 `keys` 欄位（`thief-legend-settings`，不進存檔；「重設設定」也會一併回預設）。預設和以前完全相同（← → ↑ ↓、Alt / ↑ 跳、空白鍵普攻、Z X C V 技能欄、A S D R G 藥水、F 互動）。
+- **按鍵設定**：`src/engine/keyBindings.js`（純邏輯：動作表與預設鍵位、允許的按鍵表、`rebind` 衝突時互換、保留鍵 ESC / M / J / 1 / 2 拒絕、`sanitizeBindings` 讀回清理）。鍵位存在設定的 `keys` 欄位（`thief-legend-settings`，不進存檔；「重設設定」也會一併回預設）。預設：← → ↑ ↓、Q / ↑ 跳（舊版 Alt；沒改過鍵的舊設定讀回時自動換成 Q）、空白鍵普攻、Z X C V 技能欄、A S D R G 藥水、F 互動）。
 - **面板**：設定視窗右上「按鍵設定」鈕開 `src/ui/keyBindPanel.js`（點按鍵格 → 按鍵；等待時按鍵在 window capture 階段攔下，ESC 只取消；「恢復預設」要按兩次）。
 - **生效**：`Player._bindKeys` 依鍵位建 Key（屬性名稱沿用 `cursors` / `keySpace` / `keyZ` / `keyAlt` / `keyPotA`…，e2e 腳本照舊可用），設定改了下一幀重綁；互動鍵在 `BaseMapScene` 改聽通用 `keydown` 比對鍵位；HUD 技能欄 / 藥水格角落字樣、技能視窗「X 欄」、道具欄、低血量提示、NPC / 傳送門提示、設定視窗操作說明、教學按鍵頁都跟著鍵位。觸控鈕送「目前綁定的鍵」（`createKeyState(emit, resolve)`）。
 - **手把**：`src/engine/gamepad.js`，每步（`game.events` 的 `prestep`）讀 `navigator.getGamepads()`，按下 / 放開時送「目前綁定的鍵」的合成鍵盤事件，所以 ESC 順序、對話、主選單都沿用鍵盤邏輯。標準配置：搖桿 / 十字鍵左右移動、下 = 下穿、上 = 互動、A 跳、X 普攻、Y / B / LB / RB 技能欄 1–4、LT / RT 藥水 1 / 2、Start = ESC。選單 / 教學 / 結算畫面 A 當 Enter、左右固定送方向鍵。接上 / 拔掉時畫面上方短暫顯示「已連接手把」/「手把已中斷連線」（DOM 提示）。沒有用 Phaser 的 gamepad 外掛，遊戲設定不用改。

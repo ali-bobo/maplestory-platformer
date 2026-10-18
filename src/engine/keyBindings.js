@@ -17,7 +17,7 @@ export const ACTIONS = Object.freeze([
   { id: 'right', label: '右', def: 'RIGHT' },
   { id: 'up', label: '上（也會跳躍）', def: 'UP' },
   { id: 'down', label: '下（下穿平台）', def: 'DOWN' },
-  { id: 'jump', label: '跳躍', def: 'ALT' },
+  { id: 'jump', label: '跳躍', def: 'Q' },
   { id: 'interact', label: '互動 / 對話', def: 'F' },
   { id: 'attack', label: '普通攻擊', def: 'SPACE' },
   { id: 'skill1', label: '技能欄 1', def: 'Z' },
@@ -113,9 +113,19 @@ function duplicates(b) {
 }
 
 // 任意輸入 → 完整、合法、不重複的鍵位表
+// 舊版預設跳躍鍵是 Alt。Alt 和方向鍵 / 空白鍵 / D / F 一起按會觸發瀏覽器或系統快捷鍵
+// （Alt+← 上一頁、Alt+Space 視窗選單、Alt+D 網址列），玩到一半就離開遊戲；預設改成 Q。
+// 沒改過任何鍵（整份等於舊預設）的玩家一起換成新預設；自己指定 Alt 的照舊（browserKeyGuard 會擋快捷鍵）。
+export const LEGACY_JUMP_DEFAULT = 'ALT';
+
+function isLegacyDefault(raw) {
+  return ACTIONS.every((a) => (a.id === 'jump' ? raw.jump === LEGACY_JUMP_DEFAULT : raw[a.id] === undefined || raw[a.id] === a.def));
+}
+
 export function sanitizeBindings(raw) {
   const out = defaultBindings();
   if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) return out;
+  if (isLegacyDefault(raw)) return out;
   for (const id of ACTION_IDS) {
     if (!Object.prototype.hasOwnProperty.call(raw, id)) continue;
     if (isBindableKey(raw[id])) out[id] = raw[id];

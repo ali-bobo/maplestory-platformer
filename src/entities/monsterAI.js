@@ -742,7 +742,13 @@ export class MonsterBrain {
 
   killMinions() {
     for (const mi of this.minions) {
-      if (mi.active && !mi.isDead) { mi.isDead = true; mi.destroy(); }
+      // 可能正在 enemies.getChildren().forEach 裡（範圍技打死召喚者）：當下只停用，這一幀結束後才銷毀，免得陣列被抽掉一格
+      if (mi.active && !mi.isDead) {
+        mi.isDead = true;
+        mi.setActive(false).setVisible(false);
+        if (mi.body) mi.body.enable = false;
+        mi.scene.events.once('postupdate', () => mi.destroy());
+      }
     }
     this.minions.length = 0;
   }
