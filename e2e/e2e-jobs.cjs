@@ -1,13 +1,13 @@
 // Phase A 轉職 e2e：技能施放、姿勢切換、存檔重讀、轉職任務鏈。用法：node e2e-jobs.cjs <截圖目錄>
 const PORT = process.env.PORT || 8123;
-const { chromium } = require('/opt/node-tools/node_modules/playwright');
+const { chromium, executablePath: PW_EXE } = require('./pw.cjs');
 const SPDIR = process.argv[2] || '.';
 let fails = 0;
 const check = (n, c, x = '') => { console.log((c ? 'PASS' : 'FAIL') + ' - ' + n + (x ? ' :: ' + x : '')); if (!c) fails++; };
 const BASE = `http://127.0.0.1:${PORT}/index.html?debug=1`;
 
 (async () => {
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome',
+  const b = await chromium.launch({ executablePath: PW_EXE,
     args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--no-sandbox', '--autoplay-policy=no-user-gesture-required'] });
   const ctx = await b.newContext({ viewport: { width: 1280, height: 720 } });
   const page = await ctx.newPage();
@@ -19,11 +19,16 @@ const BASE = `http://127.0.0.1:${PORT}/index.html?debug=1`;
   await page.goto(BASE); await page.waitForTimeout(7000);
   await page.keyboard.press('Enter'); await page.waitForFunction(() => window.__game && window.__game.scene.getScenes(true).some((x) => x.player), null, { timeout: 40000 }); await page.waitForTimeout(1500);
 
-  const SCENE = 'MapleIslandScene';
+  const SCENE = 'SkyIslandScene';
   const ev = (fn, arg) => page.evaluate(fn, arg);
   // 準備一隻靶：離玩家 dx、血量極高、不動；其他怪清掉；玩家無敵、MP 滿、冷卻歸零
-  const prep = (dx) => ev((dx) => {
-    const g = window.__game; const sc = g.scene.getScene('MapleIslandScene'); const p = sc.player; const gs = g.registry.get('gameState');
+  const prep = async (dx) => {
+    // 職業切換後場景會重建：等新場景的怪物群組可用，避免讀到剛被銷毀的群組（CI 慢機器上偶發）
+    await page.waitForFunction(() => { const sc = window.__game.scene.getScene('SkyIslandScene'); const e = sc && sc.player && sc.player.enemies; return !!(e && e.children && e.getChildren().length); }, null, { timeout: 20000 });
+    return prep0(dx);
+  };
+  const prep0 = (dx) => ev((dx) => {
+    const g = window.__game; const sc = g.scene.getScene('SkyIslandScene'); const p = sc.player; const gs = g.registry.get('gameState');
     const ms = p.enemies.getChildren();
     const m = ms[0];
     for (const o of ms.slice(1)) o.destroy();
@@ -39,12 +44,12 @@ const BASE = `http://127.0.0.1:${PORT}/index.html?debug=1`;
     return { px: p.x, py: p.y };
   }, dx);
   const state = () => ev(() => {
-    const g = window.__game; const sc = g.scene.getScene('MapleIslandScene'); const p = sc.player; const gs = g.registry.get('gameState'); const m = window.__m || { hp: 0, x: 0, y: 0, body: null };
+    const g = window.__game; const sc = g.scene.getScene('SkyIslandScene'); const p = sc.player; const gs = g.registry.get('gameState'); const m = window.__m || { hp: 0, x: 0, y: 0, body: null };
     return { mp: gs.mp, cd: { ...gs.skillCooldowns }, hp: m.hp, mx: m.x, my: m.y, mvy: m.body ? m.body.velocity.y : 0, tex: p.texture.key, px: p.x, job: gs.job,
       poison: m._poison ? m._poison.stacks : 0, mark: !!m._mark, smoked: m._smoked, zones: (p.smokeZones || []).length, pickups: sc.pickups.getChildren().length, potions: { ...gs.potions } };
   });
   const sampleTex = (ms) => ev(async (ms) => {
-    const sc = window.__game.scene.getScene('MapleIslandScene'); const set = new Set(); const t0 = performance.now();
+    const sc = window.__game.scene.getScene('SkyIslandScene'); const set = new Set(); const t0 = performance.now();
     while (performance.now() - t0 < ms) { set.add(sc.player.texture.key); await new Promise((r) => setTimeout(r, 25)); }
     return [...set];
   }, ms);
@@ -68,7 +73,7 @@ const BASE = `http://127.0.0.1:${PORT}/index.html?debug=1`;
   await page.waitForTimeout(600);
   let s = await state();
   check('刺客：待機動作圖是 player_assassin_*', s.tex.startsWith('player_assassin_'), s.tex);
-  check('刺客：HUD 職業名與頭像', await ev(() => { const u = window.__game.scene.getScene('UIScene'); return u._classText.text.includes('刺客') && u._portrait.texture.key === 'portrait_assassin'; }));
+  check('刺客：HUD 職業名與頭像', await page.waitForFunction(() => { const u = window.__game.scene.getScene('UIScene'); return u._classText.text.includes('刺客') && u._portrait.texture.key === 'portrait_assassin'; }, null, { timeout: 5000 }).then(() => true, () => false));
   check('刺客：技能欄預設 Z X C backstab（Lv.30 全解鎖，可自訂）', await ev(() => JSON.stringify(window.__game.registry.get('gameState').skillSlots)) === '["Z","X","C","backstab"]');
   await shot('job-assassin-idle');
 
@@ -95,39 +100,49 @@ const BASE = `http://127.0.0.1:${PORT}/index.html?debug=1`;
   check('瞬影連刺：蹲伏 -> 背刺動作', tb.includes('player_assassin_crouch_low') && tb.includes('player_assassin_backstab'), JSON.stringify(tb));
   await shot('job-assassin-backstab');
   // 沒目標 → 退還
-  await ev(() => { const sc = window.__game.scene.getScene('MapleIslandScene'); window.__m.setPosition(-5000, 0); window.__game.registry.get('gameState').skillCooldowns.backstab = 0; });
+  await ev(() => { const sc = window.__game.scene.getScene('SkyIslandScene'); window.__m.setPosition(-5000, 0); window.__game.registry.get('gameState').skillCooldowns.backstab = 0; });
   st0 = await state(); await press('z'); await page.waitForTimeout(200); s = await state();
   check('瞬影連刺：範圍內沒目標 → 不扣 MP、不進冷卻', s.mp >= st0.mp - 1 && !(s.cd.backstab > 0), `mp ${st0.mp} -> ${s.mp} cd=${s.cd.backstab}`);
 
-  // 蝕心毒鏢：命中中毒、疊到 3 層
+  // 蝕心毒鏢：兩支毒鏢各上 1 層、會跳毒；第二次施放疊滿 3 層 → 毒爆
   await prep(160);
   st0 = await state();
-  await equip('Z', 'poison'); await press('z'); await page.waitForTimeout(700);
+  await equip('Z', 'poison'); await press('z'); await page.waitForTimeout(800);
   s = await state();
-  check('蝕心毒鏢：MP -30、冷卻開始', (st0.mp - s.mp) > 20 && (st0.mp - s.mp) < 31 && s.cd.poison > 0, `mp ${st0.mp} -> ${s.mp}`);
-  check('蝕心毒鏢：命中並中毒 1 層', s.hp < st0.hp && s.poison === 1, `hp ${st0.hp} -> ${s.hp} stacks=${s.poison}`);
+  // 等兩支鏢飛完的 0.8 秒內 MP 每秒回 10，所以扣量會少於 30
+  check('蝕心毒鏢：MP -30、冷卻開始', (st0.mp - s.mp) > 15 && (st0.mp - s.mp) < 31 && s.cd.poison > 0, `mp ${st0.mp} -> ${s.mp}`);
+  check('蝕心毒鏢：兩支都命中，中毒 2 層', s.hp < st0.hp && s.poison === 2, `hp ${st0.hp} -> ${s.hp} stacks=${s.poison}`);
   const hpAfterHit = s.hp;
   await page.waitForTimeout(2300);
   s = await state();
   check('蝕心毒鏢：持續傷害（毒跳）', s.hp < hpAfterHit, `${hpAfterHit} -> ${s.hp}`);
-  for (let i = 0; i < 3; i++) { await ev(() => { const g = window.__game; g.registry.get('gameState').skillCooldowns.poison = 0; window.__game.scene.getScene('MapleIslandScene').player.setPosition(window.__m.x - 160, window.__game.scene.getScene('MapleIslandScene').player.y); window.__game.scene.getScene('MapleIslandScene').player.facingRight = true; }); await press('z'); await page.waitForTimeout(650); }
+  const hpBeforeBurst = s.hp;
+  await ev(() => { const g = window.__game; g.registry.get('gameState').skillCooldowns.poison = 0; const p = g.scene.getScene('SkyIslandScene').player; p.setPosition(window.__m.x - 160, p.y); p.facingRight = true; });
+  await press('z'); await page.waitForTimeout(800);
   s = await state();
-  check('蝕心毒鏢：疊層上限 3', s.poison === 3, 'stacks=' + s.poison);
+  const bursts = await ev(() => window.__m._poisonBursts || 0);
+  check('蝕心毒鏢：疊滿 3 層毒爆（毒清掉後第二支重新上 1 層）', bursts === 1 && s.poison <= 1 && hpBeforeBurst - s.hp > 0, `bursts=${bursts} stacks=${s.poison} dmg=${hpBeforeBurst - s.hp}`);
   await shot('job-assassin-poison');
 
-  // 斷命印記：標記後下一擊必暴擊 +30%
+  // 斷命印記：落印一斬；印記期間每擊必暴擊並存下 25%；結束時斷命
   await prep(200);
   st0 = await state();
-  await equip('Z', 'mark'); await press('z'); await page.waitForTimeout(400);
+  await equip('Z', 'mark'); await press('z'); await page.waitForTimeout(600);
   s = await state();
-  check('斷命印記：MP -50、冷卻開始、敵人被標記', (st0.mp - s.mp) > 40 && (st0.mp - s.mp) < 51 && s.cd.mark > 0 && s.mark, `mp ${st0.mp} -> ${s.mp} mark=${s.mark}`);
+  check('斷命印記：MP -50、冷卻開始、落印一斬、敵人被標記', (st0.mp - s.mp) > 40 && (st0.mp - s.mp) < 51 && s.cd.mark > 0 && s.mark && s.hp < st0.hp, `mp ${st0.mp} -> ${s.mp} mark=${s.mark} hp ${st0.hp} -> ${s.hp}`);
   await shot('job-assassin-mark');
   const dmg = await ev(() => {
     const m = window.__m; const gs = window.__game.registry.get('gameState');
     const h0 = m.hp; m.takeDamage(1000, false); const h1 = m.hp; m.takeDamage(1000, false); const h2 = m.hp;
-    return { first: h0 - h1, second: h1 - h2, expect: Math.floor(1000 * (gs.critMulti + 0.4) * 1.2), mark: !!m._mark };
+    return { first: h0 - h1, second: h1 - h2, expect: Math.floor(1000 * (gs.critMulti + 0.4)), stored: m._mark ? m._mark.stored : -1 };
   });
-  check('斷命印記：印記期間每一擊都必暴擊且 +20%，印記不會被打掉', dmg.first === dmg.expect && dmg.second === dmg.expect && dmg.mark, JSON.stringify(dmg));
+  check('斷命印記：印記期間每一擊都必暴擊並存下 25%，印記不會被打掉',
+    dmg.first === dmg.expect && dmg.second === dmg.expect && dmg.stored === 2 * Math.floor(dmg.expect * 0.25), JSON.stringify(dmg));
+  const hpBeforeFinale = await ev(() => { const m = window.__m; const h = m.hp; m._mark.until = 0; m.takeDamage(1, false); return h; });
+  await page.waitForTimeout(900);
+  s = await state();
+  check('斷命印記：時間到斷命，傷害 ≥ 存下的傷害', !s.mark && hpBeforeFinale - s.hp > dmg.stored, `finale ${hpBeforeFinale - s.hp} stored ${dmg.stored}`);
+  await shot('job-assassin-mark-finale');
 
   // 繼承技能（三連飛鏢 / 暗影步伐 / 暗殺）在刺客身上仍可施放，且用刺客的動作圖
   for (const [id, cost] of [['Z', 10], ['X', 30], ['C', 50]]) {
@@ -138,7 +153,7 @@ const BASE = `http://127.0.0.1:${PORT}/index.html?debug=1`;
     check(`刺客繼承技能 ${id}：耗 MP、進冷卻、動作圖為 assassin`, (st0.mp - s.mp) > cost - 12 && (st0.mp - s.mp) < cost + 1 && (s.cd[id] > 0 || id === 'Z') && ti.some((t) => t.startsWith('player_assassin_')) && !ti.some((t) => /^player_(idle|walk|slash|throw|dash|cast)/.test(t)), `${id} mp ${st0.mp}->${s.mp} cd=${s.cd[id]} tex=${JSON.stringify(ti)}`);
   }
   await ev(() => { const g = window.__game.registry.get('gameState'); window.__poolV = g.skillLevels.V; });
-  check('刺客不能施放不在技能池的技能（V 暗影漩渦）', await ev(() => { const p = window.__game.scene.getScene('MapleIslandScene').player; const gs = window.__game.registry.get('gameState'); gs.skillCooldowns.V = 0; const mp = gs.mp; p.castSkill('V'); return gs.mp === mp && !(gs.skillCooldowns.V > 0); }));
+  check('刺客不能施放不在技能池的技能（V 暗影漩渦）', await ev(() => { const p = window.__game.scene.getScene('SkyIslandScene').player; const gs = window.__game.registry.get('gameState'); gs.skillCooldowns.V = 0; const mp = gs.mp; p.castSkill('V'); return gs.mp === mp && !(gs.skillCooldowns.V > 0); }));
 
   // 殺手本能（被動）：暴擊傷害 +30% 影響實際暴擊倍率
   check('殺手本能：effectiveCritMulti = critMulti + 0.3', await ev(() => { const gs = window.__game.registry.get('gameState'); return gs.job === 'assassin'; }));
@@ -148,7 +163,7 @@ const BASE = `http://127.0.0.1:${PORT}/index.html?debug=1`;
   await page.waitForTimeout(600);
   s = await state();
   check('俠盜：待機動作圖是 player_bandit_*', s.tex.startsWith('player_bandit_'), s.tex);
-  check('俠盜：HUD 職業名與頭像', await ev(() => { const u = window.__game.scene.getScene('UIScene'); return u._classText.text.includes('俠盜') && u._portrait.texture.key === 'portrait_bandit'; }));
+  check('俠盜：HUD 職業名與頭像', await page.waitForFunction(() => { const u = window.__game.scene.getScene('UIScene'); return u._classText.text.includes('俠盜') && u._portrait.texture.key === 'portrait_bandit'; }, null, { timeout: 5000 }).then(() => true, () => false));
   check('俠盜：技能欄預設 X V B whirl', await ev(() => JSON.stringify(window.__game.registry.get('gameState').skillSlots)) === '["X","V","B","whirl"]');
   await shot('job-bandit-idle');
 
@@ -162,12 +177,12 @@ const BASE = `http://127.0.0.1:${PORT}/index.html?debug=1`;
   const swing = async (keepCombo) => {
     for (let k = 0; k < 6; k++) {
       // 機器忙時兩下之間常超過 900 ms；視窗本身由單元測試（comboStep）涵蓋，這裡把上一下的時間戳更新到現在，只驗「第 3 下擊飛」
-      if (keepCombo) await ev(() => { const sc = window.__game.scene.getScene('MapleIslandScene'); if (sc.player._combo) sc.player._combo.last = sc.time.now; });
-      const before = await ev(() => window.__game.scene.getScene('MapleIslandScene').player._combo?.last ?? 0);
+      if (keepCombo) await ev(() => { const sc = window.__game.scene.getScene('SkyIslandScene'); if (sc.player._combo) sc.player._combo.last = sc.time.now; });
+      const before = await ev(() => window.__game.scene.getScene('SkyIslandScene').player._combo?.last ?? 0);
       await press('Space');
       await page.waitForTimeout(120);
-      const after = await ev(() => window.__game.scene.getScene('MapleIslandScene').player._combo?.last ?? 0);
-      if (after !== before) return ev(() => window.__game.scene.getScene('MapleIslandScene').player._combo.count);
+      const after = await ev(() => window.__game.scene.getScene('SkyIslandScene').player._combo?.last ?? 0);
+      if (after !== before) return ev(() => window.__game.scene.getScene('SkyIslandScene').player._combo.count);
       await page.waitForTimeout(350);   // ATK 冷卻
     }
     return -1;
@@ -177,7 +192,7 @@ const BASE = `http://127.0.0.1:${PORT}/index.html?debug=1`;
     ups = []; counts = [];
     await page.waitForTimeout(1100);   // 讓上一組的連擊視窗過期，從第 1 下開始
     for (let i = 0; i < 3; i++) {
-      await ev(() => { const m = window.__m; const p = window.__game.scene.getScene('MapleIslandScene').player; m.setPosition(p.x + 70, p.y); m.body.setVelocity(0, 0); m.hurtTimer = 0; window.__minVy = 0; });
+      await ev(() => { const m = window.__m; const p = window.__game.scene.getScene('SkyIslandScene').player; m.setPosition(p.x + 70, p.y); m.body.setVelocity(0, 0); m.hurtTimer = 0; window.__minVy = 0; });
       counts.push(await swing(i > 0));
       await page.waitForTimeout(i < 2 ? 100 : 900);
       ups.push(await ev(() => window.__minVy));
@@ -191,7 +206,7 @@ const BASE = `http://127.0.0.1:${PORT}/index.html?debug=1`;
 
   // 赤月迴旋：半徑 120 內全體 + 擊退（身後也打得到）
   await prep(90);
-  const second = await ev(() => { const sc = window.__game.scene.getScene('MapleIslandScene'); const p = sc.player; const m2 = sc.add.existing; return null; });
+  const second = await ev(() => { const sc = window.__game.scene.getScene('SkyIslandScene'); const p = sc.player; const m2 = sc.add.existing; return null; });
   await ev(() => { window.__game.registry.get('gameState').skillCooldowns = { ATK: 0 }; });
   st0 = await state();
   await ev(() => { window.__maxDx = 0; const x0 = window.__m.x; window.__dxIv = setInterval(() => { window.__maxDx = Math.max(window.__maxDx, Math.abs(window.__m.x - x0)); }, 20); });
@@ -214,10 +229,13 @@ const BASE = `http://127.0.0.1:${PORT}/index.html?debug=1`;
   check('妙手空空：MP -24（命中回 10）、冷卻、敵人受傷', (st0.mp - s.mp) > 5 && (st0.mp - s.mp) < 25 && s.cd.steal > 0 && s.hp < st0.hp, `mp ${st0.mp}->${s.mp} hp ${st0.hp}->${s.hp}`);
   await shot('job-bandit-steal');
   const stat = await ev(async () => {
-    const g = window.__game; const sc = g.scene.getScene('MapleIslandScene'); const p = sc.player; const gs = g.registry.get('gameState'); const m = window.__m;
+    const g = window.__game; const sc = g.scene.getScene('SkyIslandScene'); const p = sc.player; const gs = g.registry.get('gameState'); const m = window.__m;
     gs.maxMp = 999999; const potions0 = gs.potions.A + gs.potions.D; let casts = 0;
     for (const o of sc.pickups.getChildren().slice()) o.destroy();
+    // 妙手空空會突進穿過敵人：每次施放前把玩家拉回原位，避免一路衝到地圖邊的傳送門而換地圖
+    const x0 = p.x;
     for (let i = 0; i < 160; i++) {
+      p.body.reset(x0, p.y);
       gs.mp = gs.maxMp; gs.skillCooldowns.steal = 0; m.setPosition(p.x + 70, p.y); m.body.setVelocity(0, 0); m.hurtTimer = 0; m.hp = m.maxHp;
       p.facingRight = true; p.castSkill('steal'); casts++;
       await new Promise((r) => setTimeout(r, 90));
@@ -236,7 +254,7 @@ const BASE = `http://127.0.0.1:${PORT}/index.html?debug=1`;
   check('迷煙彈：MP -45、冷卻、產生煙霧區', (st0.mp - s.mp) > 20 && (st0.mp - s.mp) < 46 && s.cd.smoke > 0 && s.zones === 1, `mp ${st0.mp}->${s.mp} zones=${s.zones}`);
   await shot('job-bandit-smoke');
   const sm = await ev(() => {
-    const sc = window.__game.scene.getScene('MapleIslandScene'); const p = sc.player; const m = window.__m; const z = p.smokeZones[0];
+    const sc = window.__game.scene.getScene('SkyIslandScene'); const p = sc.player; const m = window.__m; const z = p.smokeZones[0];
     m.setPosition(z.x, p.y); m.body.setVelocity(0, 0);
     p.isInvincible = false; const recv = []; const old = p.takeDamage; p.takeDamage = function (a) { recv.push(a); };
     const r = Math.random; Math.random = () => 0.5;
@@ -248,7 +266,7 @@ const BASE = `http://127.0.0.1:${PORT}/index.html?debug=1`;
   check('迷煙彈：煙霧內敵人傷害為 40%', sm.normal > 0 && Math.abs(sm.smoked - sm.normal * 0.4) <= 1, JSON.stringify(sm));
   await page.waitForTimeout(500);
   await ev(() => { window.__m._smoked = false; });   // 清掉上面手動設的旗標，改由 Monster.update 的煙霧偵測自己判定
-  const flag = await ev(() => { const sc = window.__game.scene.getScene('MapleIslandScene'); const p = sc.player; const m = window.__m; const z = p.smokeZones[0]; m.setPosition(z.x + 30, p.y); m.body.setVelocity(0, 0); return null; });
+  const flag = await ev(() => { const sc = window.__game.scene.getScene('SkyIslandScene'); const p = sc.player; const m = window.__m; const z = p.smokeZones[0]; m.setPosition(z.x + 30, p.y); m.body.setVelocity(0, 0); return null; });
   await page.waitForTimeout(500);
   check('迷煙彈：煙霧內的敵人被標記為 smoked（AI 不追擊）', (await state()).smoked === true);
 
@@ -262,17 +280,17 @@ const BASE = `http://127.0.0.1:${PORT}/index.html?debug=1`;
   }
   await prep(150);
   await equip('Z', 'B'); await press('z'); await page.waitForTimeout(1500);
-  const clone = await ev(() => { const sc = window.__game.scene.getScene('MapleIslandScene'); const c = sc._shadowClone; return c && c.active ? { tex: c.texture.key } : null; });
+  const clone = await ev(() => { const sc = window.__game.scene.getScene('SkyIslandScene'); const c = sc._shadowClone; return c && c.active ? { tex: c.texture.key } : null; });
   check('俠盜影分身：用 player_bandit_* 動作圖', clone && clone.tex.startsWith('player_bandit_'), JSON.stringify(clone));
   await shot('job-bandit-clone');
-  await ev(() => { const c = window.__game.scene.getScene('MapleIslandScene')._shadowClone; if (c) c.emit('expire'); });
-  check('俠盜不能施放不在技能池的技能（Z 三連飛鏢）', await ev(() => { const p = window.__game.scene.getScene('MapleIslandScene').player; const gs = window.__game.registry.get('gameState'); const mp = gs.mp; p.castSkill('Z'); return gs.mp === mp; }));
+  await ev(() => { const c = window.__game.scene.getScene('SkyIslandScene')._shadowClone; if (c) c.emit('expire'); });
+  check('俠盜不能施放不在技能池的技能（Z 三連飛鏢）', await ev(() => { const p = window.__game.scene.getScene('SkyIslandScene').player; const gs = window.__game.registry.get('gameState'); const mp = gs.mp; p.castSkill('Z'); return gs.mp === mp; }));
 
   // 悍匪體魄：金幣加成（Monster 掉落）
   check('悍匪體魄：mesoMult 1.15 / maxHp×1.2 已套用於 gameState', await ev(() => { const g = window.__game.registry.get('gameState'); return g.job === 'bandit'; }));
 
   // ───────────────────────── 存檔重讀 ─────────────────────────
-  await ev(() => { const g = window.__game; g.scene.getScene('MapleIslandScene').events.emit('job-changed', 'bandit', { silent: true }); });
+  await ev(() => { const g = window.__game; g.scene.getScene('SkyIslandScene').events.emit('job-changed', 'bandit', { silent: true }); });
   await page.waitForTimeout(500);
   const saved = await ev(() => JSON.parse(localStorage.getItem('thief-legend-save-v1') || '{}'));
   check('存檔包含職業 bandit', saved.state && saved.state.job === 'bandit', JSON.stringify(saved.state && saved.state.job));

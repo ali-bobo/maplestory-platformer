@@ -49,23 +49,34 @@ export function stickDirection(dx, radius, deadZone = 0.22) {
   return 0;
 }
 
+// 觸控鈕名稱 → 按鍵設定裡的動作（ESC 固定，不在表內）
+export const TOUCH_ACTIONS = Object.freeze({
+  left: 'left', right: 'right', up: 'up', down: 'down',
+  SPACE: 'attack', Z: 'skill1', X: 'skill2', C: 'skill3', V: 'skill4', F: 'interact',
+});
+
 // 「按下 / 放開」的狀態管理，與 DOM 無關：同一個鍵重複 press 只會送一次 keydown。
-export function createKeyState(emit) {
-  const down = new Set();
+// resolve(name) 決定實際送出的按鍵（玩家改過鍵位時送新的鍵）；放開時送「按下當時」的那個鍵，
+// 避免按住期間改了設定而卡鍵。
+export function createKeyState(emit, resolve = (name) => KEYS[name]) {
+  const down = new Map();   // name → 按下時送出的 def
   return {
     press(name) {
       if (down.has(name)) return false;
-      down.add(name);
-      emit('keydown', KEYS[name]);
+      const def = resolve(name) || KEYS[name];
+      down.set(name, def);
+      emit('keydown', def);
       return true;
     },
     release(name) {
-      if (!down.delete(name)) return false;
-      emit('keyup', KEYS[name]);
+      if (!down.has(name)) return false;
+      const def = down.get(name);
+      down.delete(name);
+      emit('keyup', def);
       return true;
     },
     releaseAll() {
-      for (const name of [...down]) this.release(name);
+      for (const name of [...down.keys()]) this.release(name);
     },
     isDown(name) { return down.has(name); },
   };
@@ -99,13 +110,14 @@ const HAND_KEY = 'thief-legend-touch-hand';   // 'left' = 移動在左手（傳�
 
 
 // 建立並掛載觸控層。回傳 { setVisible, destroy }。
-export function mountTouchControls({ canvasProvider, hudBottomRatio = 120 / 720, mode: initialMode = 'joystick' } = {}) {
+// resolveKey(name)：可選，回傳要送出的 { key, code, keyCode }（依按鍵設定）；沒給就用 KEYS 的預設鍵
+export function mountTouchControls({ canvasProvider, hudBottomRatio = 120 / 720, resolveKey, mode: initialMode = 'joystick' } = {}) {
   const root = document.createElement('div');
   root.id = 'touch-controls';
   root.className = 'tc-hidden';
   root.setAttribute('aria-hidden', 'true');
 
-  const keys = createKeyState(fireKeyboardEvent);
+  const keys = createKeyState(fireKeyboardEvent, resolveKey);
 
   // 虛擬搖桿的感應區與視覺（在所有按鈕之下）：joyZone 在移動側、tapZone 在另一側（點一下 = 跳）
   const joyZone = document.createElement('div');

@@ -417,3 +417,38 @@ body {
 
 #touch-controls.tc-modal .tc-fullscreen,
 #touch-controls.tc-modal .tc-swap { display: none; }
+
+/* 全域錯誤提示（src/engine/errorGuard.js）：小框置中下方，不整片蓋住遊戲 */
+#err-guard {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  z-index: 31;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  width: min(90vw, 30em);
+  box-sizing: border-box;
+  padding: 16px 20px;
+  background: rgba(20, 12, 8, 0.92);
+  border: 2px solid #8a5a20;
+  border-radius: 10px;
+  color: #f5e6c0;
+  font-size: 16px;
+  text-align: center;
+}
+#err-guard p { margin: 0; line-height: 1.5; }
+.err-guard-buttons { display: flex; gap: 12px; }
+#err-guard button {
+  font: inherit;
+  min-height: 44px;
+  padding: 8px 24px;
+  color: #3a2410;
+  background: #f2cf7a;
+  border: 2px solid #8a5a20;
+  border-radius: 8px;
+  cursor: pointer;
+}
+#err-guard button.err-guard-secondary { background: #c9b48a; }

@@ -7,6 +7,7 @@ import { addParchmentPanel, addWoodButton } from '../engine/woodUi.js';
 import { questLog, getObjective } from '../engine/objective.js';
 import { cjkWrap } from './textWrap.js';
 import { sceneUiCtx, touchTargetPx } from './uiScale.js';
+import { badgeLog } from '../engine/badges.js';
 
 export const QUEST_LOG_WINDOW = { w: 760, h: 572, y: 14 };
 const PAGE_TOP = 78;       // 內容區起點（相對視窗上緣）
@@ -38,6 +39,8 @@ export function buildQuestLogWindow(scene, gs, options = {}) {
   const log = questLog(gs);
   text(x0 + 190, y0 + 30, `進行中 ${log.active.length}　可接取 ${log.available.filter((q) => !q.far).length}　已完成 ${log.completed.length}`, 15, '#e8d3a8',
     { strokeThickness: 2 });
+  const badges = badgeLog(gs);
+  text(x0 + W - 84, y0 + 30, `盜賊徽章 ${badges.count}/${badges.total}`, 15, '#ffe27a', { strokeThickness: 2 }).setOrigin(1, 0);
 
   // 關閉 ×：桌機維持原樣（40px 方塊 + 48px 命中區）；手機畫布縮小時命中區放大到 >= 44 CSS px（右上角貼齊視窗），
   // 外觀方塊只略放大，命中區往視窗內側延伸（下方右側沒有其他可點物件）。
@@ -101,6 +104,21 @@ export function buildQuestLogWindow(scene, gs, options = {}) {
   header(`已完成（${log.completed.length}）`, '#ffd27a');
   addBlock((line) => line(log.completed.length ? log.completed.map((q) => q.name).join('、') : '還沒有完成的任務。', 14, '#b9a98a',
     { strokeThickness: 2 }));
+
+  // 盜賊徽章：去過的地圖列出收集數；沒去過的只說還藏著幾枚（不劇透地圖名稱）；最後是收集獎勵
+  header(`盜賊徽章（${badges.count}/${badges.total}）`, '#ffd27a');
+  addBlock((line) => {
+    const seen = badges.maps.filter((m) => m.visited);
+    const unseen = badges.maps.filter((m) => !m.visited);
+    if (seen.length) line(seen.map((m) => `${m.got >= m.total ? '★' : ''}${m.name} ${m.got}/${m.total}`).join('　'), 14, '#e8d3a8', { strokeThickness: 2 });
+    if (unseen.length) {
+      line(`還沒去過的 ${unseen.length} 張地圖還藏著 ${unseen.reduce((s, m) => s + m.total - m.got, 0)} 枚。`, 14, '#9a8f78', { strokeThickness: 2 });
+    }
+    for (const r of badges.rewards) {
+      line(`${r.claimed ? '★' : '☆'} 收集 ${r.at} 枚：${r.text}${r.claimed ? '（已領取）' : ''}`, 14, r.claimed ? '#9ff0c8' : '#b9a98a',
+        { strokeThickness: 2 });
+    }
+  });
 
   // 分頁：依累計高度切，單一區塊比一頁還高就獨佔一頁
   const pages = [[]];

@@ -6,6 +6,7 @@
 //    createInitialGameState() 為底，只複製白名單欄位並限制範圍，缺的欄位補預設值。
 //  - 存檔格式：{ format: 'thief-legend-save', version, savedAt, state }；
 //    同時相容舊版 { version: 1, savedAt, gameState }（無 format 欄位）。
+//  - 改過名的地圖 key / 徽章 id 由 legacyIds.js 在驗證前換成新名。
 //  - 此處的範圍檢查只防止壞檔 / 型別錯誤導致遊戲崩潰，不是防作弊機制
 //    （存檔在玩家端，無法保證數值真實）。
 //
@@ -16,10 +17,12 @@ import {
   MAX_LEVEL, titleFor, BOSS_FALLBACK_MAP,
 } from '../config/constants.js';
 import { SHARD_IDS } from '../config/shards.js';
+import { sanitizeBadges, sanitizeBadgeRewards } from './badges.js';
 import { MAPS } from '../config/maps.js';
 import { EQUIPMENT_SLOTS, EQUIPMENT_BASES, RARITIES } from '../config/equipment.js';
 import { getQuestDef, QUESTS } from '../config/quests.js';
 import { pathBetween } from './worldGraph.js';
+import { migrateLegacyIds } from './legacyIds.js';
 
 export const SAVE_FORMAT = 'thief-legend-save';
 export const SAVE_VERSION = 1;
@@ -78,6 +81,11 @@ function sanitizeMap(key) {
     : DEFAULT_MAP;
 }
 
+/** 讀檔後實際落腳的地圖：副本 → 晨曦鎮、Boss 房 → BOSS_FALLBACK_MAP、未知 → 預設地圖（「儲存並離開」的提示用） */
+export function resumeMapKey(key) {
+  return sanitizeMap(key);
+}
+
 // 星光碎片：只認 SHARD_IDS、去重，順序依 SHARD_IDS（和取得順序無關）
 function sanitizeShards(raw) {
   if (!Array.isArray(raw)) return [];
@@ -129,9 +137,11 @@ function sanitizeQuests(raw) {
 
 // 把任意輸入轉成一份合法、可直接放進 registry 的 gameState。
 // 只依賴 createInitialGameState 的欄位，未知欄位一律丟棄。
-export function sanitizeState(raw) {
+export function sanitizeState(input) {
   const gs = createInitialGameState();
-  if (!isPlainObject(raw)) return gs;
+  if (!isPlainObject(input)) return gs;
+  // 舊版地圖 key / 徽章 id 先換成新名（見 legacyIds.js），否則會被當成未知值丟掉
+  const raw = migrateLegacyIds(input);
 
   gs.level = int(raw.level, 1, MAX_LEVEL, 1);
   gs.expNeeded = expNeeded(gs.level);
@@ -158,6 +168,9 @@ export function sanitizeState(raw) {
   gs.shards = sanitizeShards(raw.shards);
   gs.towerLit = raw.towerLit === true && gs.shards.length >= SHARD_IDS.length;
   gs.bossUnlocked = raw.bossUnlocked === true || gs.towerLit;
+  // 盜賊徽章：只認已知 id、去重；舊存檔沒有這兩個欄位 → 空陣列
+  gs.badges = sanitizeBadges(raw.badges);
+  gs.badgeRewards = sanitizeBadgeRewards(raw.badgeRewards, gs.badges.length);
 
   if (isPlainObject(raw.equipment)) {
     for (const slot of EQUIPMENT_SLOTS) {
@@ -201,6 +214,8 @@ export function sanitizeState(raw) {
 
   // 死亡警告看過了沒（每個存檔只提示一次）；不屬於 createInitialGameState，只有為 true 時才存在
   if (raw.deathWarned === true) gs.deathWarned = true;
+  // 已通關（擊敗暗影魔君）：同樣只有為 true 時才存在；決定魔君王城 / 暗影領域的回程傳送門是否出現
+  if (raw.gameCleared === true) gs.gameCleared = true;
 
   gs.currentMap = sanitizeMap(raw.currentMap);
   gs.spawnX = MAPS[gs.currentMap].spawnX ?? gs.spawnX;
@@ -249,7 +264,7 @@ export function parseSave(text) {
 export function getBrowserStorage() {
   try {
     if (typeof localStorage === 'undefined') return null;
-    const probe = '__maple_probe__';
+    const probe = '__thief_legend_probe__';
     localStorage.setItem(probe, '1');
     localStorage.removeItem(probe);
     return localStorage;

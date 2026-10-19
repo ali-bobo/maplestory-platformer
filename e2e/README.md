@@ -14,11 +14,13 @@
    node e2e/e2e-jobs.cjs /tmp/shots
    ```
 
-## 環境假設（換環境要改）
+## 環境假設
 
 - 連接埠用環境變數 `PORT`（預設 8123），多個工作同時跑時各用不同埠：`PORT=8401 node e2e/e2e-jobs.cjs`。
-
-- Playwright 路徑寫死為 `/opt/node-tools/node_modules/playwright`，Chromium 為 `/opt/pw-browsers/chromium-1194/chrome-linux/chrome`。
+- Playwright 與 Chromium 由共用的 `e2e/pw.cjs` 決定，所有腳本（含 `world/lib.cjs`）都從這裡拿 `chromium` 與 `executablePath`：
+  - Playwright：先 `require('playwright')`（專案或 `NODE_PATH` 找得到就用），否則退回 `/opt/node-tools/node_modules/playwright`。
+  - Chromium：環境變數 `PW_CHROMIUM` > Playwright 預設下載的瀏覽器（`npx playwright install chromium`）> `/opt/pw-browsers/chromium-1194/chrome-linux/chrome`。
+  - 本機容器什麼都不用設；換機器時裝 Playwright 1.56.1（和 `/opt` 版本一致）並 `npx playwright@1.56.1 install chromium` 即可。
 - 遊戲網址用環境變數 `PORT`（多數腳本預設 8123，`e2e-quest` 與 `world/*` 預設 8231）：`PORT=8403 node e2e/e2e-jobs.cjs /tmp/shots`。機器忙（多個瀏覽器同時跑）時載入與計時會變慢，腳本已改成等到進入地圖才開始，仍可能出現偶發的計時類失敗，重跑即可。
 - 腳本靠 `?debug=1` 暴露的 `window.__game`、`window.__setJob(job, level)`、`window.__QUESTS` 來快速設定狀態。
 
@@ -30,10 +32,12 @@
 | `e2e-tutorial.cjs` | 新手教學 |
 | `e2e-skills2.cjs` | 技能欄、普通攻擊 / Z 技能、冷卻與 MP、技能視窗與換入 |
 | `e2e-death.cjs` | 死亡與重新開始 |
+| `savequit.cjs` | 受擊反應（怪物從左 / 右打 → 往遠離攻擊者的方向擊退、硬直與無敵閃爍會結束、受傷後 HP 自然回復暫停）與暫停選單「儲存並離開」（存檔、回主選單、監聽清乾淨、繼續遊戲回到同一張地圖；副本中先確認、繼續後在晨曦鎮）。截圖 `hit-knockback.png`、`pause-save-quit.png`（`SHOT_DIR=資料夾` 另存一份）。用法 `PORT=8135 node e2e/savequit.cjs /tmp/shots` |
 | `e2e-mobile.cjs` | 舊式觸控按鈕（強制 `touchControls: buttons`）、多點觸控、左右互換、暫停、直向 |
 | `mobile-joystick.cjs` | 虛擬搖桿（844x390，CDP 多指）：浮動底盤、左右拖曳、上推跳、二段跳（回中立再推 / 快速上滑 / 另一側點擊 / 跳躍鈕）、按住不連跳、右手同時攻擊、touchcancel / 拖出螢幕 / 失焦不卡鍵、第二指不搶搖桿、下推、HUD 藥水槽仍可點、左右互換、設定切換、視窗縮放。注意 CDP `touchEnd` 的 touchPoints 是「要放開的那幾指」；無頭瀏覽器負載高時二段跳序列會自動重試。用法 `PORT=8517 node e2e/mobile-joystick.cjs <截圖目錄>` |
-| `ux.cjs` | UX 系統：ESC 順序（含合成 ESC）、存檔代碼往返（全新設定檔匯入、壞代碼、剪貼簿被拒）、設定持久化與生效、低血量暈影與首次死亡提醒、目標列、任務日誌、localStorage 不可用、手機 844x390（技能視窗可點、觸控鈕讓開、冷卻遮罩）。用法 `PORT=8412 node e2e/ux.cjs /tmp/shots` |
 | `mobile-layout.cjs` | 手機可見視窗版面：8 組視窗（844x340、740x320、667x300、915x412、844x390、667x375、390x844 直向、1280x720 桌機）。畫布 16:9 置中且至少一軸填滿、無捲動條、視窗高度變動後重新貼合、安全區域（`--safe-*` 變數）、直向「請橫放」提示、全螢幕鈕（無 API 時隱藏）；影之長老選項對話（真實點互動鈕開啟）、一般 / 長文字對話、5 列商店（真的點購買）、任務日誌 / 設定 / 技能 / 道具視窗、世界地圖：每個可點物件在可見視窗內、≥ 40 CSS px、`elementFromPoint` 不被觸控鈕蓋住、不被 HUD 蓋住（遊戲座標 y 48~600）、文字 ≥ 12 CSS px（畫布縮放 < 0.5 放寬到 10），並用 CDP 真實觸控點關閉鈕。用法 `PORT=8437 node e2e/mobile-layout.cjs /tmp/shots [視窗名…]` |
+| `ux.cjs` | UX 系統：ESC 順序（含合成 ESC）、存檔代碼往返（全新設定檔匯入、壞代碼、剪貼簿被拒）、設定持久化與生效、低血量暈影與首次死亡提醒、目標列、任務日誌、localStorage 不可用、手機 844x390（技能視窗可點、觸控鈕讓開、冷卻遮罩）。用法 `PORT=8412 node e2e/ux.cjs /tmp/shots` |
+| `controls.cjs` | 手把（假造 `navigator.getGamepads`：接上提示、主選單按 A、移動 / 跳 / 普攻 / 技能 / Start 暫停、拔掉不卡鍵）與按鍵設定（設定面板改鍵、衝突互換、保留鍵拒絕、ESC 只取消、HUD 字樣、改鍵後實際施放、重新載入保留、恢復預設）。用法 `PORT=8132 node e2e/controls.cjs /tmp/shots` |
 | `e2e-music.cjs` | 每張地圖的音樂 |
 | `e2e-feel.cjs` | 戰鬥手感：土狼時間、落地前提前按跳、攻擊 / 技能冷卻尾端再按會銜接且不多扣 MP。用 `game.step` 虛擬時鐘逐幀推進（headless 約 7 FPS，比 120 ms 緩衝窗還慢，真實時間按鍵不可靠） |
 | `e2e-jobs.cjs` | 兩個職業的技能、姿勢、被動、存檔讀檔 |
@@ -41,12 +45,21 @@
 | `soak.cjs` | 浸泡測試（效能 / 記憶體）：連續遊玩數分鐘（連打技能、受傷死亡、走遍所有地圖與 Boss / 副本、換職業、開技能視窗、音樂開著），每分鐘印出堆積 / 紋理 / 物件 / 計時器 / 音訊節點，最後斷言暖機後不成長，並演練 WebGL context 遺失。`PORT=8401 SOAK_MIN=8 node e2e/soak.cjs /tmp/shots`（`SOAK_JSON=檔案` 可存數據） |
 
 | `ai.cjs` | 怪物 AI：Boss 追擊不抖動、玩家在別層時怪物不呆站、每種新攻擊出手並造成效果、守衛 / Boss 階段切換、機器人玩家難度抽樣。用法 `PORT=8402 node e2e/ai.cjs <截圖目錄> [a b c d e]`（只跑指定章節；`CASES=charge,slam` 可限制 c 章的招式、`E_ONLY=boss` 只跑 e 章的 Boss 戰）；時間門檻用遊戲時間（headless 只有約 10 FPS） |
+| `badges.cjs` | 盜賊徽章：在浮空島嶼與森林獵場把角色瞬移到徽章上，檢查計數、浮字、立即存檔；重新整理讀檔後仍在且已撿的不再出現；第 10 枚發金幣獎勵且只發一次；任務日誌 / 世界地圖顯示進度；截圖 `badge-sky.png` 等。用法 `PORT=8133 node e2e/badges.cjs /tmp/shots` |
 | `world/` | 世界骨架：主線傳送門、星光碎片、四張新地圖的機制（`lib.cjs` 是共用工具） |
 | `world/s4.cjs` | 支線岔路入口（真實按鍵跳上跳台、走地面不誤入、按 F 進入）與世界地圖浮層（節點狀態、傳送、扣費、副本中拒絕） |
+| `postgame.cjs` | 通關後與難度：通關前無回程門、擊敗暗影魔君後通關旗標寫進存檔、「繼續冒險」回晨曦鎮且世界地圖可傳送、魔君王城回程門按 F 回晨曦鎮（只站上去不會傳送）、暗影領域也有回程門、困難難度讓新生成的怪物 HP ×1.4 / 攻擊 ×1.3、設定視窗點「簡單」、載入條下方的提示（攔截素材下載延遲 2.5 秒讓載入條出現）、死亡結算畫面的提示。截圖 `postgame-*.png`。用法 `PORT=8134 node e2e/postgame.cjs /tmp/shots` |
 | `balance.cjs` | 技能平衡實測：每個職業、每個技能對靜止靶的傷害 / MP，並斷言設計意圖（見 `docs/SKILLS_DESIGN.md` 第八節） |
 | `trial.cjs` | 影之試煉守衛的戰鬥時間：Lv10 盜賊三種打法（穩健 / 只用普攻 / 莽撞）各打數次，回報擊殺時間與血量；`GHP` / `GATK` 環境變數可覆寫守衛數值來調參 |
 
-> 這些腳本不在 `npm test` 裡（單元測試是 `npm test`，約 292 項）。要不要把它們串進 CI 之後再決定。
+> 這些腳本不在 `npm test` 裡（單元測試是 `npm test`，約 406 項）。
+
+## CI
+
+`.github/workflows/e2e.yml` 在 pull request 與推到 `main` 時跑冒煙子集：`e2e.cjs`、`e2e-skills2.cjs`、`e2e-jobs.cjs`、`ux.cjs`（本機約 4~5 分鐘）。
+流程：`npm ci` → `npm run build` → 把 Playwright 1.56.1 裝到暫存資料夾（不改 `package.json`，靠 `NODE_PATH` 讓 `pw.cjs` 找到）→
+`npx playwright@1.56.1 install --with-deps chromium` → `python3 -m http.server` → 每支腳本各自一步、各有時限。
+任何一步失敗都會把截圖資料夾上傳成 artifact `e2e-screenshots`。其他腳本（`ai`、`soak`、`balance`、`e2e-quest`、`world/*`…）較慢，仍在本機手動跑。
 
 ## 穩定性筆記（機器忙時要知道的事）
 
@@ -59,9 +72,9 @@
 - 新增 `world/shops.cjs`：三個補給商人可開啟、購買增加庫存。
 - `ai.cjs` 全跑約 10~20 分鐘（機器忙時更久），外層 timeout 要設 1500 秒以上。
 - `world/s1.cjs` 與 `world/s3.cjs` 都用「整段補血」避免角色被打死後換場景。
-- `balance.cjs`（已修，原本在量測中途崩潰）要知道的事：
-  - 崩潰根因：位移類技能（暗影步伐 / 瞬影連刺）會把玩家帶進傳送門，場景被換成別張地圖，舊場景 shutdown 把所有靶銷毀，之後讀 `m.body` 就丟 `'setVelocity' of undefined`。現在量測期間設 `scene._transitioning = true` 鎖住傳送門，`reset()` 也會在場景被換或靶被銷毀時直接丟出明確訊息。
-  - 靶不動用欄位凍結（同上面的做法），不要換掉 `Monster.update`。
-  - 出手到命中之間有遊戲時間的 `delayedCall`（命中停頓、機器忙時會拖延）；固定 `waitForTimeout` 會讓命中漏進下一下或落空（量到 0 / 雙倍）。改用「傷害靜止 450 ms」才結算。MP 成本要在同一次 `evaluate` 內讀前後值。
-  - 普攻貼身（40 px）量：第一下的擊退會把靶推出刺客 90 的範圍，距離遠時第二下常落空，量不到設計的「兩下都中」。
-  - 斷言包含普攻 DPS 量級（刺客≈4.0、俠盜≈3.71、盜賊≈2.61，±20%，因為暴擊隨機）。全跑約 3~5 分鐘。
+- `balance.cjs` 以前在刺客「暗殺」量測中途崩潰（靶的 `body` 消失），已修。原因：腳本只用 `setPosition` 搬怪，Arcade body 要到下一個物理步才跟上；
+  多餘的怪被 `setPosition(-5000)` 停到畫面外，但牠的 body 還留在玩家身邊（上一段 3 隻靶的位置）。暗殺用 `body.center` 找最近敵人、
+  卻用 `sprite.x` 算「背後」，於是選中那隻、瞬移點夾到地圖左緣 x=40，正好踩上往村莊的傳送門 → 換場景、所有怪被 destroy。
+  現在搬怪一律用 `body.reset`、多餘的怪直接停用（`setActive(false)` + `body.enable = false`）、量測原點固定在離傳送門最遠的地面，
+  場景換掉或靶消失時會丟出清楚的錯誤。通則：**腳本搬怪要用 `body.reset(x, y)`，不要只 `setPosition`**。
+- `e2e-skills2.cjs` 的「按 ↑ 跳躍」以前固定按 100 ms 就讀速度，約 10 FPS 時常讀在起跳那一幀之前（`vy=0`）；現在先等站穩、按住並輪詢最多 1.5 秒。

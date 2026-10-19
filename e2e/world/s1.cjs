@@ -6,7 +6,7 @@ const OUT = __dirname + '/shots';
   const A = api(page);
   const shot = (n, o = {}) => page.screenshot({ path: `${OUT}/s1-${n}.png`, ...o });
 
-  check('起始場景是浮空島嶼', (await A.scene()) === 'MapleIslandScene');
+  check('起始場景是浮空島嶼', (await A.scene()) === 'SkyIslandScene');
   let gs = await A.gs();
   check('初始狀態 shards=[] towerLit=false visitedMaps=[sky]', gs.shards.length === 0 && gs.towerLit === false && gs.visitedMaps.join() === 'sky');
 
@@ -27,27 +27,27 @@ const OUT = __dirname + '/shots';
   await shot('gate-msg');
   await A.ev(() => window.__setJob('thief', 20)); await page.waitForTimeout(300);
   await A.tp(1000); await page.waitForTimeout(300); await A.tp(1360, 130); await page.waitForTimeout(900); await A.press('f'); await page.waitForTimeout(2600);
-  check('Lv20 可進入城市特區（暗巷城）', (await A.scene()) === 'KerningScene');
+  check('Lv20 可進入城市特區（暗巷城）', (await A.scene()) === 'AlleyScene');
   // 暗巷城 → 台北 → 回暗巷 → 回晨曦鎮
   await A.tp(2560 - 50); await page.waitForTimeout(2600);
   check('暗巷城右端 → 台北都會', (await A.scene()) === 'TaipeiScene');
   await A.tp(30); await page.waitForTimeout(2600);
-  check('台北都會左端 → 暗巷城', (await A.scene()) === 'KerningScene');
+  check('台北都會左端 → 暗巷城', (await A.scene()) === 'AlleyScene');
   await A.tp(30); await page.waitForTimeout(2600);
   check('暗巷城左端 → 晨曦鎮', (await A.scene()) === 'TownScene');
 
-  // 3. 主線走一遍：sky → henesys → ruins → harbor
-  await A.go('MapleIslandScene', 300);
+  // 3. 主線走一遍：sky → forest → ruins → harbor
+  await A.go('SkyIslandScene', 300);
   const hop = async (x, expect) => { await A.tp(x); await page.waitForTimeout(2800); const sc = await A.scene(); check(`傳送門 → ${expect}`, sc === expect, sc); };
-  await hop(2560 - 50, 'HenesysScene');
+  await hop(2560 - 50, 'ForestScene');
   // 神秘之境入口在右上角岔路跳台（x=2290, y=180），要站上去按 F
   await A.tp(2290, 100); await page.waitForTimeout(900); await A.press('f'); await page.waitForTimeout(2800);
-  check('傳送門 → ElliniaScene', (await A.scene()) === 'ElliniaScene', await A.scene());
-  await hop(30, 'HenesysScene');
-  await hop(2560 - 50, 'PerionScene');
+  check('傳送門 → MysticScene', (await A.scene()) === 'MysticScene', await A.scene());
+  await hop(30, 'ForestScene');
+  await hop(2560 - 50, 'RuinsScene');
   await hop(2560 - 50, 'HarborScene');
   gs = await A.gs();
-  check('visitedMaps 記下走過的地圖', ['sky', 'henesys', 'ellinia', 'ruins', 'harbor', 'town', 'kerning', 'taipei'].every((k) => gs.visitedMaps.includes(k)), gs.visitedMaps.join());
+  check('visitedMaps 記下走過的地圖', ['sky', 'forest', 'mystic', 'ruins', 'harbor', 'town', 'alley', 'taipei'].every((k) => gs.visitedMaps.includes(k)), gs.visitedMaps.join());
   // 主線：碧濤港右端接黃沙遺跡（不需要 Boss 解鎖）
   await A.tp(2560 - 50); await page.waitForTimeout(2800);
   check('碧濤港右端傳送門 → 黃沙遺跡', (await A.scene()) === 'DesertScene', await A.scene());

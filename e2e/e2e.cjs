@@ -1,4 +1,4 @@
-const { chromium } = require('/opt/node-tools/node_modules/playwright');
+const { chromium, executablePath: PW_EXE } = require('./pw.cjs');
 const PORT = process.env.PORT || 8123;
 const fs = require('fs');
 const SP = process.argv[2];
@@ -10,7 +10,7 @@ const check = (name, cond, extra='') => { log((cond ? 'PASS' : 'FAIL') + ' - ' +
 
 (async () => {
   const browser = await chromium.launch({
-    executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome',
+    executablePath: PW_EXE,
     args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--no-sandbox'],
   });
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 720 }, acceptDownloads: true });

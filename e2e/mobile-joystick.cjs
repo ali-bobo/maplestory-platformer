@@ -2,7 +2,7 @@
 // 用法：PORT=8517 node e2e/mobile-joystick.cjs <截圖資料夾>
 // 驗證：浮動搖桿出現在按下處、左右拖曳移動、放開停止、上推跳、回中立再上推二段跳、按住不連跳、
 //       另一側點擊跳（含二段跳）、右手同時攻擊、被取消 / 拖出螢幕不卡鍵、下推下穿、設定切換舊式按鈕。
-const { chromium } = require('/opt/node-tools/node_modules/playwright');
+const { chromium, executablePath: PW_EXE } = require('./pw.cjs');
 const PORT = process.env.PORT || 8123;
 const SP = process.argv[2] || '.';
 const BASE = `http://127.0.0.1:${PORT}/index.html?debug=1`;
@@ -11,7 +11,7 @@ const check = (n, c, x = '') => { console.log((c ? 'PASS' : 'FAIL') + ' - ' + n 
 
 (async () => {
   const browser = await chromium.launch({
-    executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome',
+    executablePath: PW_EXE,
     args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--no-sandbox'],
   });
   const ctx = await browser.newContext({

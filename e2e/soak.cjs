@@ -4,7 +4,7 @@
 // 用法：PORT=8401 SOAK_MIN=6 node e2e/soak.cjs [輸出資料夾]
 //   SOAK_MIN   總分鐘數（預設 6；每分鐘走完一圈：13 張地圖 + Boss 戰 + 副本）
 //   SOAK_JSON  若設定，把每分鐘取樣寫成 JSON 檔（比較前後數據用）
-const { chromium } = require('/opt/node-tools/node_modules/playwright');
+const { chromium, executablePath: PW_EXE } = require('./pw.cjs');
 const fs = require('fs');
 const PORT = process.env.PORT || 8123;
 const URL = `http://127.0.0.1:${PORT}/index.html?debug=1`;
@@ -13,8 +13,8 @@ const OUT = process.argv[2] || '.';
 let fails = 0;
 const check = (n, c, x = '') => { console.log((c ? 'PASS' : 'FAIL') + ' - ' + n + (x ? ' :: ' + x : '')); if (!c) fails++; };
 
-const MAPS = ['MapleIslandScene', 'HenesysScene', 'HarborScene', 'PerionScene', 'DesertScene', 'SnowScene', 'LavaScene',
-  'CastleScene', 'TownScene', 'ShrineScene', 'KerningScene', 'TaipeiScene', 'ElliniaScene',
+const MAPS = ['SkyIslandScene', 'ForestScene', 'HarborScene', 'RuinsScene', 'DesertScene', 'SnowScene', 'LavaScene',
+  'CastleScene', 'TownScene', 'ShrineScene', 'AlleyScene', 'TaipeiScene', 'MysticScene',
   'BossScene', 'DungeonScene:slime_cave'];   // 後兩個：Boss 戰與副本（不是一般地圖，素材清單來源不同）
 const JOB_CYCLE = [['thief', 12], ['assassin', 24], ['bandit', 24], ['thief', 30]];
 
@@ -88,7 +88,7 @@ const SAMPLE = () => {
 (async () => {
   const t0 = Date.now();
   const b = await chromium.launch({
-    executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome',
+    executablePath: PW_EXE,
     args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--no-sandbox',
       '--enable-precise-memory-info', '--js-flags=--expose-gc', '--autoplay-policy=no-user-gesture-required'],
   });
@@ -116,6 +116,10 @@ const SAMPLE = () => {
   // （頁面的 CSP 禁止 eval，所以不能用字串形式的 waitForFunction / eval）
   const hopTo = async (spec) => {
     const [key, dungeonId] = spec.split(':');
+    // 上一段戰鬥中被怪物打死（不是 dieAndRespawn 安排的）→ 先從結算畫面重新開始，否則沒有地圖場景可跳
+    if (await page.evaluate(() => window.__game.scene.isActive('GameOverScene'))) {
+      await page.mouse.move(510, 540); await page.waitForTimeout(150); await page.mouse.click(510, 540);
+    }
     await page.waitForFunction(() => !!window.__runningMap(), null, { timeout: 60000 });
     await page.evaluate(([k, dungeonId]) => {
       const g = window.__game; const sc = window.__runningMap();

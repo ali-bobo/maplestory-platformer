@@ -10,7 +10,7 @@ const dir = __dirname;
 const files = fs.readdirSync(dir).filter((f) => f.endsWith('.test.js'));
 if (files.length === 0) { console.error('找不到測試檔'); process.exit(1); }
 
-const out = fs.mkdtempSync(path.join(os.tmpdir(), 'maple-test-'));
+const out = fs.mkdtempSync(path.join(os.tmpdir(), 'thief-legend-test-'));
 const bundled = [];
 for (const f of files) {
   const outfile = path.join(out, f.replace(/\.js$/, '.cjs'));

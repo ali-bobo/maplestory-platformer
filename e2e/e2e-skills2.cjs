@@ -1,10 +1,10 @@
-const { chromium } = require('/opt/node-tools/node_modules/playwright');
+const { chromium, executablePath: PW_EXE } = require('./pw.cjs');
 const PORT = process.env.PORT || 8123;
 const SPDIR = process.argv[2] || '.';
 let fails = 0;
 const check = (n, c, x = '') => { console.log((c ? 'PASS' : 'FAIL') + ' - ' + n + (x ? ' :: ' + x : '')); if (!c) fails++; };
 (async () => {
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome',
+  const b = await chromium.launch({ executablePath: PW_EXE,
     args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--no-sandbox', '--autoplay-policy=no-user-gesture-required'] });
   const page = await (await b.newContext({ viewport: { width: 1280, height: 720 } })).newPage();
   const errors = []; page.on('pageerror', (e) => errors.push(e.message));
@@ -12,11 +12,11 @@ const check = (n, c, x = '') => { console.log((c ? 'PASS' : 'FAIL') + ' - ' + n 
   await page.addInitScript(() => { try { localStorage.setItem('thief-legend-tutorial-seen', '1'); } catch (_) {} });
   await page.goto(`http://127.0.0.1:${PORT}/index.html?debug=1`); await page.waitForTimeout(7000);
   await page.keyboard.press('Enter'); await page.waitForFunction(() => window.__game && window.__game.scene.getScenes(true).some((x) => x.player), null, { timeout: 40000 }); await page.waitForTimeout(1500);
-  const gsInfo = () => page.evaluate(() => { const g = window.__game; const gs = g.registry.get('gameState'); const sc = g.scene.getScene('MapleIslandScene'); const p = sc.player;
+  const gsInfo = () => page.evaluate(() => { const g = window.__game; const gs = g.registry.get('gameState'); const sc = g.scene.getScene('SkyIslandScene'); const p = sc.player;
     return { cd: { ...gs.skillCooldowns }, mp: gs.mp, maxMp: gs.maxMp, slots: gs.skillSlots, vy: p.body.velocity.y, onGround: p.body.blocked.down, level: gs.level }; });
 
   // 1. 空白鍵 = 近戰普攻：不耗 MP、進入 ATK 冷卻、命中面前敵人
-  await page.evaluate(() => { const g = window.__game; const sc = g.scene.getScene('MapleIslandScene'); const p = sc.player; const m = p.enemies.getChildren()[0]; window.__m = m; m.setPosition(p.x + 50, p.y); m.body && m.body.setVelocity(0, 0); m.hp = m.maxHp = 99999;
+  await page.evaluate(() => { const g = window.__game; const sc = g.scene.getScene('SkyIslandScene'); const p = sc.player; const m = p.enemies.getChildren()[0]; window.__m = m; m.setPosition(p.x + 50, p.y); m.body && m.body.setVelocity(0, 0); m.hp = m.maxHp = 99999;
     // 讓靶站著不動、不出手（新怪物 AI 會追擊 / 後退 / 衝撞，離開普攻範圍）；保留 Monster.update 本體
     m.speed = 0; m._detectionRangeSq = 0; m._chaseExtendedSq = 0; m._attackRangeSq = 0; m.jumpCooldown = 1e9; m._steerJumpCd = 1e9; });
   await page.waitForTimeout(200);
@@ -36,7 +36,7 @@ const check = (n, c, x = '') => { console.log((c ? 'PASS' : 'FAIL') + ' - ' + n 
   await page.screenshot({ path: SPDIR + '/slash.png' });
   // 敵人在身後 → 打不到
   await page.waitForTimeout(600);
-  await page.evaluate(() => { const p = window.__game.scene.getScene('MapleIslandScene').player; window.__m.setPosition(p.x - 80, p.y); });
+  await page.evaluate(() => { const p = window.__game.scene.getScene('SkyIslandScene').player; window.__m.setPosition(p.x - 80, p.y); });
   const hp2 = await page.evaluate(() => window.__m.hp);
   await page.keyboard.down('Space'); await page.waitForTimeout(250); await page.keyboard.up('Space'); await page.waitForTimeout(600);   // 多等一下，確定那一下的判定已經過了
   check('身後的怪不會被打到', (await page.evaluate(() => window.__m.hp)) === hp2);
@@ -50,10 +50,16 @@ const check = (n, c, x = '') => { console.log((c ? 'PASS' : 'FAIL') + ' - ' + n 
   check('技能欄預設 Z X C V', JSON.stringify(z1.slots) === '["Z","X","C","V"]', JSON.stringify(z1.slots));
 
   // 3. 方向鍵上 = 跳躍
+  // 固定按 100 ms 再讀速度，在約 10 FPS 的無頭瀏覽器常常讀在跳躍那一幀之前（vy=0）：
+  // 先等站穩，再按住並輪詢最多 1.5 秒看有沒有起跳
   await page.waitForTimeout(600);
-  await page.keyboard.down('ArrowUp'); await page.waitForTimeout(100);
+  const onGround = () => page.evaluate(() => window.__game.scene.getScene('SkyIslandScene').player.body.blocked.down);
+  await page.waitForFunction(() => window.__game.scene.getScene('SkyIslandScene').player.body.blocked.down, null, { polling: 30, timeout: 2000 }).catch(() => {});
+  const grounded = await onGround();
+  await page.keyboard.down('ArrowUp');
+  await page.waitForFunction(() => window.__game.scene.getScene('SkyIslandScene').player.body.velocity.y < -100, null, { polling: 20, timeout: 1500 }).catch(() => {});
   const j = await gsInfo(); await page.keyboard.up('ArrowUp');
-  check('按「↑」跳躍（垂直速度向上）', j.vy < -100, 'vy=' + j.vy);
+  check('按「↑」跳躍（垂直速度向上）', j.vy < -100, 'vy=' + j.vy + (grounded ? '' : '（按下前不在地面）'));
 
   // 4. 技能欄：未全解鎖時拖曳被擋下
   const pos = (k) => page.evaluate((k) => { const u = window.__game.scene.getScene('UIScene'); const d = u._cdOverlays[k]; return { x: d.sx + d.slotW / 2, y: d.sy + d.slotW / 2 }; }, k);

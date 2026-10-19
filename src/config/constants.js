@@ -193,12 +193,12 @@ export function titleFor(jobId, shardCount) {
 export const BOSS_FALLBACK_MAP = 'castle';
 
 export const MAP_SCENE_KEYS = {
-  sky:     'MapleIslandScene',
-  henesys: 'HenesysScene',
-  ruins:   'PerionScene',
-  ellinia: 'ElliniaScene',
+  sky:     'SkyIslandScene',
+  forest: 'ForestScene',
+  ruins:   'RuinsScene',
+  mystic: 'MysticScene',
   taipei:  'TaipeiScene',
-  kerning: 'KerningScene',
+  alley: 'AlleyScene',
   boss:    'BossScene',
   town:    'TownScene',
   shrine:  'ShrineScene',
@@ -243,6 +243,9 @@ export function createInitialGameState() {
     // 星光碎片主線：已取得的碎片 id（見 config/shards.js）、星光之塔是否已點亮（點亮才解鎖最終 Boss）
     shards: [],
     towerLit: false,
+    // 盜賊徽章（隱藏收集品，見 config/badges.js）：已收集的徽章 id、已領取的獎勵門檻
+    badges: [],
+    badgeRewards: [],
     // 去過的地圖（世界地圖傳送只能去這些）；進入地圖時由 BaseMapScene 加入
     visitedMaps: ['sky'],
     spawnX: 150,

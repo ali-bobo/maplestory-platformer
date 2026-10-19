@@ -116,7 +116,7 @@ async function sectionA() {
 async function sectionB() {
   console.log('\n== (b) 玩家在不同樓層：怪物不會凍結 ==');
   const { browser, page, errors, a } = await fresh('assassin', 30);
-  await a.go('MapleIslandScene', 1300);
+  await a.go('SkyIslandScene', 1300);
   // 浮空島：地板 600；中層 y=400（x 100–700 / 980–1580）；高層 y=240（x 380–960）
   const tests = [
     { id: 'skeleton', kind: '步行怪', mx: 500, mtop: 600, px: 500, ptop: 400, label: '玩家在上層' },
@@ -237,7 +237,7 @@ async function shotTelegraph(page, c, name) {
 async function sectionC() {
   console.log('\n== (c) 每種新攻擊都會出手並造成傷害 / 投射物 ==');
   const { browser, page, errors, a } = await fresh('assassin', 45);
-  await a.go('MapleIslandScene', 1300);
+  await a.go('SkyIslandScene', 1300);
   const shotTypes = new Set(['charge', 'slam', 'pound', 'shoot', 'burrow', 'dive', 'summon', 'rain', 'burst']);
   const only = (process.env.CASES || '').split(',').filter(Boolean);
   for (const c of ATTACK_CASES) {
@@ -263,7 +263,7 @@ const GUARDIANS = ['pirate_captain', 'sandworm_boss', 'frost_giant', 'lava_drago
 async function sectionD() {
   console.log('\n== (d) 守衛與 Boss 的階段切換 ==');
   const { browser, page, errors, a } = await fresh('assassin', 45);
-  await a.go('MapleIslandScene', 1300);
+  await a.go('SkyIslandScene', 1300);
   for (const id of GUARDIANS) {
     const r = await page.evaluate(async ([id]) => {
       const H = window.__h; H.watch(); H.clear();
@@ -319,7 +319,7 @@ async function sectionD() {
     out.p2Types = ['summon', 'rain', 'slam'].filter((t) => (S.started[t] || 0) > (s1[t] || 0));
     out.minionsAlive = sc.monsters.getChildren().filter((m) => m !== b && m.active && !m.isDead).length;
     b.hp = b.maxHp * 0.25; b.takeDamage(1);
-    out.p3 = b.phase; out.p3Stage = b.brain.stage; out.p3n = b.brain.attacks.length; out.tint = b._baseTint; out.speedMult = b.brain.speedMult;
+    out.p3 = b.phase; out.p3Stage = b.brain.stage; out.p3n = b.brain.attacks.length; out.tint = b._baseTint; out.tex = b.texture.key; out.speedMult = b.brain.speedMult;
     const s2 = JSON.parse(JSON.stringify(S.started));
     await run(20000, () => (S.started.burst || 0) > (s2.burst || 0));
     out.p3Burst = (S.started.burst || 0) > (s2.burst || 0);
@@ -327,7 +327,7 @@ async function sectionD() {
   });
   check('Boss 第 1 階段招式：pound / shoot / charge 都出現', boss.p1 === 1 && boss.p1Types.length === 3, JSON.stringify(boss));
   check('Boss 第 2 階段：咆哮並加入 summon / rain / slam', boss.p2 === 2 && boss.p2Stage === 5 && boss.p2Types.length === 3 && boss.minionsAlive <= 4, `types=${boss.p2Types} minions=${boss.minionsAlive}`);
-  check('Boss 第 3 階段：狂暴紅色、加速、加入 burst', boss.p3 === 3 && boss.p3Stage === 5 && boss.tint === 0xff0000 && boss.speedMult > 1.3 && boss.p3Burst, JSON.stringify({ p3: boss.p3, tint: boss.tint, sm: boss.speedMult, burst: boss.p3Burst }));
+  check('Boss 第 3 階段：狂暴（換狂暴圖或紅色）、加速、加入 burst', boss.p3 === 3 && boss.p3Stage === 5 && (boss.tint === 0xff0000 || /^boss_rage_/.test(boss.tex)) && boss.speedMult > 1.3 && boss.p3Burst, JSON.stringify({ p3: boss.p3, tint: boss.tint, tex: boss.tex, sm: boss.speedMult, burst: boss.p3Burst }));
   await page.screenshot({ path: `${OUT}/boss-phase3.png` });
   const real = errors.filter((e) => !e.includes('404'));
   check('階段區段無頁面錯誤', real.length === 0, real.join(' | ').slice(0, 400));
@@ -438,7 +438,7 @@ async function arena(sceneKey) {
 
 async function sectionE() {
   console.log('\n== (e) 難度抽樣（機器人玩家，等級對應）==');
-  let ctx = await arena('MapleIslandScene');
+  let ctx = await arena('SkyIslandScene');
   const allErrors = [];
   const run = async (spec) => {
     if (spec.boss) { allErrors.push(...ctx.errors); await ctx.browser.close(); ctx = await arena('BossScene'); }
@@ -446,7 +446,7 @@ async function sectionE() {
     if (r.result === 'lose' && !spec.boss) {
       allErrors.push(...ctx.errors);
       await ctx.browser.close();
-      ctx = await arena(spec.boss ? 'BossScene' : 'MapleIslandScene');
+      ctx = await arena(spec.boss ? 'BossScene' : 'SkyIslandScene');
     }
     return r;
   };
@@ -510,7 +510,7 @@ async function sectionF() {
   const { browser, page, errors, a } = await fresh('assassin', 45);
   const snaps = [];
   for (let round = 0; round < 3; round++) {
-    await a.go('MapleIslandScene', 1300);
+    await a.go('SkyIslandScene', 1300);
     await page.evaluate(installHelpers);
     const snap = await page.evaluate(async () => {
       const H = window.__h; H.watch(); H.clear();

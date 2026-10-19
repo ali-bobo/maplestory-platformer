@@ -22,31 +22,31 @@ export const MONSTER_FAMILIES = {
 
 const MONSTER_CLASSIFICATION = {
   slime: { family: MONSTER_FAMILIES.FANTASY, habitats: ['sky', 'boss'] },
-  mushroom: { family: MONSTER_FAMILIES.PLANT, habitats: ['sky', 'henesys'] },
-  snail: { family: MONSTER_FAMILIES.WOODLAND, habitats: ['sky', 'henesys'] },
-  stump: { family: MONSTER_FAMILIES.PLANT, habitats: ['henesys'] },
-  sky_imp: { family: MONSTER_FAMILIES.SPIRIT, habitats: ['sky', 'ellinia'] },
-  sky_bird: { family: MONSTER_FAMILIES.FLYING, habitats: ['sky', 'ellinia'] },
-  sky_puff: { family: MONSTER_FAMILIES.SPIRIT, habitats: ['sky', 'ellinia'] },
-  boar: { family: MONSTER_FAMILIES.WOODLAND, habitats: ['henesys'] },
+  mushroom: { family: MONSTER_FAMILIES.PLANT, habitats: ['sky', 'forest'] },
+  snail: { family: MONSTER_FAMILIES.WOODLAND, habitats: ['sky', 'forest'] },
+  stump: { family: MONSTER_FAMILIES.PLANT, habitats: ['forest'] },
+  sky_imp: { family: MONSTER_FAMILIES.SPIRIT, habitats: ['sky', 'mystic'] },
+  sky_bird: { family: MONSTER_FAMILIES.FLYING, habitats: ['sky', 'mystic'] },
+  sky_puff: { family: MONSTER_FAMILIES.SPIRIT, habitats: ['sky', 'mystic'] },
+  boar: { family: MONSTER_FAMILIES.WOODLAND, habitats: ['forest'] },
   robot: { family: MONSTER_FAMILIES.MACHINE, habitats: ['taipei'] },
   skeleton: { family: MONSTER_FAMILIES.WARRIOR, habitats: ['ruins'] },
-  snake: { family: MONSTER_FAMILIES.WOODLAND, habitats: ['henesys'] },
+  snake: { family: MONSTER_FAMILIES.WOODLAND, habitats: ['forest'] },
   ruin_knight: { family: MONSTER_FAMILIES.WARRIOR, habitats: ['ruins'] },
   ruin_golem: { family: MONSTER_FAMILIES.ROCK, habitats: ['ruins'] },
-  ruin_wraith: { family: MONSTER_FAMILIES.SPIRIT, habitats: ['ruins', 'ellinia'] },
+  ruin_wraith: { family: MONSTER_FAMILIES.SPIRIT, habitats: ['ruins', 'mystic'] },
   ruin_beast: { family: MONSTER_FAMILIES.WOODLAND, habitats: ['ruins'] },
   ruin_giant: { family: MONSTER_FAMILIES.HEAVY, habitats: ['ruins'] },
-  dragon: { family: MONSTER_FAMILIES.FANTASY, habitats: ['ellinia'] },
-  cyclops: { family: MONSTER_FAMILIES.FANTASY, habitats: ['ellinia'] },
+  dragon: { family: MONSTER_FAMILIES.FANTASY, habitats: ['mystic'] },
+  cyclops: { family: MONSTER_FAMILIES.FANTASY, habitats: ['mystic'] },
   golem: { family: MONSTER_FAMILIES.ROCK, habitats: ['ruins'] },
-  mimic: { family: MONSTER_FAMILIES.FANTASY, habitats: ['ellinia'] },
-  city_thug: { family: MONSTER_FAMILIES.CITY, habitats: ['kerning'] },
+  mimic: { family: MONSTER_FAMILIES.FANTASY, habitats: ['mystic'] },
+  city_thug: { family: MONSTER_FAMILIES.CITY, habitats: ['alley'] },
   city_mech: { family: MONSTER_FAMILIES.CITY, habitats: ['taipei'] },
   street_punk: { family: MONSTER_FAMILIES.CITY, habitats: ['taipei'] },
-  city_beast: { family: MONSTER_FAMILIES.CITY, habitats: ['kerning'] },
+  city_beast: { family: MONSTER_FAMILIES.CITY, habitats: ['alley'] },
   city_boss1: { family: MONSTER_FAMILIES.ELITE, habitats: ['taipei'] },
-  city_boss2: { family: MONSTER_FAMILIES.ELITE, habitats: ['kerning'] },
+  city_boss2: { family: MONSTER_FAMILIES.ELITE, habitats: ['alley'] },
   city_elite: { family: MONSTER_FAMILIES.ELITE, habitats: ['taipei'] },
   'shadow-slime': { family: MONSTER_FAMILIES.BOSS_SUPPORT, habitats: ['boss'] },
   shadow_guardian: { family: MONSTER_FAMILIES.ELITE, habitats: ['dungeon'] },
@@ -105,18 +105,18 @@ export const MONSTERS = [
   { id: 'ruin_beast',  name: '廢墟猛獸', level: 12, hp: 480, atk: 60,  exp: 120, speed: 95,  meso: 30, dropRate: 0.16, behavior: 'chase',   spriteKey: 'monster_big_0',    area: 'ruins', jumpProfile: { minInterval: 2600, maxInterval: 4200, velocity: 360, chance: 0.42 } },
   { id: 'ruin_giant',  name: '廢墟巨人', level: 15, hp: 700, atk: 78,  exp: 160, speed: 55,  meso: 36, dropRate: 0.18, behavior: 'patrol',  spriteKey: 'monster_big_1',    area: 'ruins' },
 
-  // ── 暗巷城 (kerning) Lv19-28 ────────────────────────────────────────
-  { id: 'dragon',   name: '小藍龍',     level: 14, hp: 560,  atk: 70,  exp: 150, speed: 85,  meso: 34, dropRate: 0.18, behavior: 'chase',   spriteKey: 'monster_dragon',   area: 'kerning' },
-  { id: 'cyclops',  name: '獨眼怪',     level: 17, hp: 680,  atk: 86,  exp: 195, speed: 70,  meso: 40, dropRate: 0.20, behavior: 'patrol',  spriteKey: 'monster_cyclops',  area: 'kerning' },
-  { id: 'golem',    name: '石頭精',     level: 25, hp: 1400, atk: 145, exp: 420, speed: 45,  meso: 70, dropRate: 0.26, behavior: 'patrol',  spriteKey: 'monster_golem',    area: 'kerning' },
-  { id: 'mimic',    name: '飛魚寶箱',   level: 20, hp: 950,  atk: 110, exp: 275, speed: 95,  meso: 54, dropRate: 0.22, behavior: 'ranged',  spriteKey: 'monster_mimic',    area: 'kerning' },
-  // 新增 Kerning 系怪物
-  { id: 'city_thug',   name: '城市流氓', level: 20, hp: 950, atk: 110, exp: 275, speed: 90,  meso: 54, dropRate: 0.22, behavior: 'chase',   spriteKey: 'monster_new_6',    area: 'kerning' },
+  // ── 暗巷城 (alley) Lv19-28 ────────────────────────────────────────
+  { id: 'dragon',   name: '小藍龍',     level: 14, hp: 560,  atk: 70,  exp: 150, speed: 85,  meso: 34, dropRate: 0.18, behavior: 'chase',   spriteKey: 'monster_dragon',   area: 'alley' },
+  { id: 'cyclops',  name: '獨眼怪',     level: 17, hp: 680,  atk: 86,  exp: 195, speed: 70,  meso: 40, dropRate: 0.20, behavior: 'patrol',  spriteKey: 'monster_cyclops',  area: 'alley' },
+  { id: 'golem',    name: '石頭精',     level: 25, hp: 1400, atk: 145, exp: 420, speed: 45,  meso: 70, dropRate: 0.26, behavior: 'patrol',  spriteKey: 'monster_golem',    area: 'alley' },
+  { id: 'mimic',    name: '飛魚寶箱',   level: 20, hp: 950,  atk: 110, exp: 275, speed: 95,  meso: 54, dropRate: 0.22, behavior: 'ranged',  spriteKey: 'monster_mimic',    area: 'alley' },
+  // 新增暗巷城系怪物
+  { id: 'city_thug',   name: '城市流氓', level: 20, hp: 950, atk: 110, exp: 275, speed: 90,  meso: 54, dropRate: 0.22, behavior: 'chase',   spriteKey: 'monster_new_6',    area: 'alley' },
   { id: 'city_mech',   name: '龐克飆仔', level: 23, hp: 1200,atk: 130, exp: 350, speed: 95,  meso: 62, dropRate: 0.24, behavior: 'chase',   spriteKey: 'monster_punk',    area: 'taipei' },
   { id: 'street_punk', name: '夜市混混', level: 22, hp: 1100,atk: 125, exp: 320, speed: 90,  meso: 58, dropRate: 0.23, behavior: 'chase',   spriteKey: 'monster_punk_red', area: 'taipei' },
-  { id: 'city_beast',  name: '暗夜猛獸', level: 26, hp: 1500,atk: 150, exp: 440, speed: 80,  meso: 72, dropRate: 0.26, behavior: 'chase',   spriteKey: 'monster_big_3',    area: 'kerning', jumpProfile: { minInterval: 2400, maxInterval: 3800, velocity: 390, chance: 0.44 } },
+  { id: 'city_beast',  name: '暗夜猛獸', level: 26, hp: 1500,atk: 150, exp: 440, speed: 80,  meso: 72, dropRate: 0.26, behavior: 'chase',   spriteKey: 'monster_big_3',    area: 'alley', jumpProfile: { minInterval: 2400, maxInterval: 3800, velocity: 390, chance: 0.44 } },
   { id: 'city_boss1',  name: '小王：扒手頭目', level: 27, hp: 3000, atk: 170, exp: 600, speed: 105, meso: 150, dropRate: 0.50, behavior: 'chase', spriteKey: 'miniboss_street',  area: 'taipei',  spawnRole: 'miniboss' },
-  { id: 'city_boss2',  name: '小王：機械領袖', level: 29, hp: 4000, atk: 185, exp: 800, speed: 85,  meso: 200, dropRate: 0.50, behavior: 'chase', spriteKey: 'miniboss_1',  area: 'kerning', spawnRole: 'miniboss' },
+  { id: 'city_boss2',  name: '小王：機械領袖', level: 29, hp: 4000, atk: 185, exp: 800, speed: 85,  meso: 200, dropRate: 0.50, behavior: 'chase', spriteKey: 'miniboss_1',  area: 'alley', spawnRole: 'miniboss' },
   { id: 'city_elite',  name: '夜市扒手', level: 24, hp: 1300,atk: 140, exp: 380, speed: 85,  meso: 66, dropRate: 0.25, behavior: 'patrol',  spriteKey: 'monster_pickpocket',    area: 'taipei', jumpProfile: { minInterval: 3600, maxInterval: 5400, velocity: 310, chance: 0.3 } },
 
   // ── 碧濤港 (harbor) Lv14-20 ──────────────────────────────────────────────
@@ -177,3 +177,35 @@ export const MONSTERS = [
 for (const monster of MONSTERS) {
   Object.assign(monster, MONSTER_CLASSIFICATION[monster.id] || {});
 }
+
+// ── v2 耐打度調整（敵方強化）────────────────────────────────────────────────
+// 上表的 hp 是調整前的「基準值」（保留在 baseHp），實際血量 = 基準 × 倍率：
+//  - 一般怪依等級帶加厚，入門區（Lv1–8）不變，越後面越耐打
+//  - 小王（守護者）實測熟練玩家 4–6 秒就倒（e2e/ai.cjs 難度抽樣），× 1.4 讓招牌技有機會出場
+//  - 試煉守衛是給 Lv10 打的轉職試煉，已依 e2e/trial.cjs 實測定過，只小幅 × 1.1；墮落騎士團長（王城守衛、招式最多）× 1.25，免得比最終 Boss 還耐打
+export const HP_BANDS = [
+  { maxLevel: 8, mult: 1 },
+  { maxLevel: 16, mult: 1.15 },
+  { maxLevel: 24, mult: 1.22 },
+  { maxLevel: 32, mult: 1.28 },
+  { maxLevel: Infinity, mult: 1.33 },
+];
+export const MINIBOSS_HP_MULT = 1.4;
+export const HP_OVERRIDES = { shadow_guardian: 1.1, fallen_commander: 1.25, 'shadow-slime': 1 };
+
+export function regularHpMult(level) {
+  for (const b of HP_BANDS) if (level <= b.maxLevel) return b.mult;
+  return 1;
+}
+export function hpMultFor(def) {
+  if (HP_OVERRIDES[def.id] != null) return HP_OVERRIDES[def.id];
+  return def.spawnRole === 'miniboss' ? MINIBOSS_HP_MULT : regularHpMult(def.level);
+}
+for (const monster of MONSTERS) {
+  monster.baseHp = monster.hp;
+  monster.hp = Math.round(monster.baseHp * hpMultFor(monster) / 10) * 10;
+}
+
+// 最終 Boss 暗影魔君（entities/Boss.js 使用；放在這裡讓 tools/sim-progression.mjs 也讀得到）
+// v2：28000 → 32000（仍高於最耐打的守衛墮落騎士團長 25300 × 1.25 = 31625）；三階段門檻 70% / 35%（招式見 config/monsterAttacks.js 的 boss 條目）
+export const FINAL_BOSS = { hp: 32000, atk: 160, phaseAt: [0.7, 0.35] };

@@ -2,9 +2,12 @@ import Phaser from 'phaser';
 import { createInitialGameState } from '../config/constants.js';
 import { addParchmentPanel, addWoodButton } from '../engine/woodUi.js';
 import { isTouchDevice } from '../engine/device.js';
-import { settings } from '../engine/settings.js';
 import { addSoundButton } from '../engine/soundButton.js';
 import { audio } from '../engine/audio.js';
+import { STORY_ASSETS } from '../config/assetCatalog.js';
+import { preloadAssets } from '../engine/assetLoader.js';
+import { settings } from '../engine/settings.js';
+import { DEFAULT_BINDINGS, keyLabel } from '../engine/keyBindings.js';
 
 export const TUTORIAL_SEEN_KEY = 'thief-legend-tutorial-seen';
 
@@ -18,31 +21,34 @@ function markTutorialSeen() {
 
 // ── 頁面內容 ─────────────────────────────────────────────────────────────────────
 // kind: 'story'（故事）| 'keys'（按鍵）| 'text'（一般說明）| 'final'
-export function buildPages(touch, touchMode = 'joystick') {
+// image：劇情插畫的材質 key（沒載到就退回 art 的表情符號）
+// bindings：目前的按鍵設定（電腦版按鍵頁顯示玩家改過的鍵）
+export function buildPages(touch, bindings = DEFAULT_BINDINGS, touchMode = 'joystick') {
+  const k = (action) => keyLabel(bindings[action]);
   const story = [
     {
-      kind: 'story', title: '晨曦大陸的傳說', art: '🌟',
+      kind: 'story', title: '晨曦大陸的傳說', art: '🌟', image: 'story_1',
       body: [
         '很久很久以前，天空的盡頭懸著一顆「晨曦之星」。',
         '它的光讓浮空島嶼漂浮在雲海上，讓森林結出果實，也讓城鎮的夜晚不再令人害怕。',
       ],
     },
     {
-      kind: 'story', title: '暗影魔君', art: '🌑',
+      kind: 'story', title: '暗影魔君', art: '🌑', image: 'story_2',
       body: [
         '直到某個沒有月亮的夜晚，沉睡在古代廢墟地底的「暗影魔君」甦醒了。',
         '他奪走晨曦之星，把它擊成碎片，藏進自己的巢穴。失去星光的怪物被暗影侵蝕，變得狂暴，開始攻擊旅人與村莊。',
       ],
     },
     {
-      kind: 'story', title: '影子盜賊', art: '🗡️',
+      kind: 'story', title: '影子盜賊', art: '🗡️', image: 'story_4',
       body: [
         '你是年輕的盜賊，人稱「影子」。盜賊最擅長的不是正面決鬥，而是潛入，奪回屬於別人的東西。',
         '晨曦鎮的商人老陳交給你一把短劍和一袋飛鏢：「在黑暗徹底吞沒大陸之前，把星光偷回來。」',
       ],
     },
     {
-      kind: 'story', title: '你的旅程', art: '🗺️',
+      kind: 'story', title: '你的旅程', art: '🗺️', image: 'story_3',
       body: [
         '從浮空島嶼出發，穿過森林獵場、古代廢墟、碧濤港，一路深入沙漠、雪山、熔岩與魔君王城。五個地區各有一名守護者，守著一塊星光碎片。',
         '把五塊碎片帶回晨曦鎮的星光之塔，塔重新亮起，通往魔君巢穴的傳送門就會開啟。打倒他，讓晨曦之星重新升起！',
@@ -76,13 +82,13 @@ export function buildPages(touch, touchMode = 'joystick') {
     : {
       kind: 'keys', title: '操作按鍵（電腦版）',
       rows: [
-        { keys: ['←', '→'], text: '左右移動' },
-        { keys: ['↑'], text: '跳躍（也可用 Alt），空中可再跳一次' },
-        { keys: ['↓'], text: '站在薄平台上按住：穿過平台往下走' },
-        { keys: ['SPACE'], text: '普通攻擊（近戰揮刀，不耗 MP，隨時可用）' },
-        { keys: ['Z', 'X', 'C', 'V'], text: '四個技能欄位（耗 MP；Z 預設是三連飛鏢）' },
-        { keys: ['A', 'S', 'D', 'R', 'G'], text: '藥水（也可以直接用滑鼠點畫面下方的藥水槽）' },
-        { keys: ['F'], text: '與 NPC 對話、開商店、接任務' },
+        { keys: [k('left'), k('right')], text: '左右移動' },
+        { keys: [k('up')], text: `跳躍（也可用 ${k('jump')}），空中可再跳一次` },
+        { keys: [k('down')], text: '站在薄平台上按住：穿過平台往下走' },
+        { keys: [bindings.attack === 'SPACE' ? 'SPACE' : k('attack')], text: '普通攻擊（近戰揮刀，不耗 MP，隨時可用）' },
+        { keys: [k('skill1'), k('skill2'), k('skill3'), k('skill4')], text: `四個技能欄位（耗 MP；${k('skill1')} 預設是三連飛鏢）` },
+        { keys: [k('potA'), k('potS'), k('potD'), k('potR'), k('potG')], text: '藥水（也可以直接用滑鼠點畫面下方的藥水槽）' },
+        { keys: [k('interact')], text: '與 NPC 對話、開商店、接任務' },
         { keys: ['ESC'], text: '暫停選單（可存檔回主選單、開關聲音）／關閉視窗' },
         { keys: ['Enter'], text: '確認、繼續' },
       ],
@@ -93,14 +99,14 @@ export function buildPages(touch, touchMode = 'joystick') {
       kind: 'text', title: '技能與欄位',
       body: [
         '升級會得到技能點（SP），打開畫面右下的「技能」視窗，按「＋」提升技能傷害。',
-        '一開始就有「三連飛鏢」（Z）；Lv.5 / 10 / 15 / 20 依序解鎖「影步伐」「暗殺」「暗影漩渦」「影分身」。空白鍵的普通攻擊不耗 MP，永遠在最左邊。',
+        `一開始就有「三連飛鏢」（${k('skill1')}）；Lv.5 / 10 / 15 / 20 依序解鎖「影步伐」「暗殺」「暗影漩渦」「影分身」。${k('attack')}的普通攻擊不耗 MP，永遠在最左邊。`,
         '技能欄只有 4 格，但技能有 5 個。全部解鎖（Lv.20）之後，可拖曳畫面下方的技能圖示互換位置，也可在技能視窗按「換入」，自己挑要帶哪 4 個。',
       ],
     },
     {
       kind: 'text', title: '任務系統',
       body: [
-        '每張地圖都有 NPC，頭上有名字。走近他們，按 F（手機點「互動」）對話，就會接到那張地圖的任務。',
+        `每張地圖都有 NPC，頭上有名字。走近他們，按 ${k('interact')}（手機點「互動」）對話，就會接到那張地圖的任務。`,
         '任務有「擊敗幾隻指定怪物」「抵達某張地圖」等。進度會顯示在畫面右上角、小地圖下方的任務追蹤面板。',
         '完成後自動領取經驗值與金幣。每位 NPC 一次只給一個任務，完成後再找他對話可以接下一個。',
       ],
@@ -134,10 +140,14 @@ export class TutorialScene extends Phaser.Scene {
     this._gameState = data && data.gameState;
   }
 
+  preload() {
+    preloadAssets(this, STORY_ASSETS);
+  }
+
   create() {
     const { width, height } = this.cameras.main;
     this._touch = isTouchDevice();
-    this._pages = buildPages(this._touch, settings.get().touchControls);
+    this._pages = buildPages(this._touch, settings.get().keys, settings.get().touchControls);
     this._index = 0;
     this._pageObjs = [];
     this._bornAt = this.time.now;
@@ -190,6 +200,8 @@ export class TutorialScene extends Phaser.Scene {
     this.events.once('shutdown', () => {
       this.input.keyboard.off('keydown', this._onKey);
       if (this._mode === 'overlay') this.registry.set('helpOpen', false);
+      // 劇情插畫只有這裡用，離開就釋放（四張 960×540 約占 8 MB 貼圖記憶體）
+      for (const a of STORY_ASSETS) if (this.textures.exists(a.key)) this.textures.remove(a.key);
     });
 
     // 新遊戲的教學用溫暖的小鎮配樂（浮層模式不打斷遊戲中的音樂）
@@ -229,11 +241,16 @@ export class TutorialScene extends Phaser.Scene {
     }).setOrigin(0.5).setDepth(20));
     keep(this.add.rectangle(width / 2, 152, 420, 3, 0xd9a441, 0.9).setDepth(20));
 
-    if (page.art) {
+    // 有插畫：左圖右文；沒有就照舊（文字置中，表情符號放下方）
+    const withImage = !!(page.image && this.textures.exists(page.image));
+    if (withImage) {
+      keep(this.add.rectangle(372, 392, 532, 302, 0x1a0e06, 0.9).setStrokeStyle(3, 0xd9a441).setDepth(20));
+      keep(this.add.image(372, 392, page.image).setDisplaySize(520, 290).setDepth(21));
+    } else if (page.art) {
       keep(this.add.text(width / 2, 505, page.art, { fontSize: '96px', fontFamily: 'Arial, sans-serif' }).setOrigin(0.5).setDepth(20));
     }
     if (page.kind === 'keys') this._drawKeyRows(page.rows, keep);
-    else this._drawParagraphs(page.body, page.kind, keep);
+    else this._drawParagraphs(page.body, page.kind, keep, withImage ? { x: 912, maxW: 520, fontPx: 25 } : null);
 
     this._pageNo.setText(`${this._index + 1} / ${this._pages.length}`);
     this._prevBtn.plate.setVisible(this._index > 0).setInteractive(this._index > 0);
@@ -255,18 +272,21 @@ export class TutorialScene extends Phaser.Scene {
     return lines;
   }
 
-  _drawParagraphs(paragraphs, kind, keep) {
+  // column：插畫頁的右欄（中心 x、寬度、字級）
+  _drawParagraphs(paragraphs, kind, keep, column = null) {
     const { width } = this.cameras.main;
-    const fontPx = kind === 'story' || kind === 'final' ? 27 : 23;
-    const maxW = width - 340;
+    const fontPx = column ? column.fontPx : (kind === 'story' || kind === 'final' ? 27 : 23);
+    const maxW = column ? column.maxW : width - 340;
+    const x = column ? column.x : width / 2;
     let y = kind === 'final' ? 270 : 200;
     for (const p of paragraphs) {
       const lines = this._wrap(p, fontPx, maxW);
-      keep(this.add.text(width / 2, y, lines.join('\n'), {
+      const t = keep(this.add.text(x, y, lines.join('\n'), {
         fontSize: `${fontPx}px`, color: '#fff0c8', fontFamily: 'Arial', fontStyle: 'bold',
         align: kind === 'text' ? 'left' : 'center', lineSpacing: 10, stroke: '#1a0e06', strokeThickness: 4,
       }).setOrigin(0.5, 0).setDepth(20));
-      y += lines.length * (fontPx + 10) + 22;
+      // 用實際排出來的高度往下排（中文字型的行高比字級高，估算會讓段落疊在一起）
+      y += Math.max(t.height, lines.length * (fontPx + 10)) + 22;
     }
     if (kind === 'final') {
       keep(this.add.text(width / 2, y + 30, this._touch ? '點「開始冒險」出發' : '按 Enter 出發', {
@@ -315,6 +335,6 @@ export class TutorialScene extends Phaser.Scene {
     }
     const gs = this._gameState || createInitialGameState();
     this.registry.set('gameState', gs);
-    this.scene.start('MapleIslandScene', { gameState: gs });
+    this.scene.start('SkyIslandScene', { gameState: gs });
   }
 }

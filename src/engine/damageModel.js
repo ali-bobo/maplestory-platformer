@@ -3,9 +3,9 @@
 // docs/SKILLS_DESIGN.md 的平衡表也是這個函式的輸出。
 import { JOBS, isJobId, DEFAULT_JOB, skillDamageScale } from '../config/constants.js';
 import { SKILL_MODEL } from '../config/skillModel.js';
+import { mpRegenPerSec, mpRegenUptime } from './regen.js';
 
 export const BASE_CRIT = { critRate: 0.2, critMulti: 1.8 };   // createInitialGameState 的預設
-export const MP_REGEN_PER_SEC = 10;                            // Player.recoverMp：每毫秒 0.01
 
 const jobOf = (id) => JOBS[isJobId(id) ? id : DEFAULT_JOB];
 
@@ -56,10 +56,10 @@ export function skillProfile(jobId, skillId, skillLevel = 1) {
     expected += base * (part.crit ? multi : part.dot ? 1 : normal);
   }
   if (model.amplify) {
-    // 斷命印記：印記期間，後續普通攻擊每一擊改為「必暴擊 × bonus」；價值 = 增加的那部分
+    // 斷命印記：自身傷害 + 印記期間後續普通攻擊每一擊改為「必暴擊 × bonus」增加的那部分
     const b = basicProfile(jobId);
     const f = critFactor(critStats(jobId, job.basic.critBonus || 0).rate, multi);
-    expected = model.amplify.duration * b.dps * ((multi * model.amplify.bonus) / f - 1);
+    expected += model.amplify.duration * b.dps * ((multi * model.amplify.bonus) / f - 1);
   }
   const cd = def.cooldown;
   const netMp = Math.max(1, def.mpCost - (model.mpRefund || 0));
@@ -87,8 +87,12 @@ export function balanceTable(jobId) {
   return jobOf(jobId).pool.map((id) => skillProfile(jobId, id)).filter(Boolean);
 }
 
-// 一直輪流施放 ids 內的技能（冷卻一好就放）時，從滿 MP 撐幾秒
+// 一直輪流施放 ids 內的技能（冷卻一好就放）時，從滿 MP 撐幾秒。
+// MP 自然回復（engine/regen.js）每次施法後暫停一下，所以只算「沒被打斷」的那部分時間。
 export function secondsUntilDry(jobId, ids, maxMp) {
-  const drain = ids.reduce((a, id) => a + skillProfile(jobId, id).mpPerSec, 0) - MP_REGEN_PER_SEC;
+  const profiles = ids.map((id) => skillProfile(jobId, id));
+  const castsPerSec = profiles.reduce((a, p) => a + 1 / p.cd, 0);
+  const regen = mpRegenPerSec(maxMp) * mpRegenUptime(castsPerSec);
+  const drain = profiles.reduce((a, p) => a + p.mpPerSec, 0) - regen;
   return drain <= 0 ? Infinity : maxMp / drain;
 }

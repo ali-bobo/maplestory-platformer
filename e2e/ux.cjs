@@ -2,7 +2,7 @@
 // localStorage 不可用、手機版面（844x390）。
 // 用法：PORT=8412 node e2e/ux.cjs /tmp/shots（第一個參數是截圖資料夾）
 // 只跑手機 NPC 對話 / 商店 / 世界地圖的可讀性與觸控區檢查：UX_ONLY_PHONE_UI=1 PORT=8412 node e2e/ux.cjs /tmp/shots
-const { chromium } = require('/opt/node-tools/node_modules/playwright');
+const { chromium, executablePath: PW_EXE } = require('./pw.cjs');
 const PORT = process.env.PORT || 8123;
 const SP = process.argv[2] || '.';
 const BASE = `http://127.0.0.1:${PORT}/index.html?debug=1`;
@@ -14,7 +14,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const errors = [];
 
 const LAUNCH = {
-  executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome',
+  executablePath: PW_EXE,
   args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--no-sandbox'],
 };
 const MOBILE_UA = 'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Mobile Safari/537.36';
@@ -30,7 +30,7 @@ async function startGame(page, { url = BASE, key = 'Enter' } = {}) {
   await page.waitForFunction(() => window.__game && window.__game.scene.isActive('MenuScene'), null, { timeout: 30000 });
   await page.waitForTimeout(800);
   if (key) await page.keyboard.press(key);
-  await page.waitForFunction(() => window.__game.scene.isActive('MapleIslandScene') && window.__game.scene.isActive('UIScene'), null, { timeout: 30000 });
+  await page.waitForFunction(() => window.__game.scene.isActive('SkyIslandScene') && window.__game.scene.isActive('UIScene'), null, { timeout: 30000 });
   await page.waitForTimeout(1200);
 }
 
@@ -198,28 +198,28 @@ async function phoneUiChecks(browser, vw, vh, tag) {
   check('新遊戲的目標列：找島嶼義工接史萊姆獵手', /島嶼義工/.test(obj) && /史萊姆獵手/.test(obj), obj);
 
   // ── 1. ESC：先關最上層，不會同一次按鍵又打開暫停 ─────────────────────────────
-  await page.evaluate(() => { const sc = window.__game.scene.getScene('MapleIslandScene'); sc.player.setPosition(250, sc.player.y); });
+  await page.evaluate(() => { const sc = window.__game.scene.getScene('SkyIslandScene'); sc.player.setPosition(250, sc.player.y); });
   await page.waitForTimeout(500);
   await page.keyboard.press('f'); await page.waitForTimeout(500);
-  check('靠近 NPC 按 F 開啟對話', await page.evaluate(() => !!window.__game.scene.getScene('MapleIslandScene')._npcDialog));
+  check('靠近 NPC 按 F 開啟對話', await page.evaluate(() => !!window.__game.scene.getScene('SkyIslandScene')._npcDialog));
   await page.screenshot({ path: `${SP}/ux-d-dialog.png` });
   await page.keyboard.press('Escape'); await page.waitForTimeout(700);
-  let st = await page.evaluate(() => ({ dialog: !!window.__game.scene.getScene('MapleIslandScene')._npcDialog, paused: window.__game.scene.isPaused('MapleIslandScene'), uiPaused: window.__game.scene.getScene('UIScene')._isPaused }));
+  let st = await page.evaluate(() => ({ dialog: !!window.__game.scene.getScene('SkyIslandScene')._npcDialog, paused: window.__game.scene.isPaused('SkyIslandScene'), uiPaused: window.__game.scene.getScene('UIScene')._isPaused }));
   check('ESC 關閉 NPC 對話，且不會同時暫停', !st.dialog && !st.paused && !st.uiPaused, JSON.stringify(st));
   await page.keyboard.press('Escape'); await page.waitForTimeout(700);
-  check('對話關掉後再按一次 ESC 才進入暫停', await page.evaluate(() => window.__game.scene.isPaused('MapleIslandScene')));
+  check('對話關掉後再按一次 ESC 才進入暫停', await page.evaluate(() => window.__game.scene.isPaused('SkyIslandScene')));
   await page.screenshot({ path: `${SP}/ux-d-pause.png` });
   await page.keyboard.press('Escape'); await page.waitForTimeout(700);
-  check('暫停中按 ESC 回到遊戲', !(await page.evaluate(() => window.__game.scene.isPaused('MapleIslandScene'))));
+  check('暫停中按 ESC 回到遊戲', !(await page.evaluate(() => window.__game.scene.isPaused('SkyIslandScene'))));
 
   // 視窗開著時 ESC 先關視窗
   await ui(page, (u) => u._openPopup('skills'));
   await page.waitForTimeout(400);
   await page.keyboard.press('Escape'); await page.waitForTimeout(600);
-  st = await page.evaluate(() => ({ popup: !!window.__game.scene.getScene('UIScene')._popup, paused: window.__game.scene.isPaused('MapleIslandScene') }));
+  st = await page.evaluate(() => ({ popup: !!window.__game.scene.getScene('UIScene')._popup, paused: window.__game.scene.isPaused('SkyIslandScene') }));
   check('技能視窗開著按 ESC：只關視窗、不暫停', !st.popup && !st.paused, JSON.stringify(st));
   // 手機暫停鈕是合成的 ESC：同樣的順序（以合成 KeyboardEvent 驗證）
-  await page.evaluate(() => { const sc = window.__game.scene.getScene('MapleIslandScene'); sc.player.setPosition(250, sc.player.y); });
+  await page.evaluate(() => { const sc = window.__game.scene.getScene('SkyIslandScene'); sc.player.setPosition(250, sc.player.y); });
   await page.waitForTimeout(400);
   await page.keyboard.press('f'); await page.waitForTimeout(400);
   const synthEsc = (type) => page.evaluate((t) => {
@@ -232,11 +232,11 @@ async function phoneUiChecks(browser, vw, vh, tag) {
   await page.waitForTimeout(100);
   await synthEsc('keyup');
   await page.waitForTimeout(700);
-  st = await page.evaluate(() => ({ dialog: !!window.__game.scene.getScene('MapleIslandScene')._npcDialog, paused: window.__game.scene.isPaused('MapleIslandScene') }));
+  st = await page.evaluate(() => ({ dialog: !!window.__game.scene.getScene('SkyIslandScene')._npcDialog, paused: window.__game.scene.isPaused('SkyIslandScene') }));
   check('合成 ESC（觸控暫停鈕）關對話也不會暫停', !st.dialog && !st.paused, JSON.stringify(st));
 
   // ── 2. 目標列：隨任務進度改變 ─────────────────────────────────────────────────
-  await page.evaluate(() => { const sc = window.__game.scene.getScene('MapleIslandScene'); sc.player.setPosition(250, sc.player.y); });
+  await page.evaluate(() => { const sc = window.__game.scene.getScene('SkyIslandScene'); sc.player.setPosition(250, sc.player.y); });
   await page.waitForTimeout(400);
   await page.keyboard.press('f'); await page.waitForTimeout(500);
   await page.keyboard.press('Escape'); await page.waitForTimeout(900);
@@ -259,7 +259,7 @@ async function phoneUiChecks(browser, vw, vh, tag) {
   check('按 J 開啟任務日誌', await page.evaluate(() => { const p = window.__game.scene.getScene('UIScene')._popup; return !!p && p.type === 'quests'; }));
   await page.screenshot({ path: `${SP}/ux-d-questlog.png` });
   await page.keyboard.press('Escape'); await page.waitForTimeout(500);
-  st = await page.evaluate(() => ({ popup: !!window.__game.scene.getScene('UIScene')._popup, paused: window.__game.scene.isPaused('MapleIslandScene') }));
+  st = await page.evaluate(() => ({ popup: !!window.__game.scene.getScene('UIScene')._popup, paused: window.__game.scene.isPaused('SkyIslandScene') }));
   check('任務日誌按 ESC 關閉、不暫停', !st.popup && !st.paused, JSON.stringify(st));
   await page.mouse.click(1076, 671);   // HUD「任務」鈕
   await page.waitForTimeout(600);
@@ -287,8 +287,8 @@ async function phoneUiChecks(browser, vw, vh, tag) {
   check('開關與介面大小生效', cfg && cfg.shake === false && cfg.flash === false && cfg.damageNumbers === false && cfg.reducedMotion === true && cfg.uiScale === 'large', JSON.stringify(cfg));
   const live = await page.evaluate(() => ({
     musicGain: window.__audio._musicGain && +window.__audio._musicGain.gain.value.toFixed(2), sfx: window.__audio._sfxScale,
-    shake: (() => { const cam = window.__game.scene.getScene('MapleIslandScene').cameras.main; cam.shakeEffect.reset(); cam.shake(200, 0.02); return cam.shakeEffect.isRunning; })(),
-    flash: (() => { const cam = window.__game.scene.getScene('MapleIslandScene').cameras.main; cam.flashEffect.reset(); cam.flash(200, 255, 255, 255); return cam.flashEffect.isRunning; })(),
+    shake: (() => { const cam = window.__game.scene.getScene('SkyIslandScene').cameras.main; cam.shakeEffect.reset(); cam.shake(200, 0.02); return cam.shakeEffect.isRunning; })(),
+    flash: (() => { const cam = window.__game.scene.getScene('SkyIslandScene').cameras.main; cam.flashEffect.reset(); cam.flash(200, 255, 255, 255); return cam.flashEffect.isRunning; })(),
     fontPx: parseFloat(window.__game.scene.getScene('UIScene')._levelText.style.fontSize),
   }));
   check('音量滑桿套到音訊節點（音樂約 0.3、音效約 0.4）', live.musicGain > 0.2 && live.musicGain < 0.4 && live.sfx > 0.3 && live.sfx < 0.5, JSON.stringify(live));
@@ -357,8 +357,8 @@ async function phoneUiChecks(browser, vw, vh, tag) {
   await page.waitForSelector('.sd-text', { timeout: 5000 });
   const code = await page.inputValue('.sd-text');
   check('遊戲中「存檔代碼」視窗顯示 TL1 代碼', /^TL1:[0-9a-f]{8}:[A-Za-z0-9_-]+$/.test(code), code.slice(0, 20));
-  await page.waitForFunction(() => window.__game.scene.isPaused('MapleIslandScene'), null, { timeout: 3000 }).catch(() => {});
-  check('開著視窗時遊戲被暫停（不會邊複製邊被打）', await page.evaluate(() => window.__game.scene.isPaused('MapleIslandScene')));
+  await page.waitForFunction(() => window.__game.scene.isPaused('SkyIslandScene'), null, { timeout: 3000 }).catch(() => {});
+  check('開著視窗時遊戲被暫停（不會邊複製邊被打）', await page.evaluate(() => window.__game.scene.isPaused('SkyIslandScene')));
   await page.screenshot({ path: `${SP}/ux-d-savecode.png` });
   // 剪貼簿：授權後複製；沒授權時走後備（全選提示）
   await ctx.grantPermissions(['clipboard-read', 'clipboard-write']);
@@ -372,7 +372,7 @@ async function phoneUiChecks(browser, vw, vh, tag) {
   const fb = await page.evaluate(() => ({ status: document.querySelector('.sd-status').textContent, sel: document.querySelector('.sd-text').selectionEnd - document.querySelector('.sd-text').selectionStart }));
   check('剪貼簿被拒絕時：代碼被全選並提示手動複製', fb.sel > 100 && /(Ctrl\+C|拷貝|已複製)/.test(fb.status), JSON.stringify(fb));
   await page.keyboard.press('Escape'); await page.waitForTimeout(500);
-  check('視窗按 ESC 關閉並恢復遊戲，且沒有順便暫停', !(await page.$('.sd-backdrop')) && !(await page.evaluate(() => window.__game.scene.isPaused('MapleIslandScene'))));
+  check('視窗按 ESC 關閉並恢復遊戲，且沒有順便暫停', !(await page.$('.sd-backdrop')) && !(await page.evaluate(() => window.__game.scene.isPaused('SkyIslandScene'))));
 
   // 全新設定檔（新的瀏覽器 context）匯入
   const ctx2 = await browser.newContext({ viewport: { width: 1280, height: 720 }, acceptDownloads: true });
@@ -402,7 +402,7 @@ async function phoneUiChecks(browser, vw, vh, tag) {
   check('匯入後選單出現「繼續遊戲」', await p2.evaluate(() => /Lv\.12/.test(window.__game.scene.getScene('MenuScene').children.list.filter((o) => o.type === 'Text').map((o) => o.text).join('|'))));
   await p2.screenshot({ path: `${SP}/ux-d-menu-imported.png` });
   await p2.keyboard.press('Enter');
-  await p2.waitForFunction(() => window.__game.scene.isActive('MapleIslandScene'), null, { timeout: 30000 }).catch(() => {});
+  await p2.waitForFunction(() => window.__game.scene.isActive('SkyIslandScene'), null, { timeout: 30000 }).catch(() => {});
   await p2.waitForTimeout(1500);
   check('繼續遊戲後進度與代碼相同', await p2.evaluate(() => { const gs = window.__game.registry.get('gameState'); return gs.level === 12 && gs.meso === 4321 && gs.killCount === 77 && gs.currentMap === 'sky'; }));
   await ctx2.close();
@@ -424,9 +424,9 @@ async function phoneUiChecks(browser, vw, vh, tag) {
   await p3.keyboard.press('Enter');
   await p3.waitForTimeout(1500);
   if (await p3.evaluate(() => window.__game.scene.isActive('TutorialScene'))) { await p3.keyboard.press('Escape'); await p3.waitForTimeout(1200); }
-  await p3.waitForFunction(() => window.__game.scene.isActive('MapleIslandScene') && window.__game.scene.isActive('UIScene'), null, { timeout: 30000 }).catch(() => {});
+  await p3.waitForFunction(() => window.__game.scene.isActive('SkyIslandScene') && window.__game.scene.isActive('UIScene'), null, { timeout: 30000 }).catch(() => {});
   await p3.waitForTimeout(1500);
-  const ns = await p3.evaluate(() => ({ playing: window.__game.scene.isActive('MapleIslandScene'), unsaved: window.__game.scene.getScene('UIScene')._unsavedBtn.visible, settingsOk: window.__settings.get().musicVolume === 70 }));
+  const ns = await p3.evaluate(() => ({ playing: window.__game.scene.isActive('SkyIslandScene'), unsaved: window.__game.scene.getScene('UIScene')._unsavedBtn.visible, settingsOk: window.__settings.get().musicVolume === 70 }));
   check('沒有 localStorage：遊戲可以開始，HUD 常駐「未存檔」', ns.playing && ns.unsaved, JSON.stringify(ns));
   await p3.evaluate(() => window.__settings.set({ musicVolume: 10 }));
   check('沒有 localStorage：設定仍可在記憶體內修改', await p3.evaluate(() => window.__settings.get().musicVolume === 10 && window.__settings.persistent === false));
@@ -456,7 +456,7 @@ async function phoneUiChecks(browser, vw, vh, tag) {
   const tap = async (gx, gy) => { const p = toPage(gx, gy); await touch('touchStart', [{ x: p.x, y: p.y, id: 3 }]); await sleep(120); await touch('touchEnd', []); await sleep(250); };
   check('手機橫放：畫布縮放約 0.54', Math.abs(rect.w / 1280 - 0.54) < 0.05, `${(rect.w / 1280).toFixed(2)}`);
   await tap(640, 530);   // 開始遊戲
-  await mp.waitForFunction(() => window.__game.scene.isActive('MapleIslandScene') && window.__game.scene.isActive('UIScene'), null, { timeout: 30000 });
+  await mp.waitForFunction(() => window.__game.scene.isActive('SkyIslandScene') && window.__game.scene.isActive('UIScene'), null, { timeout: 30000 });
   await mp.waitForTimeout(1500);
   await mp.evaluate(() => { window.__setJob('assassin', 24); });
   await mp.waitForTimeout(800);
@@ -524,7 +524,7 @@ async function phoneUiChecks(browser, vw, vh, tag) {
   // 暫停鈕（合成 ESC）：先關視窗，不暫停
   const pc = await center('.tc-pause');
   await touch('touchStart', [{ x: pc.x, y: pc.y, id: 5 }]); await sleep(150); await touch('touchEnd', []); await sleep(700);
-  st = await mp.evaluate(() => ({ popup: !!window.__game.scene.getScene('UIScene')._popup, paused: window.__game.scene.isPaused('MapleIslandScene') }));
+  st = await mp.evaluate(() => ({ popup: !!window.__game.scene.getScene('UIScene')._popup, paused: window.__game.scene.isPaused('SkyIslandScene') }));
   check('手機：暫停鈕在視窗開著時只關視窗、不暫停', !st.popup && !st.paused, JSON.stringify(st));
   check('視窗關閉後觸控按鈕恢復', await mp.evaluate(() => document.querySelector('.tc-jump').offsetParent !== null));
   // 設定視窗與任務日誌的手機截圖

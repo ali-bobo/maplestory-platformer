@@ -1,9 +1,9 @@
-const { chromium } = require('/opt/node-tools/node_modules/playwright');
+const { chromium, executablePath: PW_EXE } = require('./pw.cjs');
 const PORT = process.env.PORT || 8123;
 const SPDIR = process.argv[2] || '.';
 let fails = 0;
 const check = (n, c, x = '') => { console.log((c ? 'PASS' : 'FAIL') + ' - ' + n + (x ? ' :: ' + x : '')); if (!c) fails++; };
-const launch = () => chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome',
+const launch = () => chromium.launch({ executablePath: PW_EXE,
   args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--no-sandbox', '--autoplay-policy=no-user-gesture-required'] });
 const tap = async (page, key) => { await page.keyboard.down(key); await page.waitForTimeout(140); await page.keyboard.up(key); await page.waitForTimeout(250); };
 (async () => {
@@ -18,7 +18,7 @@ const tap = async (page, key) => { await page.keyboard.down(key); await page.wai
   check('全新玩家：首次進入前尚未看過教學', (await info()).seen === null);
   await tap(page, 'Enter'); await page.waitForTimeout(1200);
   let i = await info();
-  check('按 Enter 開始 → 先進入新手教學（第 1 頁：故事）', i.active.includes('TutorialScene') && !i.active.includes('MapleIslandScene') && i.idx === 0, JSON.stringify(i));
+  check('按 Enter 開始 → 先進入新手教學（第 1 頁：故事）', i.active.includes('TutorialScene') && !i.active.includes('SkyIslandScene') && i.idx === 0, JSON.stringify(i));
   await page.screenshot({ path: SPDIR + '/tut-1.png' });
   await tap(page, 'Enter'); i = await info();
   check('Enter → 下一頁', i.idx === 1, 'idx=' + i.idx);
@@ -37,7 +37,7 @@ const tap = async (page, key) => { await page.keyboard.down(key); await page.wai
   await page.screenshot({ path: SPDIR + '/tut-last.png' });
   await tap(page, 'Enter'); await page.waitForTimeout(3500);
   i = await info();
-  check('最後一頁按 Enter → 進入遊戲，並記住看過教學', i.active.includes('MapleIslandScene') && !i.active.includes('TutorialScene') && i.seen === '1', JSON.stringify(i.active));
+  check('最後一頁按 Enter → 進入遊戲，並記住看過教學', i.active.includes('SkyIslandScene') && !i.active.includes('TutorialScene') && i.seen === '1', JSON.stringify(i.active));
 
   // 暫停選單 → 操作說明（浮層）；Esc 只關閉說明，不會連暫停選單一起關掉
   await tap(page, 'Escape'); await page.waitForTimeout(800);
@@ -57,7 +57,7 @@ const tap = async (page, key) => { await page.keyboard.down(key); await page.wai
   await page.goto(`http://127.0.0.1:${PORT}/index.html?debug=1`); await page.waitForTimeout(4500);
   await tap(page, 'Enter'); await page.waitForTimeout(3500);
   i = await info();
-  check('已看過教學 → 新遊戲直接進入遊戲', i.active.includes('MapleIslandScene') && !i.active.includes('TutorialScene'), JSON.stringify(i.active));
+  check('已看過教學 → 新遊戲直接進入遊戲', i.active.includes('SkyIslandScene') && !i.active.includes('TutorialScene'), JSON.stringify(i.active));
 
   // Esc 跳過全部（用新的 profile 測）
   await page.goto(`http://127.0.0.1:${PORT}/__blank__`);   // 先離開遊戲頁（離開時的自動存檔會寫回存檔），再清除
@@ -67,7 +67,7 @@ const tap = async (page, key) => { await page.keyboard.down(key); await page.wai
   await tap(page, 'Enter');
   await tap(page, 'Escape'); await page.waitForTimeout(3500);
   i = await info();
-  check('Esc → 跳過全部教學並進入遊戲', i.active.includes('MapleIslandScene') && !i.active.includes('TutorialScene') && i.seen === '1', JSON.stringify(i.active));
+  check('Esc → 跳過全部教學並進入遊戲', i.active.includes('SkyIslandScene') && !i.active.includes('TutorialScene') && i.seen === '1', JSON.stringify(i.active));
   check('電腦版全程沒有 JS 錯誤', errors.length === 0, errors.join(' | '));
   await b.close();
 
@@ -91,7 +91,7 @@ const tap = async (page, key) => { await page.keyboard.down(key); await page.wai
   s = await mi(); check('手機：第 5 頁是觸控操作說明', s.idx === 4 && /觸控/.test(s.title), s.title);
   await m.screenshot({ path: SPDIR + '/tut-touch-keys.png' });
   const skip = toPage(1280 - 210, 66); await m.touchscreen.tap(skip.x, skip.y); await m.waitForTimeout(3500);
-  s = await mi(); check('手機：點「跳過全部」→ 進入遊戲', s.active.includes('MapleIslandScene') && !s.active.includes('TutorialScene'), JSON.stringify(s.active));
+  s = await mi(); check('手機：點「跳過全部」→ 進入遊戲', s.active.includes('SkyIslandScene') && !s.active.includes('TutorialScene'), JSON.stringify(s.active));
   check('手機版全程沒有 JS 錯誤', merrors.length === 0, merrors.join(' | '));
   await b2.close();
   console.log(fails ? 'FAILED ' + fails : 'ALL PASS'); process.exit(fails ? 1 : 0);

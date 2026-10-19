@@ -5,7 +5,7 @@ import { rollEquipmentDrop } from '../config/equipment.js';
 import { MONSTER_ASSETS } from '../config/assetCatalog.js';
 import { ALIGNMENT_PROFILES, applyAlignmentProfile, getVisualCenterPoint, getVisualCenterY, getVisualTopY } from '../config/alignment.js';
 import { VFX_TEX } from '../engine/vfxTextures.js';
-import { consumeMark, inSmoke, SMOKE_DAMAGE_FACTOR } from '../engine/statusEffects.js';
+import { consumeMark, clearMark, inSmoke, SMOKE_DAMAGE_FACTOR } from '../engine/statusEffects.js';
 import { effectiveCritMulti, jobPassive } from '../config/constants.js';
 import { SHARD_TEXTURE } from '../config/shards.js';
 import { shardToDrop } from '../engine/shards.js';
@@ -14,6 +14,8 @@ import { MonsterBrain, ST_IDLE, ST_WINDUP } from './monsterAI.js';
 import { playFx } from './Skill.js';
 import { getPlatformGraph, getTable, platformAt, jumpClassFor } from '../engine/platformGraph.js';
 import { SteerState, makeSteerInput, makeSteerOut, steer } from '../engine/aiLogic.js';
+import { settings } from '../engine/settings.js';
+import { scaleMonsterStats } from '../engine/difficulty.js';
 
 // Phase 10.3 PoC：HP 條渲染模式開關（'shape' = Rectangle 走 batchFillPath；
 // 'image' = 白塊 texture 走 batchSprite）。預設 shape（維持 Phase 3 現狀）。
@@ -166,10 +168,12 @@ export class Monster extends Phaser.Physics.Arcade.Sprite {
     this.config = config;
     this.gameState = scene.registry.get('gameState');
 
-    // 戰鬥數值
-    this.maxHp = config.hp;
-    this.hp = config.hp;
-    this.atk = config.atk;
+    // 戰鬥數值（難度倍率只在生成時套用一次：HP 與攻擊力，見 engine/difficulty.js）
+    const scaled = scaleMonsterStats(config, settings.get().difficulty);
+    this.difficulty = settings.get().difficulty;
+    this.maxHp = scaled.hp;
+    this.hp = scaled.hp;
+    this.atk = scaled.atk;
     this.exp = config.exp;
     this.speed = config.speed;
     this.meso = config.meso;
@@ -196,6 +200,8 @@ export class Monster extends Phaser.Physics.Arcade.Sprite {
     this._kbDuration = 1;
     this.attackCooldown = 0;
     this.rangedCooldown = 0;
+    // 貼身普攻間隔：入門怪（Lv1–10）維持 1.5 秒，之後與小王 1.3 秒；Boss 2.0 秒（壓力來自大招與預警區，不是貼身普攻）
+    this._meleeCd = (config.id === 'boss') ? 2000 : config.spawnRole === 'miniboss' ? 1300 : (config.level ?? 1) <= 10 ? 1500 : 1300;
     this.jumpProfile = config.jumpProfile || null;
     this.jumpCooldown = this._rollJumpCooldown();
 
@@ -328,6 +334,7 @@ export class Monster extends Phaser.Physics.Arcade.Sprite {
     });
 
     if (this.hp <= 0) {
+      if (this._mark) clearMark(this, 'died');   // 帶著斷命印記死亡 → 當場斷命（打周圍的敵人）
       this.die();
     } else {
       this._checkPhase();
@@ -527,6 +534,7 @@ export class Monster extends Phaser.Physics.Arcade.Sprite {
   update(player, delta) {
     if (this.isDead || !this.active) return;
     this._updateHpBar();
+    if (this.brain._aura) this.brain.updateAura();
 
     const dt = delta / 1000;
     this.hurtTimer = Math.max(0, this.hurtTimer - delta);
@@ -727,10 +735,11 @@ export class Monster extends Phaser.Physics.Arcade.Sprite {
   _doAttack(player) {
     this.setVelocityX(0);
     if (this.attackCooldown > 0) return;
-    this.attackCooldown = 1500;
+    this.attackCooldown = this._meleeCd;
     const dmg = Math.floor(this.atk * this.brain.dmgMult * (0.8 + Math.random() * 0.4) * (this._smoked ? SMOKE_DAMAGE_FACTOR : 1));
     if (player && !player.isInvincible) {
-      player.takeDamage(dmg);
+      // sourceX：把玩家往遠離怪物的方向擊退；force：小王 / Boss 的近戰推得更遠
+      player.takeDamage(dmg, { sourceX: this.x, force: this.brain.forceBase });
     }
     // 攻擊閃爍
     this.setTint(0xffffff);

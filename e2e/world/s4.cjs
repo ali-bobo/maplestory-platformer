@@ -21,7 +21,7 @@ const SP = process.argv[2] || '.';
       const want = m.x < tx - 8 ? 'ArrowRight' : m.x > tx + 8 ? 'ArrowLeft' : null;
       if (want !== dir) { if (dir) await page.keyboard.up(dir); if (want) await page.keyboard.down(want); dir = want; }
       const below = m.feet > topY + 10;
-      if (below && Date.now() - lastJump > 380 && Math.abs(m.x - tx) < 260) { await page.keyboard.down('Alt'); await page.waitForTimeout(40); await page.keyboard.up('Alt'); lastJump = Date.now(); }
+      if (below && Date.now() - lastJump > 380 && Math.abs(m.x - tx) < 260) { await page.keyboard.down('q'); await page.waitForTimeout(40); await page.keyboard.up('q'); lastJump = Date.now(); }
       await page.waitForTimeout(40);
     }
     if (dir) await page.keyboard.up(dir);
@@ -46,9 +46,9 @@ const SP = process.argv[2] || '.';
 
   // ── 1. 森林獵場：神秘之境入口在右上角跳台 ──
   await A.ev(() => window.__setJob('thief', 20)); await page.waitForTimeout(300);
-  await A.go('HenesysScene', 2000);
-  check('走地面 x=100 → 2380 不會誤入任何支線', !(await walkGround('HenesysScene', 100, 2380)));
-  await shot('henesys-ground');
+  await A.go('ForestScene', 2000);
+  check('走地面 x=100 → 2380 不會誤入任何支線', !(await walkGround('ForestScene', 100, 2380)));
+  await shot('forest-ground');
   await A.tp(2200, 560); await page.waitForTimeout(700);
   await A.ev(() => { window.__game.scene.getScenes(true).find((o) => o.player).player.isInvincible = true; });
   // 一路往上跳：地面 → y=400 平台 → y=240 平台 → y=180 岔路跳台
@@ -56,16 +56,16 @@ const SP = process.argv[2] || '.';
   await climbTo(2100, 240); m = await me(); check('跳上 y=240 平台', Math.abs(m.feet - 240) < 8, JSON.stringify(m));
   await climbTo(2290, 180); m = await me(); check('跳上岔路跳台（y=180）', Math.abs(m.feet - 180) < 8 && Math.abs(m.x - 2290) < 50, JSON.stringify(m));
   await page.waitForTimeout(900);
-  check('站在金色傳送門上沒按互動鍵不會進入', (await A.scene()) === 'HenesysScene');
-  await shot('henesys-branch');
+  check('站在金色傳送門上沒按互動鍵不會進入', (await A.scene()) === 'ForestScene');
+  await shot('forest-branch');
   await A.press('f'); await page.waitForTimeout(2800);
-  check('按 F → 神秘之境', (await A.scene()) === 'ElliniaScene', await A.scene());
-  await shot('ellinia-arrive');
+  check('按 F → 神秘之境', (await A.scene()) === 'MysticScene', await A.scene());
+  await shot('mystic-arrive');
   // 回程：神秘之境左端 → 森林獵場地面，不會自動再被吸進去
   await A.tp(30); await page.waitForTimeout(2800);
-  check('神秘之境左端 → 森林獵場', (await A.scene()) === 'HenesysScene');
+  check('神秘之境左端 → 森林獵場', (await A.scene()) === 'ForestScene');
   await page.waitForTimeout(1500);
-  check('回到森林後留在森林（落在地面）', (await A.scene()) === 'HenesysScene');
+  check('回到森林後留在森林（落在地面）', (await A.scene()) === 'ForestScene');
 
   // ── 2. 晨曦鎮：影之殿堂與城市特區在右上角高台 ──
   await A.go('TownScene', 900);
@@ -95,14 +95,14 @@ const SP = process.argv[2] || '.';
   await A.go('TownScene', 1200);
   await A.tp(1360, 130); await page.waitForTimeout(900);
   await A.press('f'); await page.waitForTimeout(2800);
-  check('Lv20 按 F → 暗巷城', (await A.scene()) === 'KerningScene', await A.scene());
+  check('Lv20 按 F → 暗巷城', (await A.scene()) === 'AlleyScene', await A.scene());
 
   // ── 3. 世界地圖浮層 ──
-  await A.go('HenesysScene', 300);
+  await A.go('ForestScene', 300);
   await A.ev(() => {
     const gs = window.__game.registry.get('gameState');
-    gs.level = 20; gs.meso = 5000; gs.currentMap = 'henesys';
-    gs.visitedMaps = ['town', 'sky', 'henesys', 'ruins', 'harbor', 'shrine'];
+    gs.level = 20; gs.meso = 5000; gs.currentMap = 'forest';
+    gs.visitedMaps = ['town', 'sky', 'forest', 'ruins', 'harbor', 'shrine'];
     // 清掉附近的怪，避免「戰鬥中」擋傳送
     const s = window.__game.scene.getScenes(true).find((o) => o.player);
     s.monsters.getChildren().slice().forEach((mm) => mm.destroy());
@@ -118,12 +118,12 @@ const SP = process.argv[2] || '.';
   const nodes = await A.ev(() => window.__game.scene.getScene('UIScene')._worldMap.nodes.map((n) => ({ key: n.key, x: n.x, y: n.y, tex: n.icon.texture ? n.icon.texture.key : 'circle' })));
   console.log(nodes.map((n) => `${n.key}:${n.tex.replace('ui_map_node_', '')}`).join(' '));
   check('節點狀態：森林=目前、古代廢墟=解鎖、黃沙=鎖定',
-    nodes.find((n) => n.key === 'henesys').tex === 'ui_map_node_current' && nodes.find((n) => n.key === 'ruins').tex === 'ui_map_node_unlocked' && nodes.find((n) => n.key === 'desert').tex === 'ui_map_node_locked');
+    nodes.find((n) => n.key === 'forest').tex === 'ui_map_node_current' && nodes.find((n) => n.key === 'ruins').tex === 'ui_map_node_unlocked' && nodes.find((n) => n.key === 'desert').tex === 'ui_map_node_locked');
   // 點鎖定的節點：選取但不能傳送
   const desert = nodes.find((n) => n.key === 'desert');
   await page.mouse.click(desert.x, desert.y); await page.waitForTimeout(250);
   await page.mouse.click(desert.x, desert.y); await page.waitForTimeout(500);
-  check('鎖定的地圖點兩下也不會傳送', (await A.scene()) === 'HenesysScene');
+  check('鎖定的地圖點兩下也不會傳送', (await A.scene()) === 'ForestScene');
   await shot('worldmap-locked-selected');
   // 傳送到古代廢墟
   const ruins = nodes.find((n) => n.key === 'ruins');
@@ -134,7 +134,7 @@ const SP = process.argv[2] || '.';
   await shot('worldmap-ruins-selected');
   const meso0 = await A.ev(() => window.__game.registry.get('gameState').meso);
   await page.mouse.click(ruins.x, ruins.y); await page.waitForTimeout(3000);
-  check('再點一次 → 傳送到古代廢墟', (await A.scene()) === 'PerionScene', await A.scene());
+  check('再點一次 → 傳送到古代廢墟', (await A.scene()) === 'RuinsScene', await A.scene());
   const meso1 = await A.ev(() => window.__game.registry.get('gameState').meso);
   check('扣傳送費 430', meso0 - meso1 === 430, `${meso0} -> ${meso1}`);
   check('傳送後存檔現在位置', (await A.gs()).currentMap === 'ruins');

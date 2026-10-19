@@ -13,13 +13,11 @@
 
 | 狀態 | 項目 | 說明 |
 |------|------|------|
-| 還缺 | Boss 狂暴姿勢 ×3 | 與現有 `boss_idle / move / attack.png` 同姿勢同尺寸；紅眼、紅色符文、紫色火焰；**綠底、不要背景**。上次產出把角色畫進王座房，無法去背，需重生 |
-| 還缺 | Boss 狂暴背景 | 1376×768 王座房，**不要有角色**；現有 `bg_boss_room.webp` 當構圖參考 |
-| 還缺 | 劇情插畫 2、4 | 各 960×540，**分開輸出**；2 = 魔君擊碎星星，4 = 戴兜帽少年接下最後一塊碎片 |
-| 還缺 | 標題徽章 | 綠底，金色四芒星加交叉匕首、空白緞帶，不要文字 |
+| 已完成（2026-10-17） | Boss 狂暴姿勢 ×3、狂暴背景、劇情插畫 2 與 4、標題徽章、金幣圖示、台北跳台 | 用 Gemini 產出後去背接進遊戲：`boss_rage_*.png`、`bg_boss_room_rage.webp`、`story_2/4.webp`、`title_emblem.png`、`item_coin.png`（key `item-meso`）、`platform_taipei.png`。原圖在專案資料夾 `art-source/gemini-2026-10-17/` |
 | 還缺（選配） | 刺客 / 俠盜普通攻擊圖示 | 38×38，目前共用盜賊的短刀圖示 |
 | 還缺（之後） | 二轉四個職業 | 每職業約 18 張動作圖（見 P2） |
-| 已有、程式未接 | 任務標記 ×3、靴子圖示、殿堂平台、飛鏢旋轉、漩渦動畫、待機呼吸 | 見 `TODO.md` A 區 |
+| 已有、程式未接 | 刺客 / 俠盜的 guard、lunge 等動作，技能書圖示 | 見 `TODO.md` A 區（沒有對應的玩法，要先決定用途） |
+| 還缺（選配） | 影之長老、試煉守衛專屬圖 | 目前是舊圖染紫（`maps.js` / `monsters.js` 的 `tint`） |
 | 已完成 | 三職業動作圖與頭像、12 個技能圖示、9 組特效、六個地圖包（背景 / 平台 / 5 怪 / 小王 / 2 NPC）、星光之塔、世界地圖與節點圖示、歸位特效、轉職 NPC、試煉守衛、任務物品 | 已在 `dist/assets/`，原圖（x4）在 `docs/asset_src/` |
 
 **劇情審查另外提出的新圖**（是否採用取決於是否採用新劇情）：見 `design/content-narrative.md` 第 8 節，每項附有英文提示詞。
@@ -32,7 +30,7 @@
 
 ### 0.1 美術風格
 
-- **楓之谷風手繪卡通 2D**：粗細一致的深色細輪廓線、柔和賽璐珞上色（2～3 階明暗）、飽和但不刺眼的色彩、可愛圓潤的比例（角色約 2.5～3 頭身）。
+- **手繪卡通 2D**：粗細一致的深色細輪廓線、柔和賽璐珞上色（2～3 階明暗）、飽和但不刺眼的色彩、可愛圓潤的比例（角色約 2.5～3 頭身）。
 - 光源固定**左上**；陰影偏冷色；高光用小塊亮色，不要寫實漸層、不要寫實質感、不要 3D 渲染感。
 - 與現有素材並排時要看不出差異：參考 `dist/assets/` 內既有圖（`player_idle.png`、`monster_slime.png`、`npc_merchant.png`、`bg_sky.webp`）。
 - **圖中不可出現文字、浮水印、簽名、UI 邊框**（文字由遊戲繪製）。
@@ -88,7 +86,7 @@
 
 ```
 STYLE PREFIX:
-2D side-view game sprite in MapleStory-like hand-painted cartoon style, chibi 2.5-3 heads tall,
+2D side-view game sprite in hand-painted cartoon style, chibi 2.5-3 heads tall,
 clean uniform dark outline, soft cel shading with 2-3 tones, light from upper-left, saturated but
 harmonious colors, cute rounded proportions, facing right, full body, transparent background,
 no text, no watermark, no ground shadow, centered, feet touching the bottom edge of the image.
@@ -104,7 +102,7 @@ extra limbs, white background, gradient background, harsh outline variation
 
 ```
 BACKGROUND PREFIX:
-Wide 2D side-scrolling game background, MapleStory-like painterly cartoon style, soft clouds and
+Wide 2D side-scrolling game background, painterly cartoon style, soft clouds and
 atmospheric depth, three depth layers (far / mid / near), the lower 20% of the image is a calm
 area where platforms will be placed, no characters, no text, no UI, horizontally seamless composition,
 aspect ratio 1376:768.

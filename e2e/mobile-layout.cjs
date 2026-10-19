@@ -3,7 +3,7 @@
 // 用法：PORT=8437 node e2e/mobile-layout.cjs <截圖資料夾> [視窗名稱…]
 //   例：PORT=8437 node e2e/mobile-layout.cjs /tmp/shots p844x340 desk
 // 視窗：p844x340 p740x320 p667x300 p915x412 p844x390 p667x375 portrait(390x844 直向) desk(1280x720 桌機，無觸控)
-const { chromium } = require('/opt/node-tools/node_modules/playwright');
+const { chromium, executablePath: PW_EXE } = require('./pw.cjs');
 const PORT = process.env.PORT || 8123;
 const SP = process.argv[2] || '.';
 const ONLY = process.argv.slice(3);
@@ -14,7 +14,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const errors = [];
 
 const LAUNCH = {
-  executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome',
+  executablePath: PW_EXE,
   args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--no-sandbox'],
 };
 const MOBILE_UA = 'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Mobile Safari/537.36';

@@ -19,10 +19,10 @@ test('名義倍率與命中數：由 SKILL_MODEL 算出，和設計文件一致'
   const back = skillProfile('assassin', 'backstab');
   assert.equal(back.hits, 3);
   assert.ok(Math.abs(back.nominal - 4.35) < 1e-9);
-  // 毒鏢 = 1 發飛鏢 + 6 跳毒（毒不暴擊）
+  // 毒鏢 = 2 支飛鏢 + 2 層 × 6 跳毒（毒不暴擊）+ 平均 2/3 次毒爆
   const p = skillProfile('assassin', 'poison');
-  assert.equal(p.hits, 7);
-  assert.ok(Math.abs(p.nominal - (1.2 + 6 * 0.65)) < 1e-9);
+  assert.ok(Math.abs(p.hits - (2 + 12 + 2 / 3)) < 1e-9);
+  assert.ok(Math.abs(p.nominal - (2 * 0.8 + 12 * 0.4 + (2 / 3) * 2.2)) < 1e-9);
   // 技能等級：每級 +12%
   assert.ok(Math.abs(skillProfile('assassin', 'backstab', 6).nominal / back.nominal - 1.6) < 1e-9);
   // 不在該職業池內 → null

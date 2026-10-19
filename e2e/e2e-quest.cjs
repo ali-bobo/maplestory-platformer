@@ -1,5 +1,5 @@
 // 轉職任務鏈 e2e（真實流程：對話 → 選職業 → 收集 → 副本 → 覺醒）。用法：node e2e-quest.cjs <截圖目錄>
-const { chromium } = require('/opt/node-tools/node_modules/playwright');
+const { chromium, executablePath: PW_EXE } = require('./pw.cjs');
 const SPDIR = process.argv[2] || '.';
 let fails = 0;
 const check = (n, c, x = '') => { console.log((c ? 'PASS' : 'FAIL') + ' - ' + n + (x ? ' :: ' + x : '')); if (!c) fails++; };
@@ -24,7 +24,7 @@ async function flow(browser, choice) {   // choice: 'assassin' | 'bandit'
 
   // Lv.10 的盜賊進入晨曦鎮
   await ev(() => window.__setJob('thief', 10));
-  await ev(() => { const g = window.__game; const sc = g.scene.getScene('MapleIslandScene'); const gs = g.registry.get('gameState'); sc.scene.stop('UIScene'); sc.scene.start('TownScene', { gameState: gs, spawnX: 700 }); });
+  await ev(() => { const g = window.__game; const sc = g.scene.getScene('SkyIslandScene'); const gs = g.registry.get('gameState'); sc.scene.stop('UIScene'); sc.scene.start('TownScene', { gameState: gs, spawnX: 700 }); });
   await page.waitForTimeout(2500);
   check(`[${label}] 進入晨曦鎮`, (await activeScene()) === 'TownScene');
 
@@ -75,15 +75,15 @@ async function flow(browser, choice) {   // choice: 'assassin' | 'bandit'
 
   // 3. 收集：到浮空島嶼打怪（掉落率拉到 100%，走真實擊殺 → 掉落 → 撿取流程）
   await ev(() => { window.__QUESTS.job_proof.collect.dropRate = 1; });
-  await ev(() => { const g = window.__game; const sc = g.scene.getScene('TownScene'); const gs = g.registry.get('gameState'); g.scene.getScenes(true).forEach((x) => { if (x !== sc && x.sys.settings.key !== 'UIScene') g.scene.stop(x.sys.settings.key); }); sc.scene.stop('UIScene'); sc.scene.start('MapleIslandScene', { gameState: gs, spawnX: 300 }); });
+  await ev(() => { const g = window.__game; const sc = g.scene.getScene('TownScene'); const gs = g.registry.get('gameState'); g.scene.getScenes(true).forEach((x) => { if (x !== sc && x.sys.settings.key !== 'UIScene') g.scene.stop(x.sys.settings.key); }); sc.scene.stop('UIScene'); sc.scene.start('SkyIslandScene', { gameState: gs, spawnX: 300 }); });
   await page.waitForTimeout(2500);
-  check(`[${label}] 到達浮空島嶼`, (await activeScene()) === 'MapleIslandScene');
+  check(`[${label}] 到達浮空島嶼`, (await activeScene()) === 'SkyIslandScene');
   // 一次處理一個：先擊倒一隻怪，再把玩家移到一個掉落物上並等物理判定（同一幀連續瞬移到多個掉落物只會撿到最後一個）
   for (let i = 0; i < 30; i++) {
     const prog = await ev(() => { const a = window.__game.registry.get('gameState').quests.active.find((x) => x.id === 'job_proof'); return a ? a.progress : 99; });
     if (prog >= 5 || prog === 99) break;
     await ev(() => {
-      const sc = window.__game.scene.getScene('MapleIslandScene'); const p = sc.player; p.isInvincible = true;
+      const sc = window.__game.scene.getScene('SkyIslandScene'); const p = sc.player; p.isInvincible = true;
       const gsx = window.__game.registry.get('gameState'); gsx.hp = gsx.maxHp;   // isInvincible 只有 800 ms 無敵幀，怪物新攻擊會打死 Lv10，所以持續補血
       const pk = sc.pickups.getChildren().find((k) => k.pickupType === 'quest');
       if (pk) p.setPosition(pk.x, pk.y - 5);
@@ -97,7 +97,7 @@ async function flow(browser, choice) {   // choice: 'assassin' | 'bandit'
   check(`[${label}] 收集 5 個試煉之證 → 試煉之證完成`, q.done.includes('job_proof'), JSON.stringify(q));
 
   // 4. 回晨曦鎮接影之試煉，進傳送門，擊敗守衛
-  await ev(() => { const g = window.__game; const sc = g.scene.getScene('MapleIslandScene'); const gs = g.registry.get('gameState'); sc.scene.stop('UIScene'); sc.scene.start('ShrineScene', { gameState: gs, spawnX: 700 }); });
+  await ev(() => { const g = window.__game; const sc = g.scene.getScene('SkyIslandScene'); const gs = g.registry.get('gameState'); sc.scene.stop('UIScene'); sc.scene.start('ShrineScene', { gameState: gs, spawnX: 700 }); });
   await page.waitForTimeout(2500);
   await tp(780); await page.waitForTimeout(300);
   await press('f'); await page.waitForTimeout(400);
@@ -150,7 +150,7 @@ async function flow(browser, choice) {   // choice: 'assassin' | 'bandit'
 }
 
 (async () => {
-  const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome',
+  const browser = await chromium.launch({ executablePath: PW_EXE,
     args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--no-sandbox', '--autoplay-policy=no-user-gesture-required'] });
   await flow(browser, 'assassin');
   await flow(browser, 'bandit');

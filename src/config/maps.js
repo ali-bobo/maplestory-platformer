@@ -1,6 +1,6 @@
 import { WORLD_HEIGHT } from './constants.js';
 
-// 地圖定義 v6.7 — 森林 / 玩具城 / 台北統一採用圖片跳台模型，並重排首章怪物輪廓
+// 地圖定義 v6.7 — 森林 / 神秘之境 / 台北統一採用圖片跳台模型，並重排首章怪物輪廓
 
 const PH = 24;          // 平台高度
 const GROUND_Y = WORLD_HEIGHT;   // 地板頂部固定貼齊 HUD 上緣，移除角色下方黑帶
@@ -32,12 +32,12 @@ const SKY_PLATFORMS = [
   plat(2060, 240, 580, 'wood'),
 ];
 
-// ─────────── 森林獵場 (Henesys) ───────────
+// ─────────── 森林獵場 ───────────
 // 2 層（草地系，棕綠色調）
-const HENESYS_PLATFORMS = [
+const FOREST_PLATFORMS = [
   ground(0, GROUND_Y, MAP_WIDTH, 'grass'),
 
-  // 第一層（y=400）：全部改用森林圖片跳台，沿用 Toytown 腳底接觸線
+  // 第一層（y=400）：全部改用森林圖片跳台，沿用神秘之境的腳底接觸線
   plat(100,  400, 600, 'grass'),
   plat(980,  400, 600, 'wood'),
   plat(1860, 400, 600, 'grass'),
@@ -126,12 +126,12 @@ const RUINS_PLATFORMS = [
   plat(2060, 240, 590, 'stone'),
 ];
 
-// ─────────── 神秘之境 (Ellinia / Toytown) ───────────
+// ─────────── 神秘之境 ───────────
 // 2 層（木頭＋磚石，彩色城市風）
-const ELLINIA_PLATFORMS = [
+const MYSTIC_PLATFORMS = [
   ground(0, GROUND_Y, MAP_WIDTH, 'brick'),
 
-  // 第一層（y=400）：全部採用已驗證的 Toytown 圖片跳台模式
+  // 第一層（y=400）：全部採用已驗證的圖片跳台模式
   plat(100,  400, 600, 'wood'),
   plat(980,  400, 600, 'brick'),
   plat(1860, 400, 600, 'wood'),
@@ -144,7 +144,7 @@ const ELLINIA_PLATFORMS = [
 
 // ─────────── 暗巷城 ───────────
 // 2 層（木頭＋磚石，暗夜都市風）
-const KERNING_PLATFORMS = [
+const ALLEY_PLATFORMS = [
   ground(0, GROUND_Y, MAP_WIDTH, 'brick'),
 
   // 第一層（y=400）：3 個，木頭材質
@@ -215,11 +215,12 @@ const SHRINE_PLATFORMS = [
 //   支線：森林獵場 → 神秘之境；晨曦鎮 → 暗巷城 ⇄ 台北都會（城市特區，Lv18 開放）
 // levelBand：建議等級帶 [最低, 最高]（世界地圖顯示用，content.test.js 檢查怪物等級落在帶內）
 // hub：安全樞紐（世界地圖傳送免費）；portal.minLevel：等級不足時傳送門擋下並提示
+// portal.requireCleared：通關（gs.gameCleared）後才出現；portal.oneWay：單向捷徑，不算世界地圖的連線、不要求回程
 
 export const MAPS = {
   // ── 地圖 1：浮空島嶼（Lv1-8）淡藍天空，輕柔可愛怪物 ──────────────────────
   sky: {
-    key: 'sky', name: '浮空島嶼', sceneKey: 'MapleIslandScene',
+    key: 'sky', name: '浮空島嶼', sceneKey: 'SkyIslandScene',
     width: MAP_WIDTH, bgColor: 0x5588ff,
     platforms: SKY_PLATFORMS,
     bgType: 'sky', bgImage: 'bg_sky',
@@ -234,7 +235,7 @@ export const MAPS = {
     ],
     portals: [
       { x: 30,             y: GROUND_Y - 48, width: 40, height: 72, target: 'town',    label: '←晨曦鎮',   spawnX: 240 },
-      { x: MAP_WIDTH - 50, y: GROUND_Y - 48, width: 40, height: 72, target: 'henesys', label: '→森林獵場', spawnX: 200 },
+      { x: MAP_WIDTH - 50, y: GROUND_Y - 48, width: 40, height: 72, target: 'forest', label: '→森林獵場', spawnX: 200 },
     ],
     npcs: [
       { x: 250, y: GROUND_Y - 60, id: 'npc_new_2', name: '島嶼義工',
@@ -245,11 +246,11 @@ export const MAPS = {
   },
 
   // ── 地圖 2：森林獵場（Lv5-12）綠色森林，自然動物系怪物 ────────────────────
-  henesys: {
-    key: 'henesys', name: '森林獵場', sceneKey: 'HenesysScene',
+  forest: {
+    key: 'forest', name: '森林獵場', sceneKey: 'ForestScene',
     width: MAP_WIDTH, bgColor: 0x336622,
-    platforms: HENESYS_PLATFORMS,
-    bgType: 'henesys', bgImage: 'bg_forest',
+    platforms: FOREST_PLATFORMS,
+    bgType: 'forest', bgImage: 'bg_forest',
     levelBand: [5, 12],
     monsters: [
       // 森林主題：集中林地與野獸，避免再和天空地圖共用整批怪
@@ -261,8 +262,8 @@ export const MAPS = {
     portals: [
       { x: MAP_WIDTH - 50, y: GROUND_Y - 48, width: 40, height: 72, target: 'ruins',   label: '→古代廢墟', spawnX: 200 },
       { x: 30,             y: GROUND_Y - 48, width: 40, height: 72, target: 'sky',     label: '←浮空島嶼', spawnX: MAP_WIDTH - 200 },
-      // 支線岔路：神秘之境（Lv14-20），在右上角跳台上（見 HENESYS_PLATFORMS），按互動鍵進入
-      { x: 2290, y: 180 - 48, width: 40, height: 72, target: 'ellinia', label: '→ 神秘之境 Lv.14', spawnX: 200, interact: true },
+      // 支線岔路：神秘之境（Lv14-20），在右上角跳台上（見 FOREST_PLATFORMS），按互動鍵進入
+      { x: 2290, y: 180 - 48, width: 40, height: 72, target: 'mystic', label: '→ 神秘之境 Lv.14', spawnX: 200, interact: true },
     ],
     npcs: [
       { x: 300, y: GROUND_Y - 60, id: 'npc_new_0', name: '獵人協會員',
@@ -270,8 +271,9 @@ export const MAPS = {
         dialog: ['歡迎來到森林獵場！', '這裡是中級練功地點。', '小心那些野豬，衝刺速度非常快！', '右上角的跳台上有金色傳送門通往神秘之境（按 F 進入），地面往右是古代廢墟。'] },
       // 補給斷層：晨曦鎮之後到 Lv20 沒有商店，三張中段地圖各補一位商人（沿用區域商人格式，單價 30~32 起、隨等級加大包裝）
       { x: 720, y: GROUND_Y - 60, id: 'npc_merchant', npcId: 'forest_peddler', name: '行商阿福', tint: 0xc8ffc0,
+        // 自然回復調慢後（engine/regen.js），森林也補一包小瓶 MP 藥水，Lv5-12 不必為了 MP 跑回晨曦鎮
         shop: { title: '林間小攤', items: [
-          { key: 'A', qty: 5, cost: 150 }, { key: 'A', qty: 10, cost: 290 } ] },
+          { key: 'A', qty: 5, cost: 150 }, { key: 'A', qty: 10, cost: 290 }, { key: 'D', qty: 5, cost: 150 } ] },
         dialog: ['打獵打到一半沒藥水？來我這裡補貨。', '小瓶藥水便宜賣，買多還有優惠！'] },
     ],
     spawnX: 150,
@@ -315,7 +317,7 @@ export const MAPS = {
 
   // ── 地圖 3：古代廢墟（Lv9-18）棕橘岩石，機械骷髏系怪物 ───────────────────
   ruins: {
-    key: 'ruins', name: '古代廢墟', sceneKey: 'PerionScene',
+    key: 'ruins', name: '古代廢墟', sceneKey: 'RuinsScene',
     width: MAP_WIDTH, bgColor: 0xc8a060,
     platforms: RUINS_PLATFORMS,
     bgType: 'ruins', bgImage: 'bg_ruins',
@@ -331,7 +333,7 @@ export const MAPS = {
     ],
     portals: [
       { x: MAP_WIDTH - 50, y: GROUND_Y - 48, width: 40, height: 72, target: 'harbor',  label: '→碧濤港', spawnX: 200 },
-      { x: 30,             y: GROUND_Y - 48, width: 40, height: 72, target: 'henesys', label: '←森林獵場', spawnX: MAP_WIDTH - 200 },
+      { x: 30,             y: GROUND_Y - 48, width: 40, height: 72, target: 'forest', label: '←森林獵場', spawnX: MAP_WIDTH - 200 },
     ],
     npcs: [
       { x: 300, y: GROUND_Y - 60, id: 'npc_new_3', name: '廢墟探險家',
@@ -346,11 +348,11 @@ export const MAPS = {
   },
 
   // ── 地圖 4：神秘之境（Lv13-22）彩色城鎮，奇幻多彩怪物 ───────────────────
-  ellinia: {
-    key: 'ellinia', name: '神秘之境', sceneKey: 'ElliniaScene',
+  mystic: {
+    key: 'mystic', name: '神秘之境', sceneKey: 'MysticScene',
     width: MAP_WIDTH, bgColor: 0x4422aa,
-    platforms: ELLINIA_PLATFORMS,
-    bgType: 'ellinia', bgImage: 'bg_mystic',
+    platforms: MYSTIC_PLATFORMS,
+    bgType: 'mystic', bgImage: 'bg_mystic',
     levelBand: [14, 20],
     monsters: [
       // 神秘之境：改成純奇幻高空區，避免與天空 / 廢墟地圖再次重複
@@ -359,7 +361,7 @@ export const MAPS = {
       { id: 'mimic',    count: 3 },
     ],
     portals: [
-      { x: 30,             y: GROUND_Y - 48, width: 40, height: 72, target: 'henesys', label: '←森林獵場', spawnX: 2000 },
+      { x: 30,             y: GROUND_Y - 48, width: 40, height: 72, target: 'forest', label: '←森林獵場', spawnX: 2000 },
     ],
     npcs: [
       { x: 300, y: GROUND_Y - 60, id: 'npc_new_1', name: '神秘嚮導',
@@ -370,11 +372,11 @@ export const MAPS = {
   },
 
   // ── 地圖 5：暗巷城（Lv19-29）暗黑都市，強力城市系怪物 ─────────────
-  kerning: {
-    key: 'kerning', name: '暗巷城', sceneKey: 'KerningScene',
+  alley: {
+    key: 'alley', name: '暗巷城', sceneKey: 'AlleyScene',
     width: MAP_WIDTH, bgColor: 0x111133,
-    platforms: KERNING_PLATFORMS,
-    bgType: 'kerning', bgImage: 'bg_city',
+    platforms: ALLEY_PLATFORMS,
+    bgType: 'alley', bgImage: 'bg_city',
     levelBand: [20, 29],
     monsters: [
       // 都市夜區：保留黑幫 / 夜獸 / 小王，不再與 Taipei 共用機械線
@@ -410,7 +412,7 @@ export const MAPS = {
       { id: 'city_boss1', count: 1 },
     ],
     portals: [
-      { x: 30,             y: GROUND_Y - 48, width: 40, height: 72, target: 'kerning', label: '←暗巷城', spawnX: MAP_WIDTH - 200 },
+      { x: 30,             y: GROUND_Y - 48, width: 40, height: 72, target: 'alley', label: '←暗巷城', spawnX: MAP_WIDTH - 200 },
     ],
     npcs: [
       { x: 330, y: GROUND_Y - 60, id: 'npc_new_5', name: '台北導遊',
@@ -544,8 +546,8 @@ export const MAPS = {
       { x: 30,             y: GROUND_Y - 48, width: 40, height: 72, target: 'lava', label: '←熔岩巢穴', spawnX: MAP_WIDTH - 200 },
       // 主線終點：星光之塔點亮（5/5 碎片）後才出現
       { x: MAP_WIDTH - 50, y: GROUND_Y - 48, width: 40, height: 72, target: 'boss', label: '⚠ Boss 決戰', spawnX: 200, requireBoss: true },
-      // 回程：站上王城右上層平台按 F，直接回晨曦鎮（不必走回熔岩）
-      { x: 1780, y: 240 - 48, width: 40, height: 72, target: 'town', label: '→ 回晨曦鎮', spawnX: 1300, interact: true },
+      // 通關後（擊敗暗影魔君，gs.gameCleared）才出現的回程傳送門：單向、按 F 進入，不畫進世界地圖的連線
+      { x: MAP_WIDTH - 260, y: GROUND_Y - 48, width: 40, height: 72, target: 'town', label: '✦ 回晨曦鎮', spawnX: 240, requireCleared: true, oneWay: true, interact: true },
     ],
     npcs: [
       { x: 330, y: GROUND_Y - 60, id: 'npc_prisoner', npcId: 'prisoner', name: '被囚的騎士',
@@ -566,7 +568,12 @@ export const MAPS = {
     platforms: BOSS_PLATFORMS,
     bgType: 'boss', bgImage: 'bg_boss_room',
     levelBand: [45, 50],
-    monsters: [], portals: [], npcs: [],
+    monsters: [],
+    // 通關後再次挑戰時的退路：左端回晨曦鎮（單向、按 F 進入；進場落點 x=200，不會誤觸）
+    portals: [
+      { x: 70, y: GROUND_Y - 48, width: 40, height: 72, target: 'town', label: '✦ 回晨曦鎮', spawnX: 240, requireCleared: true, oneWay: true, interact: true },
+    ],
+    npcs: [],
     spawnX: 200,
   },
 
@@ -584,7 +591,7 @@ export const MAPS = {
       // 影之殿堂：轉職長老、技能導師與「影之試煉」入口都在那裡
       { x: 1170, y: 200 - 48, width: 40, height: 72, target: 'shrine', label: '→ 影之殿堂', spawnX: 120, interact: true },
       // 城市特區（暗巷城 ⇄ 台北都會）：Lv18 開放
-      { x: 1360, y: 200 - 48, width: 40, height: 72, target: 'kerning', label: '→ 城市特區 Lv.18', spawnX: 200, minLevel: 18, interact: true },
+      { x: 1360, y: 200 - 48, width: 40, height: 72, target: 'alley', label: '→ 城市特區 Lv.18', spawnX: 200, minLevel: 18, interact: true },
     ],
     npcs: [
       // 星光之塔（role: 'starTower'）：互動顯示碎片進度，集滿 5 塊時點亮並解鎖最終 Boss。

@@ -1,9 +1,9 @@
-const { chromium } = require('/opt/node-tools/node_modules/playwright');
+const { chromium, executablePath: PW_EXE } = require('./pw.cjs');
 const PORT = process.env.PORT || 8123;
 let fails = 0; const SPDIR = process.argv[2] || '.';
 const check = (n, c, x = '') => { console.log((c ? 'PASS' : 'FAIL') + ' - ' + n + (x ? ' :: ' + x : '')); if (!c) fails++; };
 (async () => {
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome',
+  const b = await chromium.launch({ executablePath: PW_EXE,
     args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--no-sandbox', '--autoplay-policy=no-user-gesture-required'] });
   const page = await (await b.newContext({ viewport: { width: 1280, height: 720 } })).newPage();
   await page.addInitScript(() => { try { if (!sessionStorage.getItem('__t')) { localStorage.setItem('thief-legend-tutorial-seen', '1'); } } catch (_) {} });
@@ -67,16 +67,16 @@ const check = (n, c, x = '') => { console.log((c ? 'PASS' : 'FAIL') + ' - ' + n 
   // 切換地圖：舊曲淡出、新曲淡入，期間不丟例外、不靜音
   await page.evaluate(() => {
     const g = window.__game; const gs = g.registry.get('gameState');
-    const sc = g.scene.getScene('MapleIslandScene');
-    sc.scene.stop('UIScene'); gs.currentMap = 'kerning';
-    sc.scene.start('KerningScene', { gameState: gs });
+    const sc = g.scene.getScene('SkyIslandScene');
+    sc.scene.stop('UIScene'); gs.currentMap = 'alley';
+    sc.scene.start('AlleyScene', { gameState: gs });
   });
   await page.waitForTimeout(4000);
   r = await rms();
   check('切到暗巷城後仍有音樂輸出', r && r.rms > 0.002, JSON.stringify(r));
   await page.evaluate(() => {
     const g = window.__game; const gs = g.registry.get('gameState');
-    const sc = g.scene.getScene('KerningScene');
+    const sc = g.scene.getScene('AlleyScene');
     sc.scene.stop('UIScene'); gs.currentMap = 'boss';
     sc.scene.start('BossScene', { gameState: gs });
   });

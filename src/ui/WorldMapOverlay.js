@@ -9,6 +9,7 @@ import { addParchmentPanel, addWoodButton } from '../engine/woodUi.js';
 import { keyHint } from '../engine/device.js';
 import { placeLabels } from './labelLayout.js';
 import { sceneUiCtx, readableFontPx, touchTargetPx, pickNearest } from './uiScale.js';
+import { badgeCount, mapBadgeProgress, BADGE_COUNT } from '../engine/badges.js';
 import {
   WORLD_ROUTE, SIDE_MAPS, WORLD_MAP_SIZE, nodeScreenPos, mapState, travelCheck, travelFee,
 } from '../engine/worldTravel.js';
@@ -68,6 +69,8 @@ export class WorldMapOverlay {
       .setDepth(DEPTH + 3).setScrollFactor(0));
     add(s.add.text(titleX + 130, 30, keyHint('M / Esc 關閉　點節點選取，再點一次或按「傳送」出發', '點節點選取，再點一次或按「傳送」出發'), textStyle(fs(12), '#d9c7a0'))
       .setDepth(DEPTH + 3).setScrollFactor(0));
+    add(s.add.text(width - 22 - closeW - 14, 24, `盜賊徽章 ${badgeCount(gs)}/${BADGE_COUNT}`, textStyle(fs(15), '#ffe27a', { fontStyle: 'bold' }))
+      .setOrigin(1, 0).setDepth(DEPTH + 3).setScrollFactor(0));
     const close = addWoodButton(s, width - 22 - closeW / 2, closeCy, closeW, closeH, '×', () => this.close(),
       { depth: DEPTH + 4, fontSize: Math.round(22 * closeH / 40) });
     close.objects.forEach(add);
@@ -215,8 +218,9 @@ export class WorldMapOverlay {
     const state = mapState(gs, key);
     const band = map.levelBand ? `Lv.${map.levelBand[0]}-${map.levelBand[1]}` : '安全地圖';
     const fee = travelFee(gs.level, key);
-    const feeText = key === 'boss' ? '請走王城傳送門' : fee === 0 ? '傳送費 免費' : `傳送費 ${fee} 楓幣`;
-    this._infoMain.setText(`${map.name}　${band}　${feeText}`);
+    const feeText = key === 'boss' ? '請走王城傳送門' : fee === 0 ? '傳送費 免費' : `傳送費 ${fee} 金幣`;
+    const badges = mapBadgeProgress(gs, key);
+    this._infoMain.setText(`${map.name}　${band}　${feeText}${badges.total ? `　徽章 ${badges.got}/${badges.total}` : ''}`);
     const chk = travelCheck(gs, key, this._ctx());
     this._infoSub.setText(this._notice || (chk.ok ? `${STATE_TEXT[state]}・按「傳送」前往` : `${STATE_TEXT[state]}・${chk.reason}`));
     const canGo = this.selected === key ? chk.ok : travelCheck(gs, this.selected, this._ctx()).ok;

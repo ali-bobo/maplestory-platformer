@@ -1,0 +1,95 @@
+name: E2E
+
+# 無頭瀏覽器實際操作遊戲的冒煙測試（e2e/ 的一小部分；其餘腳本較慢，仍在本機手動跑）
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # 與本機 /opt/node-tools/node_modules/playwright 同版本，瀏覽器版本才一致
+  PW_VERSION: "1.56.1"
+  PORT: "8123"
+  SHOTS: ${{ github.workspace }}/e2e-shots
+
+jobs:
+  smoke:
+    name: Browser smoke tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install dependencies (lockfile-exact)
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      # Playwright 不放進 package.json：裝在暫存資料夾，用 NODE_PATH 讓 e2e/pw.cjs 的 require('playwright') 找到
+      - name: Install Playwright library
+        run: |
+          npm install --no-save --no-package-lock --no-audit --no-fund --prefix "$RUNNER_TEMP/pw" "playwright@$PW_VERSION"
+          echo "NODE_PATH=$RUNNER_TEMP/pw/node_modules" >> "$GITHUB_ENV"
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ms-playwright-${{ runner.os }}-${{ env.PW_VERSION }}
+
+      - name: Install Chromium and system dependencies
+        run: npx --yes "playwright@$PW_VERSION" install --with-deps chromium
+
+      - name: Start static server
+        run: |
+          mkdir -p "$SHOTS"
+          nohup python3 -m http.server "$PORT" --bind 127.0.0.1 > "$RUNNER_TEMP/http.log" 2>&1 &
+          for i in $(seq 1 30); do
+            curl -sf "http://127.0.0.1:$PORT/index.html" > /dev/null && exit 0
+            sleep 1
+          done
+          echo "static server did not start" >&2
+          cat "$RUNNER_TEMP/http.log" >&2
+          exit 1
+
+      # 每支腳本各自一步、各自有時限；前一支失敗後面照跑（!cancelled()），最後整個 job 仍算失敗
+      - name: e2e.cjs (basic flow)
+        timeout-minutes: 5
+        run: timeout 280 node e2e/e2e.cjs "$SHOTS"
+
+      - name: e2e-skills2.cjs (skill bar, cooldowns, MP)
+        if: ${{ !cancelled() }}
+        timeout-minutes: 5
+        run: timeout 280 node e2e/e2e-skills2.cjs "$SHOTS"
+
+      - name: e2e-jobs.cjs (job skills, save / load)
+        if: ${{ !cancelled() }}
+        timeout-minutes: 6
+        run: timeout 340 node e2e/e2e-jobs.cjs "$SHOTS"
+
+      - name: ux.cjs (ESC order, save codes, settings, mobile)
+        if: ${{ !cancelled() }}
+        timeout-minutes: 7
+        run: timeout 400 node e2e/ux.cjs "$SHOTS"
+
+      - name: Upload screenshots
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-screenshots
+          path: |
+            e2e-shots/
+          if-no-files-found: ignore
+          retention-days: 7

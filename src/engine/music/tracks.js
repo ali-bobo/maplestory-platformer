@@ -74,7 +74,7 @@ export const TRACKS = {
   },
 
   // ── 森林獵場：G 大調，輕快民謠（長笛 + 撥弦 + 手鼓）────────────────────────────
-  henesys: {
+  forest: {
     key: { tonic: 'G', mode: 'major' }, bpm: 120, swing: 0.1,
     chords: ['G', 'Em', 'C', 'D', 'G', 'Em', 'C', 'D',
              'Am', 'D', 'G', 'Em', 'C', 'D', 'G', 'D'],
@@ -120,7 +120,7 @@ export const TRACKS = {
   },
 
   // ── 神秘之境：D 多利安，魔法感（音樂盒 + 豎琴 + 合唱般的襯底）──────────────────────
-  ellinia: {
+  mystic: {
     key: { tonic: 'D', mode: 'dorian' }, bpm: 88, swing: 0,
     chords: ['Dm7', 'G', 'Cadd9', 'Am7', 'Dm7', 'G', 'Cadd9', 'Am7',
              'Fadd9', 'Cadd9', 'Dm7', 'Am7', 'Fadd9', 'G', 'Em7', 'A'],
@@ -163,7 +163,7 @@ export const TRACKS = {
   },
 
   // ── 暗巷城：A 小調，夜色爵士感（深色弦樂 + 撥弦 + 慢搖擺）─────────────────────────
-  kerning: {
+  alley: {
     key: { tonic: 'A', mode: 'minor' }, bpm: 84, swing: 0.55,
     chords: ['Am', 'Am', 'F', 'E7', 'Am', 'Dm', 'F', 'E7',
              'Dm', 'Am', 'F', 'E7', 'Dm', 'G', 'C', 'E7'],

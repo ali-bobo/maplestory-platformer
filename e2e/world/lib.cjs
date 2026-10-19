@@ -1,10 +1,10 @@
-const { chromium } = require('/opt/node-tools/node_modules/playwright');
+const { chromium, executablePath: PW_EXE } = require('../pw.cjs');
 const PORT = process.env.PORT || 8231;
 const BASE = `http://127.0.0.1:${PORT}/index.html?debug=1`;
 let fails = 0;
 const check = (n, c, x = '') => { console.log((c ? 'PASS' : 'FAIL') + ' - ' + n + (x ? ' :: ' + x : '')); if (!c) fails++; };
 async function launch(opts = {}) {
-  const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome',
+  const browser = await chromium.launch({ executablePath: PW_EXE,
     args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--no-sandbox'] });
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 720 }, ...opts });
   const page = await ctx.newPage();

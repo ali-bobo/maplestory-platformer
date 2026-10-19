@@ -3,12 +3,12 @@
 // 所以這支腳本先讓主迴圈休眠，改用 game.step(time, 16.7) 手動以 60 FPS 的虛擬時間推進，
 // 並以 window 的 KeyboardEvent 餵給 Phaser 鍵盤（走真正的輸入路徑），結果完全可重現。
 const PORT = process.env.PORT || 8123;
-const { chromium } = require('/opt/node-tools/node_modules/playwright');
+const { chromium, executablePath: PW_EXE } = require('./pw.cjs');
 let fails = 0;
 const check = (n, c, x = '') => { console.log((c ? 'PASS' : 'FAIL') + ' - ' + n + (x ? ' :: ' + x : '')); if (!c) fails++; };
 
 (async () => {
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome',
+  const b = await chromium.launch({ executablePath: PW_EXE,
     args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--no-sandbox', '--autoplay-policy=no-user-gesture-required'] });
   const page = await (await b.newContext({ viewport: { width: 1280, height: 720 } })).newPage();
   const errors = [];

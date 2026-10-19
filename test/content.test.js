@@ -153,11 +153,10 @@ test('地圖連通：從起始地圖出發，沿傳送門能到每一張地圖�
   assert.deepEqual(Object.keys(MAPS).filter((k) => !seen.has(k)), []);
 });
 
-test('傳送門成對：A 能走到 B，B 也有一條能回 A（Boss 房除外）', () => {
+test('傳送門成對：A 能走到 B，B 也有一條能回 A（Boss 房與單向回程門除外）', () => {
   for (const [key, map] of Object.entries(MAPS)) {
     for (const p of map.portals) {
-      if (p.target === 'dungeon' || p.target === 'boss') continue;
-      if (key === 'castle' && p.target === 'town') continue;   // 王城的單向回程門（互動門），晨曦鎮不通往王城
+      if (p.target === 'dungeon' || p.target === 'boss' || p.oneWay) continue;
       assert.ok(MAPS[p.target].portals.some((q) => q.target === key), `${key} → ${p.target} 沒有回程`);
     }
   }
@@ -209,9 +208,9 @@ test('碧濤港：5 種怪 + 1 小王、素材都在目錄且標為使用中、3
 });
 
 test('碧濤港接在古代廢墟之後（森林 → 廢墟 → 碧濤港），所有平台在地圖範圍內', () => {
-  assert.ok(MAPS.henesys.portals.some((p) => p.target === 'ruins'));
-  assert.ok(!MAPS.henesys.portals.some((p) => p.target === 'harbor'));
-  assert.ok(MAPS.ruins.portals.some((p) => p.target === 'harbor') && MAPS.ruins.portals.some((p) => p.target === 'henesys'));
+  assert.ok(MAPS.forest.portals.some((p) => p.target === 'ruins'));
+  assert.ok(!MAPS.forest.portals.some((p) => p.target === 'harbor'));
+  assert.ok(MAPS.ruins.portals.some((p) => p.target === 'harbor') && MAPS.ruins.portals.some((p) => p.target === 'forest'));
   assert.ok(MAPS.harbor.portals.some((p) => p.target === 'ruins'));
   for (const p of MAPS.harbor.platforms) assert.ok(p.x >= 0 && p.x + p.width <= MAPS.harbor.width, `平台 x=${p.x}`);
 });
@@ -220,18 +219,18 @@ test('碧濤港接在古代廢墟之後（森林 → 廢墟 → 碧濤港），�
 
 test('地圖圖：樞紐與主線 / 支線的連接符合設計', () => {
   const to = (k) => neighborsOf(k);
-  assert.ok(to('town').includes('sky') && to('town').includes('shrine') && to('town').includes('kerning'));
-  assert.deepEqual(to('sky').sort(), ['henesys', 'town']);
-  assert.deepEqual(to('henesys').sort(), ['ellinia', 'ruins', 'sky']);
-  assert.deepEqual(to('ruins').sort(), ['harbor', 'henesys']);
+  assert.ok(to('town').includes('sky') && to('town').includes('shrine') && to('town').includes('alley'));
+  assert.deepEqual(to('sky').sort(), ['forest', 'town']);
+  assert.deepEqual(to('forest').sort(), ['mystic', 'ruins', 'sky']);
+  assert.deepEqual(to('ruins').sort(), ['forest', 'harbor']);
   assert.deepEqual(to('harbor').sort(), ['desert', 'ruins']);
-  assert.deepEqual(to('ellinia'), ['henesys']);              // 神秘之境：從森林獵場進入的支線
-  assert.deepEqual(to('kerning').sort(), ['taipei', 'town']); // 城市特區：晨曦鎮 → 暗巷城 ⇄ 台北都會
-  assert.deepEqual(to('taipei'), ['kerning']);
+  assert.deepEqual(to('mystic'), ['forest']);              // 神秘之境：從森林獵場進入的支線
+  assert.deepEqual(to('alley').sort(), ['taipei', 'town']); // 城市特區：晨曦鎮 → 暗巷城 ⇄ 台北都會
+  assert.deepEqual(to('taipei'), ['alley']);
 });
 
 test('城市特區入口在晨曦鎮，Lv18 開放（portal.minLevel）；其他傳送門沒有等級門檻', () => {
-  const gate = MAPS.town.portals.find((p) => p.target === 'kerning');
+  const gate = MAPS.town.portals.find((p) => p.target === 'alley');
   assert.equal(gate.minLevel, 18);
   for (const [key, map] of Object.entries(MAPS)) {
     for (const p of map.portals) if (p.minLevel) assert.ok(p.minLevel >= 1 && p.minLevel <= 50 && MAPS[p.target], `${key} → ${p.target}`);
@@ -265,9 +264,12 @@ test('星光碎片：5 隻守護者都是小王、各掉一塊、碎片圖示在
     const spawns = MAPS[shard.map].monsters;
     assert.deepEqual(spawns[0], { id: shard.monsterId, count: 1 }, `${shard.map} 的守護者要放第一個`);
     assert.equal(def.level, MAPS[shard.map].levelBand[1] + 2, `${shard.monsterId} 等級`);
-    // 血量約為同圖最強小怪的 8～10 倍
-    const regular = Math.max(...spawns.map((sp) => MONSTERS.find((m) => m.id === sp.id)).filter((m) => m.spawnRole !== 'miniboss').map((m) => m.hp));
-    assert.ok(def.hp / regular >= 7 && def.hp / regular <= 10.5, `${shard.monsterId} 血量比 ${(def.hp / regular).toFixed(1)}`);
+    // 基準血量（調整前的表）約為同圖最強小怪的 8～10 倍；v2 耐打度調整後小王 ×1.4、小怪 ×1.15～1.33，實際約 8～12 倍
+    const regs = spawns.map((sp) => MONSTERS.find((m) => m.id === sp.id)).filter((m) => m.spawnRole !== 'miniboss');
+    const regularBase = Math.max(...regs.map((m) => m.baseHp));
+    const regular = Math.max(...regs.map((m) => m.hp));
+    assert.ok(def.baseHp / regularBase >= 7 && def.baseHp / regularBase <= 10.5, `${shard.monsterId} 基準血量比 ${(def.baseHp / regularBase).toFixed(1)}`);
+    assert.ok(def.hp / regular >= 8 && def.hp / regular <= 13, `${shard.monsterId} 血量比 ${(def.hp / regular).toFixed(1)}`);
   }
 });
 
@@ -357,14 +359,15 @@ test('數值曲線：碧濤港與四張新圖的小怪血量 / 攻擊貼近外�
   for (const m of regular) {
     const hp = 0.8 * 45 * m.level * (1 + m.level / 50);
     const atk = (5 * m.level + 0.04 * m.level * m.level) * (m.level >= 30 ? 0.92 : 1);
-    assert.ok(Math.abs(m.hp / hp - 1) <= 0.2, `${m.id} hp ${m.hp} vs ${hp.toFixed(0)}`);
+    // 公式對的是基準血量（baseHp）；實際血量另外乘上等級帶倍率（見下一個測試）
+    assert.ok(Math.abs(m.baseHp / hp - 1) <= 0.2, `${m.id} hp ${m.baseHp} vs ${hp.toFixed(0)}`);
     assert.ok(Math.abs(m.atk / atk - 1) <= 0.15, `${m.id} atk ${m.atk} vs ${atk.toFixed(0)}`);
   }
   for (const m of regular) for (const lower of regular.filter((x) => x.level < m.level)) assert.ok(m.exp >= lower.exp, `${m.id}（Lv${m.level}）經驗不該比 ${lower.id}（Lv${lower.level}）少`);
 });
 
 test('主線依序連通：…→ 古代廢墟 → 碧濤港 → 黃沙遺跡 → 霜牙峰 → 熔岩巢穴 → 魔君王城 → 暗影領域（只有魔君王城的門要 Boss 解鎖）', () => {
-  const line = ['sky', 'henesys', 'ruins', 'harbor', 'desert', 'snow', 'lava', 'castle', 'boss'];
+  const line = ['sky', 'forest', 'ruins', 'harbor', 'desert', 'snow', 'lava', 'castle', 'boss'];
   for (let i = 0; i + 1 < line.length; i++) {
     assert.ok(MAPS[line[i]].portals.some((p) => p.target === line[i + 1]), `${line[i]} → ${line[i + 1]}`);
     if (line[i + 1] !== 'boss') assert.ok(MAPS[line[i + 1]].portals.some((p) => p.target === line[i]), `${line[i + 1]} → ${line[i]}`);
@@ -424,10 +427,10 @@ test('舊的「擊殺 60 隻」解鎖規則已移除（地圖 / 教學 / 對話�
 // ── 補給商店覆蓋（經濟審查 P6：Lv9 以上不能走很遠才買得到藥）──────────────────────
 const SHOP_EXCEPTIONS = {
   // 支線城市特區：從晨曦鎮（有商店）一步進入，不另設商店，回晨曦鎮補給
-  kerning: '晨曦鎮的商店在入口旁（傳送門直通）',
+  alley: '晨曦鎮的商店在入口旁（傳送門直通）',
   taipei: '暗巷城盡頭的支線終點，往返晨曦鎮兩步',
   // 神秘之境：支線入口在森林獵場（有商店）的跳台上
-  ellinia: '森林獵場商店在入口旁（傳送門直通）',
+  mystic: '森林獵場商店在入口旁（傳送門直通）',
   // 最終 Boss 戰場：單場決戰，進場前在魔君王城補給
   boss: '魔君王城的商店在入口旁',
 };
@@ -450,7 +453,7 @@ test('補給商店：森林 / 廢墟 / 碧濤港的商人單價隨等級遞增�
   const shopOf = (k) => MAPS[k].npcs.find((n) => n.shop);
   const unit = (k, potion) => { const it = shopOf(k).shop.items.find((x) => x.key === potion); return it.cost / it.qty; };
   const town = 30;   // 晨曦鎮 HP 藥水單價（DEFAULT_SHOP：3 個 90）
-  for (const key of ['henesys', 'ruins', 'harbor']) {
+  for (const key of ['forest', 'ruins', 'harbor']) {
     const npc = shopOf(key);
     assert.ok(npc.npcId && npc.dialog.length >= 1 && npc.name, `${key} 商人要有 npcId / 名稱 / 對話`);
     for (const it of npc.shop.items) assert.ok(POTIONS[it.key] && it.qty >= 1 && it.cost > 0, `${key} 商品 ${it.key}`);
@@ -458,10 +461,32 @@ test('補給商店：森林 / 廢墟 / 碧濤港的商人單價隨等級遞增�
     for (const other of MAPS[key].npcs) if (other !== npc) assert.ok(Math.abs(other.x - npc.x) >= 150, `${key} NPC 間距`);
     for (const p of MAPS[key].portals) assert.ok(Math.abs(p.x - npc.x) >= 150 || p.y < 400, `${key} 商人不擋傳送門`);
   }
-  assert.ok(unit('henesys', 'A') >= town && unit('henesys', 'A') <= unit('ruins', 'A'), '森林小瓶藥水單價不低於晨曦鎮、不高於廢墟');
+  assert.ok(unit('forest', 'A') >= town && unit('forest', 'A') <= unit('ruins', 'A'), '森林小瓶藥水單價不低於晨曦鎮、不高於廢墟');
   assert.ok(unit('ruins', 'A') <= unit('harbor', 'A'), '單價隨區域遞增');
-  assert.ok(shopOf('henesys').shop.items.every((it) => it.key === 'A'), '森林只賣小瓶 HP 藥水');
+  // 自然回復調慢後森林也賣小瓶 MP 藥水（仍只有小瓶，強效藥水要到碧濤港）
+  assert.ok(shopOf('forest').shop.items.every((it) => it.key === 'A' || it.key === 'D'), '森林只賣小瓶 HP / MP 藥水');
+  assert.ok(shopOf('forest').shop.items.some((it) => it.key === 'D'), '森林有 MP 藥水');
+  assert.ok(unit('forest', 'D') >= town && unit('forest', 'D') <= unit('ruins', 'D'), '森林 MP 藥水單價介於晨曦鎮與廢墟之間');
   assert.ok(shopOf('ruins').shop.items.some((it) => it.key === 'D'), '廢墟開始賣 MP 藥水');
   assert.ok(['S', 'R'].every((k) => shopOf('harbor').shop.items.some((it) => it.key === k)), '碧濤港賣強效藥水');
   assert.ok(unit('harbor', 'S') > 75 && unit('harbor', 'S') <= unit('desert', 'S'), '強效藥水單價介於晨曦鎮與黃沙遺跡之間');
+});
+
+test('v2 耐打度：入門怪（Lv1–8）血量不變、一般怪依等級帶 +15～33%、小王 ×1.4；最終 Boss 比所有守衛耐打', async () => {
+  const { FINAL_BOSS, regularHpMult, MINIBOSS_HP_MULT, HP_OVERRIDES } = await import('../src/config/monsters.js');
+  for (const m of MONSTERS) {
+    assert.ok(m.baseHp > 0, m.id);
+    if (m.level <= 8 && m.spawnRole !== 'miniboss') assert.equal(m.hp, m.baseHp, `${m.id} 入門怪不加血`);
+    if (m.spawnRole === 'miniboss') assert.ok(Math.abs(m.hp / m.baseHp - (HP_OVERRIDES[m.id] ?? MINIBOSS_HP_MULT)) < 0.01 && m.hp > m.baseHp, m.id);
+    if (!m.spawnRole && m.id !== 'shadow-slime') {
+      const k = m.hp / m.baseHp;
+      assert.ok(Math.abs(k - regularHpMult(m.level)) < 0.02 && k <= 1.35, `${m.id} 倍率 ${k.toFixed(2)}`);
+    }
+  }
+  // 倍率隨等級不遞減
+  let last = 0;
+  for (let lv = 1; lv <= 50; lv++) { assert.ok(regularHpMult(lv) >= last); last = regularHpMult(lv); }
+  const guards = MONSTERS.filter((m) => m.spawnRole === 'miniboss' && m.id !== 'shadow_guardian');
+  assert.ok(FINAL_BOSS.hp > Math.max(...guards.map((m) => m.hp)), `最終 Boss ${FINAL_BOSS.hp}`);
+  assert.deepEqual(FINAL_BOSS.phaseAt, [0.7, 0.35]);
 });
