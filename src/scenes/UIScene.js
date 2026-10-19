@@ -25,7 +25,7 @@ import { settings } from '../engine/settings.js';
 import { SLOT_ACTIONS, POTION_ACTIONS, hudKeyLabel, slotKeyLabel, potionKeyLabel } from '../engine/keyBindings.js';
 import { countEquipment } from '../engine/death.js';
 import { keyHint, isTouchDevice } from '../engine/device.js';
-import { scaledFontPx, uiScaleFactor, popupScale } from '../ui/uiScale.js';
+import { scaledFontPx, uiScaleFactor, popupScale, MIN_TOUCH_CSS } from '../ui/uiScale.js';
 import { shouldWarnDeath, isLowHp } from '../engine/danger.js';
 
 // HUD 場景（平行運行）— 橫向捲軸風格底部狀態列
@@ -1585,9 +1585,21 @@ export class UIScene extends Phaser.Scene {
     // 技能視窗多一列「換入」選單；六技能職業每多一個技能再加一列，有被動技能再加一行說明
     const skillRows = type === 'skills' ? jobOf(this.registry.get('gameState')).pool.length : 0;
     const popW = 340;
-    const popH = type === 'skills'
+    const baseH = type === 'skills'
       ? 340 + (skillRows - 5) * 44 + (jobOf(this.registry.get('gameState')).passive ? 36 : 0)
       : 280;
+    // 彈窗整體會被放大 k 倍（見最後），關閉鈕的螢幕大小 = 命中區 * k * 畫布縮放。觸控且縮得小時，
+    // 把標題列加高、命中區做成 >= 44 CSS px 的方塊（貼齊右上角），內容往下讓位；桌機維持原本 36px。
+    const ui = this._uiCtx();
+    let hdr = 0;   // 標題列多出來的高度（遊戲座標，彈窗內）
+    if (ui.touch) {
+      for (let i = 0; i < 3; i++) {
+        const k0 = popupScale(ui, { w: popW, h: baseH + hdr, availW: width - 20, availH: barPanelY - 14 });
+        hdr = Math.max(0, Math.ceil(MIN_TOUCH_CSS / (k0 * ui.canvasScale)) - 36 + 4);
+      }
+    }
+    const popH = baseH + hdr;
+    const closeSide = 36 + hdr;                 // 命中區邊長（彈窗內座標）
     const popX = width - popW - 10;
     const popY = barPanelY - popH - 10;
 
@@ -1603,20 +1615,21 @@ export class UIScene extends Phaser.Scene {
       fontSize: '15px', color: '#ffee88', fontFamily: 'Arial', stroke: '#000', strokeThickness: 3,
     }).setDepth(151).setScrollFactor(0));
 
-    // 關閉按鈕 ×
-    const closeZone = push(this.add.zone(popX + popW - 46, popY + 6, 36, 36)   // 命中區比圖示大，手指好點
+    // 關閉按鈕 ×（命中區比圖示大，手指好點）
+    const closeZone = push(this.add.zone(popX + popW - 10 - closeSide, popY + 6, closeSide, closeSide)
       .setOrigin(0, 0).setInteractive({ useHandCursor: true }).setDepth(155).setScrollFactor(0));
     const closeG = push(this.add.graphics().setDepth(154).setScrollFactor(0));
+    const boxS = 22 + hdr, boxX = popX + popW - 18 - boxS, boxY = popY + 12;
     const drawClose = (hover) => {
       closeG.clear();
       closeG.fillStyle(hover ? 0xaa3333 : 0x553333, 0.9);
-      closeG.fillRoundedRect(popX + popW - 40, popY + 12, 22, 22, 4);
+      closeG.fillRoundedRect(boxX, boxY, boxS, boxS, 4);
       closeG.lineStyle(1, 0xff4444, 0.6);
-      closeG.strokeRoundedRect(popX + popW - 40, popY + 12, 22, 22, 4);
+      closeG.strokeRoundedRect(boxX, boxY, boxS, boxS, 4);
     };
     drawClose(false);
-    push(this.add.text(popX + popW - 29, popY + 23, '×', {
-      fontSize: '14px', color: '#ff8888', fontFamily: 'Arial',
+    push(this.add.text(boxX + boxS / 2, boxY + boxS / 2, '×', {
+      fontSize: `${14 + Math.round(hdr / 2)}px`, color: '#ff8888', fontFamily: 'Arial',
     }).setOrigin(0.5, 0.5).setDepth(155).setScrollFactor(0));
     closeZone.on('pointerover',  () => drawClose(true));
     closeZone.on('pointerout',   () => drawClose(false));
@@ -1625,9 +1638,9 @@ export class UIScene extends Phaser.Scene {
     // 分隔線
     const divG = push(this.add.graphics().setDepth(151).setScrollFactor(0));
     divG.lineStyle(1, 0xc99a4a, 0.7);
-    divG.lineBetween(popX + 22, popY + 36, popX + popW - 22, popY + 36);
+    divG.lineBetween(popX + 22, popY + 36 + hdr, popX + popW - 22, popY + 36 + hdr);
 
-    const contentY = popY + 44;
+    const contentY = popY + 44 + hdr;
 
     if (type === 'items') {
       this._buildItemsPopup(push, popX, contentY, popW);

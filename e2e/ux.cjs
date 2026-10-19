@@ -1,6 +1,7 @@
 // UX 系統的 e2e：ESC 順序、存檔代碼往返、設定持久化、低血量暈影與首次死亡提醒、目標列、任務日誌、
 // localStorage 不可用、手機版面（844x390）。
 // 用法：PORT=8412 node e2e/ux.cjs /tmp/shots（第一個參數是截圖資料夾）
+// 只跑手機 NPC 對話 / 商店 / 世界地圖的可讀性與觸控區檢查：UX_ONLY_PHONE_UI=1 PORT=8412 node e2e/ux.cjs /tmp/shots
 const { chromium, executablePath: PW_EXE } = require('./pw.cjs');
 const PORT = process.env.PORT || 8123;
 const SP = process.argv[2] || '.';
@@ -25,7 +26,7 @@ function watch(page, label) {
 
 // 進入遊戲：選單 → Enter（新遊戲）→ 等地圖與 HUD 都在
 async function startGame(page, { url = BASE, key = 'Enter' } = {}) {
-  await page.goto(url);
+  await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 90000 });
   await page.waitForFunction(() => window.__game && window.__game.scene.isActive('MenuScene'), null, { timeout: 30000 });
   await page.waitForTimeout(800);
   if (key) await page.keyboard.press(key);
@@ -38,8 +39,150 @@ const ui = (page, fn, arg) => page.evaluate(([src, a]) => {
   return (new Function('ui', 'game', 'a', `return (${src})(ui, game, a);`))(window.__game.scene.getScene('UIScene'), window.__game, a);
 }, [fn.toString(), arg]);
 
+// ── 手機橫放：NPC 對話框、商店、世界地圖浮層「可讀可點」─────────────────────────────
+// 字級：螢幕等效 >= 12 CSS px；按鈕 / 觸控區：>= 44 CSS px；關閉鈕用真的手指點得掉。
+async function phoneUiChecks(browser, vw, vh, tag) {
+  const mctx = await browser.newContext({
+    viewport: { width: vw, height: vh }, screen: { width: vw, height: vh }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, userAgent: MOBILE_UA,
+  });
+  const mp = await mctx.newPage();
+  watch(mp, `phoneUi-${tag}`);
+  await mp.addInitScript(() => { try { localStorage.setItem('thief-legend-tutorial-seen', '1'); } catch (_) {} });
+  const cdp = await mctx.newCDPSession(mp);
+  const touch = (type, pts) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: pts });
+  await startGame(mp);
+  const tapPage = async (x, y) => { await touch('touchStart', [{ x, y, id: 4 }]); await sleep(120); await touch('touchEnd', []); await sleep(350); };
+  const rectOf = () => mp.evaluate(() => { const r = document.querySelector('canvas').getBoundingClientRect(); return { l: r.left, t: r.top, w: r.width, h: r.height }; });
+  const gameToPage = (r, gx, gy) => ({ x: r.l + (gx * r.w) / 1280, y: r.t + (gy * r.h) / 720 });
+  const MIN_FONT = 11.5, MIN_HIT = 43.5;   // 容許四捨五入
+  // 量一組物件：文字最小螢幕字級、可互動物件的最小螢幕邊長
+  const measure = (getObjs) => mp.evaluate(([src]) => {
+    // eslint-disable-next-line no-new-func
+    const objs = (new Function('game', `return (${src})(game);`))(window.__game);
+    const cs = window.__game.scale.displaySize.width / window.__game.scale.width;
+    let minFont = 1e9, minHitH = 1e9, minHitW = 1e9, texts = 0, hits = 0;
+    for (const o of objs) {
+      if (!o || !o.active) continue;
+      if (o.type === 'Text' && o.visible && o.text) { texts++; minFont = Math.min(minFont, parseFloat(o.style.fontSize) * cs); }
+      const clickable = o.input && o.input.enabled && (o.type !== 'Rectangle' || o.fillAlpha > 0.5) && o.type !== 'Zone';
+      if (clickable) { hits++; minHitH = Math.min(minHitH, o.displayHeight * cs); minHitW = Math.min(minHitW, o.displayWidth * cs); }
+    }
+    return { cs, minFont, minHitH, minHitW, texts, hits };
+  }, [getObjs.toString()]);
+
+  // 1. 一般 NPC 對話：用手指點「互動」鈕開啟
+  await mp.evaluate(() => { const s = window.__game.scene.getScene('SkyIslandScene'); s.player.setPosition(250, s.player.y); });
+  await mp.waitForTimeout(600);
+  const ic = await mp.evaluate(() => { const r = document.querySelector('.tc-interact').getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; });
+  await tapPage(ic.x, ic.y);
+  await mp.waitForTimeout(500);
+  check(`${tag} 手機：點互動鈕開啟 NPC 對話`, await mp.evaluate(() => !!window.__game.scene.getScene('SkyIslandScene')._npcDialog));
+  const dlgObjs = () => { const d = window.__game.scene.getScene('SkyIslandScene')._npcDialog; return [d.title, d.msgText, d.close, ...(d.extras || [])]; };
+  let m = await measure(dlgObjs);
+  check(`${tag} 手機：NPC 對話文字 >= 12 CSS px`, m.minFont >= MIN_FONT, `最小 ${m.minFont.toFixed(1)}px（${m.texts} 段）`);
+  check(`${tag} 手機：NPC 對話關閉鈕觸控區 >= 44 CSS px`, m.hits >= 1 && m.minHitH >= MIN_HIT, `高 ${m.minHitH.toFixed(1)} 寬 ${m.minHitW.toFixed(1)}`);
+  const inside = await mp.evaluate(() => {
+    const s = window.__game.scene.getScene('SkyIslandScene'); const d = s._npcDialog; const cam = s.cameras.main;
+    const b = d.bg; const c = d.close;
+    return { top: b.y - cam.scrollY, bottom: b.y + b.height - cam.scrollY, closeBottom: c.y + c.displayHeight / 2 - cam.scrollY, msgBottom: d.msgText.y + d.msgText.height - cam.scrollY, closeTop: c.y - c.displayHeight / 2 - cam.scrollY };
+  });
+  check(`${tag} 手機：對話面板在 HUD 列之上的畫面內，文字不壓到關閉鈕`, inside.top >= 0 && inside.bottom <= 600 && inside.closeBottom <= inside.bottom && inside.msgBottom <= inside.closeTop + 2, JSON.stringify(inside));
+  await mp.screenshot({ path: `${SP}/ux-m-${tag}-npc.png` });
+  // 用手指點關閉鈕
+  let r = await rectOf();
+  let cp = await mp.evaluate(() => { const s = window.__game.scene.getScene('SkyIslandScene'); const c = s._npcDialog.close; return { x: c.x - s.cameras.main.scrollX, y: c.y - s.cameras.main.scrollY }; });
+  let pp = gameToPage(r, cp.x, cp.y);
+  await tapPage(pp.x, pp.y);
+  check(`${tag} 手機：手指點關閉鈕可關掉 NPC 對話`, await mp.evaluate(() => !window.__game.scene.getScene('SkyIslandScene')._npcDialog));
+
+  // 2. 帶選項的對話（影之長老選職業）
+  await mp.evaluate(() => {
+    const s = window.__game.scene.getScene('SkyIslandScene'); const gs = window.__game.registry.get('gameState');
+    gs.job = 'thief'; gs.quests = gs.quests || { active: [], completed: [] };
+    gs.quests.active = [{ id: 'job_choose', progress: 0 }];
+    s._openNpcDialog({ role: 'jobAdvisor', name: '影之長老' });
+  });
+  await mp.waitForTimeout(500);
+  m = await measure(dlgObjs);
+  check(`${tag} 手機：選項對話字級 >= 12、選項與關閉鈕 >= 44 CSS px`, m.minFont >= MIN_FONT && m.minHitH >= MIN_HIT && m.hits >= 3, `字 ${m.minFont.toFixed(1)} 高 ${m.minHitH.toFixed(1)} 可點 ${m.hits}`);
+  const ins2 = await mp.evaluate(() => { const s = window.__game.scene.getScene('SkyIslandScene'); const b = s._npcDialog.bg; return { top: b.y - s.cameras.main.scrollY, bottom: b.y + b.height - s.cameras.main.scrollY }; });
+  check(`${tag} 手機：選項對話面板在 HUD 列之上的畫面內`, ins2.top >= 0 && ins2.bottom <= 600, JSON.stringify(ins2));
+  await mp.screenshot({ path: `${SP}/ux-m-${tag}-choices.png` });
+  await mp.evaluate(() => window.__game.scene.getScene('SkyIslandScene')._closeNpcDialog());
+
+  // 3. 商店
+  await mp.evaluate(() => window.__game.scene.getScene('SkyIslandScene')._openNpcDialog({ name: '雜貨商', shop: true, dialog: ['歡迎光臨！'] }));
+  await mp.waitForTimeout(500);
+  const shopObjs = () => window.__game.scene.getScene('SkyIslandScene')._npcDialog.objects;
+  m = await measure(shopObjs);
+  check(`${tag} 手機：商店文字 >= 12 CSS px，購買 / 關閉鈕 >= 44 CSS px`, m.minFont >= MIN_FONT && m.minHitH >= MIN_HIT, `字 ${m.minFont.toFixed(1)} 高 ${m.minHitH.toFixed(1)}`);
+  const ins3 = await mp.evaluate(() => { const o = window.__game.scene.getScene('SkyIslandScene')._npcDialog.objects[0]; return { top: o.y, bottom: o.y + o.height }; });
+  check(`${tag} 手機：商店面板在 HUD 列之上的畫面內`, ins3.top >= 0 && ins3.bottom <= 600, JSON.stringify(ins3));
+  await mp.screenshot({ path: `${SP}/ux-m-${tag}-shop.png` });
+  // 關閉鈕 = 最後一塊 nineslice 底板
+  cp = await mp.evaluate(() => { const o = window.__game.scene.getScene('SkyIslandScene')._npcDialog.objects; const plates = o.filter((x) => x.type === 'NineSlice'); const c = plates[plates.length - 1]; return { x: c.x, y: c.y }; });
+  r = await rectOf(); pp = gameToPage(r, cp.x, cp.y);
+  await tapPage(pp.x, pp.y);
+  check(`${tag} 手機：手指點商店關閉鈕可關掉`, await mp.evaluate(() => !window.__game.scene.getScene('SkyIslandScene')._npcDialog));
+
+  // 4. 世界地圖浮層
+  await mp.evaluate(() => { window.__game.scene.getScene('UIScene')._worldMap.show(); });
+  await mp.waitForTimeout(600);
+  const mapObjs = () => [...window.__game.scene.getScene('UIScene')._worldMap.objs];
+  m = await measure(mapObjs);
+  check(`${tag} 手機：世界地圖文字 >= 12 CSS px`, m.minFont >= MIN_FONT, `最小 ${m.minFont.toFixed(1)}px（${m.texts} 段）`);
+  const hit = await mp.evaluate(() => {
+    const w = window.__game.scene.getScene('UIScene')._worldMap; const cs = window.__game.scale.displaySize.width / window.__game.scale.width;
+    const c = w._closeBtn.plate; const g = w._goBtn.plate;
+    return { closeH: c.displayHeight * cs, closeW: c.displayWidth * cs, goH: g.displayHeight * cs, goW: g.displayWidth * cs };
+  });
+  check(`${tag} 手機：世界地圖「關閉」「傳送」鈕 >= 44 CSS px`, hit.closeH >= MIN_HIT && hit.closeW >= MIN_HIT && hit.goH >= MIN_HIT && hit.goW >= MIN_HIT, JSON.stringify(hit));
+  const fit = await mp.evaluate(() => {
+    const w = window.__game.scene.getScene('UIScene')._worldMap; const bad = [];
+    for (const o of w.objs) { if (o.type === 'Text' && o.visible) { const b = o.getBounds(); if (b.left < 0 || b.right > 1280 || b.top < 0 || b.bottom > 720) bad.push(o.text); } }
+    const lab = w.nodes.filter((n) => !n.side).map((n) => n.label.getBounds());
+    let overlap = 0;
+    for (let i = 0; i < lab.length; i++) {
+      for (let j = i + 1; j < lab.length; j++) {
+        if (lab[i].left < lab[j].right && lab[j].left < lab[i].right && lab[i].top < lab[j].bottom && lab[j].top < lab[i].bottom) overlap++;
+      }
+    }
+    return { bad, overlap };
+  });
+  check(`${tag} 手機：世界地圖文字都在畫面內、節點名稱互不重疊`, fit.bad.length === 0 && fit.overlap === 0, JSON.stringify(fit));
+  await mp.screenshot({ path: `${SP}/ux-m-${tag}-map.png` });
+  // 手指點在離節點 20 遊戲像素外（手指不準）→ 選到最近的節點；點右側支線列 → 選取
+  const sel = await mp.evaluate(() => {
+    const w = window.__game.scene.getScene('UIScene')._worldMap;
+    const n = w.nodes.filter((o) => !o.side)[5]; const side = w.nodes.find((o) => o.side);
+    return { key: n.key, x: n.x, y: n.y, sideKey: side.key, sx: side.x + 100, sy: side.y };
+  });
+  r = await rectOf();
+  pp = gameToPage(r, sel.x + 14, sel.y + 14);
+  await tapPage(pp.x, pp.y);
+  check(`${tag} 手機：手指點在節點旁邊也能選到最近的節點`, await mp.evaluate(() => window.__game.scene.getScene('UIScene')._worldMap.selected) === sel.key);
+  pp = gameToPage(r, sel.sx, sel.sy);
+  await tapPage(pp.x, pp.y);
+  check(`${tag} 手機：點支線地圖整列可選取`, await mp.evaluate(() => window.__game.scene.getScene('UIScene')._worldMap.selected) === sel.sideKey);
+  await mp.screenshot({ path: `${SP}/ux-m-${tag}-map-sel.png` });
+  cp = await mp.evaluate(() => { const c = window.__game.scene.getScene('UIScene')._worldMap._closeBtn.plate; return { x: c.x, y: c.y }; });
+  pp = gameToPage(r, cp.x, cp.y);
+  await tapPage(pp.x, pp.y);
+  check(`${tag} 手機：手指點世界地圖關閉鈕可關掉`, await mp.evaluate(() => !window.__game.scene.getScene('UIScene')._worldMap.isOpen));
+  await mctx.close();
+}
+
 (async () => {
   const browser = await chromium.launch(LAUNCH);
+  if (process.env.UX_ONLY_PHONE_UI) {
+    await phoneUiChecks(browser, 844, 390, 'p844');
+    await phoneUiChecks(browser, 667, 375, 'p667');
+    const real = errors.filter((e) => !/Failed to load resource/.test(e));
+    check('全程沒有 JS 錯誤', real.length === 0, real.slice(0, 5).join(' | '));
+    console.log(fails === 0 ? 'ALL PASS' : `FAILED: ${fails}`);
+    await browser.close();
+    process.exit(fails ? 1 : 0);
+  }
 
   // ══ 桌機 1280x720 ═══════════════════════════════════════════════════════════
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 720 }, acceptDownloads: true });
@@ -164,7 +307,7 @@ const ui = (page, fn, arg) => page.evaluate(([src, a]) => {
   check('重設設定回到預設值', await page.evaluate(() => { const s = window.__settings.get(); return s.musicVolume === 70 && s.sfxVolume === 100 && s.shake && s.flash && s.damageNumbers && !s.reducedMotion && s.uiScale === 'normal'; }));
 
   // ── 5. 低血量暈影與首次死亡提醒 ──────────────────────────────────────────────
-  await page.goto(BASE);
+  await page.goto(BASE, { waitUntil: 'domcontentloaded', timeout: 90000 });
   await page.waitForFunction(() => window.__game && window.__game.scene.isActive('MenuScene'), null, { timeout: 30000 });
   await page.waitForTimeout(500);
   await page.keyboard.press('Enter');   // 有存檔 → 繼續遊戲
@@ -236,7 +379,7 @@ const ui = (page, fn, arg) => page.evaluate(([src, a]) => {
   const p2 = await ctx2.newPage();
   watch(p2, 'fresh');
   await p2.addInitScript(() => { try { localStorage.setItem('thief-legend-tutorial-seen', '1'); } catch (_) {} });
-  await p2.goto(BASE);
+  await p2.goto(BASE, { waitUntil: 'domcontentloaded', timeout: 90000 });
   await p2.waitForFunction(() => window.__game && window.__game.scene.isActive('MenuScene'), null, { timeout: 30000 });
   await p2.waitForTimeout(800);
   check('全新設定檔沒有存檔', (await p2.evaluate((k) => localStorage.getItem(k), SAVE_KEY)) === null);
@@ -273,7 +416,7 @@ const ui = (page, fn, arg) => page.evaluate(([src, a]) => {
     Object.defineProperty(window, 'localStorage', { configurable: true, get: deny });
     Object.defineProperty(window, 'sessionStorage', { configurable: true, get: deny });
   });
-  await p3.goto(BASE);
+  await p3.goto(BASE, { waitUntil: 'domcontentloaded', timeout: 90000 });
   await p3.waitForFunction(() => window.__game && window.__game.scene.isActive('MenuScene'), null, { timeout: 30000 });
   await p3.waitForTimeout(1000);
   check('沒有 localStorage：選單照常顯示並出現「未存檔」', await p3.evaluate(() => { const m = window.__game.scene.getScene('MenuScene'); return !!m._unsavedBadge && /未存檔/.test(m._unsavedBadge.text); }));
@@ -305,7 +448,7 @@ const ui = (page, fn, arg) => page.evaluate(([src, a]) => {
   await mp.addInitScript(() => { try { localStorage.setItem('thief-legend-tutorial-seen', '1'); } catch (_) {} });
   const cdp = await mctx.newCDPSession(mp);
   const touch = (type, pts) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: pts });
-  await mp.goto(BASE);
+  await mp.goto(BASE, { waitUntil: 'domcontentloaded', timeout: 90000 });
   await mp.waitForFunction(() => window.__game && window.__game.scene.isActive('MenuScene'), null, { timeout: 30000 });
   await mp.waitForTimeout(1000);
   const rect = await mp.evaluate(() => { const r = document.querySelector('canvas').getBoundingClientRect(); return { l: r.left, t: r.top, w: r.width, h: r.height }; });
@@ -360,7 +503,8 @@ const ui = (page, fn, arg) => page.evaluate(([src, a]) => {
     k: window.__game.scene.getScene('UIScene')._popup.container ? window.__game.scene.getScene('UIScene')._popup.container.scaleX : 1,
   }));
   check('手機：開技能視窗時，跳 / 搖桿 / 攻擊鈕隱藏，暫停鈕保留', modal.type === 'skills' && modal.cls && modal.jump === 'none' && modal.stick === 'none' && modal.atk === 'none' && modal.pause !== 'none', JSON.stringify(modal));
-  check('手機：技能視窗整體放大', modal.k > 1.3, `scale ${modal.k}`);
+  // 技能視窗在觸控裝置上標題列加高（關閉鈕 >= 44 CSS px），可用高度固定，所以倍率剛好落在 1.3
+  check('手機：技能視窗整體放大', modal.k >= 1.3, `scale ${modal.k}`);
   await mp.screenshot({ path: `${SP}/ux-m-skills.png` });
   // 找出第一個「+」的位置並用手指點
   const plus = await mp.evaluate(() => {
@@ -395,6 +539,10 @@ const ui = (page, fn, arg) => page.evaluate(([src, a]) => {
   // 手機的畫面渲染：canvas 不再用 pixelated
   check('畫布不再使用 image-rendering: pixelated（手繪美術用平滑取樣）', await mp.evaluate(() => getComputedStyle(document.querySelector('canvas')).imageRendering !== 'pixelated'));
   await mctx.close();
+
+  // 手機 NPC 對話 / 商店 / 世界地圖：844x390 與 667x375
+  await phoneUiChecks(browser, 844, 390, 'p844');
+  await phoneUiChecks(browser, 667, 375, 'p667');
 
   const real = errors.filter((e) => !/Failed to load resource/.test(e));
   check('全程沒有 JS 錯誤', real.length === 0, real.slice(0, 5).join(' | '));

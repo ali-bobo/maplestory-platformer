@@ -33,10 +33,13 @@
 | `e2e-skills2.cjs` | 技能欄、普通攻擊 / Z 技能、冷卻與 MP、技能視窗與換入 |
 | `e2e-death.cjs` | 死亡與重新開始 |
 | `savequit.cjs` | 受擊反應（怪物從左 / 右打 → 往遠離攻擊者的方向擊退、硬直與無敵閃爍會結束、受傷後 HP 自然回復暫停）與暫停選單「儲存並離開」（存檔、回主選單、監聽清乾淨、繼續遊戲回到同一張地圖；副本中先確認、繼續後在晨曦鎮）。截圖 `hit-knockback.png`、`pause-save-quit.png`（`SHOT_DIR=資料夾` 另存一份）。用法 `PORT=8135 node e2e/savequit.cjs /tmp/shots` |
-| `e2e-mobile.cjs` | 觸控按鈕、多點觸控 |
+| `e2e-mobile.cjs` | 舊式觸控按鈕（強制 `touchControls: buttons`）、多點觸控、左右互換、暫停、直向 |
+| `mobile-joystick.cjs` | 虛擬搖桿（844x390，CDP 多指）：浮動底盤、左右拖曳、上推跳、二段跳（回中立再推 / 快速上滑 / 另一側點擊 / 跳躍鈕）、按住不連跳、右手同時攻擊、touchcancel / 拖出螢幕 / 失焦不卡鍵、第二指不搶搖桿、下推、HUD 藥水槽仍可點、左右互換、設定切換、視窗縮放。注意 CDP `touchEnd` 的 touchPoints 是「要放開的那幾指」；無頭瀏覽器負載高時二段跳序列會自動重試。用法 `PORT=8517 node e2e/mobile-joystick.cjs <截圖目錄>` |
+| `mobile-layout.cjs` | 手機可見視窗版面：8 組視窗（844x340、740x320、667x300、915x412、844x390、667x375、390x844 直向、1280x720 桌機）。畫布 16:9 置中且至少一軸填滿、無捲動條、視窗高度變動後重新貼合、安全區域（`--safe-*` 變數）、直向「請橫放」提示、全螢幕鈕（無 API 時隱藏）；影之長老選項對話（真實點互動鈕開啟）、一般 / 長文字對話、5 列商店（真的點購買）、任務日誌 / 設定 / 技能 / 道具視窗、世界地圖：每個可點物件在可見視窗內、≥ 40 CSS px、`elementFromPoint` 不被觸控鈕蓋住、不被 HUD 蓋住（遊戲座標 y 48~600）、文字 ≥ 12 CSS px（畫布縮放 < 0.5 放寬到 10），並用 CDP 真實觸控點關閉鈕。用法 `PORT=8437 node e2e/mobile-layout.cjs /tmp/shots [視窗名…]` |
 | `ux.cjs` | UX 系統：ESC 順序（含合成 ESC）、存檔代碼往返（全新設定檔匯入、壞代碼、剪貼簿被拒）、設定持久化與生效、低血量暈影與首次死亡提醒、目標列、任務日誌、localStorage 不可用、手機 844x390（技能視窗可點、觸控鈕讓開、冷卻遮罩）。用法 `PORT=8412 node e2e/ux.cjs /tmp/shots` |
 | `controls.cjs` | 手把（假造 `navigator.getGamepads`：接上提示、主選單按 A、移動 / 跳 / 普攻 / 技能 / Start 暫停、拔掉不卡鍵）與按鍵設定（設定面板改鍵、衝突互換、保留鍵拒絕、ESC 只取消、HUD 字樣、改鍵後實際施放、重新載入保留、恢復預設）。用法 `PORT=8132 node e2e/controls.cjs /tmp/shots` |
 | `e2e-music.cjs` | 每張地圖的音樂 |
+| `e2e-feel.cjs` | 戰鬥手感：土狼時間、落地前提前按跳、攻擊 / 技能冷卻尾端再按會銜接且不多扣 MP。用 `game.step` 虛擬時鐘逐幀推進（headless 約 7 FPS，比 120 ms 緩衝窗還慢，真實時間按鍵不可靠） |
 | `e2e-jobs.cjs` | 兩個職業的技能、姿勢、被動、存檔讀檔 |
 | `e2e-quest.cjs` | 轉職任務鏈（影之長老在影之殿堂；兩職業各走一次，含二選一對話、試煉副本、覺醒） |
 | `soak.cjs` | 浸泡測試（效能 / 記憶體）：連續遊玩數分鐘（連打技能、受傷死亡、走遍所有地圖與 Boss / 副本、換職業、開技能視窗、音樂開著），每分鐘印出堆積 / 紋理 / 物件 / 計時器 / 音訊節點，最後斷言暖機後不成長，並演練 WebGL context 遺失。`PORT=8401 SOAK_MIN=8 node e2e/soak.cjs /tmp/shots`（`SOAK_JSON=檔案` 可存數據） |

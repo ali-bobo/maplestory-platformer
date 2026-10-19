@@ -1,14 +1,27 @@
-:root { color-scheme: dark; }
+:root {
+  color-scheme: dark;
+  /* 安全區域（瀏海 / 圓角 / 手勢條）。獨立成變數，e2e 可覆寫來模擬；viewport-fit=cover 時 env() 才有值 */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+}
 * { box-sizing: border-box; }
 
+/* html / body 一律釘死成「目前可見視窗」大小：position: fixed 不隨網址列收放而捲動，
+   iOS 的橡皮筋捲動、Android 的下拉重新整理也都吃不到（overscroll-behavior + touch-action）。 */
 html, body {
   margin: 0;
+  position: fixed;
+  inset: 0;
   width: 100%;
   height: 100%;
   overflow: hidden;
   /* 手機：禁止下拉重新整理 / 橡皮筋捲動 / 雙擊縮放 / 長按選單 */
   overscroll-behavior: none;
   touch-action: none;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
   -webkit-user-select: none;
   user-select: none;
   -webkit-touch-callout: none;
@@ -16,21 +29,23 @@ html, body {
 }
 
 body {
-  display: flex;
-  align-items: center;
-  justify-content: center;
   background: linear-gradient(180deg, #23233b 0%, #151522 100%);
   font-family: "Microsoft JhengHei", sans-serif;
 }
 
-/* 畫布大小由 Phaser 的 Scale.FIT 控制（等比縮放進視窗、置中），這裡只提供容器 */
+/* 畫布容器 = 可見視窗扣掉安全區域。畫布大小由 Phaser 的 Scale.FIT 控制（等比縮放進容器），
+   置中只交給這裡的 flex（Phaser 的 autoCenter 關閉，否則兩邊各偏一半，畫布會歪向一側）。
+   不用 100vw / 100vh：手機瀏覽器的 100vh 包含網址列，會讓畫布下緣被切掉。 */
 #game-container {
-  width: 100vw;
-  height: 100vh;
-  height: 100dvh;
+  position: fixed;
+  top: var(--safe-top);
+  right: var(--safe-right);
+  bottom: var(--safe-bottom);
+  left: var(--safe-left);
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
 }
 #game-container canvas {
   image-rendering: auto;   /* 手繪美術縮小時用平滑取樣；pixelated 會出現鋸齒 */
@@ -38,7 +53,12 @@ body {
 }
 
 #loading {
-  position: absolute;
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   color: #fff;
   font-size: 18px;
   text-align: center;
@@ -205,6 +225,69 @@ body {
 #touch-controls .tc-pause { left: 0; width: calc(var(--tc-unit) * 1.0); }
 #touch-controls .tc-fullscreen { left: calc(var(--tc-unit) * 1.15); width: calc(var(--tc-unit) * 1.2); }
 #touch-controls .tc-swap { left: calc(var(--tc-unit) * 2.5); width: calc(var(--tc-unit) * 1.5); }
+
+/* ── 虛擬搖桿模式（.tc-joy；預設）────────────────────────────────────────────
+   移動側整個半邊螢幕是感應區（.tc-joy-zone），按下的位置浮出圓盤；另一側 .tc-tap-zone 點一下 = 跳。
+   舊的搖桿條與「↓」鈕隱藏，跳躍鈕併入動作區。感應區上下緣由 JS 的 --tc-zone-top / --tc-zone-bottom 決定（讓開 HUD 列）。 */
+#touch-controls .tc-zone { display: none; position: fixed; top: var(--tc-zone-top, 0); bottom: var(--tc-zone-bottom, 0); width: 50vw; pointer-events: auto; touch-action: none; }
+#touch-controls.tc-joy .tc-zone { display: block; }
+#touch-controls .tc-joy-zone { right: 0; }
+#touch-controls .tc-tap-zone { left: 0; }
+#touch-controls.tc-moves-left .tc-joy-zone { right: auto; left: 0; }
+#touch-controls.tc-moves-left .tc-tap-zone { left: auto; right: 0; }
+#touch-controls.tc-modal .tc-zone { display: none; }
+#touch-controls.tc-joy .tc-stick, #touch-controls.tc-joy .tc-down { display: none; }
+#touch-controls.tc-joy .tc-group-moves { display: none; }
+#touch-controls.tc-joy .tc-group-actions { width: calc(var(--tc-unit) * 5.1); }   /* 多出的一截放大跳躍鈕 */
+#touch-controls.tc-joy .tc-group-actions .tc-jump {
+  inset-inline-start: calc(var(--tc-unit) * 3.85);
+  bottom: calc(var(--tc-unit) * 0.2);
+  width: calc(var(--tc-unit) * 1.25);
+  height: calc(var(--tc-unit) * 1.25);
+}
+#touch-controls .tc-joy-base {
+  display: none;
+  position: fixed;
+  box-sizing: border-box;
+  border-radius: 50%;
+  pointer-events: none;
+  background: radial-gradient(circle, rgba(24, 16, 8, 0.18) 0 38%, rgba(24, 16, 8, 0.38) 100%);
+  border: 2px solid rgba(255, 226, 150, 0.6);
+  box-shadow: 0 0 0 1px rgba(14, 8, 2, 0.4), inset 0 0 14px rgba(14, 8, 2, 0.35);
+  color: rgba(255, 244, 220, 0.5);
+  font: bold calc(var(--tc-unit) * 0.28) Arial, sans-serif;
+  text-shadow: 0 1px 2px #000;
+}
+#touch-controls .tc-joy-base.tc-on { display: block; }
+#touch-controls .tc-joy-base::before, #touch-controls .tc-joy-base::after {
+  position: absolute; left: 0; right: 0; text-align: center;
+}
+#touch-controls .tc-joy-base::before { content: "\25B2"; top: 4%; }
+#touch-controls .tc-joy-base::after { content: "\25BC"; bottom: 4%; }
+#touch-controls .tc-joy-knob {
+  position: absolute;
+  left: 50%; top: 50%;
+  width: calc(var(--tc-unit) * 0.95);
+  height: calc(var(--tc-unit) * 0.95);
+  margin: calc(var(--tc-unit) * -0.475) 0 0 calc(var(--tc-unit) * -0.475);
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, rgba(255, 244, 200, 0.85), rgba(255, 196, 70, 0.6));
+  border: 2px solid rgba(255, 244, 220, 0.95);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+}
+#touch-controls .tc-joy-knob.tc-jumped { background: radial-gradient(circle at 35% 30%, #fff, rgba(255, 230, 120, 0.95)); }
+#touch-controls .tc-ripple {
+  position: fixed;
+  width: calc(var(--tc-unit) * 0.9);
+  height: calc(var(--tc-unit) * 0.9);
+  margin: calc(var(--tc-unit) * -0.45) 0 0 calc(var(--tc-unit) * -0.45);
+  border-radius: 50%;
+  border: 2px solid rgba(255, 226, 150, 0.85);
+  pointer-events: none;
+  animation: tc-ripple 0.42s ease-out forwards;
+}
+@keyframes tc-ripple { from { transform: scale(0.5); opacity: 0.9; } to { transform: scale(1.5); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { #touch-controls .tc-ripple { animation-duration: 0.01s; } }
 
 /* 直向時提示轉橫，並隱藏操作層（遊戲畫面是 16:9 橫向） */
 #rotate-hint {

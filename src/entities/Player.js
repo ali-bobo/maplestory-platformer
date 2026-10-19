@@ -7,6 +7,7 @@ import { castTwinBlade, castSabre, castBackstab, castPoison, castMark, castWhirl
 import { particles } from '../engine/particles.js';
 import { audio } from '../engine/audio.js';
 import { iceVelocity } from '../engine/mapModifierLogic.js';
+import { INPUT_BUFFER_MS, COYOTE_MS, createInputBuffer, bufferPress, consumeBuffered, hasBuffered, createCoyote, updateCoyote, canCoyoteJump, isActionReady } from '../engine/inputBuffer.js';
 import { isEquipmentBetter } from '../config/equipment.js';
 import { ALIGNMENT_PROFILES, applyAlignmentProfile, getVisualCenterPoint, getVisualTopY } from '../config/alignment.js';
 import { settings } from '../engine/settings.js';
@@ -78,6 +79,9 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     // gs.skillCooldowns 持久化在 registry，但 Player 物件在傳送門切場景時會 new 一個新的。
     // 必須掃描現有冷卻值，重建 _coolingDownKeys Set，否則 update() 不會遞減 → 永卡冷卻。
     this._coolingDownKeys = new Set();
+    // 輸入緩衝與土狼時間（純邏輯在 engine/inputBuffer.js）
+    this._inputBuf = createInputBuffer();
+    this._coyote = createCoyote();
     this._setPose(this.pose('idle'));
     const cds = this.gameState.skillCooldowns || {};
     for (const key in cds) {
@@ -120,6 +124,13 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     const right = this.cursors.right.isDown;
     const down  = this.cursors.down.isDown;
     const jumpNow = Phaser.Input.Keyboard.JustDown(this.keyAlt) || Phaser.Input.Keyboard.JustDown(this.cursors.up);
+    const now = this.scene.time.now;
+
+    // 輸入緩衝：跳躍每幀記錄（含衝刺中）；窗口至少一幀長，低 FPS 時不會比一幀還短而讓緩衝形同虛設
+    const buf = this._inputBuf;
+    const bufMs = Math.max(INPUT_BUFFER_MS, Math.min(delta, 250));
+    const coyoteMs = Math.max(COYOTE_MS, Math.min(delta, 250));
+    if (jumpNow) bufferPress(buf, 'jump', now);
 
     // Phase 3.6 + 4.0：冷卻計時優化——用 Set 追蹤「正在冷卻」的技能 key
     // Set 在 constructor 中初始化並從 gs.skillCooldowns 重建（修復場景切換 bug）
@@ -169,6 +180,8 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     }
 
     // ─── 跳躍 / 下落穿越 ────────────────────────────────────────────────────
+    // 兩段跳：走離平台邊緣後仍保有完整兩跳（維持舊手感，不因土狼時間而削弱）；
+    // 土狼窗（COYOTE_MS）只保證離邊瞬間按跳必定算地面跳。
     if (onGround) this.jumpsLeft = 2;
 
     // ↓ 鍵觸發薄平台下穿：按住 DOWN 持續穿越所有薄平台，鬆開後停在下一個平台
@@ -180,20 +193,37 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       this.dropThrough = false;
     }
 
-    if (jumpNow && !down) {
-      if (this.jumpsLeft > 0) {
-        this.setVelocityY(-520);
-        this.jumpsLeft--;
-        audio.playJump();
-      }
+    // 跳躍緩衝：落地前 120ms 內按下的跳，著地（或仍有跳躍次數）的當幀執行
+    let jumped = false;
+    if (hasBuffered(buf, 'jump', now, bufMs) && !down && this.jumpsLeft > 0) {
+      consumeBuffered(buf, 'jump', now, bufMs);
+      this.setVelocityY(-520);
+      this.jumpsLeft--;
+      jumped = true;
+      audio.playJump();
     }
+    updateCoyote(this._coyote, onGround && !jumped, now, jumped);
 
     // ─── 技能施放 ───────────────────────────────────────────────────────────
-    if (Phaser.Input.Keyboard.JustDown(this.keySpace)) this.basicAttack();
-    if (Phaser.Input.Keyboard.JustDown(this.keyZ)) this.castSkill(skillForSlot(gs, 'Z'));
-    if (Phaser.Input.Keyboard.JustDown(this.keyX)) this.castSkill(skillForSlot(gs, 'X'));
-    if (Phaser.Input.Keyboard.JustDown(this.keyC)) this.castSkill(skillForSlot(gs, 'C'));
-    if (Phaser.Input.Keyboard.JustDown(this.keyV)) this.castSkill(skillForSlot(gs, 'V'));
+    // 攻擊 / 技能鍵在衝刺中不讀取（維持原行為：按鍵留在 Phaser 裡，衝刺結束後的第一幀才讀到）
+    if (Phaser.Input.Keyboard.JustDown(this.keySpace)) bufferPress(buf, 'attack', now);
+    for (const [slot, k] of [['Z', this.keyZ], ['X', this.keyX], ['C', this.keyC], ['V', this.keyV]]) {
+      if (Phaser.Input.Keyboard.JustDown(k)) bufferPress(buf, 'skill' + slot, now);
+    }
+    // 按下當幀冷卻已好 → 立即施放（原行為）；冷卻中 → 留在緩衝，冷卻結束且 120ms 內才補放。
+    // 補放仍走 basicAttack / castSkill，MP 與冷卻照常判定，不會多扣或無視冷卻。
+    if (hasBuffered(buf, 'attack', now, bufMs) && isActionReady(gs.skillCooldowns[BASIC_ATTACK])) {
+      consumeBuffered(buf, 'attack', now, bufMs);
+      this.basicAttack();
+    }
+    for (const slot of ['Z', 'X', 'C', 'V']) {
+      const act = 'skill' + slot;
+      if (!hasBuffered(buf, act, now, bufMs)) continue;
+      const key = skillForSlot(gs, slot);
+      if (key && !isActionReady(gs.skillCooldowns[key])) continue;
+      consumeBuffered(buf, act, now, bufMs);
+      this.castSkill(key);
+    }
 
     // ─── 藥水快捷鍵 ─────────────────────────────────────────────────────────
     this._handlePotionKeys();

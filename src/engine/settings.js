@@ -17,6 +17,10 @@ export const SETTINGS_KEY = 'thief-legend-settings';
 export const UI_SCALES = ['small', 'normal', 'large'];
 export const UI_SCALE_LABELS = { small: '小', normal: '標準', large: '大' };
 
+// 觸控操作方式：虛擬搖桿（浮動式，預設）或舊式按鈕（固定搖桿條 + 跳 / ↓ 鈕）
+export const TOUCH_MODES = ['joystick', 'buttons'];
+export const TOUCH_MODE_LABELS = { joystick: '虛擬搖桿', buttons: '舊式按鈕' };
+
 export const DEFAULT_SETTINGS = Object.freeze({
   musicVolume: 70,       // 0–100
   sfxVolume: 100,        // 0–100
@@ -25,6 +29,7 @@ export const DEFAULT_SETTINGS = Object.freeze({
   damageNumbers: true,   // 傷害數字
   reducedMotion: false,  // 減少動態：關閉震動、閃光、脈動與飄動效果
   uiScale: 'normal',     // small / normal / large
+  touchControls: 'joystick', // 觸控操作方式：joystick / buttons（只影響觸控裝置）
   keys: DEFAULT_BINDINGS, // 按鍵設定（動作 → 按鍵名稱，見 keyBindings.js）
   difficulty: DEFAULT_DIFFICULTY,   // easy / normal / hard（倍率見 engine/difficulty.js）
 });
@@ -49,6 +54,7 @@ export function sanitizeSettings(raw) {
     if (Object.prototype.hasOwnProperty.call(raw, k) && typeof raw[k] === 'boolean') out[k] = raw[k];
   }
   if (Object.prototype.hasOwnProperty.call(raw, 'uiScale') && UI_SCALES.includes(raw.uiScale)) out.uiScale = raw.uiScale;
+  if (Object.prototype.hasOwnProperty.call(raw, 'touchControls') && TOUCH_MODES.includes(raw.touchControls)) out.touchControls = raw.touchControls;
   if (Object.prototype.hasOwnProperty.call(raw, 'keys')) {
     const keys = sanitizeBindings(raw.keys);
     out.keys = sameBindings(keys, DEFAULT_BINDINGS) ? DEFAULT_BINDINGS : Object.freeze(keys);

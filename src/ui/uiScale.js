@@ -7,7 +7,8 @@
 //   touch      是不是觸控裝置（桌機視窗縮小時不自動放大，避免小視窗反而被字擠滿）
 // 觸控 + 畫布縮得小時，保證字的螢幕大小不低於 MIN_CSS_PX，但最多放大 MAX_MUL 倍（版面是固定座標，放太大會擠在一起）。
 
-import { UI_SCALES } from '../engine/settings.js';
+import { UI_SCALES, settings } from '../engine/settings.js';
+import { isTouchDevice } from '../engine/device.js';
 
 export const UI_SCALE_FACTORS = { small: 0.9, normal: 1, large: 1.25 };
 export const MIN_CSS_PX = 9;        // 觸控裝置上，字的螢幕大小下限（CSS px）
@@ -44,4 +45,56 @@ export function popupScale(ctx, size = {}) {
   if (size.h && size.availH) k = Math.min(k, size.availH / size.h);
   if (size.w && size.availW) k = Math.min(k, size.availW / size.w);
   return Math.max(1, Math.round(k * 100) / 100);
+}
+
+// ── 對話框 / 世界地圖浮層（手機可讀、可點）─────────────────────────────────────────
+export const MIN_READ_CSS = 12;     // 觸控裝置上，對話與地圖文字的螢幕大小下限（CSS px）
+export const MIN_TOUCH_CSS = 44;    // 觸控裝置上，按鈕觸控區的螢幕大小下限（CSS px）
+export const MAX_TOUCH_GAME = 120;  // 觸控區放大的上限（遊戲座標）。畫布縮到 0.4 左右時 44 CSS px = 110 遊戲座標，上限要容得下
+
+/** 從場景取目前的縮放資訊（沿用設定的介面大小、畫布顯示比例與觸控偵測） */
+export function sceneUiCtx(scene) {
+  const gw = scene.scale.width || 1280;
+  const dw = scene.scale.displaySize.width || gw;
+  return { factor: uiScaleFactor(settings.get().uiScale), canvasScale: dw / gw, touch: isTouchDevice() };
+}
+
+/**
+ * 對話 / 地圖文字：觸控裝置上螢幕大小至少 MIN_READ_CSS；其餘情況與 scaledFontPx 相同。
+ * 不用 needsAutoBoost 的 0.8 門檻：平板（1024x768，縮放剛好 0.8）的 14px 字只有 11.2 CSS px，也要放大；
+ * 差不到半個 px（例如縮放 0.85 的 14px = 11.9）視為已達標，不動版面。
+ */
+export function readableFontPx(base, ctx, maxMul = 2) {
+  const want = base * (ctx && ctx.factor > 0 ? ctx.factor : 1);
+  if (!(ctx && ctx.touch && ctx.canvasScale > 0) || want * ctx.canvasScale >= MIN_READ_CSS - 0.5) return Math.round(want);
+  return Math.round(Math.min(Math.max(want, Math.ceil(MIN_READ_CSS / ctx.canvasScale)), want * maxMul));
+}
+
+/** 按鈕 / 點擊區的邊長（遊戲座標）：觸控裝置至少 MIN_TOUCH_CSS 螢幕像素；桌機維持設計值 */
+export function touchTargetPx(designPx, ctx) {
+  if (!ctx || !ctx.touch || !(ctx.canvasScale > 0)) return designPx;
+  return Math.max(designPx, Math.min(MAX_TOUCH_GAME, Math.ceil(MIN_TOUCH_CSS / ctx.canvasScale)));
+}
+
+/**
+ * NPC 對話框 / 商店面板的整體倍率（>= 1）：讓 baseFont 在手機上達到 MIN_READ_CSS，
+ * 再受 maxK 與可用空間（availW / availH 相對於面板設計尺寸 w / h）限制。
+ */
+export function dialogScale(ctx, { baseFont = 14, w, h, availW, availH, maxK = 1.8 } = {}) {
+  let k = readableFontPx(baseFont, ctx, maxK) / baseFont;
+  k = Math.min(k, maxK);
+  if (h && availH) k = Math.min(k, availH / h);
+  if (w && availW) k = Math.min(k, availW / w);
+  return Math.max(1, Math.floor(k * 100) / 100);
+}
+
+/** 在 points（{x,y}）中找離 (x,y) 最近、且距離不超過 maxDist 的索引；沒有則 -1（地圖節點很密，用最近點取代各自的小命中區） */
+export function pickNearest(points, x, y, maxDist) {
+  let best = -1, bestD = maxDist * maxDist;
+  for (let i = 0; i < points.length; i++) {
+    const dx = points[i].x - x, dy = points[i].y - y;
+    const d = dx * dx + dy * dy;
+    if (d <= bestD) { bestD = d; best = i; }
+  }
+  return best;
 }

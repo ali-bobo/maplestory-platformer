@@ -4,8 +4,8 @@
 //    遊戲裡幾十處 scene.cameras.main.shake(...) / .flash(...) 全部一次生效。
 //  - Monster._showDamageNumber：關閉傷害數字時不建立飄字。
 //
-// 還包不到的：vfx.js 的 screenFlash（滿版白色矩形，不是相機效果）。它的呼叫端見 docs/STATUS.md「設定」一節；
-// 之後把 screenFlash 內改成先問 settings.flashAllowed() 即可。
+// vfx.js 的 screenFlash（滿版白色矩形，不是相機效果）不走相機包裝，
+// screenFlash 內已先問 settings.flashAllowed()，閃光關閉或開了減少動態時直接略過。
 //
 // 純函式 + 注入依賴，方便單元測試；重複呼叫只會包一次。
 

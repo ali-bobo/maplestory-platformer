@@ -4,16 +4,19 @@
 // 存檔代碼與「重設設定」。所有值走 src/engine/settings.js（獨立 localStorage key，不進存檔）。
 // 觸控友善：滑桿命中區 44px 高、開關整列可點、按鈕 40px 以上。
 
-import { settings, UI_SCALES, UI_SCALE_LABELS } from '../engine/settings.js';
+import { settings, UI_SCALES, UI_SCALE_LABELS, TOUCH_MODES, TOUCH_MODE_LABELS } from '../engine/settings.js';
+import { isTouchDevice } from '../engine/device.js';
 import { DIFFICULTY_IDS, DIFFICULTIES } from '../engine/difficulty.js';
 import { audio } from '../engine/audio.js';
 import { addParchmentPanel, addWoodButton } from '../engine/woodUi.js';
 import { KEY_CHART, KEY_CHART_NOTES, keyChartFor } from './keyChart.js';
 import { buildKeyBindPanel } from './keyBindPanel.js';
 import { cjkWrap } from './textWrap.js';
+import { sceneUiCtx, touchTargetPx } from './uiScale.js';
 import { addVersionInfo } from './versionInfo.js';
 
 export const SETTINGS_WINDOW = { w: 760, h: 636, y: 14 };
+const TOUCH_ROW_H = 48;
 
 const TOGGLES = [
   { key: 'shake', label: '畫面震動' },
@@ -32,9 +35,11 @@ export function buildSettingsWindow(scene, options = {}) {
   const d = options.depth ?? 150;
   const { width } = scene.cameras.main;
   const W = SETTINGS_WINDOW.w;
-  const H = SETTINGS_WINDOW.h;
+  // 觸控裝置多一列「觸控操作」，視窗加高、略往上移（仍在 720 高的畫布內）
+  const touchRow = isTouchDevice();
+  const H = SETTINGS_WINDOW.h + (touchRow ? TOUCH_ROW_H : 0);
   const x0 = Math.round((width - W) / 2);
-  const y0 = SETTINGS_WINDOW.y;
+  const y0 = touchRow ? 8 : SETTINGS_WINDOW.y;
   const objs = [];
   const timers = [];
   const refreshers = [];
@@ -49,16 +54,24 @@ export function buildSettingsWindow(scene, options = {}) {
 
   push(addParchmentPanel(scene, x0, y0, W, H, { depth: d }));
   text(x0 + 34, y0 + 20, '設定', 26, '#ffe9b0');
-  // 標題列右側：版本與更新紀錄（點開面板，見 versionInfo.js）
-  const versionInfo = addVersionInfo(scene, { rightX: x0 + W - 84, y: y0 + 30, depth: d, panel: { x: x0 + 20, y: y0 + 66, w: W - 40, h: H - 76 } });
-  cleanups.push(() => versionInfo.destroy());
 
-  // 關閉 ×（44px 命中區）
-  const closeBg = rect(x0 + W - 66, y0 + 14, 40, 40, 0x553333, 0.95, d + 1);
+  // 關閉 ×：桌機維持原樣（40px 方塊 + 48px 命中區）；手機畫布縮小時命中區放大到 >= 44 CSS px（右上角貼齊視窗），
+  // 外觀方塊只略放大，命中區往視窗內側延伸（右上角下方沒有其他可點物件）。
+  const ui = sceneUiCtx(scene);
+  const hit = Math.min(touchTargetPx(48, ui), 112);
+  const box = hit > 48 ? Math.min(56, Math.max(40, Math.round(hit * 0.5))) : 40;
+  const boxX = hit > 48 ? x0 + W - 8 - box : x0 + W - 66, boxY = hit > 48 ? y0 + 8 : y0 + 14;
+  const closeBg = rect(boxX, boxY, box, box, 0x553333, 0.95, d + 1);
   closeBg.setStrokeStyle(2, 0xff8888, 0.7);
-  text(x0 + W - 46, y0 + 34, '×', 26, '#ff9a9a').setOrigin(0.5, 0.5);
-  push(scene.add.zone(x0 + W - 70, y0 + 10, 48, 48).setOrigin(0, 0).setInteractive({ useHandCursor: true })
+  text(boxX + box / 2, boxY + box / 2, '×', Math.round(26 * box / 40), '#ff9a9a').setOrigin(0.5, 0.5);
+  const hitX = hit > 48 ? x0 + W - 4 - hit : x0 + W - 70, hitY = hit > 48 ? y0 + 4 : y0 + 10;
+  push(scene.add.zone(hitX, hitY, hit, hit).setOrigin(0, 0).setInteractive({ useHandCursor: true })
     .setDepth(d + 4).setScrollFactor(0)).on('pointerdown', () => options.onClose && options.onClose());
+
+  // 標題列右側：版本與更新紀錄（點開面板，見 versionInfo.js）；放在關閉鈕命中區的左邊
+  const versionRight = hit > 48 ? Math.min(x0 + W - 84, hitX - 8) : x0 + W - 84;
+  const versionInfo = addVersionInfo(scene, { rightX: versionRight, y: y0 + 30, depth: d, panel: { x: x0 + 20, y: y0 + 66, w: W - 40, h: H - 76 } });
+  cleanups.push(() => versionInfo.destroy());
 
   rect(x0 + 30, y0 + 62, W - 60, 2, 0xc99a4a, 0.7);
   rect(x0 + 408, y0 + 78, 2, 494, 0xc99a4a, 0.4);
@@ -167,6 +180,26 @@ export function buildSettingsWindow(scene, options = {}) {
     const def = DIFFICULTIES[cur] || DIFFICULTIES.normal;
     diffHint.setText(`怪物 HP ×${def.hp}、傷害 ×${def.dmg}（新出現的怪物套用）`);
   });
+
+  // 觸控操作方式（只有觸控裝置顯示）：虛擬搖桿 / 舊式按鈕
+  if (touchRow) {
+    const modeY = diffY + 66;   // 難度說明文字之下
+    text(colX, modeY + 6, '觸控操作', 17, '#fff3dc');
+    const mw = 98;
+    const modeSegs = TOUCH_MODES.map((id, i) => {
+      const bx = colX + trackW - 2 * (mw + 4) + i * (mw + 4);
+      const bg = rect(bx, modeY, mw, 38, 0x5a4a3a, 1, d + 2);
+      bg.setStrokeStyle(2, 0xffffff, 0.35);
+      text(bx + mw / 2, modeY + 19, TOUCH_MODE_LABELS[id], 15, '#ffffff').setOrigin(0.5, 0.5);
+      push(scene.add.zone(bx - 2, modeY - 4, mw + 4, 46).setOrigin(0, 0).setInteractive({ useHandCursor: true })
+        .setDepth(d + 4).setScrollFactor(0)).on('pointerdown', () => settings.set({ touchControls: id }));
+      return { id, bg };
+    });
+    refreshers.push(() => {
+      const cur = settings.get().touchControls;
+      for (const s of modeSegs) s.bg.setFillStyle(s.id === cur ? 0xc8861e : 0x5a4a3a, 1);
+    });
+  }
 
   // ── 右欄：操作說明 ──────────────────────────────────────────────────────
   const keyX = x0 + 436;

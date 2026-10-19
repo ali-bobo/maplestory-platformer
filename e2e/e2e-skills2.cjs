@@ -18,7 +18,10 @@ const check = (n, c, x = '') => { console.log((c ? 'PASS' : 'FAIL') + ' - ' + n 
   // 1. 空白鍵 = 近戰普攻：不耗 MP、進入 ATK 冷卻、命中面前敵人
   await page.evaluate(() => { const g = window.__game; const sc = g.scene.getScene('SkyIslandScene'); const p = sc.player; const m = p.enemies.getChildren()[0]; window.__m = m; m.setPosition(p.x + 50, p.y); m.body && m.body.setVelocity(0, 0); m.hp = m.maxHp = 99999;
     // 讓靶站著不動、不出手（新怪物 AI 會追擊 / 後退 / 衝撞，離開普攻範圍）；保留 Monster.update 本體
-    m.speed = 0; m._detectionRangeSq = 0; m._chaseExtendedSq = 0; m._attackRangeSq = 0; m.jumpCooldown = 1e9; m._steerJumpCd = 1e9; });
+    m.speed = 0; m._detectionRangeSq = 0; m._chaseExtendedSq = 0; m._attackRangeSq = 0; m.jumpCooldown = 1e9; m._steerJumpCd = 1e9;
+    // 受擊會進入硬直（鎖住移動 / 跳 / 攻擊）：開場若被島上其他怪物打到，按空白鍵那兩幀讀不到輸入，冷卻就量成 0。
+    // 這份只測技能欄與冷卻，讓角色不受傷害並清掉進行中的硬直（受擊反應由 e2e/savequit.cjs 測）
+    p.takeDamage = () => {}; p._hitLockLeft = 0; });
   await page.waitForTimeout(200);
   const hp0 = await page.evaluate(() => window.__m.hp);
   const s0 = await gsInfo();

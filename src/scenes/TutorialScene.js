@@ -23,7 +23,7 @@ function markTutorialSeen() {
 // kind: 'story'（故事）| 'keys'（按鍵）| 'text'（一般說明）| 'final'
 // image：劇情插畫的材質 key（沒載到就退回 art 的表情符號）
 // bindings：目前的按鍵設定（電腦版按鍵頁顯示玩家改過的鍵）
-export function buildPages(touch, bindings = DEFAULT_BINDINGS) {
+export function buildPages(touch, bindings = DEFAULT_BINDINGS, touchMode = 'joystick') {
   const k = (action) => keyLabel(bindings[action]);
   const story = [
     {
@@ -59,11 +59,20 @@ export function buildPages(touch, bindings = DEFAULT_BINDINGS) {
   const controls = touch
     ? {
       kind: 'keys', title: '操作方式（觸控）',
-      rows: [
+      rows: touchMode === 'buttons' ? [
         { keys: ['搖桿'], text: '右下：左右滑動，控制左右移動' },
         { keys: ['跳', '↓'], text: '右下：跳躍（空中可再跳一次）／站在薄平台上按「↓」往下穿過' },
         { keys: ['普攻'], text: '左下：普通攻擊（近戰揮刀，不耗 MP）' },
         { keys: ['鏢', '步', '殺', '渦'], text: '左側：四個技能鈕（耗 MP；解鎖後可用，Lv.20 後可自選）' },
+        { keys: ['互動'], text: '與 NPC 對話、開商店、接任務' },
+        { keys: ['藥水槽'], text: '直接點畫面下方的藥水圖示使用藥水' },
+        { keys: ['暫停'], text: '左上：開啟 / 關閉暫停選單（也等於 Esc：跳過教學、關閉視窗）' },
+        { keys: ['🔊'], text: '右上：聲音開 / 關；暫停選單可看操作說明與回主選單' },
+      ] : [
+        { keys: ['搖桿'], text: '左半邊螢幕任一處按住：浮出搖桿，左右拖曳移動，往上推跳躍、往下推穿過薄平台' },
+        { keys: ['二段跳'], text: '空中把搖桿回到中央再往上推（或快速上滑）；也可用另一根手指點右側任一處' },
+        { keys: ['普攻'], text: '右下：普通攻擊（近戰揮刀，不耗 MP）' },
+        { keys: ['鏢', '步', '殺', '渦'], text: '右側：四個技能鈕（耗 MP；解鎖後可用，Lv.20 後可自選）' },
         { keys: ['互動'], text: '與 NPC 對話、開商店、接任務' },
         { keys: ['藥水槽'], text: '直接點畫面下方的藥水圖示使用藥水' },
         { keys: ['暫停'], text: '左上：開啟 / 關閉暫停選單（也等於 Esc：跳過教學、關閉視窗）' },
@@ -138,7 +147,7 @@ export class TutorialScene extends Phaser.Scene {
   create() {
     const { width, height } = this.cameras.main;
     this._touch = isTouchDevice();
-    this._pages = buildPages(this._touch, settings.get().keys);
+    this._pages = buildPages(this._touch, settings.get().keys, settings.get().touchControls);
     this._index = 0;
     this._pageObjs = [];
     this._bornAt = this.time.now;

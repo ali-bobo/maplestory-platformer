@@ -5,6 +5,7 @@ import {
   scaledFontPx, popupScale, uiScaleFactor, needsAutoBoost, UI_SCALE_FACTORS, MIN_CSS_PX, MAX_MUL,
 } from '../src/ui/uiScale.js';
 import { wrapWithMeasure } from '../src/ui/textWrap.js';
+import { readableFontPx, touchTargetPx, dialogScale, pickNearest, MIN_READ_CSS, MIN_TOUCH_CSS } from '../src/ui/uiScale.js';
 
 const desktop = { factor: 1, canvasScale: 1, touch: false };
 const phone = { factor: 1, canvasScale: 693 / 1280, touch: true };   // 844x390 橫放
@@ -71,4 +72,42 @@ test('wrapWithMeasure：連續英數字不被拆開、行首不留空白', () =>
   assert.ok(out.split('\n').some((l) => l.includes('ESC')));          // ESC 三個字母在同一行
   assert.ok(out.split('\n').every((l) => measure(l) <= 60 + 1));
   assert.doesNotThrow(() => wrapWithMeasure('abc', 0, measure));      // 寬度 0 不當機
+});
+
+// ── 對話框 / 世界地圖的手機可讀與觸控區 ──────────────────────────────────────────────
+test('readableFontPx：觸控裝置文字螢幕大小 >= 12 CSS px；桌機不變', () => {
+  for (const base of [12, 13, 14, 15, 17]) {
+    assert.ok(readableFontPx(base, phone) * phone.canvasScale >= MIN_READ_CSS - 0.01, `base ${base}`);
+  }
+  assert.equal(readableFontPx(12, desktop), 12);
+  assert.equal(readableFontPx(14, { factor: 1, canvasScale: 0.85, touch: true }), 14);   // 11.9 CSS px，差不到半 px
+  // 平板 1024x768（縮放剛好 0.8）：14px 只有 11.2 CSS px，要放大
+  assert.ok(readableFontPx(14, { factor: 1, canvasScale: 0.8, touch: true }) * 0.8 >= MIN_READ_CSS - 0.01);
+  assert.equal(readableFontPx(30, phone), 30);   // 本來就夠大
+  assert.ok(readableFontPx(12, phone, 1.2) <= 14);   // 可壓低放大上限
+});
+
+test('touchTargetPx：觸控裝置按鈕 >= 44 CSS px；桌機維持設計值；有上限', () => {
+  assert.equal(touchTargetPx(34, desktop), 34);
+  assert.ok(touchTargetPx(34, phone) * phone.canvasScale >= MIN_TOUCH_CSS - 0.01);
+  assert.equal(touchTargetPx(120, phone), 120);   // 已經夠大不縮小
+  assert.ok(touchTargetPx(10, { factor: 1, canvasScale: 0.2, touch: true }) <= 120);
+  assert.equal(touchTargetPx(34, null), 34);
+});
+
+test('dialogScale：桌機 = 1；手機放大到 14px 字 >= 12 CSS px，受可用空間限制，至少 1', () => {
+  assert.equal(dialogScale(desktop, { w: 480, h: 200 }), 1);
+  const k = dialogScale(phone, { w: 480, h: 200, availW: 1256, availH: 584 });
+  assert.ok(k * 14 * phone.canvasScale >= MIN_READ_CSS - 0.5, `k=${k}`);
+  assert.ok(k <= 1.8);
+  assert.ok(dialogScale(phone, { w: 480, h: 500, availH: 584 }) * 500 <= 584 + 1e-6);
+  assert.equal(dialogScale(phone, { w: 480, h: 900, availH: 584 }), 1);   // 放不下就維持原樣
+});
+
+test('pickNearest：選最近的點；超出半徑回 -1', () => {
+  const pts = [{ x: 0, y: 0 }, { x: 56, y: 0 }, { x: 200, y: 0 }];
+  assert.equal(pickNearest(pts, 30, 0, 41), 1);
+  assert.equal(pickNearest(pts, 20, 5, 41), 0);
+  assert.equal(pickNearest(pts, 120, 0, 41), -1);
+  assert.equal(pickNearest([], 0, 0, 41), -1);
 });

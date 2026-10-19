@@ -11,7 +11,7 @@
 //
 // 版本：下面兩行由 build.js 依 dist/bundle.js 與 dist/assets 的內容雜湊自動改寫（勿手改）。
 // sw.js 內容一變，瀏覽器就會安裝新版；啟用時刪掉名稱不符的舊快取。
-const SHELL_VERSION = 'a6c55f44908c';
+const SHELL_VERSION = '09e03ce8b7c5';
 const ASSETS_VERSION = '75f6e605c18e';
 
 const SHELL_CACHE = `thief-legend-shell-${SHELL_VERSION}`;

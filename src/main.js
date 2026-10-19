@@ -30,6 +30,7 @@ import { installGamepad } from './engine/gamepad.js';
 import { eventDef } from './engine/keyBindings.js';
 import { audio } from './engine/audio.js';
 import { installContextGuard } from './engine/contextGuard.js';
+import { installViewportFit } from './engine/viewportFit.js';
 import { installErrorGuard } from './engine/errorGuard.js';
 import { installBrowserKeyGuard } from './engine/browserKeyGuard.js';
 import { setupServiceWorker } from './engine/serviceWorker.js';
@@ -43,10 +44,11 @@ const config = {
   width: 1280,
   height: 720,
   parent: 'game-container',
-  // 等比縮放進視窗並置中（桌機 / 手機橫放皆適用）；內部座標固定 1280×720
+  // 等比縮放進「可見視窗」（#game-container = 視窗扣安全區域，見 style.css）；內部座標固定 1280×720。
+  // 置中由 CSS flex 負責：autoCenter 與 flex 同時開會各偏一半（畫布歪向一側），所以這裡關掉。
   scale: {
     mode: Phaser.Scale.FIT,
-    autoCenter: Phaser.Scale.CENTER_BOTH,
+    autoCenter: Phaser.Scale.NO_CENTER,
     width: 1280,
     height: 720,
   },
@@ -145,6 +147,9 @@ document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'hidden') saveIfPlaying();
 });
 
+// 手機瀏覽器的可見視窗會在遊玩中變動（網址列收放、旋轉、進出全螢幕、軟鍵盤）：隨時重新貼合畫布
+installViewportFit(game);
+
 // WebGL context 被瀏覽器回收（手機 / iframe 記憶體吃緊）時：存檔、顯示提示，恢復後自動收起，沒恢復給重新載入鈕
 installContextGuard(game, { saveNow: saveIfPlaying });
 
@@ -216,7 +221,8 @@ installGamepad({
 if (isTouchDevice()) {
   // 觸控鈕送「目前綁定的鍵」（玩家在設定裡改過鍵位也照樣能用）；ESC 固定
   const resolveKey = (name) => (TOUCH_ACTIONS[name] ? eventDef(settings.get().keys[TOUCH_ACTIONS[name]]) : null);
-  const controls = mountTouchControls({ canvasProvider: () => game.canvas, resolveKey });
+  const controls = mountTouchControls({ canvasProvider: () => game.canvas, resolveKey, mode: settings.get().touchControls });
+  settings.subscribe((cur) => controls.setMode(cur.touchControls));   // 設定裡切換虛擬搖桿 / 舊式按鈕，立即生效
   const gameplayScenes = ['BootScene', 'MenuScene', 'GameOverScene', 'TutorialScene'];
   const SHORT = { Z: '鏢', X: '步', C: '殺', V: '渦', B: '影', backstab: '刺', poison: '毒', mark: '印', whirl: '旋', steal: '盜', smoke: '煙' };
   let lastSkillSig = '';
