@@ -7,10 +7,12 @@
 //  - 紋理只在第一次用到時建立一次（ensureAiTextures），出招時絕不產生新紋理
 //  - 純裝飾的動畫特效（煙、旋風）有每場景的同時存在上限 FX_BUDGET，超過就略過（判定不受影響）
 //
-// 預警（telegraph）原則（參考一般動作 RPG 的「地面紅圈 / 紅框」）：
-//  - 重擊 / 範圍招在前搖期間顯示與實際判定一樣大的地面預警區（zone），由中間往外填滿，填滿瞬間判定
-//  - 填滿前最後一小段閃白，提示「現在要躲」；減少動態時改為不閃
-//  - 判定後預警區轉白再淡出，玩家看得到「剛剛打到哪」
+// 預警（telegraph）原則（v3，參考 Hollow Knight / Dead Cells / 魂系這類動作遊戲：「看怪物的動作就知道要躲」）：
+//  - 不再畫平面的紅色範圍框，改由怪物本身演出前搖：身體往後蓄力傾斜、逐漸發熱變色、身上聚集能量光
+//  - 出手前約 0.15 秒：身體白閃一下 + 武器位置亮起十字星芒（glint），這一下就是「現在要躲」
+//  - 落點 / 範圍改用「世界裡的東西」暗示：從天而降的影子、地面裂縫透出的光與往上飄的火星、塵土
+//  - 命中瞬間：衝擊環往外擴散、碎石飛散、塵土往兩側噴，比預警本身更有份量
+//  - 減少動態：不傾斜、不抖動、不閃白、粒子減半，星芒與地面光仍保留（判讀資訊不能少）
 
 import Phaser from 'phaser';
 import { VFX_TEX } from '../engine/vfxTextures.js';
@@ -26,18 +28,21 @@ import {
 
 export const ST_IDLE = 0, ST_WINDUP = 1, ST_EXEC = 2, ST_RECOVER = 3, ST_POP = 4, ST_ROAR = 5;
 
-const TEX = { EXCL: 'ai_excl', RING: 'ai_ring', DISC: 'ai_disc', ARROW: 'ai_arrow', SHARD: 'ai_shard', WAVE: 'ai_wave', ZONE: 'ai_zone' };
+const TEX = { RING: 'ai_ring', ARROW: 'ai_arrow', SHARD: 'ai_shard', WAVE: 'ai_wave', GLINT: 'ai_glint', SHADOW: 'ai_shadow', ROCK: 'ai_rock' };
 const DEG = Math.PI / 180;
 const POOL_CAP = 32;          // 投射物 + 衝擊波同時上限（與 v1 相同，e2e 以 32 為預算）
 const TRAIL_SLOTS = 16;       // 只有前 16 格會配拖尾圖（拖尾是純裝飾，其餘格不建圖，省物件數）
-const IMPACT_CAP = 12;        // 命中 / 爆發的柔光爆點同時上限
+const IMPACT_CAP = 16;        // 命中 / 爆發的柔光爆點與衝擊環同時上限
+const MOTE_CAP = 48;          // 小粒子（塵土、碎石、火星）同時上限；池滿就略過（純裝飾）
 export const FX_BUDGET = 18;  // 敵方裝飾動畫（playFx）同時上限
-const WARN_TINT = 0xff5a3a;
-const ZONE_TINT = 0xff3322;
+const HOT_TINT = 0xff8a5c;     // 蓄力中身體逐漸偏向的顏色（乘色）
+const GROUND_TINT = 0xff5a26;  // 地面裂縫光的預設色
+const DUST_TINT = 0xcfc0a2;
+const ROCK_TINT = 0x8a7458;
 const MAX_NOVA = 6;
 
 // 除錯統計（e2e 用）：?debug=1 時掛在 window.__aiStats
-export const aiStats = { started: {}, hit: {}, fired: 0, maxActive: 0, freezeWindup: null, fxSkipped: 0, maxFx: 0 };
+export const aiStats = { started: {}, hit: {}, fired: 0, maxActive: 0, freezeWindup: null, fxSkipped: 0, maxFx: 0, maxMotes: 0 };
 if (typeof window !== 'undefined' && typeof location !== 'undefined' && /[?&]debug=1/.test(location.search)) {
   window.__aiStats = aiStats;
 }
@@ -59,19 +64,12 @@ const KINDS = {
 
 export function ensureAiTextures(scene) {
   const tex = scene.textures;
-  if (tex.exists(TEX.EXCL) && tex.exists(TEX.ZONE)) return;
+  if (tex.exists(TEX.RING) && tex.exists(TEX.GLINT)) return;
   const g = scene.add.graphics();
-  if (!tex.exists(TEX.EXCL)) {
-    // 驚嘆號（黃底黑框，固定色）
-    g.fillStyle(0x000000, 1); g.fillRoundedRect(3, 0, 14, 24, 4); g.fillCircle(10, 30, 5);
-    g.fillStyle(0xffd633, 1); g.fillRoundedRect(6, 3, 8, 18, 3); g.fillCircle(10, 30, 3);
-    g.generateTexture(TEX.EXCL, 20, 36); g.clear();
-    // 圓環 / 圓盤（白色，靠 tint 上色）
+  if (!tex.exists(TEX.RING)) {
+    // 圓環（白色，靠 tint 上色）
     g.lineStyle(5, 0xffffff, 1); g.strokeCircle(64, 64, 58);
     g.generateTexture(TEX.RING, 128, 128); g.clear();
-    g.fillStyle(0xffffff, 0.55); g.fillCircle(64, 64, 62);
-    g.fillStyle(0xffffff, 0.45); g.fillCircle(64, 64, 40);
-    g.generateTexture(TEX.DISC, 128, 128); g.clear();
     // 箭 / 冰錐
     g.fillStyle(0xffffff, 1); g.fillRect(0, 3, 16, 2); g.fillTriangle(16, 0, 24, 4, 16, 8);
     g.generateTexture(TEX.ARROW, 24, 8); g.clear();
@@ -83,13 +81,27 @@ export function ensureAiTextures(scene) {
     g.fillStyle(0xffffff, 0.95); g.fillEllipse(24, 28, 18, 22);
     g.generateTexture(TEX.WAVE, 48, 28); g.clear();
   }
-  if (!tex.exists(TEX.ZONE)) {
-    // 地面預警區（256×64，白色靠 tint）：由上往下漸濃的填色 + 兩側細邊 + 底部亮線（貼地）
-    for (let i = 0; i < 16; i++) { g.fillStyle(0xffffff, 0.16 + 0.5 * (i / 15)); g.fillRect(0, i * 4, 256, 4); }
-    g.fillStyle(0xffffff, 0.6); g.fillRect(0, 0, 256, 2);
-    g.fillStyle(0xffffff, 0.95); g.fillRect(0, 0, 3, 64); g.fillRect(253, 0, 3, 64);
-    g.fillStyle(0xffffff, 1); g.fillRect(0, 57, 256, 7);
-    g.generateTexture(TEX.ZONE, 256, 64); g.clear();
+  if (!tex.exists(TEX.GLINT)) {
+    // 十字星芒（出手前一瞬的「閃」）：長十字 + 短斜十字 + 亮心
+    g.fillStyle(0xffffff, 1);
+    g.fillTriangle(0, 32, 32, 28, 32, 36); g.fillTriangle(64, 32, 32, 28, 32, 36);
+    g.fillTriangle(32, 0, 28, 32, 36, 32); g.fillTriangle(32, 64, 28, 32, 36, 32);
+    g.fillStyle(0xffffff, 0.6);
+    g.fillTriangle(14, 14, 34, 30, 30, 34); g.fillTriangle(50, 50, 34, 30, 30, 34);
+    g.fillTriangle(50, 14, 30, 30, 34, 34); g.fillTriangle(14, 50, 30, 30, 34, 34);
+    g.fillStyle(0xffffff, 0.5); g.fillCircle(32, 32, 8);
+    g.fillStyle(0xffffff, 1); g.fillCircle(32, 32, 4);
+    g.generateTexture(TEX.GLINT, 64, 64); g.clear();
+    // 柔邊橢圓影子（白色，用時 tint 成黑）：一層層疊上去，中心最濃
+    for (let i = 0; i < 10; i++) {
+      const k = 1 - i / 10;
+      g.fillStyle(0xffffff, 0.1); g.fillEllipse(64, 16, 128 * k, 32 * k);
+    }
+    g.generateTexture(TEX.SHADOW, 128, 32); g.clear();
+    // 碎石
+    g.fillStyle(0xffffff, 1); g.fillTriangle(0, 6, 5, 0, 11, 4); g.fillTriangle(0, 6, 11, 4, 7, 10);
+    g.fillStyle(0x000000, 0.25); g.fillTriangle(0, 6, 11, 4, 7, 10);
+    g.generateTexture(TEX.ROCK, 12, 11); g.clear();
   }
   g.destroy();
 }
@@ -107,6 +119,14 @@ class Impact {
   constructor() { this.img = null; this.active = false; this.t = 0; this.dur = 1; this.sx = 1; this.sy = 1; this.a = 1; }
 }
 
+// 小粒子：塵土 / 碎石 / 火星。位置、速度、重力自己算，不用 Phaser 粒子系統（不產生新物件）
+class Mote {
+  constructor() {
+    this.img = null; this.active = false; this.t = 0; this.dur = 1;
+    this.x = 0; this.y = 0; this.vx = 0; this.vy = 0; this.g = 0; this.s0 = 1; this.s1 = 1; this.a0 = 1; this.spin = 0; this.floor = 1e9;
+  }
+}
+
 export class ProjectilePool {
   constructor(scene) {
     this.scene = scene;
@@ -114,8 +134,11 @@ export class ProjectilePool {
     for (let i = 0; i < POOL_CAP; i++) this.slots.push(new Slot());
     this.impacts = [];
     for (let i = 0; i < IMPACT_CAP; i++) this.impacts.push(new Impact());
+    this.motes = [];
+    for (let i = 0; i < MOTE_CAP; i++) this.motes.push(new Mote());
     this.active = 0;
     this.impactActive = 0;
+    this.moteActive = 0;
     this.fxLive = 0;
     this._fxDone = () => { this.fxLive = Math.max(0, this.fxLive - 1); };
     this._onUpdate = (time, delta) => this.update(delta);
@@ -177,15 +200,41 @@ export class ProjectilePool {
   }
 
   /** 柔光爆點（命中 / 爆發 / 投射物消散）：sx / sy 為最終大小倍率，dur 毫秒。池滿就略過（純裝飾）。 */
-  impact(x, y, tint, sx, sy, dur) {
+  impact(x, y, tint, sx, sy, dur, tex = VFX_TEX.SOFT_GLOW) {
     if (this._dead) return;
     let it = null;
     for (let i = 0; i < IMPACT_CAP; i++) if (!this.impacts[i].active) { it = this.impacts[i]; break; }
     if (!it) return;
-    if (!it.img) it.img = this.scene.add.image(0, 0, VFX_TEX.SOFT_GLOW).setDepth(16).setBlendMode(Phaser.BlendModes.ADD);
+    if (!it.img) it.img = this.scene.add.image(0, 0, tex).setDepth(16).setBlendMode(Phaser.BlendModes.ADD);
+    else if (it.img.texture.key !== tex) it.img.setTexture(tex);
     it.active = true; it.t = 0; it.dur = dur; it.sx = sx; it.sy = sy;
     it.img.setVisible(true).setPosition(x, y).setTint(tint).setAlpha(1).setScale(sx * 0.35, sy * 0.35);
     this.impactActive++;
+  }
+
+  /** 地面衝擊環：從中心往外擴散到 radius、壓扁成地面橢圓後淡出。 */
+  shock(x, footY, radius, tint, dur = 380) {
+    const s = radius / 58;
+    this.impact(x, footY, tint, s, s * 0.28, dur, TEX.RING);
+  }
+
+  /**
+   * 小粒子：tex 圖、(x, y) 起點、速度 / 重力（px/s）、dur 毫秒、大小由 s0 變到 s1、起始透明度 a0。
+   * add = 疊加發光（火星），否則一般混色（塵土、碎石）。spin = 每秒旋轉弧度；floor = 落到這個 y 會小彈一下。池滿就略過。
+   */
+  mote(tex, x, y, vx, vy, g, dur, tint, s0, s1, a0, add, spin = 0, floor = 1e9) {
+    if (this._dead) return;
+    let mo = null;
+    for (let i = 0; i < MOTE_CAP; i++) if (!this.motes[i].active) { mo = this.motes[i]; break; }
+    if (!mo) return;
+    if (!mo.img) mo.img = this.scene.add.image(0, 0, tex).setDepth(15);
+    else if (mo.img.texture.key !== tex) mo.img.setTexture(tex);
+    mo.active = true; mo.t = 0; mo.dur = dur;
+    mo.x = x; mo.y = y; mo.vx = vx; mo.vy = vy; mo.g = g; mo.s0 = s0; mo.s1 = s1; mo.a0 = a0; mo.spin = spin; mo.floor = floor;
+    mo.img.setVisible(true).setPosition(x, y).setTint(tint).setAlpha(0).setScale(s0).setRotation(Math.random() * 6.28)
+      .setBlendMode(add ? Phaser.BlendModes.ADD : Phaser.BlendModes.NORMAL);
+    this.moteActive++;
+    if (this.moteActive > aiStats.maxMotes) aiStats.maxMotes = this.moteActive;
   }
 
   /** 敵方裝飾動畫：超過同時上限就不播（回傳 null）。essential = 不受上限限制（例如階段切換）。 */
@@ -216,6 +265,7 @@ export class ProjectilePool {
   update(delta) {
     if (this._dead) return;
     if (this.impactActive > 0) this._updateImpacts(delta);
+    if (this.moteActive > 0) this._updateMotes(delta);
     if (this.active <= 0) return;
     // 低 FPS 時把一幀切成最多 34ms 的小步，投射物才不會一幀飛過玩家
     const total = Math.min(delta, 100) / 1000;
@@ -278,6 +328,23 @@ export class ProjectilePool {
     }
   }
 
+  _updateMotes(delta) {
+    const dt = Math.min(delta, 100) / 1000;
+    for (let i = 0; i < MOTE_CAP; i++) {
+      const mo = this.motes[i];
+      if (!mo.active) continue;
+      mo.t += delta;
+      const p = mo.t / mo.dur;
+      if (p >= 1) { mo.active = false; mo.img.setVisible(false); this.moteActive--; continue; }
+      mo.vy += mo.g * dt;
+      mo.x += mo.vx * dt; mo.y += mo.vy * dt;
+      if (mo.y > mo.floor && mo.vy > 0) { mo.y = mo.floor; mo.vy *= -0.3; mo.vx *= 0.6; mo.spin *= 0.5; }
+      const img = mo.img;
+      img.setPosition(mo.x, mo.y).setScale(mo.s0 + (mo.s1 - mo.s0) * p).setAlpha(mo.a0 * Math.min(1, p * 6) * (1 - p));
+      if (mo.spin) img.setRotation(img.rotation + mo.spin * dt);
+    }
+  }
+
   destroy() {
     if (this._dead) return;
     this._dead = true;
@@ -290,7 +357,8 @@ export class ProjectilePool {
       s.active = false;
     }
     for (const it of this.impacts) { if (it.img) { it.img.destroy(); it.img = null; } it.active = false; }
-    this.active = 0; this.impactActive = 0; this.fxLive = 0;
+    for (const mo of this.motes) { if (mo.img) { mo.img.destroy(); mo.img = null; } mo.active = false; }
+    this.active = 0; this.impactActive = 0; this.moteActive = 0; this.fxLive = 0;
     if (this.scene._aiPool === this) this.scene._aiPool = null;
   }
 }
@@ -316,17 +384,6 @@ function withFallback(list) {
   out = list.some((a) => VERT_TYPES[a.type]) ? list : list.concat([IMPLICIT_LEAP]);
   withLeapCache.set(list, out);
   return out;
-}
-
-// 預警區：一組「外框 + 填色」兩張 Image（同一張 ai_zone 紋理，依 tint 上色）
-class Zone {
-  constructor(scene) {
-    this.edge = scene.add.image(0, 0, TEX.ZONE).setDepth(12).setVisible(false);
-    this.fill = scene.add.image(0, 0, TEX.ZONE).setDepth(12).setVisible(false);
-    this.on = false;
-  }
-  hide() { this.on = false; this.edge.setVisible(false); this.fill.setVisible(false); }
-  destroy() { this.edge.destroy(); this.fill.destroy(); }
 }
 
 // ── 大腦 ────────────────────────────────────────────────────────────────────
@@ -363,8 +420,10 @@ export class MonsterBrain {
     this.rainX = new Float32Array(8);
     this.novaX = new Float32Array(MAX_NOVA); this.novaN = 0;
     this.minions = [];
-    this.zones = []; this.zoneN = 0;
-    this._excl = null; this._ring = null; this._disc = null; this._marks = null; this._aura = null;
+    this._marks = []; this._markN = 0;
+    this._glow = null; this._glint = null; this._orb = null; this._ring = null; this._aura = null;
+    this.emitT = 0; this.tintStep = -1;
+    this.glintScale = isBoss ? 1.6 : isMini ? 1.25 : 0.95;
     this.superArmor = isMini || isBoss;
   }
 
@@ -386,84 +445,138 @@ export class MonsterBrain {
     return true;
   }
 
-  // ── 預警圖形 ──
-  _img(name, tex, depth) {
+  // ── 預警演出用的圖（每隻怪各一份、重複使用，不在出招時 new）──
+  _img(name, tex, depth, add) {
     if (!this[name]) {
       this[name] = this.m.scene.add.image(0, 0, tex).setDepth(depth).setVisible(false);
+      if (add) this[name].setBlendMode(Phaser.BlendModes.ADD);
     }
     return this[name];
   }
 
+  /** 第 i 張地面標記（影子 / 裂縫光 / 魔法陣）：紋理與混色依用途切換 */
+  _mark(i, tex, add) {
+    while (this._marks.length <= i) this._marks.push(this.m.scene.add.image(0, 0, tex).setDepth(12).setVisible(false));
+    if (this._markN <= i) this._markN = i + 1;
+    const mk = this._marks[i];
+    if (mk.texture.key !== tex) mk.setTexture(tex);
+    return mk.setBlendMode(add ? Phaser.BlendModes.ADD : Phaser.BlendModes.NORMAL).setVisible(true);
+  }
+
+  _hideMarks() {
+    for (let i = 0; i < this._markN; i++) this._marks[i].setVisible(false);
+    this._markN = 0;
+  }
+
   _hideTelegraphs() {
-    if (this._excl) this._excl.setVisible(false);
+    if (this._glow) this._glow.setVisible(false);
+    if (this._glint) this._glint.setVisible(false);
+    if (this._orb) this._orb.setVisible(false);
     if (this._ring) this._ring.setVisible(false);
-    if (this._disc) this._disc.setVisible(false);
-    if (this._marks) for (const mk of this._marks) mk.setVisible(false);
-    for (let i = 0; i < this.zones.length; i++) this.zones[i].hide();
-    this.zoneN = 0;
+    this._hideMarks();
+    this.tintStep = -1;
+    if (this.m.active) this.m.setAngle(0);
   }
 
-  _showExcl() {
-    ensureAiTextures(this.m.scene);
-    this._img('_excl', TEX.EXCL, 40).setVisible(true).setAlpha(1).setScale(1.3);
-    this._followExcl(0);
-  }
-
-  _followExcl() {
-    if (!this._excl || !this._excl.visible) return;
-    const m = this.m;
-    const bob = motionOk() ? Math.sin(m.scene.time.now / 70) * 2 : 0;
-    this._excl.setPosition(m.x, getVisualTopY(m) - 22 + bob);
-  }
-
-  _ringAt(x, y, radius, alpha, flat, tint) {
-    const r = this._img('_ring', TEX.RING, 13);
-    r.setVisible(true).setPosition(x, y).setTint(tint).setAlpha(alpha);
-    const s = (radius * 2) / 116;
-    r.setScale(s, flat ? s * 0.26 : s);
-  }
-
-  _discAt(x, y, radius, alpha, flat, tint) {
-    const d = this._img('_disc', TEX.DISC, 12);
-    d.setVisible(true).setPosition(x, y).setTint(tint).setAlpha(alpha);
-    const s = (radius * 2) / 128;
-    d.setScale(s, flat ? s * 0.26 : s);
+  /** 從天而降 / 跳躍落點的影子：寬 w，越接近落下越濃 */
+  _shadowAt(i, x, footY, w, a) {
+    this._mark(i, TEX.SHADOW, false).setPosition(x, footY - 2).setTint(0x000000).setAlpha(a).setDisplaySize(w, w * 0.24);
   }
 
   /**
-   * 地面預警區 i：底邊貼在 footY，寬 w、高 h（= 實際判定範圍），p 為前搖進度（0..1，填色由中間 / 起點往外長）。
-   * anchor：0 = 以 x 為中心；1 / -1 = 從 x 往右 / 往左延伸（衝撞、衝擊波路徑）。
+   * 地面裂縫透出的光（範圍招的落點）：柔邊、貼地，最後一段微微閃爍。
+   * 用一般混色而不是疊加：天空 / 雪地這類亮背景上疊加光會整片看不見。
    */
-  _zoneAt(i, x, footY, w, h, p, tint, anchor = 0, alphaMult = 1) {
-    while (this.zones.length <= i) this.zones.push(new Zone(this.m.scene));
-    if (this.zoneN <= i) this.zoneN = i + 1;
-    const z = this.zones[i];
-    z.on = true;
-    const ox = anchor === 0 ? 0.5 : anchor > 0 ? 0 : 1;
-    const late = p > 0.82 && motionOk() && ((this.t / 70) | 0) & 1;
-    const sx = Math.max(1, w) / 256, sy = Math.max(6, h) / 64;
-    z.edge.setVisible(true).setOrigin(ox, 1).setPosition(x, footY).setScale(sx, sy)
-      .setTint(tint).setAlpha((0.45 + 0.4 * p) * alphaMult);
-    z.fill.setVisible(true).setOrigin(ox, 1).setPosition(x, footY).setScale(sx * Math.max(0.04, p), sy)
-      .setTint(late ? 0xffe14a : tint).setAlpha((0.6 + 0.35 * p) * alphaMult);
+  _groundGlow(i, x, footY, radius, p, tint) {
+    const flick = p > 0.75 && motionOk() ? 0.85 + 0.15 * Math.sin(this.t / 28) : 1;
+    this._mark(i, VFX_TEX.SOFT_GLOW, false).setPosition(x, footY - 4).setTint(tint)
+      .setAlpha(Math.min(1, 0.35 + 0.75 * p) * flick).setDisplaySize(radius * 2.6, 30 + 30 * p);
   }
 
-  // 判定瞬間：預警區轉白滿版，收招期間淡出
-  _flashZones() {
-    for (let i = 0; i < this.zoneN; i++) {
-      const z = this.zones[i];
-      if (!z.on) continue;
-      z.fill.setScale(z.edge.scaleX, z.edge.scaleY).setTint(0xffffff).setAlpha(0.85);
-      z.edge.setAlpha(0.9);
+  /** 從地面往上飄的火星（落在真正的判定寬度內，看得出範圍） */
+  _embers(x, footY, radius, tint, n) {
+    const pool = getProjectilePool(this.m.scene);
+    for (let i = 0; i < n; i++) {
+      pool.mote(VFX_TEX.SOFT_GLOW, x + (Math.random() * 2 - 1) * radius, footY - 3, (Math.random() - 0.5) * 24,
+        -(60 + Math.random() * 90), 0, 520 + Math.random() * 300, tint, 0.34, 0.1, 1, false);
     }
   }
 
-  _fadeZones(k) {
-    for (let i = 0; i < this.zoneN; i++) {
-      const z = this.zones[i];
-      if (!z.on) continue;
-      z.fill.setAlpha(0.85 * k); z.edge.setAlpha(0.9 * k);
+  /** 塵土：dir = 噴出方向（-1 / 0 / 1） */
+  _dust(x, y, dir, n) {
+    const pool = getProjectilePool(this.m.scene);
+    for (let i = 0; i < n; i++) {
+      const sx = dir || (Math.random() < 0.5 ? -1 : 1);
+      pool.mote(VFX_TEX.SOFT_GLOW, x, y, sx * (40 + Math.random() * 70), -(25 + Math.random() * 45), 120,
+        420 + Math.random() * 200, DUST_TINT, 0.3, 0.75, 0.6, false);
     }
+  }
+
+  /** 命中的碎石 + 往兩側噴的塵土；碎石落回 footY 會小彈一下 */
+  _debris(cx, footY, radius, n) {
+    const pool = getProjectilePool(this.m.scene);
+    if (!motionOk()) n = Math.ceil(n / 2);
+    for (let i = 0; i < n; i++) {
+      const side = i & 1 ? 1 : -1;
+      pool.mote(TEX.ROCK, cx + side * Math.random() * radius * 0.5, footY - 6, side * (60 + Math.random() * 200),
+        -(200 + Math.random() * 260), 950, 700 + Math.random() * 250, ROCK_TINT, 0.9 + Math.random() * 0.8, 0.8, 1, false,
+        side * (6 + Math.random() * 8), footY - 3);
+    }
+    for (let i = 0; i < 2; i++) {
+      const side = i ? 1 : -1;
+      pool.mote(VFX_TEX.SOFT_GLOW, cx + side * radius * 0.3, footY - 10, side * (90 + radius * 0.6), -18, 0, 620,
+        DUST_TINT, 0.8, 2.2 + radius / 80, 0.5, false);
+    }
+  }
+
+  /** 遠程招的蓄能：發射口一顆漸大的光球，四周的光點往中心收 */
+  _gather(x, y, size, p, tint, emit, r) {
+    this._img('_orb', VFX_TEX.SOFT_GLOW, 14, true).setVisible(true).setPosition(x, y).setTint(tint)
+      .setAlpha(0.45 + 0.55 * p).setDisplaySize(size, size);
+    if (!emit) return;
+    const a = Math.random() * Math.PI * 2, c = Math.cos(a), s = Math.sin(a);
+    getProjectilePool(this.m.scene).mote(VFX_TEX.SOFT_GLOW, x + c * r, y + s * r, -c * r / 0.3, -s * r / 0.3, 0, 300,
+      tint, 0.22, 0.08, 1, true);
+  }
+
+  /**
+   * 前搖的身體演出：逐漸發熱變色、往後蓄力傾斜（lean 度）、尾段抖動，最後白閃一下 + 武器位置亮起星芒。
+   * 顏色只在換段時才重設，不每幀 setTint。
+   */
+  _windupBody(p, lean) {
+    const m = this.m, def = this.def;
+    const motion = motionOk();
+    const flash = motion && p >= 0.88 && p < 0.95;
+    const step = flash ? 99 : Math.min(8, (p * 8) | 0);
+    if (step !== this.tintStep) {
+      this.tintStep = step;
+      if (flash) m.setTintFill(0xffffff);
+      else m.setTint(lerpColor(m._baseTint ?? 0xffffff, HOT_TINT, (step / 8) * 0.85));
+    }
+    if (motion && lean) {
+      const e = 1 - (1 - p) * (1 - p);
+      const shake = p > 0.55 ? Math.sin(this.t / 22) * 1.8 * (p - 0.55) / 0.45 : 0;
+      m.setAngle(-this.dir * lean * e + shake);
+    }
+    const sz = Math.max(m.displayWidth, m.displayHeight) * (0.9 + 0.6 * p);
+    this._img('_glow', VFX_TEX.SOFT_GLOW, 9, true).setVisible(true).setPosition(m.x, getVisualCenterY(m))
+      .setTint(def.tint ?? HOT_TINT).setAlpha(0.1 + 0.5 * p).setDisplaySize(sz * 1.3, sz);
+    if (p >= 0.74) {
+      const q = (p - 0.74) / 0.26;
+      const pop = motion ? (q < 0.35 ? q / 0.35 : 1 - 0.35 * (q - 0.35) / 0.65) : 1;
+      this._img('_glint', TEX.GLINT, 41, true).setVisible(true)
+        .setPosition(m.x + this.dir * m.displayWidth * 0.28, getVisualTopY(m) + m.displayHeight * 0.22)
+        .setTint(0xfff3c4).setAlpha(1).setScale(this.glintScale * (0.3 + 0.9 * pop)).setRotation(motion ? this.t / 260 : 0);
+    }
+  }
+
+  /** 每 70ms（減少動態 140ms）回傳一次 true，用來控制粒子噴發頻率 */
+  _emitTick(dt) {
+    const every = motionOk() ? 70 : 140;
+    this.emitT = Math.min(this.emitT + dt, every * 2);
+    if (this.emitT < every) return false;
+    this.emitT -= every;
+    return true;
   }
 
   // ── 狂暴光環（守衛 / Boss 進入狂暴階段後常駐，Monster.update 每幀跟隨）──
@@ -503,7 +616,7 @@ export class MonsterBrain {
     if (def.type === 'dive') { m.body.setAllowGravity(false); m.setVelocityY(-110); }
     else if (def.type === 'rain') this._planRain(player);
     else if (def.type === 'nova') this._planNova(player);
-    this._showExcl();
+    this.emitT = 0; this.tintStep = -1;
   }
 
   _aimAt(player) {
@@ -517,8 +630,6 @@ export class MonsterBrain {
     const n = Math.min(8, def.count);
     this.rainX[0] = player.x;
     for (let i = 1; i < n; i++) this.rainX[i] = player.x + (Math.random() - 0.5) * def.spread;
-    if (!this._marks) this._marks = [];
-    while (this._marks.length < n) this._marks.push(this.m.scene.add.image(0, 0, TEX.RING).setDepth(13).setVisible(false));
   }
 
   // 地面爆發：開始前搖就鎖定位置（玩家腳下 + 兩側），之後不再追蹤，給玩家走出去的時間
@@ -542,21 +653,13 @@ export class MonsterBrain {
     const dt = Math.min(delta, 100);
     this.t += dt;
     switch (this.stage) {
-      case ST_WINDUP: this._tickWindup(player); break;
+      case ST_WINDUP: this._tickWindup(player, dt); break;
       case ST_EXEC: this._tickExec(dt, player); break;
-      case ST_POP: this._tickPop(player); break;
+      case ST_POP: this._tickPop(player, dt); break;
       case ST_RECOVER: this._tickRecover(player); break;
       case ST_ROAR: this._tickRoar(player); break;
       default: break;
     }
-    this._followExcl();
-  }
-
-  _pulseTint() {
-    const ph = (this.t / 90) | 0;
-    if (ph === this.pulse) return;
-    this.pulse = ph;
-    if (ph & 1) this.m.setTint(WARN_TINT); else this.m._restoreTint();
   }
 
   _slamLanding(m) {
@@ -567,58 +670,79 @@ export class MonsterBrain {
     return m.clampToPlatform(m.x + vx * air);
   }
 
-  _tickWindup(player) {
+  _tickWindup(player, dt) {
     const def = this.def, m = this.m;
     const wu = this.windupMs;
     if (aiStats.freezeWindup === def.type && this.t > wu * 0.85) this.t = wu * 0.85;   // e2e 截圖用：停在前搖尾段
     const p = Math.min(1, this.t / wu);
     if (p < 0.7 && def.type !== 'nova') this._aimAt(player);
-    this._pulseTint();
     m.setVelocityX(0);
+    const emit = this._emitTick(dt);
     switch (def.type) {
-      case 'charge': {
-        // 衝撞路徑：寬 = 衝刺距離 + 身寬、高 = 身高（和 _tickExec 的判定一致）
-        const len = m.speed * this.speedMult * def.speedMult * def.exec / 1000 + m.body.halfWidth;
-        this._zoneAt(0, m.x, m.body.bottom, len, m.body.height, p, ZONE_TINT, this.dir);
+      case 'charge':
+        // 低頭往後壓、蹄子刨地：腳後方踢起塵土
+        this._windupBody(p, 9);
+        if (emit && p > 0.25) this._dust(m.x - this.dir * m.body.halfWidth, m.body.bottom - 4, -this.dir, 1);
         break;
-      }
-      case 'slam': {
+      case 'slam':
+        // 蹲低蓄力；落點先出現一片淡影子（等跳起來後影子會跟著本體越來越濃）
+        this._windupBody(p, 7);
         this.landX = this._slamLanding(m);
-        this._zoneAt(0, this.landX, this.footY, def.radius * 2, 60, p, 0xff7733);
-        // 落地後兩側的衝擊波路徑（較淡）
-        this._zoneAt(1, this.landX, this.footY, def.waveLen, 30, p, 0xffaa55, 1, 0.55);
-        this._zoneAt(2, this.landX, this.footY, def.waveLen, 30, p, 0xffaa55, -1, 0.55);
+        this._shadowAt(0, this.landX, this.footY, def.radius * (0.9 + 0.6 * p), 0.12 + 0.28 * p);
+        if (emit && p > 0.3) this._dust(m.x, m.body.bottom - 4, 0, 1);
         break;
-      }
       case 'pound':
-        this._zoneAt(0, m.x, this.footY, def.radius * 2, def.hMax, p, ZONE_TINT);
-        this._ringAt(m.x, this.footY - 4, def.radius, 0.5 + 0.4 * p, true, ZONE_TINT);
+        // 舉起蓄力；腳邊地面裂開透光、火星往上飄
+        this._windupBody(p, 6);
+        this._groundGlow(0, m.x, this.footY, def.radius, p, def.tint ?? GROUND_TINT);
+        if (emit) this._embers(m.x, this.footY, def.radius, def.tint ?? 0xffb040, p > 0.6 ? 2 : 1);
         break;
       case 'nova':
-        for (let i = 0; i < this.novaN; i++) this._zoneAt(i, this.novaX[i], this.aimFeet, def.radius * 2, def.hMax, p, def.tint ?? ZONE_TINT);
-        break;
-      case 'summon': this._ringAt(m.x, this.footY - 12, 70 + 20 * p, 0.8, true, 0xc070ff); break;
-      case 'shoot': case 'kite':
-        this._discAt(m.x + this.dir * 18, m.body.center.y - 8, 16 + 40 * p, 0.7 + 0.3 * p, false, def.tint ?? 0xffe9a0);
-        break;
-      case 'burst':
-        this._discAt(m.x, m.body.center.y, 20 + 50 * p, 0.7 + 0.3 * p, false, def.tint ?? 0xffe9a0);
-        this._ringAt(m.x, m.body.center.y, 160 - 90 * p, 0.35 + 0.5 * p, false, def.tint ?? 0xffe9a0);
-        break;
-      case 'dive': m.setVelocityX(0); if (p > 0.7) m.setVelocityY(0); break;
-      case 'rain': {
-        // 落點標記：圈由大收到實際判定大小（closing ring）
-        const n = Math.min(8, def.count);
-        const k = KINDS[def.kind] || KINDS.orb;
-        const rad = k.r * (def.scale || 1) + 18;
-        const s = (rad * 2) / 116 * (1.8 - 0.8 * p);
-        for (let i = 0; i < n; i++) {
-          const mk = this._marks[i];
-          mk.setVisible(true).setPosition(this.rainX[i], this.aimFeet - 6).setTint(0xff4422).setAlpha(0.45 + 0.55 * p).setScale(s, s * 0.3);
+        this._windupBody(p, 0);
+        for (let i = 0; i < this.novaN; i++) {
+          this._groundGlow(i, this.novaX[i], this.aimFeet, def.radius, p, def.tint ?? GROUND_TINT);
+          if (emit) this._embers(this.novaX[i], this.aimFeet, def.radius, def.tint ?? 0xffb040, 1);
         }
         break;
+      case 'summon': {
+        this._windupBody(p, 0);
+        const w = 150 + 50 * p;
+        this._mark(0, VFX_TEX.GROUND_RUNE, true).setPosition(m.x, this.footY - 3).setTint(0xc070ff)
+          .setAlpha(0.25 + 0.6 * p).setDisplaySize(w, w * 0.28);
+        if (emit) this._embers(m.x, this.footY, 70, 0xc890ff, 1);
+        break;
       }
-      default: break;
+      case 'shoot': case 'kite':
+        this._windupBody(p, 3);
+        this._gather(m.x + this.dir * 18, m.body.center.y - 8, 18 + 34 * p, p, def.tint ?? 0xffe9a0, emit, 44);
+        break;
+      case 'burst': {
+        const tint = def.tint ?? 0xffe9a0;
+        this._windupBody(p, 0);
+        this._gather(m.x, m.body.center.y, 28 + 56 * p, p, tint, emit, 110);
+        const s = ((170 - 100 * p) * 2) / 116;
+        this._img('_ring', TEX.RING, 13, true).setVisible(true).setPosition(m.x, m.body.center.y)
+          .setTint(tint).setAlpha(0.2 + 0.6 * p).setScale(s);
+        break;
+      }
+      case 'dive':
+        this._windupBody(p, 0);
+        if (p > 0.7) m.setVelocityY(0);
+        break;
+      case 'rain': {
+        // 落點：從天而降的影子，由小變大、由淡變濃
+        this._windupBody(p, 0);
+        const n = Math.min(8, def.count);
+        const k = KINDS[def.kind] || KINDS.orb;
+        const w = (k.r * (def.scale || 1) + 18) * 2 * (0.5 + 0.7 * p);
+        for (let i = 0; i < n; i++) this._shadowAt(i, this.rainX[i], this.aimFeet, w, 0.1 + 0.4 * p);
+        break;
+      }
+      case 'leap':
+        this._windupBody(p, 8);
+        if (emit && p > 0.3) this._dust(m.x - this.dir * m.body.halfWidth, m.body.bottom - 4, -this.dir, 1);
+        break;
+      default: this._windupBody(p, 4); break;
     }
     if (this.t >= wu) this._enterExec(player);
   }
@@ -626,23 +750,29 @@ export class MonsterBrain {
   _enterExec(player) {
     const def = this.def, m = this.m;
     this.stage = ST_EXEC; this.t = 0;
-    m._restoreTint(); this.pulse = -1;
-    if (this._excl) this._excl.setVisible(false);
-    if (this._disc) this._disc.setVisible(false);
+    m._restoreTint(); this.tintStep = -1; this.emitT = 0;
+    m.setAngle(0);
+    if (this._glow) this._glow.setVisible(false);
+    if (this._orb) this._orb.setVisible(false);
+    if (this._glint) {
+      // 星芒在出手瞬間炸成一小團白光
+      if (this._glint.visible) getProjectilePool(m.scene).impact(this._glint.x, this._glint.y, 0xfff3c4, 1.5, 1.5, 150);
+      this._glint.setVisible(false);
+    }
     if (m.onAttackStart) m.onAttackStart(def);
     switch (def.type) {
-      case 'charge': this.hit = false; this._fadeZones(0.5); break;
+      case 'charge': this.hit = false; break;
       case 'slam': {
         const vy = -540;
         m.setVelocity(leapVx(this.aimX - m.x, vy, 380), vy);
         break;
       }
       case 'pound':
-        this._flashZones();
+        this._hideMarks();
         this._blast(m.x, this.footY, def.radius, def.hMax, def.dmg, player, 0xff5533, true);
         this._toRecover();
         break;
-      case 'nova': this._erupNova(def, player); this._toRecover(); break;
+      case 'nova': this._hideMarks(); this._erupNova(def, player); this._toRecover(); break;
       case 'shoot': this._fireShots(def, player); this._toRecover(); break;
       case 'kite':
         m.setVelocity(-this.dir * def.hopVx, -def.hopVy);
@@ -672,6 +802,8 @@ export class MonsterBrain {
   _toRecover() {
     this.stage = ST_RECOVER; this.t = 0;
     this.m.setVelocityX(0);
+    this.m.setAngle(0);
+    for (let i = 0; i < this._markN; i++) this._marks[i].a0 = this._marks[i].alpha;   // 收招期間由這個值淡出
   }
 
   _tickExec(dt, player) {
@@ -680,6 +812,9 @@ export class MonsterBrain {
       case 'charge': {
         const v = this.dir * m.speed * this.speedMult * def.speedMult;
         m.setVelocityX(v);
+        // 往前衝：身體前傾、腳下一路揚起塵土
+        if (motionOk()) m.setAngle(this.dir * 5);
+        if (this._emitTick(dt)) this._dust(m.x - this.dir * m.body.halfWidth, m.body.bottom - 4, -this.dir, 1);
         // 不衝出平台邊緣（沒有平台資訊時只受牆壁 / 時間限制）
         let stop = this.t >= def.exec || m.body.blocked.left || m.body.blocked.right;
         if (!stop && m.edgeAhead(this.dir, 8 + Math.abs(v) * 0.04)) stop = true;
@@ -697,11 +832,7 @@ export class MonsterBrain {
       }
       case 'slam':
         if ((this.t > 220 && m.body.blocked.down) || this.t > 2200) {
-          // 落點與預警不同時（被平台擋住等），預警區跟到實際落點
-          const z = this.zones[0];
-          if (z && z.on) { z.edge.x = z.fill.x = m.x; }
-          for (let i = 1; i < 3; i++) if (this.zones[i] && this.zones[i].on) this.zones[i].edge.x = this.zones[i].fill.x = m.x;
-          this._flashZones();
+          this._hideMarks();
           this._blast(m.x, m.body.bottom, def.radius, 60, def.dmg, player, 0xff7733, true);
           const dmg = this._projDamage(def.waveDmg);
           const pool = getProjectilePool(m.scene);
@@ -709,6 +840,10 @@ export class MonsterBrain {
           pool.wave(m.x, m.body.bottom, 1, def.waveSpeed, def.waveLen, dmg, 0xffaa55, f);
           pool.wave(m.x, m.body.bottom, -1, def.waveSpeed, def.waveLen, dmg, 0xffaa55, f);
           this._toRecover();
+        } else {
+          // 空中：影子跟著本體，越接近地面越大越濃
+          const k = Math.max(0, Math.min(1, 1 - (this.footY - m.body.bottom) / 320));
+          this._shadowAt(0, m.x, this.footY, def.radius * (0.9 + 0.7 * k), 0.15 + 0.4 * k);
         }
         break;
       case 'kite':
@@ -766,14 +901,21 @@ export class MonsterBrain {
     }
   }
 
-  _tickPop(player) {
+  _tickPop(player, dt) {
     const def = this.def, m = this.m;
     const p = Math.min(1, this.t / def.pop);
     if (this.t < def.pop - 350) {
       this.bx = m.clampToPlatform(this.bx + Math.max(-5, Math.min(5, player.x - this.bx)));
       m.x = this.bx;
     }
-    this._zoneAt(0, this.bx, this.footY, def.radius * 2, 60, p, 0xe0a050);
+    // 地底快鑽出來：地面隆起透光、碎石和塵土一直被頂起來
+    this._groundGlow(0, this.bx, this.footY, def.radius, p, 0xe0a050);
+    if (this._emitTick(dt)) {
+      const pool = getProjectilePool(m.scene);
+      pool.mote(TEX.ROCK, this.bx + (Math.random() * 2 - 1) * def.radius * 0.7, this.footY - 4, (Math.random() - 0.5) * 60,
+        -(90 + 120 * p + Math.random() * 60), 900, 500, ROCK_TINT, 0.8 + Math.random() * 0.5, 0.7, 1, false, 8, this.footY - 3);
+      if (p > 0.5) this._dust(this.bx, this.footY - 6, 0, 1);
+    }
     if (this.t >= def.pop) this._erupt(player);
   }
 
@@ -793,7 +935,7 @@ export class MonsterBrain {
     m.setPosition(this.bx, this.footY);
     m.body.reset(this.bx, this.footY);
     m.setVelocityY(-260);
-    this._flashZones();
+    this._hideMarks();
     this._blast(this.bx, this.footY, def.radius, 60, def.dmg, player, 0xc89040, true);
     if (this.chainLeft > 0) {
       this.chainLeft--;
@@ -807,10 +949,12 @@ export class MonsterBrain {
     const def = this.def, m = this.m;
     const comboNext = this.comboLeft > 0;
     const len = Math.max(1, comboNext ? def.comboGap : def.recover);
-    const p = this.t / len;
-    if (this._ring && this._ring.visible) this._ring.setAlpha(Math.max(0, 0.9 * (1 - p)));
-    if (this._marks) for (const mk of this._marks) if (mk.visible) mk.setAlpha(Math.max(0, 0.8 * (1 - p)));
-    if (this.zoneN > 0) this._fadeZones(Math.max(0, 1 - p));
+    const k = Math.max(0, 1 - this.t / len);
+    if (this._ring && this._ring.visible) this._ring.setAlpha(0.8 * k);
+    for (let i = 0; i < this._markN; i++) {
+      const mk = this._marks[i];
+      if (mk.visible) mk.setAlpha((mk.a0 ?? 0.5) * k);
+    }
     if (this.t < len) return;
     // 連段：同一招立刻再來一次（重新瞄準、較短的前搖、不重算冷卻）
     if (comboNext && player && player.active && !player.isDead && m.active && !m.isDead && m.body) {
@@ -860,12 +1004,11 @@ export class MonsterBrain {
   cleanup() {
     this.stage = ST_IDLE; this.comboLeft = 0;
     this._hideTelegraphs();
-    for (const k of ['_excl', '_ring', '_disc', '_aura']) {
+    for (const k of ['_glow', '_glint', '_orb', '_ring', '_aura']) {
       if (this[k]) { this[k].destroy(); this[k] = null; }
     }
-    if (this._marks) { for (const mk of this._marks) mk.destroy(); this._marks = null; }
-    for (const z of this.zones) z.destroy();
-    this.zones.length = 0; this.zoneN = 0;
+    for (const mk of this._marks) mk.destroy();
+    this._marks.length = 0; this._markN = 0;
   }
 
   // ── 階段（守衛 / Boss）──
@@ -930,8 +1073,9 @@ export class MonsterBrain {
     if (big) {
       pool.fx('fx_smoke', cx, footY - 16, { scale: Math.max(0.6, radius / 90), normal: true, depth: 14 });
       pool.fx('fx_whirl', cx, footY - 30, { scale: Math.max(0.5, radius / 140), frameRate: 20, tint });
-      this._ringAt(cx, footY - 6, radius, 0.9, true, tint);
     }
+    pool.shock(cx, footY - 4, radius * 1.15, tint, big ? 420 : 320);
+    this._debris(cx, footY, radius, big ? 8 : 4);
     if (player && Math.abs(player.x - cx) < 700) {
       scene.cameras.main.shake(big ? 180 : 120, (radius > 120 ? 0.007 : 0.0045) * this.shakeMult);
     }
@@ -941,10 +1085,9 @@ export class MonsterBrain {
   _erupNova(def, player) {
     const m = this.m, scene = m.scene;
     const pool = getProjectilePool(scene);
-    const tint = def.tint ?? ZONE_TINT;
+    const tint = def.tint ?? GROUND_TINT;
     const f = this._force(def);
     let hitDone = false;
-    this._flashZones();
     for (let i = 0; i < this.novaN; i++) {
       const x = this.novaX[i];
       if (!hitDone && player && !player.isDead && inGroundBlast(player.x, player.body.bottom, x, this.aimFeet, def.radius, def.hMax)) {
@@ -952,6 +1095,13 @@ export class MonsterBrain {
       }
       pool.impact(x, this.aimFeet - def.hMax * 0.6, tint, def.radius / 22, def.hMax / 9, 380);   // 光柱
       pool.fx('fx_whirl', x, this.aimFeet - 28, { scale: Math.max(0.45, def.radius / 140), frameRate: 22, tint });
+      pool.shock(x, this.aimFeet - 4, def.radius * 1.1, tint, 380);
+      // 噴發的火星往上竄
+      const n = motionOk() ? 3 : 2;
+      for (let j = 0; j < n; j++) {
+        pool.mote(VFX_TEX.SOFT_GLOW, x + (Math.random() * 2 - 1) * def.radius * 0.6, this.aimFeet - 8, (Math.random() - 0.5) * 60,
+          -(240 + Math.random() * 200), 300, 520, tint, 0.32, 0.08, 1, true);
+      }
     }
     if (player && Math.abs(player.x - this.novaX[0]) < 700) scene.cameras.main.shake(170, 0.006 * this.shakeMult);
   }
@@ -1038,4 +1188,12 @@ export class MonsterBrain {
 
 function shakeCam(scene, ms, k) {
   if (scene && scene.cameras && scene.cameras.main) scene.cameras.main.shake(ms, k);
+}
+
+// 兩個 0xRRGGBB 顏色依 k（0..1）混合
+function lerpColor(a, b, k) {
+  const r = ((a >> 16) & 255) + ((((b >> 16) & 255) - ((a >> 16) & 255)) * k);
+  const g = ((a >> 8) & 255) + ((((b >> 8) & 255) - ((a >> 8) & 255)) * k);
+  const bl = (a & 255) + (((b & 255) - (a & 255)) * k);
+  return ((r & 255) << 16) | ((g & 255) << 8) | (bl & 255);
 }
