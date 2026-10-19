@@ -59,10 +59,14 @@ export function sceneUiCtx(scene) {
   return { factor: uiScaleFactor(settings.get().uiScale), canvasScale: dw / gw, touch: isTouchDevice() };
 }
 
-/** 對話 / 地圖文字：觸控且畫布縮小時，螢幕上至少 MIN_READ_CSS；其餘情況與 scaledFontPx 相同 */
+/**
+ * 對話 / 地圖文字：觸控裝置上螢幕大小至少 MIN_READ_CSS；其餘情況與 scaledFontPx 相同。
+ * 不用 needsAutoBoost 的 0.8 門檻：平板（1024x768，縮放剛好 0.8）的 14px 字只有 11.2 CSS px，也要放大；
+ * 差不到半個 px（例如縮放 0.85 的 14px = 11.9）視為已達標，不動版面。
+ */
 export function readableFontPx(base, ctx, maxMul = 2) {
   const want = base * (ctx && ctx.factor > 0 ? ctx.factor : 1);
-  if (!needsAutoBoost(ctx)) return Math.round(want);
+  if (!(ctx && ctx.touch && ctx.canvasScale > 0) || want * ctx.canvasScale >= MIN_READ_CSS - 0.5) return Math.round(want);
   return Math.round(Math.min(Math.max(want, Math.ceil(MIN_READ_CSS / ctx.canvasScale)), want * maxMul));
 }
 

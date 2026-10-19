@@ -75,12 +75,14 @@ test('wrapWithMeasure：連續英數字不被拆開、行首不留空白', () =>
 });
 
 // ── 對話框 / 世界地圖的手機可讀與觸控區 ──────────────────────────────────────────────
-test('readableFontPx：手機文字螢幕大小 >= 12 CSS px；桌機 / 平板不變', () => {
+test('readableFontPx：觸控裝置文字螢幕大小 >= 12 CSS px；桌機不變', () => {
   for (const base of [12, 13, 14, 15, 17]) {
     assert.ok(readableFontPx(base, phone) * phone.canvasScale >= MIN_READ_CSS - 0.01, `base ${base}`);
   }
   assert.equal(readableFontPx(12, desktop), 12);
-  assert.equal(readableFontPx(14, { factor: 1, canvasScale: 0.85, touch: true }), 14);
+  assert.equal(readableFontPx(14, { factor: 1, canvasScale: 0.85, touch: true }), 14);   // 11.9 CSS px，差不到半 px
+  // 平板 1024x768（縮放剛好 0.8）：14px 只有 11.2 CSS px，要放大
+  assert.ok(readableFontPx(14, { factor: 1, canvasScale: 0.8, touch: true }) * 0.8 >= MIN_READ_CSS - 0.01);
   assert.equal(readableFontPx(30, phone), 30);   // 本來就夠大
   assert.ok(readableFontPx(12, phone, 1.2) <= 14);   // 可壓低放大上限
 });

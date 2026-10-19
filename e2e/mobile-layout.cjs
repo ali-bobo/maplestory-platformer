@@ -2,7 +2,8 @@
 // 不被觸控鈕或 HUD 蓋住、真的用手指（CDP touch）點得到。
 // 用法：PORT=8437 node e2e/mobile-layout.cjs <截圖資料夾> [視窗名稱…]
 //   例：PORT=8437 node e2e/mobile-layout.cjs /tmp/shots p844x340 desk
-// 視窗：p844x340 p740x320 p667x300 p915x412 p844x390 p667x375 portrait(390x844 直向) desk(1280x720 桌機，無觸控)
+// 視窗：p844x340 p740x320 p667x300 p915x412 p844x390 p667x375 portrait(390x844 直向) tab1024x768 tab1180x820（平板橫向）
+//       desk(1280x720 桌機，無觸控) desk1366x768 desk1920x1080
 const { chromium, executablePath: PW_EXE } = require('./pw.cjs');
 const PORT = process.env.PORT || 8123;
 const SP = process.argv[2] || '.';
@@ -27,7 +28,11 @@ const VIEWPORTS = {
   p844x390: { w: 844, h: 390, touch: true },
   p667x375: { w: 667, h: 375, touch: true },
   portrait: { w: 390, h: 844, touch: true, portrait: true },
+  tab1024x768: { w: 1024, h: 768, touch: true },    // iPad 橫向（4:3，上下留邊）
+  tab1180x820: { w: 1180, h: 820, touch: true },    // iPad Air 橫向
   desk: { w: 1280, h: 720, touch: false },
+  desk1366x768: { w: 1366, h: 768, touch: false },
+  desk1920x1080: { w: 1920, h: 1080, touch: false },
 };
 
 const MIN_TOUCH = 40;   // 容許四捨五入（規格 44 CSS px）
@@ -37,7 +42,8 @@ async function startGame(page) {
   await page.waitForFunction(() => window.__game && window.__game.scene.isActive('MenuScene'), null, { timeout: 30000 });
   await page.waitForTimeout(800);
   await page.keyboard.press('Enter');
-  await page.waitForFunction(() => window.__game.scene.isActive('MapleIslandScene') && window.__game.scene.isActive('UIScene'), null, { timeout: 30000 });
+  // 新遊戲的起始地圖可能改動：等任何一張有玩家的地圖場景與 HUD 都在
+  await page.waitForFunction(() => window.__game.scene.getScenes(true).some((s) => s.player) && window.__game.scene.isActive('UIScene'), null, { timeout: 30000 });
   await page.waitForTimeout(1200);
 }
 
@@ -209,7 +215,7 @@ async function run(browser, name, vp) {
   // ── 進入影之殿堂 ──────────────────────────────────────────────────────────
   await page.evaluate(() => {
     const g = window.__game; g.scene.getScenes(true).forEach((x) => { if (x.sys.settings.key !== 'UIScene' && !x.player) g.scene.stop(x.sys.settings.key); });
-    const sc = g.scene.getScene('MapleIslandScene'); const gs = g.registry.get('gameState');
+    const sc = g.scene.getScenes(true).find((x) => x.player); const gs = g.registry.get('gameState');
     window.__setJob('thief', 10);
     gs.quests = gs.quests || { active: [], completed: [] };
     sc.scene.stop('UIScene'); sc.scene.start('ShrineScene', { gameState: gs, spawnX: 700 });
