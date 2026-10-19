@@ -1,14 +1,27 @@
-:root { color-scheme: dark; }
+:root {
+  color-scheme: dark;
+  /* 安全區域（瀏海 / 圓角 / 手勢條）。獨立成變數，e2e 可覆寫來模擬；viewport-fit=cover 時 env() 才有值 */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+}
 * { box-sizing: border-box; }
 
+/* html / body 一律釘死成「目前可見視窗」大小：position: fixed 不隨網址列收放而捲動，
+   iOS 的橡皮筋捲動、Android 的下拉重新整理也都吃不到（overscroll-behavior + touch-action）。 */
 html, body {
   margin: 0;
+  position: fixed;
+  inset: 0;
   width: 100%;
   height: 100%;
   overflow: hidden;
   /* 手機：禁止下拉重新整理 / 橡皮筋捲動 / 雙擊縮放 / 長按選單 */
   overscroll-behavior: none;
   touch-action: none;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
   -webkit-user-select: none;
   user-select: none;
   -webkit-touch-callout: none;
@@ -16,21 +29,23 @@ html, body {
 }
 
 body {
-  display: flex;
-  align-items: center;
-  justify-content: center;
   background: linear-gradient(180deg, #23233b 0%, #151522 100%);
   font-family: "Microsoft JhengHei", sans-serif;
 }
 
-/* 畫布大小由 Phaser 的 Scale.FIT 控制（等比縮放進視窗、置中），這裡只提供容器 */
+/* 畫布容器 = 可見視窗扣掉安全區域。畫布大小由 Phaser 的 Scale.FIT 控制（等比縮放進容器），
+   置中只交給這裡的 flex（Phaser 的 autoCenter 關閉，否則兩邊各偏一半，畫布會歪向一側）。
+   不用 100vw / 100vh：手機瀏覽器的 100vh 包含網址列，會讓畫布下緣被切掉。 */
 #game-container {
-  width: 100vw;
-  height: 100vh;
-  height: 100dvh;
+  position: fixed;
+  top: var(--safe-top);
+  right: var(--safe-right);
+  bottom: var(--safe-bottom);
+  left: var(--safe-left);
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
 }
 #game-container canvas {
   image-rendering: auto;   /* 手繪美術縮小時用平滑取樣；pixelated 會出現鋸齒 */
@@ -38,7 +53,12 @@ body {
 }
 
 #loading {
-  position: absolute;
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   color: #fff;
   font-size: 18px;
   text-align: center;

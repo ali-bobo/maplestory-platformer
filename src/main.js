@@ -28,6 +28,7 @@ import { isTouchDevice } from './engine/device.js';
 import { mountTouchControls } from './engine/touchControls.js';
 import { audio } from './engine/audio.js';
 import { installContextGuard } from './engine/contextGuard.js';
+import { installViewportFit } from './engine/viewportFit.js';
 import { SKILL_SLOT_KEYS, BASIC_ATTACK, skillForSlot, jobOf } from './config/constants.js';
 import { TutorialScene } from './scenes/TutorialScene.js';
 import { debugSetJob } from './engine/jobChange.js';
@@ -38,10 +39,11 @@ const config = {
   width: 1280,
   height: 720,
   parent: 'game-container',
-  // 等比縮放進視窗並置中（桌機 / 手機橫放皆適用）；內部座標固定 1280×720
+  // 等比縮放進「可見視窗」（#game-container = 視窗扣安全區域，見 style.css）；內部座標固定 1280×720。
+  // 置中由 CSS flex 負責：autoCenter 與 flex 同時開會各偏一半（畫布歪向一側），所以這裡關掉。
   scale: {
     mode: Phaser.Scale.FIT,
-    autoCenter: Phaser.Scale.CENTER_BOTH,
+    autoCenter: Phaser.Scale.NO_CENTER,
     width: 1280,
     height: 720,
   },
@@ -138,6 +140,9 @@ window.addEventListener('pagehide', saveIfPlaying);
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'hidden') saveIfPlaying();
 });
+
+// 手機瀏覽器的可見視窗會在遊玩中變動（網址列收放、旋轉、進出全螢幕、軟鍵盤）：隨時重新貼合畫布
+installViewportFit(game);
 
 // WebGL context 被瀏覽器回收（手機 / iframe 記憶體吃緊）時：存檔、顯示提示，恢復後自動收起，沒恢復給重新載入鈕
 installContextGuard(game, { saveNow: saveIfPlaying });
