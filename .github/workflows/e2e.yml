@@ -20,7 +20,7 @@ jobs:
   smoke:
     name: Browser smoke tests
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -83,6 +83,12 @@ jobs:
         if: ${{ !cancelled() }}
         timeout-minutes: 7
         run: timeout 400 node e2e/ux.cjs "$SHOTS"
+
+      # 手機 / 平板 / 桌機版面：挑代表尺寸（最矮的手機橫向、常見手機、直向提示、iPad、桌機）
+      - name: mobile-layout.cjs (phone / tablet / desktop layout)
+        if: ${{ !cancelled() }}
+        timeout-minutes: 8
+        run: timeout 460 node e2e/mobile-layout.cjs "$SHOTS" p667x300 p844x390 portrait tab1024x768 desk
 
       - name: Upload screenshots
         if: ${{ failure() }}

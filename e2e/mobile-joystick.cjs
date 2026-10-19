@@ -38,7 +38,7 @@ const check = (n, c, x = '') => { console.log((c ? 'PASS' : 'FAIL') + ' - ' + n 
   check('預設設定 touchControls = joystick', await page.evaluate(() => window.__settings.get().touchControls === 'joystick'));
 
   const state = () => page.evaluate(() => {
-    const g = window.__game; const sc = g.scene.getScene('MapleIslandScene');
+    const g = window.__game; const sc = g.scene.getScene('SkyIslandScene');
     const p = sc && sc.player; const gs = g.registry.get('gameState');
     return { x: p.x, y: p.y, vx: p.body.velocity.x, vy: p.body.velocity.y, jl: p.jumpsLeft, cdATK: gs.skillCooldowns.ATK, ground: p.body.blocked.down,
       left: p.cursors.left.isDown, right: p.cursors.right.isDown, down: p.cursors.down.isDown, up: p.cursors.up.isDown, alt: p.keyAlt.isDown,
@@ -50,10 +50,13 @@ const check = (n, c, x = '') => { console.log((c ? 'PASS' : 'FAIL') + ' - ' + n 
   const R = Math.round(unitPx * 1.3);
   // 計跳躍次數：包住 setVelocityY(-520)
   await page.evaluate(() => {
-    const p = window.__game.scene.getScene('MapleIslandScene').player;
+    const p = window.__game.scene.getScene('SkyIslandScene').player;
     window.__jumps = 0;
     const orig = p.setVelocityY.bind(p);
     p.setVelocityY = (v) => { if (v === -520) window.__jumps++; return orig(v); };
+    // 受擊會擊退與硬直（鎖輸入），還可能把角色推進傳送門換場景（Player 物件換掉，計數就斷了）：
+    // 這裡只測觸控輸入，所以讓角色不受傷害並放到離傳送門遠的位置（受擊反應由 e2e/savequit.cjs 測）
+    p.takeDamage = () => {}; p.body.reset(400, p.y); p.setVelocity(0, 0);
   });
   const landed = async () => { for (let i = 0; i < 40; i++) { if ((await state()).ground) return; await wait(100); } };
   await page.evaluate(() => { const gs = window.__game.registry.get('gameState'); gs.hp = gs.maxHp; });
@@ -345,8 +348,9 @@ const check = (n, c, x = '') => { console.log((c ? 'PASS' : 'FAIL') + ' - ' + n 
   await wait(700);
   await page.screenshot({ path: SP + '/j-13-settings.png' });
   const toPx = async (gx, gy) => { const c = await page.evaluate(() => { const r = document.querySelector('canvas').getBoundingClientRect(); return { l: r.left, t: r.top, w: r.width, h: r.height }; }); return { x: c.l + gx * c.w / 1280, y: c.t + gy * c.h / 720 }; };
-  // 視窗 x0 = (1280-760)/2 = 260；欄位 colX = x0+36，trackW = 300，列 y = y0(14) + 264 + 4*44 + 4 + 50 = 508（+19 為列中心）
-  const segBtns = async (id) => toPx(260 + 36 + 300 - 2 * 102 + (id === 'joystick' ? 0 : 102) + 49, 14 + 264 + 176 + 4 + 50 + 19);
+  // 視窗 x0 = (1280-760)/2 = 260；欄位 colX = x0+36，trackW = 300；觸控裝置視窗 y0 = 8，
+  // 列 y = 介面大小列(y0 + 264 + 4*44 + 4) + 難度列 52 + 難度說明 66 = 570（+19 為列中心）
+  const segBtns = async (id) => toPx(260 + 36 + 300 - 2 * 102 + (id === 'joystick' ? 0 : 102) + 49, 8 + 264 + 176 + 4 + 52 + 66 + 19);
   const pb = await segBtns('buttons');
   await page.touchscreen.tap(pb.x, pb.y);
   await wait(400);

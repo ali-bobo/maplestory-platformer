@@ -71,18 +71,18 @@ async function phoneUiChecks(browser, vw, vh, tag) {
   }, [getObjs.toString()]);
 
   // 1. 一般 NPC 對話：用手指點「互動」鈕開啟
-  await mp.evaluate(() => { const s = window.__game.scene.getScene('MapleIslandScene'); s.player.setPosition(250, s.player.y); });
+  await mp.evaluate(() => { const s = window.__game.scene.getScene('SkyIslandScene'); s.player.setPosition(250, s.player.y); });
   await mp.waitForTimeout(600);
   const ic = await mp.evaluate(() => { const r = document.querySelector('.tc-interact').getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; });
   await tapPage(ic.x, ic.y);
   await mp.waitForTimeout(500);
-  check(`${tag} 手機：點互動鈕開啟 NPC 對話`, await mp.evaluate(() => !!window.__game.scene.getScene('MapleIslandScene')._npcDialog));
-  const dlgObjs = () => { const d = window.__game.scene.getScene('MapleIslandScene')._npcDialog; return [d.title, d.msgText, d.close, ...(d.extras || [])]; };
+  check(`${tag} 手機：點互動鈕開啟 NPC 對話`, await mp.evaluate(() => !!window.__game.scene.getScene('SkyIslandScene')._npcDialog));
+  const dlgObjs = () => { const d = window.__game.scene.getScene('SkyIslandScene')._npcDialog; return [d.title, d.msgText, d.close, ...(d.extras || [])]; };
   let m = await measure(dlgObjs);
   check(`${tag} 手機：NPC 對話文字 >= 12 CSS px`, m.minFont >= MIN_FONT, `最小 ${m.minFont.toFixed(1)}px（${m.texts} 段）`);
   check(`${tag} 手機：NPC 對話關閉鈕觸控區 >= 44 CSS px`, m.hits >= 1 && m.minHitH >= MIN_HIT, `高 ${m.minHitH.toFixed(1)} 寬 ${m.minHitW.toFixed(1)}`);
   const inside = await mp.evaluate(() => {
-    const s = window.__game.scene.getScene('MapleIslandScene'); const d = s._npcDialog; const cam = s.cameras.main;
+    const s = window.__game.scene.getScene('SkyIslandScene'); const d = s._npcDialog; const cam = s.cameras.main;
     const b = d.bg; const c = d.close;
     return { top: b.y - cam.scrollY, bottom: b.y + b.height - cam.scrollY, closeBottom: c.y + c.displayHeight / 2 - cam.scrollY, msgBottom: d.msgText.y + d.msgText.height - cam.scrollY, closeTop: c.y - c.displayHeight / 2 - cam.scrollY };
   });
@@ -90,14 +90,14 @@ async function phoneUiChecks(browser, vw, vh, tag) {
   await mp.screenshot({ path: `${SP}/ux-m-${tag}-npc.png` });
   // 用手指點關閉鈕
   let r = await rectOf();
-  let cp = await mp.evaluate(() => { const s = window.__game.scene.getScene('MapleIslandScene'); const c = s._npcDialog.close; return { x: c.x - s.cameras.main.scrollX, y: c.y - s.cameras.main.scrollY }; });
+  let cp = await mp.evaluate(() => { const s = window.__game.scene.getScene('SkyIslandScene'); const c = s._npcDialog.close; return { x: c.x - s.cameras.main.scrollX, y: c.y - s.cameras.main.scrollY }; });
   let pp = gameToPage(r, cp.x, cp.y);
   await tapPage(pp.x, pp.y);
-  check(`${tag} 手機：手指點關閉鈕可關掉 NPC 對話`, await mp.evaluate(() => !window.__game.scene.getScene('MapleIslandScene')._npcDialog));
+  check(`${tag} 手機：手指點關閉鈕可關掉 NPC 對話`, await mp.evaluate(() => !window.__game.scene.getScene('SkyIslandScene')._npcDialog));
 
   // 2. 帶選項的對話（影之長老選職業）
   await mp.evaluate(() => {
-    const s = window.__game.scene.getScene('MapleIslandScene'); const gs = window.__game.registry.get('gameState');
+    const s = window.__game.scene.getScene('SkyIslandScene'); const gs = window.__game.registry.get('gameState');
     gs.job = 'thief'; gs.quests = gs.quests || { active: [], completed: [] };
     gs.quests.active = [{ id: 'job_choose', progress: 0 }];
     s._openNpcDialog({ role: 'jobAdvisor', name: '影之長老' });
@@ -105,25 +105,25 @@ async function phoneUiChecks(browser, vw, vh, tag) {
   await mp.waitForTimeout(500);
   m = await measure(dlgObjs);
   check(`${tag} 手機：選項對話字級 >= 12、選項與關閉鈕 >= 44 CSS px`, m.minFont >= MIN_FONT && m.minHitH >= MIN_HIT && m.hits >= 3, `字 ${m.minFont.toFixed(1)} 高 ${m.minHitH.toFixed(1)} 可點 ${m.hits}`);
-  const ins2 = await mp.evaluate(() => { const s = window.__game.scene.getScene('MapleIslandScene'); const b = s._npcDialog.bg; return { top: b.y - s.cameras.main.scrollY, bottom: b.y + b.height - s.cameras.main.scrollY }; });
+  const ins2 = await mp.evaluate(() => { const s = window.__game.scene.getScene('SkyIslandScene'); const b = s._npcDialog.bg; return { top: b.y - s.cameras.main.scrollY, bottom: b.y + b.height - s.cameras.main.scrollY }; });
   check(`${tag} 手機：選項對話面板在 HUD 列之上的畫面內`, ins2.top >= 0 && ins2.bottom <= 600, JSON.stringify(ins2));
   await mp.screenshot({ path: `${SP}/ux-m-${tag}-choices.png` });
-  await mp.evaluate(() => window.__game.scene.getScene('MapleIslandScene')._closeNpcDialog());
+  await mp.evaluate(() => window.__game.scene.getScene('SkyIslandScene')._closeNpcDialog());
 
   // 3. 商店
-  await mp.evaluate(() => window.__game.scene.getScene('MapleIslandScene')._openNpcDialog({ name: '雜貨商', shop: true, dialog: ['歡迎光臨！'] }));
+  await mp.evaluate(() => window.__game.scene.getScene('SkyIslandScene')._openNpcDialog({ name: '雜貨商', shop: true, dialog: ['歡迎光臨！'] }));
   await mp.waitForTimeout(500);
-  const shopObjs = () => window.__game.scene.getScene('MapleIslandScene')._npcDialog.objects;
+  const shopObjs = () => window.__game.scene.getScene('SkyIslandScene')._npcDialog.objects;
   m = await measure(shopObjs);
   check(`${tag} 手機：商店文字 >= 12 CSS px，購買 / 關閉鈕 >= 44 CSS px`, m.minFont >= MIN_FONT && m.minHitH >= MIN_HIT, `字 ${m.minFont.toFixed(1)} 高 ${m.minHitH.toFixed(1)}`);
-  const ins3 = await mp.evaluate(() => { const o = window.__game.scene.getScene('MapleIslandScene')._npcDialog.objects[0]; return { top: o.y, bottom: o.y + o.height }; });
+  const ins3 = await mp.evaluate(() => { const o = window.__game.scene.getScene('SkyIslandScene')._npcDialog.objects[0]; return { top: o.y, bottom: o.y + o.height }; });
   check(`${tag} 手機：商店面板在 HUD 列之上的畫面內`, ins3.top >= 0 && ins3.bottom <= 600, JSON.stringify(ins3));
   await mp.screenshot({ path: `${SP}/ux-m-${tag}-shop.png` });
   // 關閉鈕 = 最後一塊 nineslice 底板
-  cp = await mp.evaluate(() => { const o = window.__game.scene.getScene('MapleIslandScene')._npcDialog.objects; const plates = o.filter((x) => x.type === 'NineSlice'); const c = plates[plates.length - 1]; return { x: c.x, y: c.y }; });
+  cp = await mp.evaluate(() => { const o = window.__game.scene.getScene('SkyIslandScene')._npcDialog.objects; const plates = o.filter((x) => x.type === 'NineSlice'); const c = plates[plates.length - 1]; return { x: c.x, y: c.y }; });
   r = await rectOf(); pp = gameToPage(r, cp.x, cp.y);
   await tapPage(pp.x, pp.y);
-  check(`${tag} 手機：手指點商店關閉鈕可關掉`, await mp.evaluate(() => !window.__game.scene.getScene('MapleIslandScene')._npcDialog));
+  check(`${tag} 手機：手指點商店關閉鈕可關掉`, await mp.evaluate(() => !window.__game.scene.getScene('SkyIslandScene')._npcDialog));
 
   // 4. 世界地圖浮層
   await mp.evaluate(() => { window.__game.scene.getScene('UIScene')._worldMap.show(); });
@@ -503,7 +503,8 @@ async function phoneUiChecks(browser, vw, vh, tag) {
     k: window.__game.scene.getScene('UIScene')._popup.container ? window.__game.scene.getScene('UIScene')._popup.container.scaleX : 1,
   }));
   check('手機：開技能視窗時，跳 / 搖桿 / 攻擊鈕隱藏，暫停鈕保留', modal.type === 'skills' && modal.cls && modal.jump === 'none' && modal.stick === 'none' && modal.atk === 'none' && modal.pause !== 'none', JSON.stringify(modal));
-  check('手機：技能視窗整體放大', modal.k > 1.3, `scale ${modal.k}`);
+  // 技能視窗在觸控裝置上標題列加高（關閉鈕 >= 44 CSS px），可用高度固定，所以倍率剛好落在 1.3
+  check('手機：技能視窗整體放大', modal.k >= 1.3, `scale ${modal.k}`);
   await mp.screenshot({ path: `${SP}/ux-m-skills.png` });
   // 找出第一個「+」的位置並用手指點
   const plus = await mp.evaluate(() => {

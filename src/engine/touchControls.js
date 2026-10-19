@@ -253,7 +253,8 @@ export function mountTouchControls({ canvasProvider, hudBottomRatio = 120 / 720,
     if (res.left) keys.release('right'); else if (res.right) keys.release('left');
     setKey('left', res.left); setKey('right', res.right); setKey('down', res.down);
     if (res.jump) {
-      pulseKey('ALT');
+      // 送「上」：↑ 在任何鍵位設定下都會跳（跳躍鍵預設是 Q、可改，Alt 已不是跳躍鍵且會被瀏覽器防護攔下）
+      pulseKey('up');
       joyKnob.classList.add('tc-jumped');
       setTimeout(() => joyKnob.classList.remove('tc-jumped'), 160);
     }

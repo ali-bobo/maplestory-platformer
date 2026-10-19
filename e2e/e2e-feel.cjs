@@ -22,7 +22,7 @@ const check = (n, c, x = '') => { console.log((c ? 'PASS' : 'FAIL') + ' - ' + n 
   // 在頁面內建立虛擬時鐘與按鍵工具
   await page.evaluate(() => {
     const g = window.__game; g.loop.sleep();
-    const sc = g.scene.getScene('MapleIslandScene'); const p = sc.player; const gs = g.registry.get('gameState');
+    const sc = g.scene.getScene('SkyIslandScene'); const p = sc.player; const gs = g.registry.get('gameState');
     let t = performance.now();
     const KC = { up: ['ArrowUp', 38], space: ['Space', 32], z: ['KeyZ', 90] };
     const ev = (type, k) => window.dispatchEvent(new KeyboardEvent(type, { code: KC[k][0], key: KC[k][0], keyCode: KC[k][1], which: KC[k][1], bubbles: true }));
