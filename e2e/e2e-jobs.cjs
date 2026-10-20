@@ -274,7 +274,8 @@ const BASE = `http://127.0.0.1:${PORT}/index.html?debug=1`;
   await page.waitForTimeout(500);
   await ev(() => { window.__m._smoked = false; });   // 清掉上面手動設的旗標，改由 Monster.update 的煙霧偵測自己判定
   const flag = await ev(() => { const sc = window.__game.scene.getScene('SkyIslandScene'); const p = sc.player; const m = window.__m; const z = p.smokeZones[0]; m.setPosition(z.x + 30, p.y); m.body.setVelocity(0, 0); return null; });
-  await page.waitForTimeout(500);
+  // 怪物 AI 每 3 幀才判定一次（出招中更晚），CI 無頭瀏覽器只有約 8 FPS：等旗標出現，最多 3.5 秒（煙霧持續 7 秒）
+  await page.waitForFunction(() => window.__m && window.__m._smoked === true, null, { timeout: 3500 }).catch(() => {});
   check('迷煙彈：煙霧內的敵人被標記為 smoked（AI 不追擊）', (await state()).smoked === true);
 
   // 繼承技能（暗影步伐 / 暗影漩渦 / 影分身）：影分身用俠盜的動作圖
