@@ -49,8 +49,13 @@ const BASE = `http://127.0.0.1:${PORT}/index.html?debug=1`;
       poison: m._poison ? m._poison.stacks : 0, mark: !!m._mark, smoked: m._smoked, zones: (p.smokeZones || []).length, pickups: sc.pickups.getChildren().length, potions: { ...gs.potions } };
   });
   const sampleTex = (ms) => ev(async (ms) => {
-    const sc = window.__game.scene.getScene('SkyIslandScene'); const set = new Set(); const t0 = performance.now();
-    while (performance.now() - t0 < ms) { set.add(sc.player.texture.key); await new Promise((r) => setTimeout(r, 25)); }
+    // 輪詢之外也記下每次 setTexture：只維持一幀的姿勢（如 90 ms 的蹲伏）在慢 CI 上可能落在兩次輪詢之間
+    const p = window.__game.scene.getScene('SkyIslandScene').player; const set = new Set([p.texture.key]); const t0 = performance.now();
+    const own = Object.prototype.hasOwnProperty.call(p, 'setTexture'); const orig = p.setTexture;
+    p.setTexture = function (key, frame) { if (typeof key === 'string') set.add(key); return orig.call(this, key, frame); };
+    try {
+      while (performance.now() - t0 < ms) { set.add(p.texture.key); await new Promise((r) => setTimeout(r, 25)); }
+    } finally { if (own) p.setTexture = orig; else delete p.setTexture; }
     return [...set];
   }, ms);
   // 按住到遊戲至少跑過 2 幀才放開：無頭瀏覽器只有約 8~10 FPS（機器忙時更低），固定 160 ms 的按鍵偶爾落在兩幀之間而沒被讀到
