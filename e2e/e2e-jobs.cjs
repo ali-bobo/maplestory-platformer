@@ -70,7 +70,8 @@ const BASE = `http://127.0.0.1:${PORT}/index.html?debug=1`;
 
   // ───────────────────────── 刺客 ─────────────────────────
   check('__setJob(assassin, 30)', await setJob('assassin', 30));
-  await page.waitForTimeout(600);
+  // 新職業的動作圖是背景載入（載好前先用盜賊圖頂著）：等貼圖換好，CI 慢機器上 600 ms 不一定夠
+  await page.waitForFunction(() => window.__game.scene.getScene('SkyIslandScene').player.texture.key.startsWith('player_assassin_'), null, { timeout: 10000 }).catch(() => {});
   let s = await state();
   check('刺客：待機動作圖是 player_assassin_*', s.tex.startsWith('player_assassin_'), s.tex);
   check('刺客：HUD 職業名與頭像', await page.waitForFunction(() => { const u = window.__game.scene.getScene('UIScene'); return u._classText.text.includes('刺客') && u._portrait.texture.key === 'portrait_assassin'; }, null, { timeout: 5000 }).then(() => true, () => false));
@@ -160,7 +161,8 @@ const BASE = `http://127.0.0.1:${PORT}/index.html?debug=1`;
 
   // ───────────────────────── 切回盜賊 / 俠盜 ─────────────────────────
   check('__setJob(bandit, 30)', await setJob('bandit', 30));
-  await page.waitForTimeout(600);
+  // 新職業的動作圖是背景載入（載好前先用盜賊圖頂著）：等貼圖換好，CI 慢機器上 600 ms 不一定夠
+  await page.waitForFunction(() => window.__game.scene.getScene('SkyIslandScene').player.texture.key.startsWith('player_bandit_'), null, { timeout: 10000 }).catch(() => {});
   s = await state();
   check('俠盜：待機動作圖是 player_bandit_*', s.tex.startsWith('player_bandit_'), s.tex);
   check('俠盜：HUD 職業名與頭像', await page.waitForFunction(() => { const u = window.__game.scene.getScene('UIScene'); return u._classText.text.includes('俠盜') && u._portrait.texture.key === 'portrait_bandit'; }, null, { timeout: 5000 }).then(() => true, () => false));
